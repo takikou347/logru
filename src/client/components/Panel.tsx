@@ -1,4 +1,5 @@
 import { type ComponentProps, type ReactNode, useId } from "react";
+import type { AttendeeResponse } from "../../shared/api-types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -63,9 +64,23 @@ export function Empty({ className, ...props }: ComponentProps<"div">) {
   );
 }
 
-/** 色の点。色の名前を渡す。色だけで見分けさせないよう、近くに名前を出すこと。0012 */
-export function Dot({ color, className }: { color: string; className?: string }) {
-  return <span className={cn("swatch-dot inline-block size-2", `c-${color}`, className)} aria-hidden="true" />;
+/**
+ * 色の点。色の名前を渡す。色だけで見分けさせないよう、近くに名前を出すこと。0012
+ * @param response 招待への自分の返事。返事待ちは塗らずに輪だけ、参加しないは薄くする。#28
+ */
+export function Dot({ color, className, response }: { color: string; className?: string; response?: AttendeeResponse }) {
+  return (
+    <span
+      className={cn(
+        "swatch-dot inline-block size-2",
+        `c-${color}`,
+        response === "pending" && "bg-transparent! shadow-[inset_0_0_0_1.5px_var(--c)]",
+        response === "declined" && "opacity-40",
+        className,
+      )}
+      aria-hidden="true"
+    />
+  );
 }
 
 /** 入力の下に出す文。error なら朱にする */

@@ -1,7 +1,31 @@
 import { Hono } from "hono";
+import { secureHeaders } from "hono/secure-headers";
+import { type AppEnv, HttpError, sameOrigin } from "./app";
+import { createAuth } from "./auth";
+import { createDb } from "./db/client";
+import { devRoutes } from "./routes/dev";
 
-const app = new Hono<{ Bindings: Env }>().basePath("/api");
+const app = new Hono<AppEnv>().basePath("/api");
 
-app.get("/health", (c) => c.json({ ok: true, env: c.env.ENVIRONMENT }));
+app.use("*", secureHeaders());
+app.use("*", async (c, next) => {
+  const db = createDb(c.env.DB);
+  c.set("db", db);
+  c.set("auth", createAuth(c.env, db));
+  await next();
+});
+
+app.get("/health", (c) => c.json({ ok: true }));
+app.on(["GET", "POST"], "/auth/*", (c) => c.get("auth").handler(c.req.raw));
+
+app.use("*", sameOrigin);
+app.route("/dev", devRoutes);
+
+app.notFound((c) => c.json({ error: "見つかりません。" }, 404));
+app.onError((err, c) => {
+  if (err instanceof HttpError) return c.json({ error: err.message }, err.status);
+  console.error(err);
+  return c.json({ error: "サーバーで問題が起きました。時間をおいて、もう一度試してください。" }, 500);
+});
 
 export default app;

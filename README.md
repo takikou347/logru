@@ -73,7 +73,8 @@ pnpm e2e
 
 ログインの鍵は要らない。Worker は Google が公開している鍵で ID トークンを確かめる。
 
-外部のカレンダーは、Cron Triggers で 30 分おきに読み直す。`wrangler.jsonc` の `triggers.crons` にある。
+外部のカレンダーは、Cron Triggers で 5 分おきに読み直す。`wrangler.jsonc` の `triggers.crons` にある。
+1 回に読むのは、読みに行ってから時間のたった順に 5 つまで。登録が全部で 5 つを超えると、1 つあたりの間隔は 5 分より延びる。
 
 その後は、次の 1 行で出す。移行を当ててから Worker を置き換える。
 

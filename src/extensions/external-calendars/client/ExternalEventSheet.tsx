@@ -49,7 +49,7 @@ export function ExternalEventSheet({ target, onClose }: ItemEditorProps) {
           </span>
         </PanelRow>
       </div>
-      <FieldMessage>直すときは、Google カレンダーで直してください。30 分ほどで、ここにも出ます。</FieldMessage>
+      <FieldMessage>直すときは、Google カレンダーで直してください。5 分ほどで、ここにも出ます。すぐに出したいときは、カレンダーの画面の読み直しのボタンを押してください。</FieldMessage>
       <div className="flex justify-end">
         <Button type="button" variant="secondary" onClick={onClose}>
           閉じる

@@ -40,7 +40,7 @@ app.onError((err, c) => {
 
 export default {
   fetch: app.fetch,
-  /** Cron Triggers。wrangler.jsonc の triggers.crons で 30 分おきに呼ぶ。拡張の定期の処理を順に動かす */
+  /** Cron Triggers。wrangler.jsonc の triggers.crons で 5 分おきに呼ぶ。拡張の定期の処理を順に動かす */
   async scheduled(_controller, env, ctx) {
     const db = createDb(env.DB);
     for (const x of serverExtensions) {

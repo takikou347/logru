@@ -1,23 +1,38 @@
 /**
  * 外部のカレンダーを読み、予定の表を入れ替える。
- * 登録したとき、「今すぐ読み直す」を押したとき、Cron Triggers で 30 分おきに呼ぶ。
+ * 登録したとき、「今すぐ読み直す」やカレンダーの画面の読み直しを押したとき、Cron Triggers で 5 分おきに呼ぶ。
  */
 import { asc, eq } from "drizzle-orm";
 import type { DB } from "../../../server/core/db/client";
 import { decryptText } from "./crypto";
-import { type ParsedEvent, parseIcs } from "./ics";
+import { DEFAULT_TIME_ZONE, type ParsedEvent, parseIcs, wallTimeToUtc } from "./ics";
 import { type ExternalCalendarRow, externalCalendars } from "./schema";
 
 /** 読む量の上限。これを超えるカレンダーは読まない */
 export const MAX_BYTES = 5 * 1024 * 1024;
 /** 読むのを待つ時間 */
 const FETCH_TIMEOUT_MS = 15_000;
-/** 読む期間。今日から前に 3 か月、後に 6 か月 */
-const MONTH_MS = 31 * 24 * 60 * 60 * 1000;
-export const WINDOW_BEFORE_MS = 3 * MONTH_MS;
-export const WINDOW_AFTER_MS = 6 * MONTH_MS;
-/** 1 回の Cron で読むカレンダーの数。CPU 時間の上限があるので、古い順に少しずつ読む */
-const CRON_BATCH = 5;
+/**
+ * 1 回の Cron で読むカレンダーの数。CPU 時間の上限があるので、古い順に少しずつ読む。
+ * Cron は 5 分おきなので、登録が全部で 5 つまでなら、どれも 5 分ごとに読み直す
+ */
+export const CRON_BATCH = 5;
+
+/**
+ * 読む期間。日本時間で、今月の 1 日の 0 時から、2 か月先の月の末まで。
+ * 例: 9 月 21 日なら、9 月 1 日 0 時から 12 月 1 日 0 時の前まで。to は含まない
+ * @param now いまの時刻。ミリ秒の UTC
+ */
+export function syncWindow(now: number): { from: number; to: number } {
+  const t = new Date(now + 9 * 60 * 60 * 1000);
+  const y = t.getUTCFullYear();
+  const m = t.getUTCMonth() + 1;
+  const from = wallTimeToUtc(y, m, 1, 0, 0, 0, DEFAULT_TIME_ZONE)!;
+  const endY = y + Math.floor((m + 2) / 12);
+  const endM = ((m + 2) % 12) + 1;
+  const to = wallTimeToUtc(endY, endM, 1, 0, 0, 0, DEFAULT_TIME_ZONE)!;
+  return { from, to };
+}
 
 /** 画面にそのまま出せる、読めなかった理由 */
 export class SyncError extends Error {}
@@ -135,7 +150,7 @@ export async function syncCalendar(
     const text = await fetchIcs(url, fetcher);
     let events: ParsedEvent[];
     try {
-      events = parseIcs(text, { from: now.getTime() - WINDOW_BEFORE_MS, to: now.getTime() + WINDOW_AFTER_MS });
+      events = parseIcs(text, syncWindow(now.getTime()));
     } catch {
       throw new SyncError("iCal の形として読めませんでした。「iCal 形式の非公開 URL」か確かめてください。");
     }

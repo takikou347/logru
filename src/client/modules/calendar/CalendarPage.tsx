@@ -10,12 +10,15 @@ import { Dot } from "@/components/Panel";
 import { Segmented } from "@/components/Segmented";
 import { Button } from "@/components/ui/button";
 import { groupColor } from "@/lib/colors";
+import { cn } from "@/lib/utils";
 import { addDays, addMonths, dateKey, monthGrid, onDay, parseDateKey, sameDay, startOfDay, weekDays } from "@/lib/dates";
+import { useMemberVisibility } from "@/lib/mutations";
 import { useCalendar, useGroups, useMe } from "@/lib/queries";
 import { DayPanel, ItemList } from "./DayItems";
 import { MonthGrid } from "./MonthGrid";
 import { RefreshButton } from "./RefreshButton";
-import { decorate, poolColorsOf, type ViewItem } from "./model";
+import { byPeople, decorate, hiddenPeople, peopleOf, poolColorsOf, type Person, type ViewItem } from "./model";
+import { PeopleChip, PersonToggles } from "./PeopleFilter";
 import { itemKey, useUndoableDelete } from "./use-undoable-delete";
 import { WeekList } from "./WeekList";
 
@@ -40,9 +43,9 @@ function useToday(): Date {
 }
 
 /**
- * カレンダーの画面。月、週、日で切り替え、グループで絞る。F-05〜F-09
+ * カレンダーの画面。月、週、日で切り替え、グループと人で絞る。F-05〜F-09、F-20
  *
- * 表示の単位、選んだ日、絞り込みは URL に持つ。読み込み直しても、共有しても同じ画面になる。
+ * 表示の単位、選んだ日、グループの絞り込みは URL に持つ。出す人は自分の画面だけの設定として D1 に持つ。読み込み直しても、共有しても同じ画面になる。
  * 項目は拡張から集めたもの。押すと、その項目を出した拡張の編集のシートを開く。
  */
 export function CalendarPage() {
@@ -90,12 +93,16 @@ export function CalendarPage() {
   const calendar = useCalendar(from, to);
 
   const allGroups = useMemo(() => groups.data ?? [], [groups.data]);
+  const people = useMemo(() => (me.data ? peopleOf(allGroups, me.data) : []), [allGroups, me.data]);
+  const hiddenIds = useMemo(() => hiddenPeople(me.data?.hiddenMembers ?? [], people), [me.data, people]);
+  const { mutate: setVisibility } = useMemberVisibility();
+  const togglePerson = useCallback((p: Person, hide: boolean) => setVisibility({ userId: p.id, hidden: hide }), [setVisibility]);
   const items = useMemo<ViewItem[]>(() => {
     if (!calendar.data || !me.data) return [];
-    return decorate(calendar.data, allGroups, me.data).filter(
+    return byPeople(decorate(calendar.data, allGroups, me.data), hiddenIds).filter(
       (i) => !hidden.has(itemKey(i)) && (!groupFilter || i.groupId === groupFilter),
     );
-  }, [calendar.data, allGroups, me.data, hidden, groupFilter]);
+  }, [calendar.data, allGroups, me.data, hidden, groupFilter, hiddenIds]);
 
   const move = useCallback(
     (dir: -1 | 1) => {
@@ -162,14 +169,22 @@ export function CalendarPage() {
       poolColors={poolColorsOf(allGroups, me.data)}
       poolFocus={focusIndex >= 0 ? focusIndex : null}
       side={
-        <div role="group" aria-label="表示するグループ">
-          <SideHeading>表示するグループ</SideHeading>
-          {filters(({ key, pressed, onClick, children }) => (
-            <button key={key} type="button" className={sideItemClass} aria-pressed={pressed} onClick={onClick}>
-              {children}
-            </button>
-          ))}
-        </div>
+        <>
+          <div role="group" aria-label="表示するグループ">
+            <SideHeading>表示するグループ</SideHeading>
+            {filters(({ key, pressed, onClick, children }) => (
+              <button key={key} type="button" className={sideItemClass} aria-pressed={pressed} onClick={onClick}>
+                {children}
+              </button>
+            ))}
+          </div>
+          {people.length > 0 && (
+            <div role="group" aria-label="表示する人">
+              <SideHeading>表示する人</SideHeading>
+              <PersonToggles people={people} hidden={hiddenIds} onToggle={togglePerson} rowClass={cn(sideItemClass, "aria-pressed:bg-transparent")} />
+            </div>
+          )}
+        </>
       }
     >
       <header className="glass flex min-h-[58px] items-center justify-between gap-2 rounded-full py-1.5 pr-1.5 pl-5">
@@ -209,6 +224,7 @@ export function CalendarPage() {
             {children}
           </Chip>
         ))}
+        {people.length > 0 && <PeopleChip people={people} hidden={hiddenIds} onToggle={togglePerson} />}
       </nav>
 
       {calendar.error && <Notice error>{calendar.error.message}</Notice>}

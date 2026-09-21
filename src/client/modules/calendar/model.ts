@@ -20,6 +20,48 @@ export function decorate(items: CalendarItem[], groups: GroupSummary[], me: Me):
   });
 }
 
+/** 「表示する人」に並べる 1 人 */
+export type Person = { id: string; name: string; color: string; isMe: boolean };
+
+/**
+ * 「表示する人」に並べる人。自分を先頭に、共有のグループに入っているほかの人を名前の順に 1 人ずつ。F-20
+ * @param groups 入っているグループ
+ * @param me 自分の情報
+ */
+export function peopleOf(groups: GroupSummary[], me: Me): Person[] {
+  const others = new Map<string, Person>();
+  for (const g of groups) {
+    if (g.isPersonal) continue;
+    for (const m of g.members) {
+      if (m.id === me.user.id || others.has(m.id)) continue;
+      others.set(m.id, { id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs), isMe: false });
+    }
+  }
+  const self: Person = { id: me.user.id, name: me.user.name, color: memberColor(me.user.id, me.settings.userColor, me.colorPrefs), isMe: true };
+  return [self, ...[...others.values()].sort((a, b) => a.name.localeCompare(b.name, "ja"))];
+}
+
+/**
+ * 出さないと決めた人の ID のうち、いま並べている人だけを返す。
+ * グループを抜けた人は選び直せないので、その人の予定は出したままにする。
+ * @param hiddenMembers 出さないと決めた人の ID
+ * @param people 「表示する人」に並べている人
+ */
+export function hiddenPeople(hiddenMembers: string[], people: Person[]): Set<string> {
+  const ids = new Set(people.map((p) => p.id));
+  return new Set(hiddenMembers.filter((id) => ids.has(id)));
+}
+
+/**
+ * 出さない人が作った項目を除く。作った人が分からない項目は出す。F-20
+ * @param items カレンダーの項目
+ * @param hidden 出さない人の ID
+ */
+export function byPeople<T extends Pick<CalendarItem, "createdBy">>(items: T[], hidden: Set<string>): T[] {
+  if (hidden.size === 0) return items;
+  return items.filter((i) => !i.createdBy || !hidden.has(i.createdBy));
+}
+
 /** インクだまりに使う 3 色。自分だけのグループを先頭に、グループの並び順 */
 export function poolColorsOf(groups: GroupSummary[], me: Me | undefined): string[] {
   if (!me) return ["wakatake", "yamabuki", "asagi"];

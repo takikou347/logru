@@ -2,7 +2,7 @@ import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } 
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { AuthCard, AuthShell, AuthTitle, Notice } from "@/components/AuthShell";
-import { BackButton } from "@/components/BackButton";
+import { BackLink } from "@/components/BackLink";
 import { Field } from "@/components/Field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -57,8 +57,9 @@ export function SignupPage() {
   }
 
   return (
-    <AuthShell back={<BackButton to={next !== "/" ? `/login?next=${encodeURIComponent(next)}` : "/login"} label="ログインの画面へ戻る" />}>
+    <AuthShell>
       <AuthCard>
+        <BackLink to={next !== "/" ? `/login?next=${encodeURIComponent(next)}` : "/login"}>ログインの画面へ戻る</BackLink>
         <AuthTitle>アカウントを作る</AuthTitle>
         <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
           <Field label="表示名" hint="グループのメンバーに見える名前です。">

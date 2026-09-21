@@ -2,7 +2,7 @@ import { FirebaseError } from "firebase/app";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { type FormEvent, useState } from "react";
 import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/AuthShell";
-import { BackButton } from "@/components/BackButton";
+import { BackLink } from "@/components/BackLink";
 import { Field } from "@/components/Field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,14 +37,16 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <AuthShell back={<BackButton to="/login" label="ログインの画面へ戻る" />}>
+    <AuthShell>
       {sent ? (
         <AuthCard aria-live="polite">
+          <BackLink to="/login">ログインの画面へ戻る</BackLink>
           <AuthTitle>メールを送りました</AuthTitle>
           <AuthText>{email} が登録されていれば、再設定のリンクが届きます。リンクから新しいパスワードを入れてください。</AuthText>
         </AuthCard>
       ) : (
         <AuthCard>
+          <BackLink to="/login">ログインの画面へ戻る</BackLink>
           <AuthTitle>パスワードを再設定する</AuthTitle>
           <AuthText>登録したメールアドレスに、再設定のリンクを送ります。</AuthText>
           <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>

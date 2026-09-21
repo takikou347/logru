@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import { type AppEnv, HttpError, sameOrigin } from "./app";
-import { createAuth } from "./auth";
+import { createAuth, googleEnabled } from "./auth";
 import { createDb } from "./db/client";
 import { devRoutes } from "./routes/dev";
 import { calendarRoutes, eventRoutes } from "./routes/events";
@@ -20,6 +20,7 @@ app.use("*", async (c, next) => {
 });
 
 app.get("/health", (c) => c.json({ ok: true }));
+app.get("/config", (c) => c.json({ googleEnabled: googleEnabled(c.env) }));
 app.on(["GET", "POST"], "/auth/*", (c) => c.get("auth").handler(c.req.raw));
 
 app.use("*", sameOrigin);

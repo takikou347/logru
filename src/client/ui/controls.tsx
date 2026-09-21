@@ -102,7 +102,7 @@ export function Swatches({
   label: string;
 }) {
   return (
-    <div className="swatches" role="radiogroup" aria-label={label}>
+    <div className={`swatches${options.length > 6 ? " many" : ""}`} role="radiogroup" aria-label={label}>
       {options.map((o) => (
         <button
           key={o.key}

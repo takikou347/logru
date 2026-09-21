@@ -72,6 +72,14 @@
   flex-wrap: wrap;
   gap: 6px;
 }
+/* 8 色は、狭い幅では 4 色ずつ 2 段にそろえる */
+@media (max-width: 440px) {
+  .swatches.many {
+    display: grid;
+    grid-template-columns: repeat(4, 44px);
+    column-gap: 14px;
+  }
+}
 .swatch {
   width: 44px;
   height: 44px;
@@ -136,6 +144,8 @@
   flex: none;
 }
 .icon-btn:hover { background: var(--field); }
+a.icon-btn,
+a.btn { text-decoration: none; }
 
 /* 絞り込み */
 .chip {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GroupSummary, Me } from "../../src/shared/api-types";
-import { byPeople, hiddenPeople, peopleOf } from "../../src/client/modules/calendar/model";
+import { byPeople, groupPeopleOf, hiddenPeople, peopleOf } from "../../src/client/modules/calendar/model";
 
 const me: Me = {
   user: { id: "me", name: "こた", email: "kota@example.com", image: null },
@@ -39,8 +39,17 @@ describe("peopleOf", () => {
     expect(people.find((p) => p.id === "haha")?.color).toBe("sango");
   });
 
-  it("共有のグループが無ければ自分だけ", () => {
-    expect(peopleOf([groups[0]!], me).map((p) => p.id)).toEqual(["me"]);
+  it("共有のグループが無ければ、自分も並べない", () => {
+    expect(peopleOf([groups[0]!], me)).toEqual([]);
+  });
+});
+
+describe("groupPeopleOf", () => {
+  it("共有のグループごとに、自分を先頭にメンバーを並べる。同じ人はどのグループにも出る", () => {
+    const sections = groupPeopleOf(groups, me);
+    expect(sections.map((s) => s.group.id)).toEqual(["ふたり", "実家"]);
+    expect(sections[0]!.people.map((p) => p.id)).toEqual(["me", "mika"]);
+    expect(sections[1]!.people.map((p) => p.id)).toEqual(["me", "haha", "mika"]);
   });
 });
 

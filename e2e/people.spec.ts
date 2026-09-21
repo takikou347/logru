@@ -1,11 +1,11 @@
 import { type Page, expect, test } from "@playwright/test";
 import { addEvent, apiUser, dayPanel, logIn, signUp } from "./helpers";
 
-/** スマホの「人」のボタンからシートを開き、その人の印を押して閉じる */
+/** スマホの「人」のボタンからシートを開き、「ふたり」のまとまりでその人の印を押して閉じる */
 async function togglePerson(page: Page, name: string) {
   await page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "表示する人" }).click();
   const sheet = page.getByRole("dialog", { name: "表示する人" });
-  await sheet.getByRole("button", { name }).click();
+  await sheet.getByRole("group", { name: "ふたり のメンバー" }).getByRole("button", { name, exact: true }).click();
   await page.keyboard.press("Escape");
   await expect(sheet).toHaveCount(0);
 }
@@ -32,11 +32,22 @@ test("相手の印を外すと相手の予定が消え、読み込み直して�
   const panel = dayPanel(page);
   await expect(panel.getByRole("button", { name: /みかの予定/ })).toBeVisible();
 
-  // シートには自分と相手が並び、はじめは両方とも出している
+  // シートはグループごとのまとまりで、はじめから開いている。自分と相手が並び、両方とも出している
   await page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "表示する人" }).click();
   const sheet = page.getByRole("dialog", { name: "表示する人" });
-  await expect(sheet.getByRole("button", { name: "自分" })).toHaveAttribute("aria-pressed", "true");
-  await expect(sheet.getByRole("button", { name: "みか" })).toHaveAttribute("aria-pressed", "true");
+  await expect(sheet.getByRole("button", { name: "ふたり", exact: true })).toHaveAttribute("aria-expanded", "true");
+  const members = sheet.getByRole("group", { name: "ふたり のメンバー" });
+  await expect(members.getByRole("button", { name: "自分", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(members.getByRole("button", { name: "みか", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+  // まとまりは閉じられ、開け閉めは次に開いたときも同じ
+  await sheet.getByRole("button", { name: "ふたり", exact: true }).click();
+  await expect(members).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "表示する人" }).click();
+  await expect(sheet.getByRole("button", { name: "ふたり", exact: true })).toHaveAttribute("aria-expanded", "false");
+  await sheet.getByRole("button", { name: "ふたり", exact: true }).click();
+  await expect(members).toBeVisible();
   await page.keyboard.press("Escape");
 
   // 相手の印を外すと、相手が作った予定だけが消える

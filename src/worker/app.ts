@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import type { Auth } from "./auth";
 import type { DB } from "./db/client";
@@ -31,6 +31,16 @@ export const sameOrigin = createMiddleware<AppEnv>(async (c, next) => {
   }
   await next();
 });
+
+/** zValidator の失敗を、最初の 1 件の文言で 400 にして返す */
+export function validationHook(
+  result: { success: boolean; error?: { issues: readonly { message: string }[] } },
+  c: Context,
+) {
+  if (!result.success) {
+    return c.json({ error: result.error?.issues[0]?.message ?? "入力が正しくありません。" }, 400);
+  }
+}
 
 export class HttpError extends Error {
   constructor(

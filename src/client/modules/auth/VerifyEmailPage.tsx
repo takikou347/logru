@@ -75,8 +75,9 @@ export function VerifyEmailPage() {
         <Button variant="secondary" onClick={resend}>
           メールをもう一度送る
         </Button>
+        {/* ログインしたままだとログインの画面からここへ戻されるので、ログアウトしてから戻る */}
         <Button variant="ghost" onClick={doSignOut}>
-          別のアカウントでログインする
+          ログインへ戻る
         </Button>
       </AuthCard>
     </AuthShell>

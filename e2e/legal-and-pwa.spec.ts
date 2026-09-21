@@ -4,6 +4,7 @@ test("利用規約とプライバシーポリシーを、ログインせずに�
   await page.goto("/terms");
   await expect(page.getByRole("heading", { name: "Logru 利用規約" })).toBeVisible();
   await expect(page.getByText("tkkwkut@gmail.com")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Logru に戻る" })).toBeVisible();
   await page.goto("/privacy");
   await expect(page.getByRole("heading", { name: "Logru プライバシーポリシー" })).toBeVisible();
 });

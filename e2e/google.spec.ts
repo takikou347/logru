@@ -67,7 +67,7 @@ test("メールを確かめる前に同じアドレスで Google から入ると
   const email = uniqueEmail("unverified");
   await submitSignUp(page, { email });
   await expect(page.getByRole("heading", { name: "確認メールを送りました" })).toBeVisible();
-  await page.getByRole("button", { name: "別のアカウントでログインする" }).click();
+  await page.getByRole("button", { name: "ログインへ戻る" }).click();
   await expect(page).toHaveURL(/\/login/);
 
   // 確かめていないアドレスのパスワードは、他人が登録したものかもしれない。Google の側を残す

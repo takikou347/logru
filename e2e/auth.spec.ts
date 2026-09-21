@@ -8,6 +8,47 @@ test("ログインしていなければ、ログインの画面へ回す", async
   await expect(page.getByRole("button", { name: "Google でログイン" })).toBeVisible();
 });
 
+test("登録の画面に Google は無く、カードの左上の戻るリンクでログインの画面に戻る", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.getByText("ログる")).toHaveCount(0);
+  await page.getByRole("link", { name: "アカウントを作る" }).click();
+  const title = page.getByRole("heading", { name: "アカウントを作る" });
+  await expect(title).toBeVisible();
+  await expect(page.getByRole("button", { name: /Google/ })).toHaveCount(0);
+  await expect(page.getByText("ログる")).toHaveCount(0);
+  // 戻るリンクはカードの中、見出しのすぐ上にある
+  const back = page.getByRole("link", { name: "ログインへ戻る" });
+  const card = page.locator("section", { has: title });
+  await expect(card.getByRole("link", { name: "ログインへ戻る" })).toBeVisible();
+  const [backBox, titleBox] = [await back.boundingBox(), await title.boundingBox()];
+  expect(backBox!.y + backBox!.height).toBeLessThanOrEqual(titleBox!.y);
+  expect(backBox!.height).toBeGreaterThanOrEqual(44);
+  await back.click();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test("登録の画面の戻るリンクは、行き先を覚えたままログインの画面に戻る", async ({ page }) => {
+  await page.goto("/signup?next=%2Fsettings");
+  await page.getByRole("link", { name: "ログインへ戻る" }).click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fsettings$/);
+});
+
+test("再設定の画面の戻るリンクで、ログインの画面に戻る", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("link", { name: "パスワードを忘れた" }).click();
+  await expect(page.getByRole("heading", { name: "パスワードを再設定する" })).toBeVisible();
+  await page.getByRole("link", { name: "ログインへ戻る" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test("確かめる画面の「ログインへ戻る」で、ログアウトしてログインの画面に戻る", async ({ page }) => {
+  await submitSignUp(page);
+  await expect(page.getByRole("heading", { name: "確認メールを送りました" })).toBeVisible();
+  await page.getByRole("button", { name: "ログインへ戻る" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("button", { name: "ログイン", exact: true })).toBeVisible();
+});
+
 test("規約に同意しないと登録できない", async ({ page }) => {
   await submitSignUp(page, { agree: false });
   await expect(page.getByRole("alert")).toHaveText("利用規約とプライバシーポリシーに同意してください。");
@@ -38,7 +79,7 @@ test("確かめる前は、確かめる画面から先へ進めない", async ({
   await expect(page).toHaveURL(/\/verify-email/);
   await page.getByRole("button", { name: "確かめた" }).click();
   await expect(page.getByText("まだ確かめられていません。")).toBeVisible();
-  await page.getByRole("button", { name: "別のアカウントでログインする" }).click();
+  await page.getByRole("button", { name: "ログインへ戻る" }).click();
   await logIn(page, email);
   await expect(page).toHaveURL(/\/verify-email/);
 });

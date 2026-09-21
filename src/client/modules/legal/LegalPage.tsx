@@ -1,8 +1,8 @@
 import { marked } from "marked";
 import { useEffect, useMemo } from "react";
-import { Link } from "react-router";
 import privacy from "../../../../legal/privacy.md?raw";
 import terms from "../../../../legal/terms.md?raw";
+import { BackLink } from "@/components/BackLink";
 import { Pools } from "@/components/Pools";
 
 const DOCS = { terms, privacy } as const;
@@ -24,9 +24,9 @@ export function LegalPage({ doc }: { doc: keyof typeof DOCS }) {
     <main className="px-4 pt-[max(24px,env(safe-area-inset-top))] pb-16">
       <Pools colors={["wakatake", "yamabuki", "asagi"]} />
       <article className="glass legal-body mx-auto max-w-[720px] rounded-panel px-5 py-6 lg:px-10 lg:py-9">
-        <Link className="mb-4 inline-flex min-h-10 items-center text-sm" to="/">
-          ‹ Logru に戻る
-        </Link>
+        <div className="mb-2">
+          <BackLink to="/">Logru に戻る</BackLink>
+        </div>
         <div dangerouslySetInnerHTML={{ __html: html }} />
       </article>
     </main>

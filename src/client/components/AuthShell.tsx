@@ -8,10 +8,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <main className="flex min-h-dvh flex-col items-center px-5 pt-[max(72px,env(safe-area-inset-top))] pb-10">
       <Pools colors={["wakatake", "yamabuki", "asagi"]} />
-      <div className="mb-7 text-center">
-        <div className="text-[56px] leading-none font-extrabold tracking-[-0.03em]">Logru</div>
-        <div className="mt-1.5 text-[13px] tracking-[0.3em] text-ink-2">ログる</div>
-      </div>
+      <div className="mb-7 text-center text-[56px] leading-none font-extrabold tracking-[-0.03em]">Logru</div>
       <div className="w-full max-w-[420px]">{children}</div>
       <p className="mt-4.5 text-center text-xs leading-loose text-ink-2">
         <Link to="/terms">利用規約</Link> ・ <Link to="/privacy">プライバシーポリシー</Link>

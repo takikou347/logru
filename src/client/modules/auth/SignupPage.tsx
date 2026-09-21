@@ -1,7 +1,8 @@
 import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from "firebase/auth";
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { AuthCard, AuthShell, AuthTitle, GoogleButton, Notice, OrDivider } from "@/components/AuthShell";
+import { AuthCard, AuthShell, AuthTitle, Notice } from "@/components/AuthShell";
+import { BackLink } from "@/components/BackLink";
 import { Field } from "@/components/Field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,14 +10,14 @@ import { Input } from "@/components/ui/input";
 import { MIN_PASSWORD_LENGTH, authErrorMessage } from "@/lib/auth-errors";
 import { auth } from "@/lib/firebase";
 import { safeNext } from "@/lib/utils";
-import { signInWithGoogle } from "./google";
 import { forgetAgreement, rememberAgreement } from "./pending-agreement";
 
 /**
- * 登録の画面。メールとパスワードで作るか、Google で作る。F-01、F-16
+ * 登録の画面。メールとパスワードで作る。F-01、F-16
  *
- * メールで作ったときは、確認メールを送り、確かめるまで待つ画面へ移る。
+ * 作ったら確認メールを送り、確かめるまで待つ画面へ移る。
  * モバイルアプリで Google 以外の手段が要るので、独自のアカウントも作れるようにする。0004
+ * Google で作るときは、ログインの画面の Google のボタンを使う。初めての人はそのまま登録になる。
  */
 export function SignupPage() {
   const [params] = useSearchParams();
@@ -55,23 +56,11 @@ export function SignupPage() {
     }
   }
 
-  async function google() {
-    setError(null);
-    try {
-      await signInWithGoogle();
-      // Google で作った人は、この後で同意の画面を出す
-      navigate(next, { replace: true });
-    } catch (err) {
-      setError(authErrorMessage(err));
-    }
-  }
-
   return (
     <AuthShell>
       <AuthCard>
+        <BackLink to={next !== "/" ? `/login?next=${encodeURIComponent(next)}` : "/login"}>ログインへ戻る</BackLink>
         <AuthTitle>アカウントを作る</AuthTitle>
-        <GoogleButton onClick={google}>Google で登録</GoogleButton>
-        <OrDivider />
         <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
           <Field label="表示名" hint="グループのメンバーに見える名前です。">
             {(p) => <Input {...p} autoComplete="nickname" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />}
@@ -104,10 +93,6 @@ export function SignupPage() {
             {busy ? "登録しています" : "登録する"}
           </Button>
         </form>
-        <p className="text-xs leading-relaxed text-ink-2">Google で登録した場合は、最初に規約への同意を確かめます。</p>
-        <Link className="text-[13px]" to="/login">
-          ログインの画面へ
-        </Link>
       </AuthCard>
     </AuthShell>
   );

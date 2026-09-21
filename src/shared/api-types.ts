@@ -14,6 +14,8 @@ export type Me = {
   provider: string;
   /** 自分の画面だけの色 */
   colorPrefs: { targetType: "group" | "user"; targetId: string; color: string }[];
+  /** カレンダーに出さない人の ID。自分の画面だけの設定。F-20 */
+  hiddenMembers: string[];
 };
 
 /** グループのメンバー */

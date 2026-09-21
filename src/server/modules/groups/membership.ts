@@ -15,6 +15,23 @@ export async function myGroupIds(db: DB, userId: string): Promise<string[]> {
 }
 
 /**
+ * 2 人が同じグループに入っているかを返す。自分どうしなら、自分だけのグループがあるので true。
+ * @param db D1 を包んだ Drizzle
+ * @param userId 利用者の ID
+ * @param targetId 相手の ID
+ */
+export async function sharesGroup(db: DB, userId: string, targetId: string): Promise<boolean> {
+  const groupIds = await myGroupIds(db, userId);
+  if (groupIds.length === 0) return false;
+  const row = await db
+    .select({ id: groupMembers.userId })
+    .from(groupMembers)
+    .where(and(inArray(groupMembers.groupId, groupIds), eq(groupMembers.userId, targetId)))
+    .get();
+  return row !== undefined;
+}
+
+/**
  * グループのメンバーかを確かめ、役割とグループの種類を返す。
  * 入っていなければ、グループがあるかどうかも伝えないよう 404 にする。
  *

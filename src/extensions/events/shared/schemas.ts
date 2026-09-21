@@ -10,17 +10,19 @@ const fields = {
   memo: z.string().max(1000, "メモは 1000 文字までです。").nullable(),
 };
 
+const GROUP_REQUIRED = "予定を置くグループを選んでください。";
+
 const endsAfterStart = (v: { startsAt?: number; endsAt?: number | null }) =>
   v.endsAt == null || v.startsAt == null || v.endsAt >= v.startsAt;
 const endsAfterStartMessage = { message: "終わりは始まりより後にしてください。", path: ["endsAt"] };
 
 /** 予定を作るときの入力 */
-export const eventInput = z.object({ groupId: z.string().min(1), ...fields }).refine(endsAfterStart, endsAfterStartMessage);
+export const eventInput = z.object({ groupId: z.string().min(1, GROUP_REQUIRED), ...fields }).refine(endsAfterStart, endsAfterStartMessage);
 
 /** 予定を直すときの入力。送った項目だけを直す */
 export const eventPatchInput = z
   .object({
-    groupId: z.string().min(1).optional(),
+    groupId: z.string().min(1, GROUP_REQUIRED).optional(),
     title: fields.title.optional(),
     allDay: fields.allDay.optional(),
     startsAt: fields.startsAt.optional(),

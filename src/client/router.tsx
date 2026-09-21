@@ -5,6 +5,7 @@ import { Login } from "./routes/Login";
 import { NotFound } from "./routes/NotFound";
 import { GuestOnly, RequireAuth } from "./routes/RequireAuth";
 import { ResetPassword } from "./routes/ResetPassword";
+import { RouteError } from "./routes/RouteError";
 import { Signup } from "./routes/Signup";
 import { Verify } from "./routes/Verify";
 
@@ -18,7 +19,7 @@ async function legal(doc: "terms" | "privacy") {
   return { element: <Legal doc={doc} /> };
 }
 
-export const router = createBrowserRouter([
+const routes: RouteObject[] = [
   {
     element: <GuestOnly />,
     children: [
@@ -43,4 +44,6 @@ export const router = createBrowserRouter([
   },
   ...devOnly,
   { path: "*", element: <NotFound /> },
-]);
+];
+
+export const router = createBrowserRouter([{ errorElement: <RouteError />, children: routes }]);

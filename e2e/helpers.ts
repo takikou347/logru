@@ -73,10 +73,18 @@ export async function logIn(page: Page, email: string, password = PASSWORD) {
   await page.getByRole("button", { name: "ログイン", exact: true }).click();
 }
 
-/** スマホのメニューからログアウトし、ログインの画面に移るまで待つ */
+/** 見えているほうのアカウントのメニューを開く。スマホは上の帯、PC は左の列にある */
+export async function openAccountMenu(page: Page) {
+  await page.getByRole("button", { name: "アカウントのメニュー" }).filter({ visible: true }).click();
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  return menu;
+}
+
+/** アカウントのメニューからログアウトし、ログインの画面に移るまで待つ */
 export async function logOut(page: Page) {
-  await page.getByRole("button", { name: "メニューを開く" }).click();
-  await page.getByRole("dialog", { name: "メニュー" }).getByRole("button", { name: "ログアウト" }).click();
+  const menu = await openAccountMenu(page);
+  await menu.getByRole("menuitem", { name: "ログアウト" }).click();
   await expect(page).toHaveURL(/\/login/);
 }
 

@@ -48,6 +48,10 @@ export type CalendarItem = {
   memo?: string | null;
   place?: string;
   companionIds?: string[];
+  /** 項目の色の名前。あればグループの色より先に使う。外部のカレンダーで使う */
+  color?: string;
+  /** グループの名前の代わりに出す名前。外部のカレンダーの名前など */
+  sourceName?: string;
 };
 
 /** グループの設定に出す、切り替えられる拡張 */

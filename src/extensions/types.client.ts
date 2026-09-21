@@ -28,8 +28,10 @@ export type ClientExtension = {
   /** 項目を作ったり直したりするシート */
   Editor: ComponentType<ItemEditorProps>;
   /**
-   * 項目を消す。
+   * 項目を消す。読むだけの拡張は省く。省くと、カレンダーは消す操作を出さない
    * @param keepalive 画面を閉じるときに送り切る
    */
-  deleteItem: (id: string, opts: { keepalive: boolean }) => Promise<void>;
+  deleteItem?: (id: string, opts: { keepalive: boolean }) => Promise<void>;
+  /** 設定の画面に出す欄。利用者ごとの拡張が、登録の画面を置くのに使う。無ければ省く */
+  SettingsSection?: ComponentType;
 };

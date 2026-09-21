@@ -5,6 +5,7 @@ import { Link } from "react-router";
 import { toast } from "sonner";
 import type { Me, ThemeMode } from "../../../shared/api-types";
 import { ACCENT_COLORS, GROUP_COLORS } from "../../../shared/colors";
+import { clientExtensions } from "../../../extensions/registry.client";
 import { profileInput } from "../../../shared/schemas";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar, useSignOut } from "@/components/AppLayout";
@@ -115,6 +116,8 @@ export function SettingsPage() {
             </div>
           </Panel>
         )}
+
+        {clientExtensions.map((x) => x.SettingsSection && <x.SettingsSection key={x.manifest.key} />)}
 
         <Panel title="アカウント">
           <div>

@@ -11,9 +11,27 @@ import type { ExtensionManifest } from "./types";
 /** 編集のシートを開くときの対象。新しく作るか、既にある項目を直すか */
 export type EditorTarget = { mode: "new"; date: Date; groupId?: string } | { mode: "edit"; item: CalendarItem };
 
+/**
+ * 新しく作るシートに並べる、その日に既にある項目。ほかの拡張の項目も入る。
+ * 色とグループ名はカレンダーが付ける。拡張はグループの色の決まりを知らなくてよい
+ */
+export type DayItem = CalendarItem & {
+  /** グループの色の名前。`c-<color>` のクラスや Dot に渡す */
+  color: string;
+  /** グループの名前。自分だけのグループは「自分」 */
+  groupName: string;
+};
+
 /** 編集のシートが受け取るもの */
 export type ItemEditorProps = {
   target: EditorTarget;
+  /**
+   * target が new のとき、その日に既にある項目。時刻の順。
+   * シートはフォームの上に一覧で出し、押されたら onOpenItem を呼ぶ。空なら何も出さない
+   */
+  dayItems?: DayItem[];
+  /** dayItems の項目が押されたとき。カレンダーが、その項目の拡張の直すシートに切り替える */
+  onOpenItem?: (item: CalendarItem) => void;
   /** 入っているグループ。項目をどのグループに置くかを選ばせる */
   groups: GroupSummary[];
   me: Me;

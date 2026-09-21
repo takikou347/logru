@@ -80,17 +80,6 @@ export function GroupDetailPage() {
     if (r) setInvite(r);
   }
 
-  /** 端末の共有を開く。無ければコピーする。共有を閉じられたときはコピーに回さない */
-  async function share() {
-    if (!invite || !group) return;
-    const text = `Logru の「${group.name}」に招待します。7 日のうちに開いてください。`;
-    if (navigator.share) {
-      await navigator.share({ title: "Logru への招待", text, url: invite.url }).catch(() => undefined);
-      return;
-    }
-    await copy();
-  }
-
   async function copy() {
     if (!invite) return;
     try {
@@ -174,12 +163,9 @@ export function GroupDetailPage() {
               <>
                 <FieldMessage>このリンクを開いた人は、7 日のうちならグループに入れます。招待したい相手にだけ送ってください。</FieldMessage>
                 <Input readOnly value={invite.url} aria-label="招待リンク" onFocus={(e) => e.target.select()} />
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={share}>送る</Button>
-                  <Button variant="secondary" onClick={copy}>
-                    コピーする
-                  </Button>
-                </div>
+                <Button className="self-start" onClick={copy}>
+                  コピーする
+                </Button>
               </>
             ) : (
               <Button variant="secondary" className="self-start" onClick={makeInvite}>

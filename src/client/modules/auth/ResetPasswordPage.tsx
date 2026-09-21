@@ -1,8 +1,8 @@
 import { FirebaseError } from "firebase/app";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { type FormEvent, useState } from "react";
-import { Link } from "react-router";
 import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/AuthShell";
+import { BackButton } from "@/components/BackButton";
 import { Field } from "@/components/Field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,12 +37,11 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <AuthShell>
+    <AuthShell back={<BackButton to="/login" label="ログインの画面へ戻る" />}>
       {sent ? (
         <AuthCard aria-live="polite">
           <AuthTitle>メールを送りました</AuthTitle>
           <AuthText>{email} が登録されていれば、再設定のリンクが届きます。リンクから新しいパスワードを入れてください。</AuthText>
-          <Link to="/login">ログインの画面へ</Link>
         </AuthCard>
       ) : (
         <AuthCard>
@@ -59,9 +58,6 @@ export function ResetPasswordPage() {
               {busy ? "送っています" : "メールを送る"}
             </Button>
           </form>
-          <Link className="text-[13px]" to="/login">
-            ログインの画面へ
-          </Link>
         </AuthCard>
       )}
     </AuthShell>

@@ -3,15 +3,16 @@ import { Link } from "react-router";
 import { cn } from "@/lib/utils";
 import { Pools } from "./Pools";
 
-/** ログインまわりの画面の枠。インクだまりと名前を出し、下に規約へのリンクを置く */
-export function AuthShell({ children }: { children: ReactNode }) {
+/**
+ * ログインまわりの画面の枠。インクだまりと名前を出し、下に規約へのリンクを置く
+ * @param back 左上に置く戻るボタン。BackButton を渡す
+ */
+export function AuthShell({ children, back }: { children: ReactNode; back?: ReactNode }) {
   return (
-    <main className="flex min-h-dvh flex-col items-center px-5 pt-[max(72px,env(safe-area-inset-top))] pb-10">
+    <main className="relative flex min-h-dvh flex-col items-center px-5 pt-[max(72px,env(safe-area-inset-top))] pb-10">
       <Pools colors={["wakatake", "yamabuki", "asagi"]} />
-      <div className="mb-7 text-center">
-        <div className="text-[56px] leading-none font-extrabold tracking-[-0.03em]">Logru</div>
-        <div className="mt-1.5 text-[13px] tracking-[0.3em] text-ink-2">ログる</div>
-      </div>
+      {back && <div className="absolute top-[max(16px,env(safe-area-inset-top))] left-4">{back}</div>}
+      <div className="mb-7 text-center text-[56px] leading-none font-extrabold tracking-[-0.03em]">Logru</div>
       <div className="w-full max-w-[420px]">{children}</div>
       <p className="mt-4.5 text-center text-xs leading-loose text-ink-2">
         <Link to="/terms">利用規約</Link> ・ <Link to="/privacy">プライバシーポリシー</Link>

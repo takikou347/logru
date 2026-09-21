@@ -1,16 +1,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { Check, Pencil, X } from "lucide-react";
+import { type FormEvent, type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 import type { Me, ThemeMode } from "../../../shared/api-types";
 import { ACCENT_COLORS, GROUP_COLORS } from "../../../shared/colors";
+import { profileInput } from "../../../shared/schemas";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar, useSignOut } from "@/components/AppLayout";
 import { ColorSheet } from "@/components/ColorSheet";
 import { ColorSwatches } from "@/components/ColorSwatches";
-import { Field } from "@/components/Field";
 import { Dot, FieldMessage, Panel, PanelRow, RowButton } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
 import { Segmented } from "@/components/Segmented";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,6 @@ export function SettingsPage() {
   const doSignOut = useSignOut();
   const colorPref = useColorPref();
   const [target, setTarget] = useState<Target | null>(null);
-  const [editingName, setEditingName] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const settings = useMutation({
@@ -119,12 +118,7 @@ export function SettingsPage() {
 
         <Panel title="アカウント">
           <div>
-            <PanelRow>
-              <span>表示名</span>
-              <Button variant="ghost" size="sm" onClick={() => setEditingName(true)}>
-                {data.user.name} を変える
-              </Button>
-            </PanelRow>
+            <NameRow current={data.user.name} />
             <PanelRow>
               <span>メールアドレス</span>
               <span className="min-w-0 truncate">{data.user.email}</span>
@@ -158,7 +152,6 @@ export function SettingsPage() {
           onClose={() => setTarget(null)}
         />
       )}
-      {editingName && <NameSheet current={data.user.name} onClose={() => setEditingName(false)} />}
       {deleting && <DeleteAccountSheet provider={data.provider} onClose={() => setDeleting(false)} />}
     </AppLayout>
   );
@@ -181,37 +174,112 @@ function otherMembers(shared: { name: string; members: { id: string; name: strin
   return [...others.values()];
 }
 
-/** 表示名を変えるシート。グループのメンバーに見える名前 */
-function NameSheet({ current, onClose }: { current: string; onClose: () => void }) {
+/**
+ * 表示名の行。グループのメンバーに見える名前。
+ * 鉛筆のボタンを押すと、その行で直せる。Enter か保存のボタンで送り、Esc で元に戻す。
+ */
+function NameRow({ current }: { current: string }) {
   const qc = useQueryClient();
+  const id = useId();
+  const [editing, setEditing] = useState(false);
   const [name, setName] = useState(current);
   const [error, setError] = useState<string | null>(null);
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    try {
-      await api("/me", { method: "PATCH", body: { name } });
+  const inputRef = useRef<HTMLInputElement>(null);
+  const pencilRef = useRef<HTMLButtonElement>(null);
+  const wasEditing = useRef(false);
+
+  // 開いたら全体を選び、閉じたら鉛筆のボタンに戻す
+  useEffect(() => {
+    if (editing) inputRef.current?.select();
+    else if (wasEditing.current) pencilRef.current?.focus();
+    wasEditing.current = editing;
+  }, [editing]);
+
+  const save = useMutation({
+    mutationFn: (next: string) => api("/me", { method: "PATCH", body: { name: next } }),
+    onSuccess: async () => {
       await qc.invalidateQueries();
       toast("表示名を変えました");
-      onClose();
-    } catch (err) {
-      setError((err as Error).message);
-    }
+      setEditing(false);
+    },
+    onError: (e) => setError((e as Error).message),
+  });
+
+  function open() {
+    setName(current);
+    setError(null);
+    setEditing(true);
   }
+  function cancel() {
+    setName(current);
+    setError(null);
+    setEditing(false);
+  }
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    if (save.isPending) return;
+    const parsed = profileInput.safeParse({ name });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "入力が正しくありません。");
+      inputRef.current?.focus();
+      return;
+    }
+    if (parsed.data.name === current) return cancel();
+    save.mutate(parsed.data.name);
+  }
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    cancel();
+  }
+
+  if (!editing) {
+    return (
+      <PanelRow>
+        <span>表示名</span>
+        <span className="flex min-w-0 items-center gap-1">
+          <span className="min-w-0 truncate">{current}</span>
+          <Button ref={pencilRef} variant="ghost" size="icon" className="-mr-2.5" aria-label="表示名を変える" onClick={open}>
+            <Pencil />
+          </Button>
+        </span>
+      </PanelRow>
+    );
+  }
+
   return (
-    <ResponsiveSheet title="表示名を変える" onClose={onClose}>
-      <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
-        <Field label="表示名" error={error} hint="グループのメンバーに見える名前です。">
-          {(p) => <Input {...p} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />}
-        </Field>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            やめる
-          </Button>
-          <Button type="submit" disabled={!name.trim()}>
-            保存する
-          </Button>
-        </div>
-      </form>
-    </ResponsiveSheet>
+    <form className="flex flex-col gap-1.5 border-b border-line py-1.5 text-sm" onSubmit={submit} noValidate>
+      <div className="flex items-center gap-2">
+        <label htmlFor={id} className="shrink-0">
+          表示名
+        </label>
+        <Input
+          ref={inputRef}
+          id={id}
+          className="min-h-11 flex-1"
+          value={name}
+          autoFocus
+          autoComplete="nickname"
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-msg` : undefined}
+          onChange={(e) => {
+            setName(e.target.value);
+            setError(null);
+          }}
+          onKeyDown={onKeyDown}
+        />
+        <Button type="submit" variant="ghost" size="icon" aria-label="保存する" disabled={save.isPending}>
+          <Check />
+        </Button>
+        <Button variant="ghost" size="icon" className="-mr-2.5" aria-label="やめる" onClick={cancel} disabled={save.isPending}>
+          <X />
+        </Button>
+      </div>
+      {error && (
+        <FieldMessage id={`${id}-msg`} error>
+          {error}
+        </FieldMessage>
+      )}
+    </form>
   );
 }

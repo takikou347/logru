@@ -109,6 +109,7 @@ pnpm run deploy
 
 利用者ごとの拡張は、`manifest.ts` の `perUser` を true にする。グループの切り替えには出さず、項目は本人にだけ出す。
 設定の画面に欄が要れば `ClientExtension` の `SettingsSection` に、定期の処理が要れば `ServerExtension` の `scheduled` に置く。
+カレンダーの「読み直す」を押したときに先にしておく仕事があれば、`ClientExtension` の `refresh` に置く。
 外部のカレンダーの拡張 `src/extensions/external-calendars/` が見本になる。
 
 ## ディレクトリ

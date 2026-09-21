@@ -34,6 +34,10 @@ export type ClientExtension = {
   deleteItem?: (id: string, opts: { keepalive: boolean }) => Promise<void>;
   /** 設定の画面に出す欄。利用者ごとの拡張が、登録の画面を置くのに使う。無ければ省く */
   SettingsSection?: ComponentType;
-  /** カレンダーの画面の上の帯に置く操作。読み直しのボタンなど。無ければ省く */
-  CalendarAction?: ComponentType;
+  /**
+   * カレンダーの「読み直す」を押したときに、拡張が先にしておく仕事。外から予定を読み直すなど。無ければ省く。
+   * 全部の拡張の分を並べて待ってから、カレンダーは項目を読み直す。
+   * @returns 読めなかったものの名前。画面の知らせに出す
+   */
+  refresh?: () => Promise<{ failed: string[] }>;
 };

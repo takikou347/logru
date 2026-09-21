@@ -51,7 +51,7 @@ export function DayPanel({ day, items, onOpen }: { day: Date; items: ViewItem[];
           {hol && <div className="mt-0.5 text-[11px] text-ink-2">{hol}</div>}
         </div>
       </div>
-      <ItemList items={mine} onOpen={onOpen} empty="予定はありません。日付を長押しすると、その日の予定を足せます。" />
+      <ItemList items={mine} onOpen={onOpen} empty="予定はありません。日付を押すと、その日の予定を足せます。" />
     </section>
   );
 }

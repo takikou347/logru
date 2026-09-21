@@ -10,7 +10,7 @@ import { Dot } from "@/components/Panel";
 import { Segmented } from "@/components/Segmented";
 import { Button } from "@/components/ui/button";
 import { groupColor } from "@/lib/colors";
-import { addDays, addMonths, dateKey, monthGrid, parseDateKey, sameDay, startOfDay, weekDays } from "@/lib/dates";
+import { addDays, addMonths, dateKey, monthGrid, onDay, parseDateKey, sameDay, startOfDay, weekDays } from "@/lib/dates";
 import { useCalendar, useGroups, useMe } from "@/lib/queries";
 import { DayPanel, ItemList } from "./DayItems";
 import { MonthGrid } from "./MonthGrid";
@@ -219,8 +219,7 @@ export function CalendarPage() {
             today={today}
             selected={selected}
             items={items}
-            onSelect={(d) => update({ date: d })}
-            onLongPress={(d) => {
+            onPressDay={(d) => {
               update({ date: d });
               addNew(d);
             }}
@@ -247,7 +246,17 @@ export function CalendarPage() {
       </div>
 
       {editor && Editor && me.data && (
-        <Editor target={editor} groups={allGroups} me={me.data} onClose={() => setEditor(null)} onDelete={remove} />
+        // 一覧から選んで直すシートに切り替えたとき、入力の中身を作り直すために key を変える
+        <Editor
+          key={editor.mode === "edit" ? `edit:${itemKey(editor.item)}` : "new"}
+          target={editor}
+          dayItems={editor.mode === "new" ? items.filter((i) => onDay(i, editor.date)) : undefined}
+          onOpenItem={(item) => setEditor({ mode: "edit", item })}
+          groups={allGroups}
+          me={me.data}
+          onClose={() => setEditor(null)}
+          onDelete={remove}
+        />
       )}
     </AppLayout>
   );

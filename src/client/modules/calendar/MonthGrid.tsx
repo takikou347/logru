@@ -17,15 +17,15 @@ const LONG_PRESS_MS = 500;
 /**
  * 月の表。0010
  *
- * スマホは、マスに色の点だけを出し、押すと下にその日の予定が出る。長押しでその日の予定を足す。
- * 何日も続く予定は、点の代わりに、かかる日をつなぐ細い線にする。
+ * スマホは、マスに色の点だけを出す。何日も続く予定は、点の代わりに、かかる日をつなぐ細い線にする。
  * PC は、マスに予定の名前まで出す。何日も続く予定は、週の行ごとに 1 本の帯にする。
+ * どちらの幅でも、日付を押すと、その日の予定を足すシートが開く。長押しでも同じ。0012
  *
  * 今日は丸で囲まず、マスを板にして、上端にしおりを垂らす。
  *
  * @param days 表に並べる日。週の頭から、7 日ずつ
  * @param month いまの月。前後の月の日は薄くする
- * @param onLongPress 長押ししたとき
+ * @param onPressDay 日付のマスか「ほか n 件」を押したとき。長押しも含む
  * @param onOpenItem PC で予定を押したとき
  */
 export function MonthGrid({
@@ -34,8 +34,7 @@ export function MonthGrid({
   today,
   selected,
   items,
-  onSelect,
-  onLongPress,
+  onPressDay,
   onOpenItem,
 }: {
   days: Date[];
@@ -43,18 +42,18 @@ export function MonthGrid({
   today: Date;
   selected: Date;
   items: ViewItem[];
-  onSelect: (d: Date) => void;
-  onLongPress: (d: Date) => void;
+  onPressDay: (d: Date) => void;
   onOpenItem: (item: ViewItem) => void;
 }) {
   const press = useRef<{ timer: number; fired: boolean } | null>(null);
 
+  // 長押しで開いたときは、指を離したときの click で 2 回目を開かない
   function startPress(d: Date) {
     const state = { timer: 0, fired: false };
     state.timer = window.setTimeout(() => {
       state.fired = true;
       navigator.vibrate?.(10);
-      onLongPress(d);
+      onPressDay(d);
     }, LONG_PRESS_MS);
     press.current = state;
   }
@@ -142,7 +141,7 @@ export function MonthGrid({
                       onContextMenu={(e) => e.preventDefault()}
                       onClick={() => {
                         if (press.current?.fired) return;
-                        onSelect(d);
+                        onPressDay(d);
                       }}
                     />
                     {isToday && (
@@ -180,7 +179,7 @@ export function MonthGrid({
                         <EventChip key={`${i.extension}:${i.id}`} item={i} onOpen={() => onOpenItem(i)} />
                       ))}
                       {moreChips > 0 && (
-                        <button type="button" className="pl-1.5 text-left text-[11px] text-ink-2" onClick={() => onSelect(d)}>
+                        <button type="button" className="pl-1.5 text-left text-[11px] text-ink-2" onClick={() => onPressDay(d)}>
                           ほか {moreChips} 件
                         </button>
                       )}

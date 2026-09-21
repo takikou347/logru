@@ -57,11 +57,38 @@ test("グループの色を、自分の画面の中だけで変え、元に戻�
 });
 
 test("表示名を変えられる", async ({ page }) => {
-  await page.getByRole("button", { name: /を変える/ }).click();
-  const sheet = page.getByRole("dialog", { name: "表示名を変える" });
-  await sheet.getByLabel("表示名").fill("こた");
-  await sheet.getByRole("button", { name: "保存する" }).click();
-  await expect(page.getByRole("button", { name: "こた を変える" })).toBeVisible();
+  const account = page.getByRole("region", { name: "アカウント" });
+  await expect(account.getByText("テスト", { exact: true })).toBeVisible();
+  await account.getByRole("button", { name: "表示名を変える" }).click();
+  const input = account.getByLabel("表示名", { exact: true });
+  await expect(input).toBeFocused();
+  // 空の名前と、40 文字を超える名前は送らない
+  await input.fill("");
+  await input.press("Enter");
+  await expect(account.getByText("表示名を入れてください。")).toBeVisible();
+  await input.fill("あ".repeat(41));
+  await account.getByRole("button", { name: "保存する" }).click();
+  await expect(account.getByText("表示名は 40 文字までです。")).toBeVisible();
+  await input.fill("こた");
+  await input.press("Enter");
+  await expect(page.getByText("表示名を変えました")).toBeVisible();
+  await expect(account.getByLabel("表示名", { exact: true })).toHaveCount(0);
+  await expect(account.getByText("こた", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("region", { name: "アカウント" }).getByText("こた", { exact: true })).toBeVisible();
+});
+
+test("表示名を直している途中で Esc を押すと、元の名前に戻る", async ({ page }) => {
+  const account = page.getByRole("region", { name: "アカウント" });
+  await account.getByRole("button", { name: "表示名を変える" }).click();
+  await account.getByLabel("表示名", { exact: true }).fill("べつの名前");
+  await account.getByLabel("表示名", { exact: true }).press("Escape");
+  await expect(account.getByLabel("表示名", { exact: true })).toHaveCount(0);
+  await expect(account.getByText("テスト", { exact: true })).toBeVisible();
+  await expect(account.getByRole("button", { name: "表示名を変える" })).toBeFocused();
+  // 開き直しても、途中の名前は残らない
+  await account.getByRole("button", { name: "表示名を変える" }).click();
+  await expect(account.getByLabel("表示名", { exact: true })).toHaveValue("テスト");
 });
 
 test("アカウントを消すと、ログインできなくなる", async ({ page }) => {

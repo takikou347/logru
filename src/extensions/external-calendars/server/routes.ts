@@ -91,6 +91,25 @@ export const externalCalendarRoutes = createRouter()
     await syncCalendar(db, c.env, row, allowLocal);
     return c.json(await toSummary(await loadMine(db, userId, row.id), c.env.EXTERNAL_CALENDAR_KEY), 201);
   })
+  .post("/sync", async (c) => {
+    // 自分のカレンダーをすべて読み直す。カレンダーの画面の読み直しのボタンから呼ぶ
+    const db = c.get("db");
+    const userId = c.get("user").id;
+    const allowLocal = isLocalDev(c.env, c.req.url);
+    const rows = await db
+      .select()
+      .from(externalCalendars)
+      .where(eq(externalCalendars.userId, userId))
+      .orderBy(asc(externalCalendars.createdAt));
+    for (const row of rows) await syncCalendar(db, c.env, row, allowLocal);
+    const after = await db
+      .select()
+      .from(externalCalendars)
+      .where(eq(externalCalendars.userId, userId))
+      .orderBy(asc(externalCalendars.createdAt));
+    const key = c.env.EXTERNAL_CALENDAR_KEY;
+    return c.json({ calendars: await Promise.all(after.map((r) => toSummary(r, key))) });
+  })
   .post("/:id/sync", async (c) => {
     const db = c.get("db");
     const userId = c.get("user").id;

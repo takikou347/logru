@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { GROUP_COLORS, type GroupColor } from "../../../shared/colors";
@@ -10,16 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import type { ExternalCalendarSummary } from "../shared/schemas";
-
-const KEY = ["external-calendars"] as const;
-
-/** 登録した外部のカレンダーを読む */
-function useExternalCalendars() {
-  return useQuery({
-    queryKey: KEY,
-    queryFn: () => api<{ calendars: ExternalCalendarSummary[] }>("/external-calendars").then((r) => r.calendars),
-  });
-}
+import { EXTERNAL_CALENDARS_KEY as KEY, useExternalCalendars } from "./queries";
 
 /** `9月21日 14:05` の形にする */
 function formatSynced(ms: number): string {
@@ -49,7 +40,7 @@ export function ExternalCalendarsSection() {
   const list = calendars.data ?? [];
   return (
     <Panel title="外部のカレンダー">
-      <FieldMessage>Google カレンダーの予定を、自分のカレンダーに出します。読むだけで、ほかの人には見えません。30 分おきに読み直します。</FieldMessage>
+      <FieldMessage>Google カレンダーの予定を、自分のカレンダーに出します。読むだけで、ほかの人には見えません。5 分おきに読み直します。カレンダーの画面の読み直しのボタンでも、すぐに読めます。</FieldMessage>
       {calendars.error && <FieldMessage error>{calendars.error.message}</FieldMessage>}
       {calendars.isSuccess && list.length === 0 && <Empty>まだ登録していません。</Empty>}
       {list.length > 0 && (

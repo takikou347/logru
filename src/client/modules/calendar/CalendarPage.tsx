@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
-import { clientExtension, defaultExtension } from "../../../extensions/registry.client";
+import { clientExtension, clientExtensions, defaultExtension } from "../../../extensions/registry.client";
 import type { EditorTarget } from "../../../extensions/types.client";
 import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components/AppLayout";
 import { Notice } from "@/components/AuthShell";
@@ -193,6 +193,7 @@ export function CalendarPage() {
           <Button variant="ghost" size="icon" aria-label={view === "month" ? "次の月" : "次へ"} onClick={() => move(1)}>
             <ChevronRight className="size-5" />
           </Button>
+          {clientExtensions.map((x) => x.CalendarAction && <x.CalendarAction key={x.manifest.key} />)}
           <div className="ml-2 hidden gap-2.5 lg:flex">
             <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} />
             {addButton}

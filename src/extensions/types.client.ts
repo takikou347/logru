@@ -34,4 +34,6 @@ export type ClientExtension = {
   deleteItem?: (id: string, opts: { keepalive: boolean }) => Promise<void>;
   /** 設定の画面に出す欄。利用者ごとの拡張が、登録の画面を置くのに使う。無ければ省く */
   SettingsSection?: ComponentType;
+  /** カレンダーの画面の上の帯に置く操作。読み直しのボタンなど。無ければ省く */
+  CalendarAction?: ComponentType;
 };

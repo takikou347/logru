@@ -7,12 +7,28 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("明るさを選ぶと、すぐ変わり、読み込み直しても残る", async ({ page }) => {
+  // 保存が届いたのを確かめてから読み込み直す。届く前に読み込み直すと、古い明るさが返ってくる
+  const saved = page.waitForResponse((r) => r.url().endsWith("/api/me/settings") && r.request().method() === "PUT");
   await page.getByRole("radio", { name: "ダーク" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  expect((await saved).ok()).toBe(true);
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.getByRole("radio", { name: "ライト" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});
+
+test("明るさを選んですぐ読み込み直しても、選んだ明るさが残る", async ({ page }) => {
+  // 通信が遅いときを作る。保存が届く前に読み込み直しても、保存を途中で切らせない
+  await page.context().route("**/api/me/settings", async (route) => {
+    await new Promise((r) => setTimeout(r, 1_500));
+    await route.continue();
+  });
+  await page.getByRole("radio", { name: "ダーク" }).click();
+  await page.reload();
+  await page.context().unroute("**/api/me/settings");
+  await expect(page.getByRole("radio", { name: "ダーク" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
 test("端末と同じが既定で、端末の明るさに合わせる", async ({ page }) => {

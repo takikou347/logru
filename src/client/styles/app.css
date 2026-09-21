@@ -1,0 +1,170 @@
+/* ログインした後の枠。スマホは縦に積み、1024px 以上は左に列を置く */
+.app {
+  min-height: 100dvh;
+  padding: max(16px, env(safe-area-inset-top)) 16px calc(120px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+.side {
+  display: none;
+}
+.app-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 6px 6px 6px 20px;
+  min-height: 58px;
+}
+.topbar h1 {
+  font-size: 17px;
+  font-weight: 700;
+}
+.topbar .tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pagebar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 6px 18px 6px 6px;
+  min-height: 58px;
+}
+.pagebar h1 {
+  font-size: 17px;
+  font-weight: 700;
+}
+.today-btn {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--field);
+  border: 1px solid var(--glass-edge);
+}
+
+.menu-list {
+  display: flex;
+  flex-direction: column;
+}
+.menu-list a,
+.menu-list button {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  font-size: 16px;
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.menu-list > :last-child {
+  border-bottom: 0;
+}
+
+@media (min-width: 1024px) {
+  .app {
+    max-width: none;
+    margin: 0;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+  }
+  .side {
+    display: flex;
+    position: sticky;
+    top: 16px;
+    height: calc(100dvh - 32px);
+    border-radius: var(--r-panel);
+    padding: 22px 14px;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .side .word {
+    font-weight: 800;
+    font-size: 32px;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    padding-left: 8px;
+  }
+  .side h2 {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink-2);
+    letter-spacing: 0.08em;
+    padding: 0 8px 4px;
+  }
+  .navitem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 42px;
+    width: 100%;
+    padding: 0 10px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    text-align: left;
+  }
+  .navitem[aria-current="page"],
+  .navitem[aria-pressed="true"] {
+    background: var(--field);
+  }
+  .navitem .dot {
+    width: 10px;
+    height: 10px;
+  }
+  .side .me {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    padding: 0 8px;
+  }
+  .avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--c);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    flex: none;
+  }
+  .mobile-only {
+    display: none !important;
+  }
+}
+@media (max-width: 1023.98px) {
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+/* 設定やグループの画面。PC では幅を絞る */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 640px;
+  width: 100%;
+}

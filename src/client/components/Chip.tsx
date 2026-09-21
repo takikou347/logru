@@ -13,6 +13,8 @@ export function Chip({ className, ...props }: ComponentProps<"button">) {
         "inline-flex min-h-10 flex-none items-center gap-[7px] rounded-full border border-(--glass-edge) bg-field px-3.5 text-[13px] font-medium whitespace-nowrap",
         "aria-checked:border-primary aria-checked:bg-primary aria-checked:text-primary-foreground",
         "aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground",
+        // 押せないときは、選んでいないものだけを薄くする。選んでいるものは、いまの値として読めるように残す
+        "disabled:cursor-default disabled:not-aria-checked:not-aria-pressed:opacity-45",
         className,
       )}
       {...props}

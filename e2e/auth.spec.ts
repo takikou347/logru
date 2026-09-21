@@ -61,7 +61,12 @@ test("パスワードを再設定して、新しいパスワードで入れる",
   const { email } = await signUp(page);
   await logOut(page);
   await page.getByRole("link", { name: "パスワードを忘れた" }).click();
-  await page.getByLabel("メールアドレス", { exact: true }).fill(email);
+  // 画面が移り切る前に入れると、入れた値が消える。見出しが出てから入れる
+  await expect(page.getByRole("heading", { name: "パスワードを再設定する" })).toBeVisible();
+  await expect(async () => {
+    await page.getByLabel("メールアドレス", { exact: true }).fill(email);
+    await expect(page.getByLabel("メールアドレス", { exact: true })).toHaveValue(email, { timeout: 500 });
+  }).toPass({ timeout: 10_000 });
   await page.getByRole("button", { name: "メールを送る" }).click();
   await expect(page.getByRole("heading", { name: "メールを送りました" })).toBeVisible();
   const { oobCode } = await latestOob(page.request, email, "PASSWORD_RESET");

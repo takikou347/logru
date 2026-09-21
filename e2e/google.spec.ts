@@ -9,7 +9,11 @@ async function googleSignIn(page: Page, email: string, name: string, button = "G
   const popupPromise = page.waitForEvent("popup");
   await page.getByRole("button", { name: button }).click();
   const popup = await popupPromise;
-  await popup.locator("#add-account-button button").click();
+  // 窓の中の仕掛けが整う前に押すと、入力欄が開かない。開くまで押し直す
+  await expect(async () => {
+    await popup.locator("#add-account-button button").click();
+    await expect(popup.locator("#email-input")).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
   await popup.locator("#email-input").fill(email);
   await popup.locator("#display-name-input").fill(name);
   await popup.locator("#sign-in").click();

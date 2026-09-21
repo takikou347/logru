@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 4173;
+// 並べて流すときは、E2E_PORT で番号を変える。例は E2E_PORT=4174 pnpm e2e
+const PORT = Number(process.env.E2E_PORT ?? 4173);
 const baseURL = `http://localhost:${PORT}`;
 
 /**
@@ -43,7 +44,7 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: "pnpm build --mode test && pnpm db:migrate:local && pnpm preview",
+      command: `pnpm build --mode test && pnpm db:migrate:local && pnpm preview --port ${PORT}`,
       url: `${baseURL}/api/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,

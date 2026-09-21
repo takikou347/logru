@@ -89,6 +89,7 @@ export function MonthGrid({
               role="gridcell"
               data-date={d.getDate()}
               data-today={isToday || undefined}
+              data-out={isOut || undefined}
               className={cn(
                 "relative flex min-h-[52px] touch-manipulation flex-col items-center pt-1.5 select-none [-webkit-touch-callout:none]",
                 "lg:@container lg:items-stretch lg:gap-1 lg:border-t lg:border-line lg:px-1.5 lg:pt-2 lg:pb-1.5",

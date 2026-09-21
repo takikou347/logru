@@ -173,7 +173,7 @@ export function CalendarPage() {
     >
       <header className="glass flex min-h-[58px] items-center justify-between gap-2 rounded-full py-1.5 pr-1.5 pl-5">
         <h1 className="flex items-baseline gap-1" aria-live="polite">
-          <span className="text-[38px] leading-none font-bold">{selected.getMonth() + 1}</span>
+          <span data-testid="month-number" className="text-[38px] leading-none font-bold">{selected.getMonth() + 1}</span>
           <span className="text-[17px] font-bold">月</span>
           <span className="ml-2 text-[17px] font-medium text-ink-2">{selected.getFullYear()}</span>
         </h1>
@@ -238,7 +238,10 @@ export function CalendarPage() {
         </aside>
       </div>
 
-      <div className="glass fixed inset-x-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[528px] items-center justify-between rounded-full p-1.5 lg:hidden">
+      <div
+        role="toolbar"
+        aria-label="カレンダーの操作"
+        className="glass fixed inset-x-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[528px] items-center justify-between rounded-full p-1.5 lg:hidden">
         <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} />
         {addButton}
       </div>

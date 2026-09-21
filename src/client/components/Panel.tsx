@@ -1,14 +1,24 @@
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, type ReactNode, useId } from "react";
 import { cn } from "@/lib/utils";
 
 /**
  * ガラスの面。設定やグループの画面で、見出しの付いたまとまりを作る。
+ * 見出しがあれば、読み上げではその名前の区画になる。
  * @param title 小さい見出し。省くと見出しを出さない
  */
 export function Panel({ title, className, children, ...props }: ComponentProps<"section"> & { title?: ReactNode }) {
+  const id = useId();
   return (
-    <section className={cn("glass flex flex-col gap-2.5 rounded-3xl px-4 py-3.5", className)} {...props}>
-      {title && <h2 className="text-xs font-bold tracking-wider text-ink-2">{title}</h2>}
+    <section
+      aria-labelledby={title && !props["aria-label"] ? id : undefined}
+      className={cn("glass flex flex-col gap-2.5 rounded-3xl px-4 py-3.5", className)}
+      {...props}
+    >
+      {title && (
+        <h2 id={id} className="text-xs font-bold tracking-wider text-ink-2">
+          {title}
+        </h2>
+      )}
       {children}
     </section>
   );

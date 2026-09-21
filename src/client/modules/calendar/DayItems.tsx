@@ -40,11 +40,12 @@ export function DayPanel({ day, items, onOpen }: { day: Date; items: ViewItem[];
   const mine = items.filter((i) => onDay(i, day));
   return (
     <section
+      data-testid="day-panel"
       className="glass grid grid-cols-[auto_1fr] items-start gap-4 rounded-panel px-4.5 py-4 xl:grid-cols-1"
       aria-label={`${day.getMonth() + 1}月${day.getDate()}日の予定`}
     >
-      <div className={cn("flex min-w-[72px] flex-col xl:flex-row xl:items-end xl:gap-3", tone && toneText[tone])}>
-        <span className="text-[72px] leading-[0.9] font-bold tracking-[-0.04em] xl:text-[88px]">{day.getDate()}</span>
+      <div data-tone={tone ?? undefined} className={cn("flex min-w-[72px] flex-col xl:flex-row xl:items-end xl:gap-3", tone && toneText[tone])}>
+        <span data-testid="big-day" className="text-[72px] leading-[0.9] font-bold tracking-[-0.04em] xl:text-[88px]">{day.getDate()}</span>
         <div>
           <div className="mt-2 text-sm font-bold">{WEEKDAYS[day.getDay()]}曜</div>
           {hol && <div className="mt-0.5 text-[11px] text-ink-2">{hol}</div>}

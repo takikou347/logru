@@ -27,7 +27,7 @@ export function WeekList({
         const hol = holidayName(d);
         const isToday = sameDay(d, today);
         return (
-          <div key={d.getTime()} className="grid grid-cols-[64px_1fr] gap-2.5 border-b border-line py-2.5 last:border-b-0">
+          <div key={d.getTime()} data-testid="week-row" className="grid grid-cols-[64px_1fr] gap-2.5 border-b border-line py-2.5 last:border-b-0">
             <button
               type="button"
               className={cn("flex min-h-11 flex-col items-start text-left", tone && toneText[tone])}

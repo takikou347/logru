@@ -8,6 +8,8 @@ import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/A
 import { Button } from "@/components/ui/button";
 import { ApiError, api } from "@/lib/api";
 import { keys } from "@/lib/queries";
+import { postAgreement } from "@/modules/auth/AgreePage";
+import { takeRememberedAgreement } from "@/modules/auth/pending-agreement";
 
 /**
  * 招待リンクを開いた画面。ログインしていなくても、どのグループへの招待かは見られる。F-12
@@ -28,6 +30,8 @@ export function InvitePage() {
     setBusy(true);
     setError(null);
     try {
+      // 登録の画面で同意して、そのまま招待に戻ってきたとき。先に同意を送る
+      if (takeRememberedAgreement()) await postAgreement();
       const { groupId } = await api<{ groupId: string }>(`/invites/${token}/accept`, { method: "POST" });
       await qc.invalidateQueries();
       navigate(`/?group=${groupId}`, { replace: true });

@@ -74,6 +74,10 @@ export function RequireAuth() {
   if (needsAgreement && location.pathname !== "/agree") {
     return <Navigate to={`/agree?next=${encodeURIComponent(here)}`} replace />;
   }
+  // 覚えていた同意を送り終えたら、同意の画面は飛ばす
+  if (!needsAgreement && location.pathname === "/agree") {
+    return <Navigate to={safeNext(new URLSearchParams(location.search).get("next"))} replace />;
+  }
   return <Outlet />;
 }
 

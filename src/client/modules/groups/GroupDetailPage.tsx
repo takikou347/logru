@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import type { ExtensionInfo, GroupMember, GroupSummary } from "../../../shared/api-types";
 import { GROUP_COLORS } from "../../../shared/colors";
@@ -26,6 +26,7 @@ type ColorTarget = { type: "group" | "user"; id: string; title: string; fallback
 /**
  * グループの詳しい画面。名前、色、メンバー、招待、拡張機能、抜ける。F-10〜F-15、F-19
  * 名前とグループの色と招待と拡張の切り替えは、管理者だけが変えられる。
+ * 自分だけのグループを開いたら、一覧へ戻す。0009
  */
 export function GroupDetailPage() {
   const { id = "" } = useParams();
@@ -41,10 +42,12 @@ export function GroupDetailPage() {
   const extensions = useQuery({
     queryKey: keys.extensions(id),
     queryFn: () => api<{ extensions: ExtensionInfo[] }>(`/groups/${id}/extensions`).then((r) => r.extensions),
-    enabled: Boolean(group),
+    enabled: Boolean(group && !group.isPersonal),
   });
 
   if (groups.isPending || me.isPending) return <Loading />;
+  // 自分だけのグループは、グループとして見せない。直接開いたら一覧へ戻す。0009
+  if (group?.isPersonal) return <Navigate to="/groups" replace />;
   if (!group || !me.data) {
     return (
       <AppLayout poolColors={poolColorsOf(groups.data ?? [], me.data)}>
@@ -108,9 +111,9 @@ export function GroupDetailPage() {
   return (
     <AppLayout poolColors={[shown, ...poolColorsOf(groups.data ?? [], me.data).filter((c) => c !== shown)]} poolFocus={0}>
       <Page>
-        <PageBar title={group.isPersonal ? "自分" : group.name} back="/groups" />
+        <PageBar title={group.name} back="/groups" />
 
-        {!group.isPersonal && admin && <RenameForm group={group} />}
+        {admin && <RenameForm group={group} />}
 
         <Panel title="色">
           <RowButton onClick={() => setColorTarget({ type: "group", id: group.id, title: "自分の画面での色", fallback: group.color })}>
@@ -120,7 +123,7 @@ export function GroupDetailPage() {
               {isCustom({ type: "group", id: group.id, title: "", fallback: "" }) ? "自分だけ変えた" : "グループの色のまま"}
             </span>
           </RowButton>
-          {!group.isPersonal && admin && (
+          {admin && (
             <div className="flex flex-col gap-2 pt-1">
               <FieldMessage>グループの色。まだ色を選んでいないメンバー全員に出ます</FieldMessage>
               <ColorSwatches
@@ -131,33 +134,30 @@ export function GroupDetailPage() {
               />
             </div>
           )}
-          {group.isPersonal && <FieldMessage>自分だけのグループの色は、設定の「自分の色」で変わります。</FieldMessage>}
         </Panel>
 
-        {!group.isPersonal && (
-          <Panel title="メンバー" aria-label="メンバー">
-            <div>
-              {group.members.map((m) => (
-                <MemberRow
-                  key={m.id}
-                  member={m}
-                  isMe={m.id === myId}
-                  color={memberColor(m.id, m.userColor, prefs)}
-                  canManage={admin && !(m.role === "admin" && adminCount === 1)}
-                  onColor={() => setColorTarget({ type: "user", id: m.id, title: `${m.name} の色`, fallback: m.userColor })}
-                  onRole={(role) =>
-                    run(
-                      () => api(`/groups/${id}/members/${m.id}`, { method: "PATCH", body: { role } }),
-                      role === "admin" ? `${m.name} を管理者にしました` : `${m.name} をメンバーに戻しました`,
-                    )
-                  }
-                />
-              ))}
-            </div>
-          </Panel>
-        )}
+        <Panel title="メンバー" aria-label="メンバー">
+          <div>
+            {group.members.map((m) => (
+              <MemberRow
+                key={m.id}
+                member={m}
+                isMe={m.id === myId}
+                color={memberColor(m.id, m.userColor, prefs)}
+                canManage={admin && !(m.role === "admin" && adminCount === 1)}
+                onColor={() => setColorTarget({ type: "user", id: m.id, title: `${m.name} の色`, fallback: m.userColor })}
+                onRole={(role) =>
+                  run(
+                    () => api(`/groups/${id}/members/${m.id}`, { method: "PATCH", body: { role } }),
+                    role === "admin" ? `${m.name} を管理者にしました` : `${m.name} をメンバーに戻しました`,
+                  )
+                }
+              />
+            ))}
+          </div>
+        </Panel>
 
-        {!group.isPersonal && admin && (
+        {admin && (
           <Panel title="招待">
             {invite ? (
               <>
@@ -218,11 +218,9 @@ export function GroupDetailPage() {
           )}
         </Panel>
 
-        {!group.isPersonal && (
-          <Button variant="danger" className="self-start" onClick={() => setConfirmLeave(true)}>
-            グループを抜ける
-          </Button>
-        )}
+        <Button variant="danger" className="self-start" onClick={() => setConfirmLeave(true)}>
+          グループを抜ける
+        </Button>
       </Page>
 
       {colorTarget && (

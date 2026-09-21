@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Notice } from "@/components/AuthShell";
 import { Chip } from "@/components/Chip";
 import { Field } from "@/components/Field";
-import { Dot, PanelRow } from "@/components/Panel";
+import { Dot, FieldMessage, PanelRow } from "@/components/Panel";
 import { ResponsiveSheet } from "@/components/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -60,11 +60,14 @@ function DayItemList({ day, items, onOpen }: { day: Date; items: DayItem[]; onOp
  * 終日なら始まりの日と終わりの日、そうでなければ日付と時刻を聞く。
  * 終わりの時刻が始まりより前なら、日をまたいだとみなす。
  * 新しく足すときは、その日に既にある予定をフォームの上に並べる。
+ * 共有は「共有しない」が既定。グループで絞っていたら、そのグループを選んで開く。
  */
 export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, onDelete }: ItemEditorProps) {
   const qc = useQueryClient();
   const editing = target.mode === "edit" ? target.item : null;
   const personal = groups.find((g) => g.isPersonal);
+  // 「共有しない」は自分だけのグループに置く。0009
+  const choices = personal ? [personal, ...groups.filter((g) => g !== personal)] : groups;
 
   const initialStart = editing ? editing.startsAt : defaultStart(target.mode === "new" ? target.date : new Date());
   const initialEnd = editing ? editing.endsAt : initialStart + 60 * 60 * 1000;
@@ -84,6 +87,7 @@ export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, 
     editing?.groupId ?? (target.mode === "new" ? target.groupId : undefined) ?? "",
   );
   const groupId = pickedGroupId || personal?.id || groups[0]?.id || "";
+  const chosen = groups.find((g) => g.id === groupId);
   const [memo, setMemo] = useState(editing?.memo ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -178,16 +182,19 @@ export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, 
         )}
         <div className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-2" id="event-group-label">
-            だれの予定か
+            共有
           </span>
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="event-group-label">
-            {groups.map((g) => (
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="event-group-label" aria-describedby="event-group-hint">
+            {choices.map((g) => (
               <Chip key={g.id} role="radio" aria-checked={g.id === groupId} onClick={() => setGroupId(g.id)}>
                 <Dot color={groupColor(g, me.colorPrefs)} />
-                {g.isPersonal ? "自分" : g.name}
+                {g.isPersonal ? "共有しない" : g.name}
               </Chip>
             ))}
           </div>
+          <FieldMessage id="event-group-hint">
+            {chosen && !chosen.isPersonal ? `「${chosen.name}」のメンバー全員に見えます。` : "自分だけに見えます。"}
+          </FieldMessage>
         </div>
         <Field label="メモ">
           {(p) => <Textarea {...p} value={memo} maxLength={1000} placeholder="お店の名前や持ち物" onChange={(e) => setMemo(e.target.value)} />}

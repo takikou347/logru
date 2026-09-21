@@ -64,10 +64,10 @@ test("パスワードが短いと登録できない", async ({ page }) => {
   await expect(page.getByRole("alert")).toHaveText("パスワードは 8 文字以上にしてください。");
 });
 
-test("登録し、確認メールを開くと、自分だけのグループでカレンダーが開く", async ({ page }) => {
+test("登録し、確認メールを開くと、「自分だけの予定」で絞れるカレンダーが開く", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await expect(page).toHaveURL(/\/$|\/\?/);
-  await expect(page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "自分" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "自分だけの予定" })).toBeVisible();
   // 登録の画面で同意したので、同意の画面は出ない
   await expect(page.getByRole("heading", { name: "規約への同意" })).toHaveCount(0);
 });

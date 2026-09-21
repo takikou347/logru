@@ -42,8 +42,9 @@ test("招待したパートナーと、グループの予定を見合える", as
   await partner.page.reload();
   await expect(dayPanel(partner.page).getByRole("button", { name: /ふたりで夕飯/ })).toBeVisible();
 
-  // 自分だけの予定は、相手には見えない
+  // 「共有しない」のまま保存した予定は、相手には見えない
   await addEvent(page, "自分の用事");
+  await expect(dayPanel(page).getByRole("button", { name: /自分の用事/ })).toBeVisible();
   await partner.page.reload();
   await expect(partner.page.getByText("自分の用事")).toHaveCount(0);
 
@@ -53,6 +54,30 @@ test("招待したパートナーと、グループの予定を見合える", as
   await expect(dayPanel(page).getByRole("button", { name: /自分の用事/ })).toHaveCount(0);
 
   await partner.context.close();
+});
+
+test("グループの一覧に自分だけのグループは出ず、直接開いても一覧へ戻る", async ({ page }) => {
+  await signUp(page);
+  // 自分だけのグループの ID は、絞り込みの URL から分かる
+  await page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "自分だけの予定" }).click();
+  await expect(page).toHaveURL(/group=/);
+  const personalId = new URL(page.url()).searchParams.get("group")!;
+
+  await page.goto("/groups");
+  const list = page.getByRole("region", { name: "グループの一覧" });
+  await expect(list.getByText("まだ入っているグループはありません。")).toBeVisible();
+  await expect(list.getByRole("link")).toHaveCount(0);
+
+  await page.goto(`/groups/${personalId}`);
+  await expect(page).toHaveURL(/\/groups$/);
+
+  await page.getByLabel("グループの名前").fill("ふたり");
+  await page.getByRole("button", { name: "作る" }).click();
+  await expect(page.getByRole("heading", { name: "ふたり" })).toBeVisible();
+  await page.goto("/groups");
+  await expect(list.getByRole("link")).toHaveCount(1);
+  await expect(list.getByRole("link", { name: /ふたり/ })).toBeVisible();
+  await expect(list.getByText("自分", { exact: true })).toHaveCount(0);
 });
 
 test("最後の管理者は抜けられず、退会もできない。管理者を渡せば抜けられる", async ({ page, browser }) => {

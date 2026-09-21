@@ -132,7 +132,7 @@ export function CalendarPage() {
   const showTodayButton = !sameDay(selected, today) || view !== "month";
   const Editor = editor?.mode === "edit" ? (clientExtension(editor.item.extension)?.Editor ?? null) : defaultExtension.Editor;
 
-  /** 絞り込みの選択肢。スマホは丸いボタン、PC は左の列の行 */
+  /** 絞り込みの選択肢。スマホは丸いボタン、PC は左の列の行。自分だけのグループは「自分だけの予定」と書く。0009 */
   const filters = (render: (p: { key: string; pressed: boolean; onClick: () => void; children: React.ReactNode }) => React.ReactNode) => [
     render({ key: "all", pressed: !groupFilter, onClick: () => update({ group: null }), children: "すべて" }),
     ...allGroups.map((g) =>
@@ -143,7 +143,7 @@ export function CalendarPage() {
         children: (
           <>
             <Dot color={me.data ? groupColor(g, me.data.colorPrefs) : g.color} />
-            {g.isPersonal ? "自分" : g.name}
+            {g.isPersonal ? "自分だけの予定" : g.name}
           </>
         ),
       }),

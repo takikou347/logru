@@ -91,7 +91,7 @@ export function SettingsPage() {
         </Panel>
 
         <Panel title="自分の色">
-          <FieldMessage>自分だけの予定の色になります。グループのメンバーにも、この色で見えます。</FieldMessage>
+          <FieldMessage>カレンダーの「自分だけの予定」の色になります。グループのメンバーにも、この色で見えます。</FieldMessage>
           <ColorSwatches label="自分の色" value={s.userColor} options={GROUP_COLORS} onChange={(userColor) => change({ userColor })} />
         </Panel>
 

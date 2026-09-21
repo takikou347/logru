@@ -78,19 +78,38 @@ test("読み直し、登録を消すと、取り込んだ予定も消える", as
   await expect(dayPanel(page).getByRole("button", { name: /外部の打ち合わせ/ })).toHaveCount(0);
 });
 
-test("カレンダーの画面の読み直しのボタンは、登録した人にだけ出て、押すと読み直す", async ({ page, baseURL }) => {
+test("カレンダーの読み直しのボタンを押すと、外部のカレンダーも読み直す", async ({ page, baseURL }) => {
   await signUp(page);
-  const refresh = page.getByRole("button", { name: "外部のカレンダーを読み直す" });
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
-  await expect(refresh).toHaveCount(0);
-
   await register(page, "プライベート", `${baseURL}${SAMPLE_PATH}`);
   await page.goto("/");
-  await expect(refresh).toBeVisible();
-  await refresh.click();
-  await expect(page.getByText("外部のカレンダーを読み直しました")).toBeVisible();
-  await expect(refresh).toBeEnabled();
+  const syncs: string[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "POST" && r.url().endsWith("/api/external-calendars/sync")) syncs.push(r.url());
+  });
+  // 外部のカレンダーを読み直す要求が 1 回出て、予定が出たままであることを確かめる
+  await page.getByRole("button", { name: "カレンダーを読み直す" }).click();
+  await expect(page.getByText("カレンダーを読み直しました")).toBeVisible();
+  expect(syncs).toHaveLength(1);
   await expect(dayPanel(page).getByRole("button", { name: /外部の打ち合わせ/ })).toBeVisible();
+});
+
+test("外部のカレンダーが読めなければ、読み直しの知らせにその名前を出す", async ({ page, baseURL }) => {
+  await signUp(page);
+  await register(page, "古い URL", `${baseURL}/api/external-calendars/__test__/missing.ics`);
+  await page.goto("/");
+  await page.getByRole("button", { name: "カレンダーを読み直す" }).click();
+  await expect(page.getByText("カレンダーを読み直しました。読めなかったもの: 古い URL")).toBeVisible();
+});
+
+test("外部のカレンダーを登録していなければ、外部のカレンダーは読みに行かない", async ({ page }) => {
+  await signUp(page);
+  const syncs: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().endsWith("/api/external-calendars/sync")) syncs.push(r.url());
+  });
+  await page.getByRole("button", { name: "カレンダーを読み直す" }).click();
+  await expect(page.getByText("カレンダーを読み直しました")).toBeVisible();
+  expect(syncs).toHaveLength(0);
 });
 
 test("https でない URL は断り、読めない URL は登録して理由を出す", async ({ page, baseURL }) => {

@@ -1,12 +1,19 @@
-import { Menu } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { ChevronLeft } from "lucide-react";
+import type { ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
 import { signOut } from "@/app/auth";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useMe } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { Pools } from "./Pools";
-import { ResponsiveSheet } from "./ResponsiveSheet";
 
 /** ログアウトして、ログインの画面へ移る関数を返す */
 export function useSignOut() {
@@ -37,9 +44,6 @@ export function AppLayout({
   poolFocus?: number | null;
   side?: ReactNode;
 }) {
-  const me = useMe();
-  const doSignOut = useSignOut();
-  const name = me.data?.user.name ?? "";
   return (
     <div
       className={cn(
@@ -57,22 +61,10 @@ export function AppLayout({
           <NavLink className={navItem} to="/groups">
             グループ
           </NavLink>
-          <NavLink className={navItem} to="/settings">
-            設定
-          </NavLink>
         </nav>
         {side}
-        <div className="mt-auto flex items-center gap-2.5 px-2 text-sm">
-          <span
-            className={cn("grid size-[34px] flex-none place-items-center rounded-full bg-(--c) font-bold text-white", `c-${me.data?.settings.userColor ?? "wakatake"}`)}
-            aria-hidden="true"
-          >
-            {name.slice(0, 1).toUpperCase()}
-          </span>
-          <span className="min-w-0 flex-1 truncate">{name}</span>
-          <Button variant="ghost" size="sm" onClick={doSignOut}>
-            ログアウト
-          </Button>
+        <div className="mt-auto">
+          <AccountMenu wide />
         </div>
       </aside>
       <div className="flex min-w-0 flex-col gap-3">{children}</div>
@@ -88,48 +80,80 @@ export function SideHeading({ children }: { children: ReactNode }) {
 /** PC の左の列の 1 行の見た目。絞り込みのボタンに使う */
 export const sideItemClass = navItem;
 
-/** スマホのメニュー。上の帯の右に置く */
-export function MenuButton() {
-  const [open, setOpen] = useState(false);
-  const doSignOut = useSignOut();
-  const item = "flex min-h-13 items-center border-b border-line text-base no-underline last:border-b-0";
+/** 利用者の頭文字の丸。色は利用者の色 */
+function UserAvatar({ name, color }: { name: string; color: string | undefined }) {
   return (
-    <>
-      <Button variant="ghost" size="icon" className="lg:hidden" aria-label="メニューを開く" onClick={() => setOpen(true)}>
-        <Menu />
-      </Button>
-      {open && (
-        <ResponsiveSheet title="メニュー" onClose={() => setOpen(false)}>
-          <nav className="flex flex-col">
-            <Link className={item} to="/groups">
-              グループ
-            </Link>
-            <Link className={item} to="/settings">
-              設定
-            </Link>
-            <button type="button" className={cn(item, "text-left")} onClick={doSignOut}>
-              ログアウト
-            </button>
-          </nav>
-        </ResponsiveSheet>
-      )}
-    </>
+    <span
+      className={cn("grid size-[34px] flex-none place-items-center rounded-full bg-(--c) text-[15px] font-bold text-white", `c-${color ?? "wakatake"}`)}
+      aria-hidden="true"
+    >
+      {name.slice(0, 1).toUpperCase()}
+    </span>
   );
 }
 
 /**
- * 設定やグループの画面の上の帯。スマホでは戻るボタンを出す。
- * @param back 戻る先。既定はカレンダー
+ * 利用者のアイコンと、押すと開くメニュー。名前とメールアドレス、設定、ログアウトを並べる。
+ * PC は左の列の下に置き、スマホは上の帯の右端に置く。
+ *
+ * @param wide PC の左の列の形。アイコンの横に名前を出し、メニューは上に開く
  */
-export function PageBar({ title, back = "/" }: { title: string; back?: string }) {
+export function AccountMenu({ wide = false }: { wide?: boolean }) {
+  const me = useMe();
+  const doSignOut = useSignOut();
+  const name = me.data?.user.name ?? "";
+  const email = me.data?.user.email ?? "";
+  const avatar = <UserAvatar name={name} color={me.data?.settings.userColor} />;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        {wide ? (
+          <button type="button" className={cn(navItem, "min-h-12 px-2")} aria-label="アカウントのメニュー">
+            {avatar}
+            <span className="min-w-0 flex-1 truncate">{name}</span>
+          </button>
+        ) : (
+          <Button variant="ghost" size="icon" className="lg:hidden" aria-label="アカウントのメニュー">
+            {avatar}
+          </Button>
+        )}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side={wide ? "top" : "bottom"} align={wide ? "start" : "end"} sideOffset={8} className="w-72 max-w-[calc(100vw-32px)]">
+        <DropdownMenuLabel className="flex items-center gap-2.5">
+          {avatar}
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-[15px] font-bold">{name}</span>
+            <span className="truncate text-[13px] font-normal text-ink-2">{email}</span>
+          </span>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {!wide && (
+          <DropdownMenuItem asChild>
+            <Link to="/groups">グループ</Link>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem asChild>
+          <Link to="/settings">設定</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={doSignOut}>ログアウト</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
+ * 設定やグループの画面の上の帯。左に戻るボタンを置く。
+ * @param back 戻る先。渡すと PC でも戻るボタンを出す。一覧の下の画面で使う。渡さなければスマホだけに出し、カレンダーへ戻る
+ */
+export function PageBar({ title, back }: { title: string; back?: string }) {
   return (
     <header className="glass flex min-h-[58px] items-center gap-1 rounded-full py-1.5 pr-4.5 pl-1.5">
-      <Button asChild variant="ghost" size="icon" className="lg:hidden">
-        <Link to={back} aria-label="戻る">
-          ‹
+      <Button asChild variant="ghost" size="icon" className={cn(!back && "lg:hidden")}>
+        <Link to={back ?? "/"} aria-label="戻る">
+          <ChevronLeft className="size-5" />
         </Link>
       </Button>
-      <h1 className="pl-2 text-[17px] font-bold lg:pl-3">{title}</h1>
+      <h1 className={cn("pl-2 text-[17px] font-bold", !back && "lg:pl-3")}>{title}</h1>
     </header>
   );
 }

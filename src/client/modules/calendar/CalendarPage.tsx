@@ -1,9 +1,9 @@
-import { Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { clientExtension, defaultExtension } from "../../../extensions/registry.client";
 import type { EditorTarget } from "../../../extensions/types.client";
-import { AppLayout, MenuButton, SideHeading, sideItemClass } from "@/components/AppLayout";
+import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components/AppLayout";
 import { Notice } from "@/components/AuthShell";
 import { Chip } from "@/components/Chip";
 import { Dot } from "@/components/Panel";
@@ -187,17 +187,17 @@ export function CalendarPage() {
               今日
             </button>
           )}
-          <Button variant="ghost" size="icon" className="text-[22px] text-ink-2" aria-label={view === "month" ? "前の月" : "前へ"} onClick={() => move(-1)}>
-            ‹
+          <Button variant="ghost" size="icon" aria-label={view === "month" ? "前の月" : "前へ"} onClick={() => move(-1)}>
+            <ChevronLeft className="size-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-[22px] text-ink-2" aria-label={view === "month" ? "次の月" : "次へ"} onClick={() => move(1)}>
-            ›
+          <Button variant="ghost" size="icon" aria-label={view === "month" ? "次の月" : "次へ"} onClick={() => move(1)}>
+            <ChevronRight className="size-5" />
           </Button>
           <div className="ml-2 hidden gap-2.5 lg:flex">
             <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} />
             {addButton}
           </div>
-          <MenuButton />
+          <AccountMenu />
         </div>
       </header>
 

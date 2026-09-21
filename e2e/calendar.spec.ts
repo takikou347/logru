@@ -12,6 +12,21 @@ test("予定を足すと、選んだ日の欄に出る", async ({ page }) => {
   await expect(panel.getByText("自分")).toBeVisible();
 });
 
+test("グループの一覧が届く前にシートを開いても、自分だけのグループに保存できる", async ({ page }) => {
+  // グループの一覧を遅らせ、届く前にシートを開いて題名を入れる
+  await page.context().route("**/api/groups", async (route) => {
+    await new Promise((r) => setTimeout(r, 2_000));
+    await route.continue();
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  const sheet = page.getByRole("dialog", { name: "新しい予定" });
+  await sheet.getByLabel("題名").fill("読み込み中に足す");
+  await sheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("予定を足しました")).toBeVisible();
+  await expect(dayPanel(page).getByRole("button", { name: /読み込み中に足す/ })).toBeVisible();
+});
+
 test("題名が空なら保存できない", async ({ page }) => {
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });

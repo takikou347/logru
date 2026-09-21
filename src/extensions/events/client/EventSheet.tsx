@@ -49,9 +49,12 @@ export function EventSheet({ target, groups, me, onClose, onDelete }: ItemEditor
   });
   const [startTime, setStartTime] = useState(toTimeInput(initialStart));
   const [endTime, setEndTime] = useState(initialEnd ? toTimeInput(initialEnd) : "");
-  const [groupId, setGroupId] = useState(
-    editing?.groupId ?? (target.mode === "new" ? target.groupId : undefined) ?? personal?.id ?? groups[0]?.id ?? "",
+  // 選んだグループ。選んでいなければ空で、自分だけのグループを使う。
+  // グループの一覧は、シートを開いた後に届くことがある。開いた時点の値で決め打ちしない
+  const [pickedGroupId, setGroupId] = useState(
+    editing?.groupId ?? (target.mode === "new" ? target.groupId : undefined) ?? "",
   );
+  const groupId = pickedGroupId || personal?.id || groups[0]?.id || "";
   const [memo, setMemo] = useState(editing?.memo ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -175,7 +178,7 @@ export function EventSheet({ target, groups, me, onClose, onDelete }: ItemEditor
               やめる
             </Button>
           )}
-          <Button type="submit" disabled={busy || !title.trim()}>
+          <Button type="submit" disabled={busy || !title.trim() || !groupId}>
             {busy ? "保存しています" : "保存する"}
           </Button>
         </div>

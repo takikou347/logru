@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { groupColor } from "@/lib/colors";
-import { DAY_MS, addDays, dateKey, holidayName, parseDateKey, startOfDay, toTimeInput, withTime } from "@/lib/dates";
+import { DAY_MS, addDays, dateKey, formatTime, holidayName, parseDateKey, startOfDay, toTimeInput, withTime } from "@/lib/dates";
 import { api } from "@/lib/api";
-import type { ItemEditorProps } from "../../types.client";
+import type { CalendarItem } from "../../../shared/api-types";
+import type { DayItem, ItemEditorProps } from "../../types.client";
 
 /**
  * 新しい予定の始まりの時刻。今日なら次の正時、ほかの日なら 9 時。
@@ -27,12 +28,40 @@ function defaultStart(date: Date): number {
 }
 
 /**
+ * 新しい予定のシートの上に出す、その日に既にある予定。押すと、その予定を直すシートに切り替わる。0012
+ * @param day 予定を足す日。見出しに使う
+ */
+function DayItemList({ day, items, onOpen }: { day: Date; items: DayItem[]; onOpen: (item: CalendarItem) => void }) {
+  const heading = `${day.getMonth() + 1}月${day.getDate()}日の予定`;
+  return (
+    <section aria-label={heading} className="-mt-1 rounded-2xl bg-field px-3.5 py-2">
+      <h3 className="pt-0.5 text-xs font-bold text-ink-2">{heading}</h3>
+      <ul className="flex min-w-0 flex-col">
+        {items.map((i) => (
+          <li key={`${i.extension}:${i.id}`} className="border-line not-first:border-t">
+            <button type="button" className="grid min-h-10 w-full grid-cols-[42px_1fr] items-center gap-1 py-0.5 text-left" onClick={() => onOpen(i)}>
+              <time className="text-[13px] font-medium text-ink-2">{i.allDay ? "終日" : formatTime(i.startsAt)}</time>
+              <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                <Dot color={i.color} />
+                <span className="truncate">{i.title}</span>
+                <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
  * 予定を足す、直すシート。F-05〜F-07
  *
  * 終日なら始まりの日と終わりの日、そうでなければ日付と時刻を聞く。
  * 終わりの時刻が始まりより前なら、日をまたいだとみなす。
+ * 新しく足すときは、その日に既にある予定をフォームの上に並べる。
  */
-export function EventSheet({ target, groups, me, onClose, onDelete }: ItemEditorProps) {
+export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, onDelete }: ItemEditorProps) {
   const qc = useQueryClient();
   const editing = target.mode === "edit" ? target.item : null;
   const personal = groups.find((g) => g.isPersonal);
@@ -106,6 +135,9 @@ export function EventSheet({ target, groups, me, onClose, onDelete }: ItemEditor
 
   return (
     <ResponsiveSheet title={editing ? "予定を直す" : "新しい予定"} onClose={onClose}>
+      {target.mode === "new" && dayItems && dayItems.length > 0 && onOpenItem && (
+        <DayItemList day={target.date} items={dayItems} onOpen={onOpenItem} />
+      )}
       <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         <Field label="題名">
           {(p) => <Input {...p} value={title} maxLength={100} placeholder="例: 歯医者" onChange={(e) => setTitle(e.target.value)} />}

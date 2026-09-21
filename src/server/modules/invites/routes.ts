@@ -1,11 +1,17 @@
 import { eq } from "drizzle-orm";
-import type { InviteInfo } from "../../shared/api-types";
-import { HttpError, createRouter, requireUser } from "../app";
-import { groupInvites, groupMembers, groups } from "../db/schema";
+import type { InviteInfo } from "../../../shared/api-types";
+import { HttpError, createRouter } from "../../core/app";
+import { requireAgreement, requireUser } from "../../core/auth/middleware";
+import type { DB } from "../../core/db/client";
+import { groupInvites, groupMembers, groups } from "../../core/db/schema";
 
-async function findInvite(c: { get: (k: "db") => import("../db/client").DB }, token: string) {
-  const row = await c
-    .get("db")
+/**
+ * 招待リンクを探し、使えない理由があれば添えて返す。
+ * @param db D1 を包んだ Drizzle
+ * @param token 招待リンクの文字列
+ */
+async function findInvite(db: DB, token: string) {
+  const row = await db
     .select({ invite: groupInvites, groupName: groups.name })
     .from(groupInvites)
     .innerJoin(groups, eq(groups.id, groupInvites.groupId))
@@ -16,14 +22,15 @@ async function findInvite(c: { get: (k: "db") => import("../db/client").DB }, to
   return { ...row, reason } as const;
 }
 
+/** `/api/invites`。招待リンクを見るのはログイン無しでできる。参加はログインと同意が要る */
 export const inviteRoutes = createRouter()
   .get("/:token", async (c) => {
-    const { invite, groupName, reason } = await findInvite(c, c.req.param("token"));
+    const { invite, groupName, reason } = await findInvite(c.get("db"), c.req.param("token"));
     const body: InviteInfo = { groupName, expiresAt: invite.expiresAt.getTime(), valid: !reason, reason };
     return c.json(body);
   })
-  .post("/:token/accept", requireUser, async (c) => {
-    const { invite, reason } = await findInvite(c, c.req.param("token"));
+  .post("/:token/accept", requireUser, requireAgreement, async (c) => {
+    const { invite, reason } = await findInvite(c.get("db"), c.req.param("token"));
     if (reason === "expired") throw new HttpError(400, "招待リンクの期限が切れています。新しいリンクを頼んでください。");
     if (reason === "revoked") throw new HttpError(400, "この招待リンクは取り消されています。新しいリンクを頼んでください。");
     await c

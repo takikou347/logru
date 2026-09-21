@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "logru",
-  "main": "src/worker/index.ts",
+  "main": "src/server/index.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
@@ -12,28 +12,32 @@
     {
       "binding": "DB",
       "database_name": "logru",
-      // 本番の ID は `wrangler d1 create logru` の結果に置き換える
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
     }
   ],
+  // 手元の開発。Firebase はエミュレーターを使う。demo- で始まるプロジェクトは本物に届かない
   "vars": {
     "ENVIRONMENT": "development",
     "APP_URL": "http://localhost:5173",
-    "MAIL_FROM": "Logru <no-reply@example.com>"
+    "FIREBASE_PROJECT_ID": "demo-logru",
+    "FIREBASE_AUTH_EMULATOR_HOST": "127.0.0.1:9099"
   },
   "observability": { "enabled": true },
   "env": {
     "production": {
       "vars": {
         "ENVIRONMENT": "production",
-        "APP_URL": "https://logru.example.com",
-        "MAIL_FROM": "Logru <no-reply@example.com>"
+        // workers.dev の URL と Firebase のプロジェクト ID に書き換える。README の「本番に出す」を参照
+        "APP_URL": "https://logru-production.example.workers.dev",
+        "FIREBASE_PROJECT_ID": "logru-app",
+        "FIREBASE_AUTH_EMULATOR_HOST": ""
       },
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "logru",
+          // `wrangler d1 create logru` の結果に置き換える
           "database_id": "00000000-0000-0000-0000-000000000000",
           "migrations_dir": "migrations"
         }

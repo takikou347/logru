@@ -1,22 +1,26 @@
 import { zValidator } from "@hono/zod-validator";
 import { and, eq, isNull, ne } from "drizzle-orm";
-import type { ExtensionInfo } from "../../shared/api-types";
-import { pickUnusedColor } from "../../shared/colors";
-import { extensionToggleInput, groupInput, groupPatchInput, memberRoleInput } from "../../shared/schemas";
-import { HttpError, createRouter, requireUser, validationHook } from "../app";
-import { groupExtensions, groupInvites, groupMembers, groups } from "../db/schema";
-import { toggleableProviders } from "../extensions/registry";
-import { listGroups, requireMembership } from "../services/membership";
+import type { ExtensionInfo } from "../../../shared/api-types";
+import { pickUnusedColor } from "../../../shared/colors";
+import { extensionToggleInput, groupInput, groupPatchInput, memberRoleInput } from "../../../shared/schemas";
+import { toggleableExtensions } from "../../../extensions/registry.server";
+import { HttpError, createRouter, validationHook } from "../../core/app";
+import { requireAgreement, requireUser } from "../../core/auth/middleware";
+import { groupExtensions, groupInvites, groupMembers, groups } from "../../core/db/schema";
+import { listGroups, requireMembership } from "./membership";
 
+/** 招待リンクの有効な期間。7 日 */
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** 推測できない招待の文字列を作る。24 バイトの乱数を URL で使える Base64 にする */
 function randomToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
   return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
+/** `/api/groups`。グループ、招待、管理者の受け渡し、拡張の切り替え */
 export const groupRoutes = createRouter()
-  .use("*", requireUser)
+  .use("*", requireUser, requireAgreement)
   .get("/", async (c) => c.json({ groups: await listGroups(c.get("db"), c.get("user").id) }))
   .post("/", zValidator("json", groupInput, validationHook), async (c) => {
     const db = c.get("db");
@@ -24,13 +28,11 @@ export const groupRoutes = createRouter()
     const { name } = c.req.valid("json");
     const existing = await listGroups(db, me.id);
     const id = crypto.randomUUID();
-    const color = pickUnusedColor(existing.map((g) => g.color));
     await db.batch([
-      db.insert(groups).values({ id, name, color, createdBy: me.id }),
+      db.insert(groups).values({ id, name, color: pickUnusedColor(existing.map((g) => g.color)), createdBy: me.id }),
       db.insert(groupMembers).values({ groupId: id, userId: me.id, role: "admin" }),
     ]);
-    const created = (await listGroups(db, me.id)).find((g) => g.id === id);
-    return c.json(created, 201);
+    return c.json((await listGroups(db, me.id)).find((g) => g.id === id), 201);
   })
   .patch("/:id", zValidator("json", groupPatchInput, validationHook), async (c) => {
     const db = c.get("db");
@@ -113,11 +115,11 @@ export const groupRoutes = createRouter()
     const groupId = c.req.param("id");
     await requireMembership(db, c.get("user").id, groupId);
     const rows = await db.select().from(groupExtensions).where(eq(groupExtensions.groupId, groupId));
-    const list: ExtensionInfo[] = toggleableProviders().map((p) => ({
-      key: p.key,
-      label: p.label,
-      description: p.description,
-      enabled: rows.some((r) => r.extensionKey === p.key && r.enabled),
+    const list: ExtensionInfo[] = toggleableExtensions().map(({ manifest }) => ({
+      key: manifest.key,
+      label: manifest.label,
+      description: manifest.description,
+      enabled: rows.some((r) => r.extensionKey === manifest.key && r.enabled),
     }));
     return c.json({ extensions: list });
   })
@@ -126,9 +128,9 @@ export const groupRoutes = createRouter()
     const groupId = c.req.param("id");
     const key = c.req.param("key");
     await requireMembership(db, c.get("user").id, groupId, true);
-    if (!toggleableProviders().some((p) => p.key === key)) throw new HttpError(404, "その拡張はありません。");
+    if (!toggleableExtensions().some((x) => x.manifest.key === key)) throw new HttpError(404, "その拡張はありません。");
     const values = { enabled: c.req.valid("json").enabled, updatedBy: c.get("user").id, updatedAt: new Date() };
-    // 無効にしても行は消さない。拡張のデータにも触れない
+    // 無効にしても行は消さない。拡張のデータにも触れない。F-11
     await db
       .insert(groupExtensions)
       .values({ groupId, extensionKey: key, ...values })

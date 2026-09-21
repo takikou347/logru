@@ -1,15 +1,28 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { HttpError } from "../app";
-import type { DB } from "../db/client";
-import { groupMembers, groups, user, userSettings } from "../db/schema";
-import type { GroupSummary } from "../../shared/api-types";
+import type { GroupSummary } from "../../../shared/api-types";
+import { HttpError } from "../../core/app";
+import type { DB } from "../../core/db/client";
+import { groupMembers, groups, userSettings, users } from "../../core/db/schema";
 
+/**
+ * 利用者が入っているグループの ID を返す。
+ * @param db D1 を包んだ Drizzle
+ * @param userId 利用者の ID
+ */
 export async function myGroupIds(db: DB, userId: string): Promise<string[]> {
   const rows = await db.select({ id: groupMembers.groupId }).from(groupMembers).where(eq(groupMembers.userId, userId));
   return rows.map((r) => r.id);
 }
 
-/** 所属を確かめる。管理者に限るなら admin を渡す */
+/**
+ * グループのメンバーかを確かめ、役割とグループの種類を返す。
+ * 入っていなければ、グループがあるかどうかも伝えないよう 404 にする。
+ *
+ * @param db D1 を包んだ Drizzle
+ * @param userId 利用者の ID
+ * @param groupId グループの ID
+ * @param needAdmin 管理者に限るなら true。管理者でなければ 403
+ */
 export async function requireMembership(db: DB, userId: string, groupId: string, needAdmin = false) {
   const row = await db
     .select({ role: groupMembers.role, isPersonal: groups.isPersonal, name: groups.name })
@@ -22,6 +35,13 @@ export async function requireMembership(db: DB, userId: string, groupId: string,
   return row;
 }
 
+/**
+ * 利用者が入っているグループを、メンバーと一緒に返す。自分だけのグループが先頭。
+ * 自分だけのグループの色は、その人の「自分の色」に従う。
+ *
+ * @param db D1 を包んだ Drizzle
+ * @param userId 利用者の ID
+ */
 export async function listGroups(db: DB, userId: string): Promise<GroupSummary[]> {
   const mine = await db
     .select({ group: groups, role: groupMembers.role })
@@ -29,27 +49,30 @@ export async function listGroups(db: DB, userId: string): Promise<GroupSummary[]
     .innerJoin(groups, eq(groups.id, groupMembers.groupId))
     .where(eq(groupMembers.userId, userId));
   if (mine.length === 0) return [];
-  const ids = mine.map((m) => m.group.id);
+
   const members = await db
     .select({
       groupId: groupMembers.groupId,
-      id: user.id,
-      name: user.name,
+      id: users.id,
+      name: users.name,
       role: groupMembers.role,
       userColor: userSettings.userColor,
     })
     .from(groupMembers)
-    .innerJoin(user, eq(user.id, groupMembers.userId))
-    .leftJoin(userSettings, eq(userSettings.userId, user.id))
-    .where(inArray(groupMembers.groupId, ids));
-
+    .innerJoin(users, eq(users.id, groupMembers.userId))
+    .leftJoin(userSettings, eq(userSettings.userId, users.id))
+    .where(
+      inArray(
+        groupMembers.groupId,
+        mine.map((m) => m.group.id),
+      ),
+    );
   const mySettings = await db.select().from(userSettings).where(eq(userSettings.userId, userId)).get();
 
   return mine
     .map(({ group, role }) => ({
       id: group.id,
       name: group.name,
-      // 自分だけのグループは自分の色に従う
       color: group.isPersonal ? (mySettings?.userColor ?? group.color) : group.color,
       isPersonal: group.isPersonal,
       role,

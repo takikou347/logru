@@ -20,8 +20,13 @@
     ]
   },
   "include": [
-    "src/worker",
+    "src/server",
     "src/shared",
+    "src/extensions/types.ts",
+    "src/extensions/registry.server.ts",
+    "src/extensions/*/manifest.ts",
+    "src/extensions/*/server",
+    "src/extensions/*/shared",
     "worker-configuration.d.ts",
     "tests/worker"
   ]

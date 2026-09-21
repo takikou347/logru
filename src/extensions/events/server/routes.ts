@@ -1,27 +1,14 @@
 import { zValidator } from "@hono/zod-validator";
 import { eq } from "drizzle-orm";
-import type { CalendarItem } from "../../shared/api-types";
-import { calendarQuery, eventInput, eventPatchInput } from "../../shared/schemas";
-import { HttpError, createRouter, requireUser, validationHook } from "../app";
-import type { DB } from "../db/client";
-import { events } from "../db/schema";
-import { listCalendarItems } from "../extensions/registry";
-import { myGroupIds, requireMembership } from "../services/membership";
+import { HttpError, createRouter, validationHook } from "../../../server/core/app";
+import { requireAgreement, requireUser } from "../../../server/core/auth/middleware";
+import type { DB } from "../../../server/core/db/client";
+import { requireMembership } from "../../../server/modules/groups/membership";
+import { eventInput, eventPatchInput } from "../shared/schemas";
+import { toCalendarItem } from "./provider";
+import { events } from "./schema";
 
-function toItem(r: typeof events.$inferSelect): CalendarItem {
-  return {
-    extension: "events",
-    id: r.id,
-    groupId: r.groupId,
-    createdBy: r.createdBy,
-    startsAt: r.startsAt.getTime(),
-    endsAt: r.endsAt?.getTime() ?? null,
-    allDay: r.allDay,
-    title: r.title,
-    memo: r.memo,
-  };
-}
-
+/** 予定を読み、そのグループのメンバーか確かめる。違えば 404 */
 async function loadEvent(db: DB, userId: string, id: string) {
   const row = await db.select().from(events).where(eq(events.id, id)).get();
   if (!row) throw new HttpError(404, "予定が見つかりません。");
@@ -29,19 +16,10 @@ async function loadEvent(db: DB, userId: string, id: string) {
   return row;
 }
 
-export const calendarRoutes = createRouter()
-  .use("*", requireUser)
-  .get("/", zValidator("query", calendarQuery, validationHook), async (c) => {
-    const db = c.get("db");
-    const { from, to, group } = c.req.valid("query");
-    const mine = await myGroupIds(db, c.get("user").id);
-    const wanted = group ? group.split(",").filter((g) => mine.includes(g)) : mine;
-    return c.json({ items: await listCalendarItems(db, wanted, from, to) });
-  });
-
+/** `/api/events`。予定を作る、読む、直す、消す。そのグループのメンバーだけができる */
 export const eventRoutes = createRouter()
-  .use("*", requireUser)
-  .get("/:id", async (c) => c.json(toItem(await loadEvent(c.get("db"), c.get("user").id, c.req.param("id")))))
+  .use("*", requireUser, requireAgreement)
+  .get("/:id", async (c) => c.json(toCalendarItem(await loadEvent(c.get("db"), c.get("user").id, c.req.param("id")))))
   .post("/", zValidator("json", eventInput, validationHook), async (c) => {
     const db = c.get("db");
     const input = c.req.valid("json");
@@ -60,7 +38,7 @@ export const eventRoutes = createRouter()
       })
       .returning()
       .get();
-    return c.json(toItem(row), 201);
+    return c.json(toCalendarItem(row), 201);
   })
   .patch("/:id", zValidator("json", eventPatchInput, validationHook), async (c) => {
     const db = c.get("db");
@@ -85,7 +63,7 @@ export const eventRoutes = createRouter()
       .where(eq(events.id, current.id))
       .returning()
       .get();
-    return c.json(toItem(row));
+    return c.json(toCalendarItem(row));
   })
   .delete("/:id", async (c) => {
     const db = c.get("db");

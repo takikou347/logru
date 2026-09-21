@@ -9,11 +9,14 @@ import { ResponsiveSheet } from "@/components/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { groupColor } from "@/lib/colors";
+import { groupColor, memberColor } from "@/lib/colors";
 import { DAY_MS, addDays, dateKey, formatTime, holidayName, parseDateKey, startOfDay, toTimeInput, withTime } from "@/lib/dates";
 import { api } from "@/lib/api";
-import type { CalendarItem } from "../../../shared/api-types";
+import { cn } from "@/lib/utils";
+import type { Attendee, AttendeeResponse, CalendarItem } from "../../../shared/api-types";
+import { canDeleteEvent, canEditEvent, canRespond, inviteeIds } from "../shared/permissions";
 import type { DayItem, ItemEditorProps } from "../../types.client";
+import { AttendeeList, InvitePicker, RsvpBar } from "./Invitees";
 
 /**
  * 新しい予定の始まりの時刻。今日なら次の正時、ほかの日なら 9 時。
@@ -42,8 +45,8 @@ function DayItemList({ day, items, onOpen }: { day: Date; items: DayItem[]; onOp
             <button type="button" className="grid min-h-10 w-full grid-cols-[42px_1fr] items-center gap-1 py-0.5 text-left" onClick={() => onOpen(i)}>
               <time className="text-[13px] font-medium text-ink-2">{i.allDay ? "終日" : formatTime(i.startsAt)}</time>
               <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                <Dot color={i.color} />
-                <span className="truncate">{i.title}</span>
+                <Dot color={i.color} response={i.myResponse} />
+                <span className={cn("truncate", i.myResponse === "declined" && "text-ink-3 line-through")}>{i.title}</span>
                 <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
               </span>
             </button>
@@ -61,10 +64,20 @@ function DayItemList({ day, items, onOpen }: { day: Date; items: DayItem[]; onOp
  * 終わりの時刻が始まりより前なら、日をまたいだとみなす。
  * 新しく足すときは、その日に既にある予定をフォームの上に並べる。
  * 共有は「共有しない」が既定。グループで絞っていたら、そのグループを選んで開く。
+ *
+ * 共有のグループを選ぶと、そのメンバーから招待する人を選べる。#28
+ * 招待された人が開くと、上に返事の欄を出す。招待された人も、作った人と同じように直せる。
+ * グループを変えることと、予定を消すことは、作った人だけができる。
+ * 招待されていないメンバーが開くと、見るだけのシートになる。
  */
 export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, onDelete }: ItemEditorProps) {
   const qc = useQueryClient();
   const editing = target.mode === "edit" ? target.item : null;
+  const myId = me.user.id;
+  const creatorId = editing ? editing.createdBy : myId;
+  const isCreator = creatorId === myId;
+  const canEdit = !editing || canEditEvent(editing, myId);
+  const canDelete = editing ? canDeleteEvent(editing, myId) : false;
   const personal = groups.find((g) => g.isPersonal);
   // 「共有しない」は自分だけのグループに置く。0009
   const choices = personal ? [personal, ...groups.filter((g) => g !== personal)] : groups;
@@ -91,6 +104,48 @@ export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, 
   const [memo, setMemo] = useState(editing?.memo ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // 招待。作った人はいつも参加するので、選ぶ対象にも送る値にも入れない。#28
+  const [attendees, setAttendees] = useState<Attendee[]>(editing?.attendees ?? []);
+  const [invited, setInvited] = useState<Set<string>>(
+    () => new Set(inviteeIds((editing?.attendees ?? []).map((a) => a.userId), creatorId)),
+  );
+  const [response, setResponse] = useState<AttendeeResponse | undefined>(editing?.myResponse);
+  const [responding, setResponding] = useState(false);
+  const shared = chosen && !chosen.isPersonal ? chosen : null;
+  const toPerson = (id: string) => {
+    const m = chosen?.members.find((x) => x.id === id);
+    return m ? { id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs), isMe: m.id === myId } : null;
+  };
+  const candidates = (shared?.members ?? [])
+    .filter((m) => m.id !== creatorId)
+    .map((m) => toPerson(m.id)!)
+    .sort((a, b) => Number(b.isMe) - Number(a.isMe) || a.name.localeCompare(b.name, "ja"));
+  // グループを変えたら、そのグループにいない人は選んでいないことにする
+  const effectiveInvited = new Set(candidates.filter((c) => invited.has(c.id)).map((c) => c.id));
+  const attendeePeople = attendees.flatMap((a) => {
+    const p = toPerson(a.userId);
+    return p ? [{ ...p, response: a.response }] : [];
+  });
+  const inviter = creatorId ? toPerson(creatorId) : null;
+  const showRsvp = editing && response && canRespond({ createdBy: editing.createdBy, attendees }, myId);
+
+  /** 招待に返事をする。押した瞬間にカレンダーにも効かせる */
+  async function respond(next: "accepted" | "declined") {
+    if (!editing || next === response) return;
+    setResponding(true);
+    try {
+      const item = await api<CalendarItem>(`/events/${editing.id}/response`, { method: "PUT", body: { response: next } });
+      setResponse(item.myResponse);
+      setAttendees(item.attendees ?? []);
+      await qc.invalidateQueries({ queryKey: ["calendar"] });
+      toast(next === "accepted" ? "参加すると返しました" : "参加しないと返しました");
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setResponding(false);
+    }
+  }
 
   const start = parseDateKey(startDate);
   const hol = start ? holidayName(start) : null;
@@ -123,7 +178,15 @@ export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, 
       setError((err as Error).message);
       return;
     }
-    const payload = { title: title.trim(), allDay, memo: memo.trim() || null, groupId, ...when };
+    const payload = {
+      title: title.trim(),
+      allDay,
+      memo: memo.trim() || null,
+      groupId,
+      ...when,
+      // 共有しない予定は、自分だけ。招待は送らない
+      attendeeIds: shared ? [...effectiveInvited] : [],
+    };
     setBusy(true);
     try {
       if (editing) await api(`/events/${editing.id}`, { method: "PATCH", body: payload });
@@ -138,89 +201,109 @@ export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, 
   }
 
   return (
-    <ResponsiveSheet title={editing ? "予定を直す" : "新しい予定"} onClose={onClose}>
+    <ResponsiveSheet title={!editing ? "新しい予定" : canEdit ? "予定を直す" : "予定"} onClose={onClose}>
       {target.mode === "new" && dayItems && dayItems.length > 0 && onOpenItem && (
         <DayItemList day={target.date} items={dayItems} onOpen={onOpenItem} />
       )}
+      {showRsvp && (
+        <RsvpBar color={chosen ? groupColor(chosen, me.colorPrefs) : "nezumi"} inviter={inviter} response={response} busy={responding} onRespond={respond} />
+      )}
+      {!canEdit && (
+        <Notice className="-mt-1">この予定は見るだけです。直せるのは、作った人と招待された人です。</Notice>
+      )}
       <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
-        <Field label="題名">
-          {(p) => <Input {...p} value={title} maxLength={100} placeholder="例: 歯医者" onChange={(e) => setTitle(e.target.value)} />}
-        </Field>
-        <PanelRow>
-          <span>終日</span>
-          <Switch checked={allDay} onCheckedChange={setAllDay} aria-label="終日" />
-        </PanelRow>
-        <div className="flex gap-2.5 *:min-w-0 *:flex-1">
-          <Field label={allDay ? "始まりの日" : "日付"} hint={hol ?? undefined}>
-            {(p) => (
-              <Input
-                {...p}
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  if (endDate < e.target.value) setEndDate(e.target.value);
-                }}
-              />
-            )}
+        {/* 見るだけのときは、入力をまとめて押せなくする */}
+        <fieldset disabled={!canEdit} className="contents">
+          <Field label="題名">
+            {(p) => <Input {...p} value={title} maxLength={100} placeholder="例: 歯医者" onChange={(e) => setTitle(e.target.value)} />}
           </Field>
-          {allDay && (
-            <Field label="終わりの日">
-              {(p) => <Input {...p} type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} />}
-            </Field>
-          )}
-        </div>
-        {!allDay && (
+          <PanelRow>
+            <span>終日</span>
+            <Switch checked={allDay} onCheckedChange={setAllDay} aria-label="終日" disabled={!canEdit} />
+          </PanelRow>
           <div className="flex gap-2.5 *:min-w-0 *:flex-1">
-            <Field label="始まり">
-              {(p) => <Input {...p} type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />}
+            <Field label={allDay ? "始まりの日" : "日付"} hint={hol ?? undefined}>
+              {(p) => (
+                <Input
+                  {...p}
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    if (endDate < e.target.value) setEndDate(e.target.value);
+                  }}
+                />
+              )}
             </Field>
-            <Field label="終わり">
-              {(p) => <Input {...p} type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />}
-            </Field>
+            {allDay && (
+              <Field label="終わりの日">
+                {(p) => <Input {...p} type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} />}
+              </Field>
+            )}
+          </div>
+          {!allDay && (
+            <div className="flex gap-2.5 *:min-w-0 *:flex-1">
+              <Field label="始まり">
+                {(p) => <Input {...p} type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />}
+              </Field>
+              <Field label="終わり">
+                {(p) => <Input {...p} type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />}
+              </Field>
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-ink-2" id="event-group-label">
+              共有
+            </span>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="event-group-label" aria-describedby="event-group-hint">
+              {choices.map((g) => (
+                <Chip key={g.id} role="radio" aria-checked={g.id === groupId} disabled={!isCreator} onClick={() => setGroupId(g.id)}>
+                  <Dot color={groupColor(g, me.colorPrefs)} />
+                  {g.isPersonal ? "共有しない" : g.name}
+                </Chip>
+              ))}
+            </div>
+            <FieldMessage id="event-group-hint">
+              {shared ? `「${shared.name}」のメンバー全員に見えます。` : "自分だけに見えます。"}
+              {canEdit && !isCreator && " グループを変えられるのは、作った人だけです。"}
+            </FieldMessage>
+          </div>
+          {editing && shared && attendeePeople.length > 1 && <AttendeeList people={attendeePeople} createdBy={creatorId} />}
+          {shared && canEdit && <InvitePicker candidates={candidates} selected={effectiveInvited} onChange={setInvited} />}
+          <Field label="メモ">
+            {(p) => <Textarea {...p} value={memo} maxLength={1000} placeholder={canEdit ? "お店の名前や持ち物" : undefined} onChange={(e) => setMemo(e.target.value)} />}
+          </Field>
+        </fieldset>
+        {error && <Notice error>{error}</Notice>}
+        {canEdit ? (
+          <div className="flex justify-between gap-2">
+            {editing && canDelete ? (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => {
+                  onDelete(editing);
+                  onClose();
+                }}
+              >
+                予定を消す
+              </Button>
+            ) : (
+              <Button type="button" variant="ghost" onClick={onClose}>
+                やめる
+              </Button>
+            )}
+            <Button type="submit" disabled={busy || !title.trim() || !groupId}>
+              {busy ? "保存しています" : "保存する"}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-end">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              閉じる
+            </Button>
           </div>
         )}
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-ink-2" id="event-group-label">
-            共有
-          </span>
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="event-group-label" aria-describedby="event-group-hint">
-            {choices.map((g) => (
-              <Chip key={g.id} role="radio" aria-checked={g.id === groupId} onClick={() => setGroupId(g.id)}>
-                <Dot color={groupColor(g, me.colorPrefs)} />
-                {g.isPersonal ? "共有しない" : g.name}
-              </Chip>
-            ))}
-          </div>
-          <FieldMessage id="event-group-hint">
-            {chosen && !chosen.isPersonal ? `「${chosen.name}」のメンバー全員に見えます。` : "自分だけに見えます。"}
-          </FieldMessage>
-        </div>
-        <Field label="メモ">
-          {(p) => <Textarea {...p} value={memo} maxLength={1000} placeholder="お店の名前や持ち物" onChange={(e) => setMemo(e.target.value)} />}
-        </Field>
-        {error && <Notice error>{error}</Notice>}
-        <div className="flex justify-between gap-2">
-          {editing ? (
-            <Button
-              type="button"
-              variant="danger"
-              onClick={() => {
-                onDelete(editing);
-                onClose();
-              }}
-            >
-              予定を消す
-            </Button>
-          ) : (
-            <Button type="button" variant="ghost" onClick={onClose}>
-              やめる
-            </Button>
-          )}
-          <Button type="submit" disabled={busy || !title.trim() || !groupId}>
-            {busy ? "保存しています" : "保存する"}
-          </Button>
-        </div>
       </form>
     </ResponsiveSheet>
   );

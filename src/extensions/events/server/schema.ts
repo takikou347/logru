@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createdAt, updatedAt } from "../../../server/core/db/columns";
 import { groups, users } from "../../../server/core/db/schema";
 
@@ -25,3 +25,28 @@ export const events = sqliteTable(
 
 /** 表の 1 行 */
 export type EventRow = typeof events.$inferSelect;
+
+/**
+ * 予定の参加者と、その返事。作った人もいつも入り、accepted にする。#28
+ * 予定が消えると行も消える。退会すると、その人の行も消える。
+ * グループを抜けた人の行は、groups の抜ける処理から onMemberLeave で消す。
+ */
+export const eventAttendees = sqliteTable(
+  "event_attendees",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    response: text("response", { enum: ["pending", "accepted", "declined"] }).notNull().default("pending"),
+    /** 返事をした時刻。まだなら空 */
+    respondedAt: integer("responded_at", { mode: "timestamp_ms" }),
+  },
+  // 自分が招待された予定を引くため、人でも引けるようにする
+  (t) => [primaryKey({ columns: [t.eventId, t.userId] }), index("event_attendees_user_idx").on(t.userId)],
+);
+
+/** 参加者の表の 1 行 */
+export type EventAttendeeRow = typeof eventAttendees.$inferSelect;

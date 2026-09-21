@@ -1,5 +1,6 @@
 import { type CSSProperties, useRef } from "react";
 import { WEEKDAYS, dayTone, formatDay, formatTime, holidayName, onDay, sameDay } from "@/lib/dates";
+import { AvatarStack } from "@/components/Avatars";
 import { cn } from "@/lib/utils";
 import { toneText } from "./DayItems";
 import { type SpanSegment, daySpan, hiddenPerDay, isMultiDay, layoutWeek } from "./lanes";
@@ -170,7 +171,11 @@ export function MonthGrid({
                       aria-hidden="true"
                     >
                       {mine.slice(0, MAX_DOTS).map((i) => (
-                        <span key={`${i.extension}:${i.id}`} className={cn("swatch-dot size-1.5", `c-${i.color}`)} />
+                        <span
+                          key={`${i.extension}:${i.id}`}
+                          data-response={i.myResponse}
+                          className={cn("swatch-dot size-1.5", `c-${i.color}`, responseMark[i.myResponse ?? "accepted"])}
+                        />
                       ))}
                       {moreDots > 0 && <span>+{moreDots}</span>}
                     </span>
@@ -200,52 +205,89 @@ export function MonthGrid({
   );
 }
 
+/** 招待への自分の返事を、読み上げに添える言葉 */
+const responseWord = { pending: "、返事待ち", declined: "、参加しない", accepted: "" } as const;
+
+/**
+ * スマホの点の、返事ごとの見た目。#28
+ * 返事待ちは塗らずに輪だけ、参加しないは薄くする。参加するか、招待の無い予定はいまのまま
+ */
+const responseMark = {
+  accepted: "",
+  pending: "bg-transparent! shadow-[inset_0_0_0_1.5px_var(--c)]",
+  declined: "opacity-35",
+} as const;
+
 /** 帯の読み上げ。`出張、9月21日から9月25日まで` の形 */
 function spanLabel(item: ViewItem): string {
   const { first, last } = daySpan(item);
   const day = (d: Date) => `${d.getMonth() + 1}月${d.getDate()}日`;
-  if (item.allDay) return `${item.title}、${day(first)}から${day(last)}まで`;
-  return `${item.title}、${day(first)} ${formatTime(item.startsAt)}から${day(last)} ${formatTime(item.endsAt!)}まで`;
+  const tail = responseWord[item.myResponse ?? "accepted"];
+  if (item.allDay) return `${item.title}、${day(first)}から${day(last)}まで${tail}`;
+  return `${item.title}、${day(first)} ${formatTime(item.startsAt)}から${day(last)} ${formatTime(item.endsAt!)}まで${tail}`;
+}
+
+/**
+ * 帯に出す参加者の丸の数。1 日の幅に 2 つまで。題名の場所を残すため、1 日だけの帯には出さない。#28
+ * @param span 帯がかかる日数。この週の中の分
+ */
+function avatarSlots(span: number): number {
+  return span < 2 ? 0 : span * 2;
 }
 
 /**
  * 何日も続く予定の、1 週ぶんの印。PC は押せる帯、スマホは細い線にする。
  * 前後の週へ続く側は角を立て、マスの端まで伸ばす。題名は、続きの週でも左端に出す。
  * 終日は色で塗り、時刻のある予定は 1 日の予定と同じ薄い色に縦線を付ける。
+ *
+ * 招待への自分の返事で見た目を変える。#28
+ * 返事待ちは塗らずにグループの色の枠線だけ。スマホの線は点線にする。参加しないは薄くし、題名に取り消し線を引く。
+ * 招待した予定は、帯の始まりの週の右端に参加者の頭文字の丸を重ねて出す。
  */
 function SpanMarks({ segment, onOpen }: { segment: SpanSegment<ViewItem>; onOpen: () => void }) {
   const { item, col, span, lane, before, after } = segment;
   const place = { gridColumn: `${col + 1} / span ${span}`, gridRow: lane + 2 };
+  const pending = item.myResponse === "pending";
+  const declined = item.myResponse === "declined";
+  const avatars = !before && item.people.length > 1 ? avatarSlots(span) : 0;
   return (
     <>
       <span
         aria-hidden="true"
         style={place}
+        data-response={item.myResponse}
         className={cn(
-          "pointer-events-none relative z-[2] h-[3px] self-start bg-(--c) opacity-80 lg:hidden",
+          "pointer-events-none relative z-[2] h-[3px] self-start opacity-80 lg:hidden",
           before ? "ml-0" : "ml-2.5 rounded-l-full",
           after ? "mr-0" : "mr-2.5 rounded-r-full",
+          pending ? "bg-[repeating-linear-gradient(90deg,var(--c)_0_4px,transparent_4px_7px)]" : "bg-(--c)",
+          declined && "opacity-30",
           `c-${item.color}`,
         )}
       />
       <button
         type="button"
         style={place}
+        data-response={item.myResponse}
         className={cn(
           "relative z-[2] hidden h-6 min-w-0 items-center gap-1.5 self-start overflow-hidden px-1.5 text-left text-xs leading-tight font-medium whitespace-nowrap lg:flex",
           before ? "ml-0" : "ml-1.5 rounded-l-md",
           after ? "mr-0" : "mr-1.5 rounded-r-md",
-          item.allDay
-            ? "bg-(--c) text-[#17202c]"
-            : "bg-[color-mix(in_srgb,var(--c)_18%,transparent)]",
-          !item.allDay && !before && "before:w-[3px] before:flex-none before:self-stretch before:rounded-xs before:bg-(--c) before:content-['']",
+          pending
+            ? "bg-(--glass-flat) shadow-[inset_0_0_0_1.5px_var(--c)]"
+            : item.allDay
+              ? "bg-(--c) text-[#17202c]"
+              : "bg-[color-mix(in_srgb,var(--c)_18%,transparent)]",
+          !pending && !item.allDay && !before && "before:w-[3px] before:flex-none before:self-stretch before:rounded-xs before:bg-(--c) before:content-['']",
+          declined && "opacity-50",
           `c-${item.color}`,
         )}
         aria-label={spanLabel(item)}
         onClick={onOpen}
       >
         {!item.allDay && !before && <time className="flex-none text-ink-2">{formatTime(item.startsAt)}</time>}
-        <span className="min-w-0 truncate">{item.title}</span>
+        <span className={cn("min-w-0 truncate", declined && "line-through")}>{item.title}</span>
+        {avatars > 0 && <AvatarStack people={item.people} max={avatars} size={18} className="ml-auto" />}
       </button>
     </>
   );
@@ -254,20 +296,28 @@ function SpanMarks({ segment, onOpen }: { segment: SpanSegment<ViewItem>; onOpen
 /**
  * PC のマスの中の、1 日だけの予定。左に色の縦線を引く。
  * マスが狭いときは、時刻を隠して予定名を優先する。
+ * 返事待ちは塗らずに枠線だけ、参加しないは薄くして取り消し線。#28
  */
 function EventChip({ item, onOpen }: { item: ViewItem; onOpen: () => void }) {
+  const pending = item.myResponse === "pending";
+  const declined = item.myResponse === "declined";
   return (
     <button
       type="button"
+      data-response={item.myResponse}
       className={cn(
         "flex min-h-6 min-w-0 items-center gap-1.5 overflow-hidden rounded-md px-1.5 py-1 text-left text-xs leading-tight font-medium whitespace-nowrap",
-        "bg-[color-mix(in_srgb,var(--c)_18%,transparent)] before:w-[3px] before:flex-none before:self-stretch before:rounded-xs before:bg-(--c) before:content-['']",
+        pending
+          ? "shadow-[inset_0_0_0_1.5px_var(--c)]"
+          : "bg-[color-mix(in_srgb,var(--c)_18%,transparent)] before:w-[3px] before:flex-none before:self-stretch before:rounded-xs before:bg-(--c) before:content-['']",
+        declined && "opacity-50",
         `c-${item.color}`,
       )}
       onClick={onOpen}
     >
       {!item.allDay && <time className="flex-none text-ink-2 @max-[90px]:hidden">{formatTime(item.startsAt)}</time>}
-      <span className="min-w-0 truncate">{item.title}</span>
+      <span className={cn("min-w-0 truncate", declined && "line-through")}>{item.title}</span>
+      {item.myResponse && item.myResponse !== "accepted" && <span className="sr-only">{responseWord[item.myResponse]}</span>}
     </button>
   );
 }

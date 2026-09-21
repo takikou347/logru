@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GroupSummary, Me } from "../../src/shared/api-types";
-import { byPeople, groupPeopleOf, hiddenPeople, peopleOf } from "../../src/client/modules/calendar/model";
+import { attendeeViews, byPeople, groupPeopleOf, hiddenPeople, ownersOf, peopleOf } from "../../src/client/modules/calendar/model";
 
 const me: Me = {
   user: { id: "me", name: "こた", email: "kota@example.com", image: null },
@@ -74,5 +74,49 @@ describe("byPeople", () => {
 
   it("誰も外していなければそのまま", () => {
     expect(byPeople(items, new Set())).toBe(items);
+  });
+
+  it("招待されて参加するか返事待ちの予定は、その人の予定として残す。参加しないと返した予定は外す", () => {
+    const invited = [
+      { id: "accepted", createdBy: "me", attendees: [{ userId: "me", response: "accepted" as const }, { userId: "mika", response: "accepted" as const }] },
+      { id: "pending", createdBy: "me", attendees: [{ userId: "me", response: "accepted" as const }, { userId: "mika", response: "pending" as const }] },
+      { id: "declined", createdBy: "me", attendees: [{ userId: "me", response: "accepted" as const }, { userId: "mika", response: "declined" as const }] },
+      { id: "mine", createdBy: "me", attendees: [{ userId: "me", response: "accepted" as const }] },
+    ];
+    // みかだけを出す
+    expect(byPeople(invited, new Set(["me"])).map((i) => i.id)).toEqual(["accepted", "pending"]);
+  });
+});
+
+describe("ownersOf", () => {
+  it("作った人と、参加しないと返していない参加者", () => {
+    expect(
+      ownersOf({
+        createdBy: "me",
+        attendees: [
+          { userId: "me", response: "accepted" },
+          { userId: "mika", response: "pending" },
+          { userId: "haha", response: "declined" },
+        ],
+      }),
+    ).toEqual(["me", "mika"]);
+  });
+});
+
+describe("attendeeViews", () => {
+  it("参加者に名前と自分の画面の色を付け、グループにいない人は除く", () => {
+    const views = attendeeViews(
+      [
+        { userId: "me", response: "accepted" },
+        { userId: "mika", response: "pending" },
+        { userId: "left", response: "accepted" },
+      ],
+      groups[1],
+      me,
+    );
+    expect(views).toEqual([
+      { id: "me", name: "こた", color: "sango", response: "accepted", isMe: true },
+      { id: "mika", name: "みか", color: "asagi", response: "pending", isMe: false },
+    ]);
   });
 });

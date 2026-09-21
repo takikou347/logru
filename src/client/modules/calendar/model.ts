@@ -1,8 +1,33 @@
-import type { CalendarItem, GroupSummary, Me } from "../../../shared/api-types";
+import type { Attendee, AttendeeResponse, CalendarItem, GroupSummary, Me } from "../../../shared/api-types";
 import { groupColor, memberColor } from "@/lib/colors";
 
+/** 項目の参加者を、名前と色を付けて画面で使う形にしたもの。#28 */
+export type ViewAttendee = { id: string; name: string; color: string; response: AttendeeResponse; isMe: boolean };
+
 /** 画面で使うための、色と名前を付けた項目 */
-export type ViewItem = CalendarItem & { color: string; groupName: string; creatorName: string | null; creatorColor: string | null };
+export type ViewItem = CalendarItem & {
+  color: string;
+  groupName: string;
+  creatorName: string | null;
+  creatorColor: string | null;
+  /** 参加者。作った人が先頭。招待が無い予定は作った人だけか、空。#28 */
+  people: ViewAttendee[];
+};
+
+/**
+ * 参加者に名前と色を付ける。グループにいない人は、名前が分からないので除く。#28
+ * @param attendees 項目の参加者
+ * @param group 項目のグループ
+ * @param me 自分の情報
+ */
+export function attendeeViews(attendees: Attendee[] | undefined, group: GroupSummary | undefined, me: Me): ViewAttendee[] {
+  if (!attendees || !group) return [];
+  return attendees.flatMap((a) => {
+    const m = group.members.find((x) => x.id === a.userId);
+    if (!m) return [];
+    return [{ id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs), response: a.response, isMe: m.id === me.user.id }];
+  });
+}
 
 /** 項目に色とグループ名を付ける。自分だけのグループの項目は「自分だけ」と書く。0009 */
 export function decorate(items: CalendarItem[], groups: GroupSummary[], me: Me): ViewItem[] {
@@ -16,8 +41,20 @@ export function decorate(items: CalendarItem[], groups: GroupSummary[], me: Me):
       groupName: item.sourceName ?? (group ? (group.isPersonal ? "自分だけ" : group.name) : ""),
       creatorName: creator?.name ?? null,
       creatorColor: creator ? memberColor(creator.id, creator.userColor, me.colorPrefs) : null,
+      people: attendeeViews(item.attendees, group, me),
     };
   });
+}
+
+/**
+ * 項目を「その人の予定」とする人。作った人と、招待されて「参加しない」を返していない人。F-20、#28
+ * @param item カレンダーの項目
+ */
+export function ownersOf(item: Pick<CalendarItem, "createdBy" | "attendees">): string[] {
+  const ids = new Set<string>();
+  if (item.createdBy) ids.add(item.createdBy);
+  for (const a of item.attendees ?? []) if (a.response !== "declined") ids.add(a.userId);
+  return [...ids];
 }
 
 /** 「表示する人」に並べる 1 人 */
@@ -79,13 +116,18 @@ export function hiddenPeople(hiddenMembers: string[], people: Person[]): Set<str
 }
 
 /**
- * 出さない人が作った項目を除く。作った人が分からない項目は出す。F-20
+ * 出している人の予定だけを残す。F-20、#28
+ * 項目は、それを「その人の予定」とする人（ownersOf）のうち、1 人でも出していれば残す。
+ * 作った人も参加者も分からない項目は出す。
  * @param items カレンダーの項目
  * @param hidden 出さない人の ID
  */
-export function byPeople<T extends Pick<CalendarItem, "createdBy">>(items: T[], hidden: Set<string>): T[] {
+export function byPeople<T extends Pick<CalendarItem, "createdBy" | "attendees">>(items: T[], hidden: Set<string>): T[] {
   if (hidden.size === 0) return items;
-  return items.filter((i) => !i.createdBy || !hidden.has(i.createdBy));
+  return items.filter((i) => {
+    const owners = ownersOf(i);
+    return owners.length === 0 || owners.some((id) => !hidden.has(id));
+  });
 }
 
 /** インクだまりに使う 3 色。自分だけのグループを先頭に、グループの並び順 */

@@ -1,0 +1,107 @@
+/* 色と書体の決まり。0010 と docs/logru/images/ui.html に合わせる */
+:root {
+  color-scheme: light;
+  --ground: #e6ece8;
+  --ink: #17202c;
+  --ink-2: #4a5563;
+  --ink-3: #8a93a0;
+  --sun: #c8402f;
+  --sat: #2d5fa8;
+  --line: rgba(23, 32, 44, 0.08);
+  --field: rgba(255, 255, 255, 0.75);
+  --field-strong: rgba(255, 255, 255, 0.92);
+  --glass: linear-gradient(180deg, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0.4));
+  --glass-flat: rgba(236, 241, 238, 0.92);
+  --glass-edge: rgba(255, 255, 255, 0.72);
+  --glass-shine: rgba(255, 255, 255, 0.55);
+  --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(23, 32, 44, 0.06),
+    0 18px 40px -18px rgba(23, 32, 44, 0.35);
+  --scrim: rgba(10, 14, 20, 0.22);
+  --pool-opacity: 0.78;
+
+  --wakatake: #3e9a6e;
+  --yamabuki: #f0a818;
+  --asagi: #2a9db0;
+  --toki: #e3798f;
+  --fuji: #8b7bc8;
+  --kaki: #e0703a;
+  --moegi: #8faf2f;
+  --nezumi: #7c8794;
+
+  --aizumi: #17202c;
+  --fukamidori: #1f6b4c;
+  --kon: #274c8e;
+  --beni: #b23a48;
+  --kogecha: #6b4a2e;
+  --on-accent: #fff;
+  --accent: var(--aizumi);
+
+  --font: "Murecho", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --r-panel: 28px;
+  --r-field: 14px;
+  --blur: blur(26px) saturate(180%);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #10151c;
+  --ink: #e7ecf1;
+  --ink-2: #a3adb9;
+  --ink-3: #6b7684;
+  --sun: #ff7b68;
+  --sat: #82a8ff;
+  --line: rgba(255, 255, 255, 0.09);
+  --field: rgba(255, 255, 255, 0.07);
+  --field-strong: rgba(255, 255, 255, 0.12);
+  --glass: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.04));
+  --glass-flat: rgba(28, 34, 44, 0.94);
+  --glass-edge: rgba(255, 255, 255, 0.14);
+  --glass-shine: rgba(255, 255, 255, 0.1);
+  --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 18px 40px -18px rgba(0, 0, 0, 0.7);
+  --scrim: rgba(0, 0, 0, 0.45);
+  --pool-opacity: 0.5;
+
+  --wakatake: #56b98a;
+  --yamabuki: #f5b942;
+  --asagi: #3fb8cc;
+  --toki: #ee93a6;
+  --fuji: #a596e0;
+  --kaki: #ee8a57;
+  --moegi: #a8c94a;
+  --nezumi: #98a3b0;
+
+  --aizumi: #e7ecf1;
+  --fukamidori: #6cc39a;
+  --kon: #8fb0f0;
+  --beni: #f08a96;
+  --kogecha: #d2a57c;
+  --on-accent: #10151c;
+}
+
+:root[data-accent="fukamidori"] { --accent: var(--fukamidori); }
+:root[data-accent="kon"] { --accent: var(--kon); }
+:root[data-accent="beni"] { --accent: var(--beni); }
+:root[data-accent="kogecha"] { --accent: var(--kogecha); }
+
+/* ぼかしが重い端末では、ぼかしを切って塗る */
+@supports not (backdrop-filter: blur(1px)) {
+  :root { --glass: var(--glass-flat); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root { --glass: var(--glass-flat); --blur: none; }
+}
+
+.c-wakatake { --c: var(--wakatake); }
+.c-yamabuki { --c: var(--yamabuki); }
+.c-asagi { --c: var(--asagi); }
+.c-toki { --c: var(--toki); }
+.c-fuji { --c: var(--fuji); }
+.c-kaki { --c: var(--kaki); }
+.c-moegi { --c: var(--moegi); }
+.c-nezumi { --c: var(--nezumi); }
+.c-aizumi { --c: var(--aizumi); }
+.c-fukamidori { --c: var(--fukamidori); }
+.c-kon { --c: var(--kon); }
+.c-beni { --c: var(--beni); }
+.c-kogecha { --c: var(--kogecha); }

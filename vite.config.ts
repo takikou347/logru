@@ -1,11 +1,35 @@
+import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { type Plugin, defineConfig, loadEnv } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
-export default defineConfig({
+/**
+ * public/_headers の CSP に、Firebase の行き先を入れる。
+ *
+ * Google でのログインは、認証用のドメインを iframe で開く。ドメインは組み立てる設定ごとに違うので、
+ * 組み立てた後の _headers の印を置き換える。エミュレーターは、つなぐ設定のときだけ許す。
+ */
+function firebaseCsp(env: Record<string, string>): Plugin {
+  const emulator = env.VITE_FIREBASE_AUTH_EMULATOR_URL ?? "";
+  const frame = [`https://${env.VITE_FIREBASE_AUTH_DOMAIN}`, "https://apis.google.com", emulator].filter(Boolean).join(" ");
+  return {
+    name: "logru-firebase-csp",
+    apply: "build",
+    async writeBundle(options) {
+      if (!options.dir) return;
+      const file = join(options.dir, "_headers");
+      const text = await readFile(file, "utf8").catch(() => null);
+      if (text === null) return;
+      await writeFile(file, text.replace("__FIREBASE_CONNECT__", emulator).replace("__FIREBASE_FRAME__", frame));
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => ({
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src/client", import.meta.url)) },
   },
@@ -13,6 +37,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     cloudflare(),
+    firebaseCsp(loadEnv(mode, process.cwd(), "VITE_FIREBASE_")),
     VitePWA({
       registerType: "autoUpdate",
       // CSP でインラインのスクリプトを許さないので、登録は別ファイルにする
@@ -49,9 +74,7 @@ export default defineConfig({
             // 通信が切れたときに、最後に見た月を読むだけで出す。0012
             urlPattern: ({ url, request }) =>
               request.method === "GET" &&
-              url.pathname.startsWith("/api/") &&
-              !url.pathname.startsWith("/api/auth") &&
-              !url.pathname.startsWith("/api/dev"),
+              url.pathname.startsWith("/api/"),
             handler: "NetworkFirst",
             options: {
               cacheName: "api",
@@ -69,4 +92,4 @@ export default defineConfig({
   },
   server: { port: 5173, strictPort: true },
   preview: { port: 4173, strictPort: true },
-});
+}));

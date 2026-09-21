@@ -3,7 +3,7 @@ import { and, eq, isNull, ne } from "drizzle-orm";
 import type { ExtensionInfo } from "../../../shared/api-types";
 import { pickUnusedColor } from "../../../shared/colors";
 import { extensionToggleInput, groupInput, groupPatchInput, memberRoleInput } from "../../../shared/schemas";
-import { toggleableExtensions } from "../../../extensions/registry.server";
+import { serverExtensions, toggleableExtensions } from "../../../extensions/registry.server";
 import { HttpError, createRouter, validationHook } from "../../core/app";
 import { requireAgreement, requireUser } from "../../core/auth/middleware";
 import { groupExtensions, groupInvites, groupMembers, groups } from "../../core/db/schema";
@@ -107,6 +107,8 @@ export const groupRoutes = createRouter()
     if (membership.role === "admin" && !others.some((o) => o.role === "admin")) {
       throw new HttpError(409, "ほかに管理者がいません。先にほかの人を管理者にしてください。");
     }
+    // 拡張に、抜ける人のデータを片付けさせる。予定の拡張は、その人を予定の参加者から外す。#28
+    for (const x of serverExtensions) await x.onMemberLeave?.(db as never, groupId, me.id);
     await db.delete(groupMembers).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, me.id)));
     return c.body(null, 204);
   })

@@ -53,6 +53,15 @@ export type ListCalendarItems = (
  */
 export type ScheduledTask = (db: never, env: never) => Promise<void>;
 
+/**
+ * 人がグループを抜けたときに呼ぶ処理。その人に結び付けた、そのグループのデータを片付ける。#28
+ * グループの行も、メンバーの行も、呼んだ時点ではまだ消していない。
+ * @param db D1 を包んだ Drizzle。listCalendarItems と同じく never で受ける
+ * @param groupId 抜けるグループ
+ * @param userId 抜ける人
+ */
+export type MemberLeaveTask = (db: never, groupId: string, userId: string) => Promise<void>;
+
 /** サーバー側の拡張 */
 export type ServerExtension = {
   manifest: ExtensionManifest;
@@ -63,4 +72,6 @@ export type ServerExtension = {
   routes?: { basePath: string; router: Hono<never> };
   /** 定期的に呼ぶ処理。無ければ省く */
   scheduled?: ScheduledTask;
+  /** 人がグループを抜けたときの片付け。無ければ省く。予定の拡張は、その人を予定の参加者から外す */
+  onMemberLeave?: MemberLeaveTask;
 };

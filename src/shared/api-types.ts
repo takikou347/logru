@@ -54,7 +54,23 @@ export type CalendarItem = {
   color?: string;
   /** グループの名前の代わりに出す名前。外部のカレンダーの名前など */
   sourceName?: string;
+  /**
+   * 参加者と、それぞれの返事。人を招待できる拡張だけが入れる。予定の拡張では、作った人もいつも入る。#28
+   * 無ければ、参加者の考えが無い項目として扱う
+   */
+  attendees?: Attendee[];
+  /**
+   * 項目を読んだ人の返事。カレンダーはこれで見た目を変える。
+   * 返事待ちは枠線だけ、参加しないは薄くして取り消し線。招待されていなければ省く。作った人は accepted
+   */
+  myResponse?: AttendeeResponse;
 };
+
+/** 招待への返事。pending は返事待ち、accepted は参加する、declined は参加しない */
+export type AttendeeResponse = "pending" | "accepted" | "declined";
+
+/** 項目の参加者の 1 人 */
+export type Attendee = { userId: string; response: AttendeeResponse };
 
 /** グループの設定に出す、切り替えられる拡張 */
 export type ExtensionInfo = { key: string; label: string; description: string; enabled: boolean };

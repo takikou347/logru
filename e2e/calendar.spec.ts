@@ -9,7 +9,42 @@ test("予定を足すと、選んだ日の欄に出る", async ({ page }) => {
   await addEvent(page, "歯医者");
   const panel = dayPanel(page);
   await expect(panel.getByRole("button", { name: /歯医者/ })).toBeVisible();
-  await expect(panel.getByText("自分")).toBeVisible();
+  await expect(panel.getByText("自分だけ", { exact: true })).toBeVisible();
+});
+
+test("予定は「共有しない」が既定で、「自分だけの予定」で絞ると共有していない予定だけになる", async ({ page }) => {
+  await page.goto("/groups");
+  await page.getByLabel("グループの名前").fill("ふたり");
+  await page.getByRole("button", { name: "作る" }).click();
+  await expect(page.getByRole("heading", { name: "ふたり" })).toBeVisible();
+  await page.goto("/");
+
+  // シートは「共有しない」を選んだ状態で開く
+  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  const sheet = page.getByRole("dialog", { name: "新しい予定" });
+  const share = sheet.getByRole("radiogroup", { name: "共有" });
+  await expect(share.getByRole("radio", { name: "共有しない" })).toHaveAttribute("aria-checked", "true");
+  await expect(sheet.getByText("自分だけに見えます。")).toBeVisible();
+  await share.getByRole("radio", { name: "ふたり" }).click();
+  await expect(sheet.getByText("「ふたり」のメンバー全員に見えます。")).toBeVisible();
+  await share.getByRole("radio", { name: "共有しない" }).click();
+  await sheet.getByLabel("題名").fill("ひとりの用事");
+  await sheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("予定を足しました")).toBeVisible();
+  await addEvent(page, "ふたりの用事", "ふたり");
+
+  const filter = page.getByRole("navigation", { name: "グループで絞る" });
+  await filter.getByRole("button", { name: "自分だけの予定" }).click();
+  await expect(dayPanel(page).getByRole("button", { name: /ひとりの用事/ })).toBeVisible();
+  await expect(dayPanel(page).getByRole("button", { name: /ふたりの用事/ })).toHaveCount(0);
+
+  // グループで絞っているときは、そのグループを選んでシートが開く
+  await filter.getByRole("button", { name: "ふたり" }).click();
+  await expect(dayPanel(page).getByRole("button", { name: /ひとりの用事/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await expect(
+    page.getByRole("dialog", { name: "新しい予定" }).getByRole("radio", { name: "ふたり" }),
+  ).toHaveAttribute("aria-checked", "true");
 });
 
 test("グループの一覧が届く前にシートを開いても、自分だけのグループに保存できる", async ({ page }) => {

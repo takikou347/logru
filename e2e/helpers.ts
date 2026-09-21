@@ -124,7 +124,10 @@ export async function resetPassword(request: APIRequestContext, oobCode: string,
 /** 選んだ日の予定の欄 */
 export const dayPanel = (page: Page) => page.getByTestId("day-panel");
 
-/** カレンダーの下の操作から、予定を 1 件足す */
+/**
+ * カレンダーの下の操作から、予定を 1 件足す。
+ * @param group 共有するグループの名前。無ければ「共有しない」のまま保存する
+ */
 export async function addEvent(page: Page, title: string, group?: string) {
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });

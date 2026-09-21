@@ -35,7 +35,7 @@ test("テーマカラーと自分の色を選べる", async ({ page }) => {
     "true",
   );
   await page.goto("/");
-  await expect(page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "自分" }).locator(".swatch-dot")).toHaveClass(
+  await expect(page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "自分だけの予定" }).locator(".swatch-dot")).toHaveClass(
     /c-fuji/,
   );
 });

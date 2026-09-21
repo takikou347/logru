@@ -63,8 +63,17 @@ pnpm e2e
 1. `npx wrangler login` で Cloudflare にログインする
 2. `npx wrangler d1 create logru` でデータベースを作り、出てきた ID を `wrangler.jsonc` の `env.production` の `database_id` に書く
 3. `wrangler.jsonc` の `env.production.vars` の `APP_URL` を本番の URL に、`FIREBASE_PROJECT_ID` を Firebase のプロジェクト ID に書き換える
+4. 外部のカレンダーの URL を暗号にする鍵を置く。32 バイトの乱数を base64 にしたもの。`wrangler.jsonc` にある開発用の値は使わない
 
-鍵は要らない。Worker は Google が公開している鍵で ID トークンを確かめる。
+   ```bash
+   openssl rand -base64 32 | npx wrangler secret put EXTERNAL_CALENDAR_KEY --env production
+   ```
+
+   鍵を変えると、登録済みの URL が読めなくなる。変えたら、登録し直してもらう
+
+ログインの鍵は要らない。Worker は Google が公開している鍵で ID トークンを確かめる。
+
+外部のカレンダーは、Cron Triggers で 30 分おきに読み直す。`wrangler.jsonc` の `triggers.crons` にある。
 
 その後は、次の 1 行で出す。移行を当ててから Worker を置き換える。
 
@@ -96,6 +105,10 @@ pnpm run deploy
 5. `pnpm db:generate` で移行を作る
 
 グループの設定の画面に切り替えが出る。無効にしても、拡張のデータは消えない。
+
+利用者ごとの拡張は、`manifest.ts` の `perUser` を true にする。グループの切り替えには出さず、項目は本人にだけ出す。
+設定の画面に欄が要れば `ClientExtension` の `SettingsSection` に、定期の処理が要れば `ServerExtension` の `scheduled` に置く。
+外部のカレンダーの拡張 `src/extensions/external-calendars/` が見本になる。
 
 ## ディレクトリ
 

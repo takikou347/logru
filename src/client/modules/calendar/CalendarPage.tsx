@@ -14,6 +14,7 @@ import { addDays, addMonths, dateKey, monthGrid, parseDateKey, sameDay, startOfD
 import { useCalendar, useGroups, useMe } from "@/lib/queries";
 import { DayPanel, ItemList } from "./DayItems";
 import { MonthGrid } from "./MonthGrid";
+import { RefreshButton } from "./RefreshButton";
 import { decorate, poolColorsOf, type ViewItem } from "./model";
 import { itemKey, useUndoableDelete } from "./use-undoable-delete";
 import { WeekList } from "./WeekList";
@@ -193,6 +194,7 @@ export function CalendarPage() {
           <Button variant="ghost" size="icon" aria-label={view === "month" ? "次の月" : "次へ"} onClick={() => move(1)}>
             <ChevronRight className="size-5" />
           </Button>
+          <RefreshButton />
           <div className="ml-2 hidden gap-2.5 lg:flex">
             <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} />
             {addButton}

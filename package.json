@@ -27,6 +27,7 @@
     "drizzle-orm": "^0.45.2",
     "firebase": "^12.19.0",
     "hono": "^4.13.8",
+    "ical.js": "2.2.1",
     "jose": "^6.2.12",
     "lucide-react": "^1.47.0",
     "marked": "^18.0.13",

@@ -11,8 +11,8 @@ export function decorate(items: CalendarItem[], groups: GroupSummary[], me: Me):
     const creator = group?.members.find((m) => m.id === item.createdBy) ?? null;
     return {
       ...item,
-      color: group ? groupColor(group, me.colorPrefs) : "nezumi",
-      groupName: group ? (group.isPersonal ? "自分" : group.name) : "",
+      color: item.color ?? (group ? groupColor(group, me.colorPrefs) : "nezumi"),
+      groupName: item.sourceName ?? (group ? (group.isPersonal ? "自分" : group.name) : ""),
       creatorName: creator?.name ?? null,
       creatorColor: creator ? memberColor(creator.id, creator.userColor, me.colorPrefs) : null,
     };

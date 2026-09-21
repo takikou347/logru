@@ -35,7 +35,7 @@ export function useUndoableDelete() {
       const key = itemKey(item);
       timers.current.delete(key);
       try {
-        await clientExtension(item.extension)?.deleteItem(item.id, { keepalive });
+        await clientExtension(item.extension)?.deleteItem?.(item.id, { keepalive });
       } catch (e) {
         if (!keepalive) toast.error((e as Error).message);
       }

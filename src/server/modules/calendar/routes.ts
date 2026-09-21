@@ -3,6 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { CalendarItem } from "../../../shared/api-types";
 import { calendarQuery } from "../../../shared/schemas";
 import { serverExtensions } from "../../../extensions/registry.server";
+import type { CalendarContext } from "../../../extensions/types";
 import { createRouter, validationHook } from "../../core/app";
 import { requireAgreement, requireUser } from "../../core/auth/middleware";
 import type { DB } from "../../core/db/client";
@@ -19,8 +20,15 @@ import { myGroupIds } from "../groups/membership";
  * @param groupIds 利用者が入っていて、絞り込みで選んだグループ
  * @param from 期間の始まり。ミリ秒の UTC
  * @param to 期間の終わり。含まない
+ * @param ctx 項目を呼ぶ人。利用者ごとの拡張は、この人の項目だけを返す
  */
-export async function listCalendarItems(db: DB, groupIds: string[], from: number, to: number): Promise<CalendarItem[]> {
+export async function listCalendarItems(
+  db: DB,
+  groupIds: string[],
+  from: number,
+  to: number,
+  ctx: CalendarContext,
+): Promise<CalendarItem[]> {
   if (groupIds.length === 0) return [];
   const toggles = serverExtensions.filter((x) => !x.manifest.alwaysOn);
   const enabled = toggles.length
@@ -35,7 +43,7 @@ export async function listCalendarItems(db: DB, groupIds: string[], from: number
       const ids = x.manifest.alwaysOn
         ? groupIds
         : enabled.filter((r) => r.extensionKey === x.manifest.key).map((r) => r.groupId);
-      return ids.length ? x.listCalendarItems(db as never, ids, from, to) : Promise.resolve([]);
+      return ids.length ? x.listCalendarItems(db as never, ids, from, to, ctx) : Promise.resolve([]);
     }),
   );
   return results.flat().sort((a, b) => a.startsAt - b.startsAt || a.title.localeCompare(b.title, "ja"));
@@ -50,5 +58,5 @@ export const calendarRoutes = createRouter()
     const mine = await myGroupIds(db, c.get("user").id);
     // ほかの人のグループを指定されても、入っているグループだけに絞る
     const wanted = group ? group.split(",").filter((g) => mine.includes(g)) : mine;
-    return c.json({ items: await listCalendarItems(db, wanted, from, to) });
+    return c.json({ items: await listCalendarItems(db, wanted, from, to, { userId: c.get("user").id }) });
   });

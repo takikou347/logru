@@ -9,7 +9,8 @@ async function newUser(browser: Browser, next?: string) {
   return { context, page, ...user };
 }
 
-test("招待したパートナーと、グループの予定を見合える", async ({ page, browser }) => {
+test("招待したパートナーと、グループの予定を見合える", async ({ page, context, browser }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await signUp(page, { name: "こた" });
 
   // グループを作って招待リンクを出す
@@ -21,6 +22,13 @@ test("招待したパートナーと、グループの予定を見合える", as
   const url = await page.getByLabel("招待リンク").inputValue();
   expect(url).toMatch(/\/invite\//);
   const path = new URL(url).pathname;
+
+  // 招待の欄のボタンはコピーだけ。押すとリンクがコピーされる
+  const invite = page.getByRole("region", { name: "招待", exact: true });
+  await expect(invite.getByRole("button", { name: "送る" })).toHaveCount(0);
+  await invite.getByRole("button", { name: "コピーする" }).click();
+  await expect(page.getByText("招待リンクをコピーしました")).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
 
   // 相手はリンクから登録して参加する
   const partner = await newUser(browser, path);

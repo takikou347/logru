@@ -8,6 +8,39 @@ test("ログインしていなければ、ログインの画面へ回す", async
   await expect(page.getByRole("button", { name: "Google でログイン" })).toBeVisible();
 });
 
+test("登録の画面に Google は無く、左上の戻るボタンでログインの画面に戻る", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.getByText("ログる")).toHaveCount(0);
+  await page.getByRole("link", { name: "アカウントを作る" }).click();
+  await expect(page.getByRole("heading", { name: "アカウントを作る" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Google/ })).toHaveCount(0);
+  await expect(page.getByText("ログる")).toHaveCount(0);
+  await page.getByRole("link", { name: "ログインの画面へ戻る" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test("登録の画面の戻るボタンは、行き先を覚えたままログインの画面に戻る", async ({ page }) => {
+  await page.goto("/signup?next=%2Fsettings");
+  await page.getByRole("link", { name: "ログインの画面へ戻る" }).click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fsettings$/);
+});
+
+test("再設定の画面の左上の戻るボタンで、ログインの画面に戻る", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("link", { name: "パスワードを忘れた" }).click();
+  await expect(page.getByRole("heading", { name: "パスワードを再設定する" })).toBeVisible();
+  await page.getByRole("link", { name: "ログインの画面へ戻る" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test("確かめる画面の左上の戻るボタンで、ログアウトしてログインの画面に戻る", async ({ page }) => {
+  await submitSignUp(page);
+  await expect(page.getByRole("heading", { name: "確認メールを送りました" })).toBeVisible();
+  await page.getByRole("button", { name: "ログインの画面へ戻る" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("button", { name: "ログイン", exact: true })).toBeVisible();
+});
+
 test("規約に同意しないと登録できない", async ({ page }) => {
   await submitSignUp(page, { agree: false });
   await expect(page.getByRole("alert")).toHaveText("利用規約とプライバシーポリシーに同意してください。");

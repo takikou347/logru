@@ -78,6 +78,21 @@ test("読み直し、登録を消すと、取り込んだ予定も消える", as
   await expect(dayPanel(page).getByRole("button", { name: /外部の打ち合わせ/ })).toHaveCount(0);
 });
 
+test("カレンダーの画面の読み直しのボタンは、登録した人にだけ出て、押すと読み直す", async ({ page, baseURL }) => {
+  await signUp(page);
+  const refresh = page.getByRole("button", { name: "外部のカレンダーを読み直す" });
+  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(refresh).toHaveCount(0);
+
+  await register(page, "プライベート", `${baseURL}${SAMPLE_PATH}`);
+  await page.goto("/");
+  await expect(refresh).toBeVisible();
+  await refresh.click();
+  await expect(page.getByText("外部のカレンダーを読み直しました")).toBeVisible();
+  await expect(refresh).toBeEnabled();
+  await expect(dayPanel(page).getByRole("button", { name: /外部の打ち合わせ/ })).toBeVisible();
+});
+
 test("https でない URL は断り、読めない URL は登録して理由を出す", async ({ page, baseURL }) => {
   await signUp(page);
   await page.goto("/settings");

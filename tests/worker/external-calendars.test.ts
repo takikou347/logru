@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { decryptText, encryptText } from "../../src/extensions/external-calendars/server/crypto";
 import { parseIcs, wallTimeToUtc } from "../../src/extensions/external-calendars/server/ics";
-import { fetchIcs, normalizeCalendarUrl } from "../../src/extensions/external-calendars/server/sync";
+import { fetchIcs, normalizeCalendarUrl, syncWindow } from "../../src/extensions/external-calendars/server/sync";
+import wrangler from "../../wrangler.jsonc?raw";
 import allDay from "./fixtures/all-day.ics?raw";
 import oldRecurring from "./fixtures/old-recurring.ics?raw";
 import single from "./fixtures/single.ics?raw";
@@ -119,6 +120,41 @@ describe("normalizeCalendarUrl", () => {
   it("URL でないものと、パスワードの入った URL を断る", () => {
     expect(() => normalizeCalendarUrl("calendar", false)).toThrow(/URL/);
     expect(() => normalizeCalendarUrl("https://a:b@example.com/a.ics", false)).toThrow(/パスワード/);
+  });
+});
+
+describe("syncWindow", () => {
+  const tokyo = (y: number, m: number, d: number, h = 0) => Date.UTC(y, m - 1, d, h - 9);
+
+  it("日本時間の今月 1 日の 0 時から、2 か月先の月の末までを読む", () => {
+    const w = syncWindow(tokyo(2026, 9, 21, 20));
+    expect(iso(w.from)).toBe("2026-08-31T15:00:00.000Z");
+    expect(iso(w.to)).toBe("2026-11-30T15:00:00.000Z");
+  });
+
+  it("年をまたぐ", () => {
+    expect(iso(syncWindow(tokyo(2026, 11, 5)).to)).toBe("2027-01-31T15:00:00.000Z");
+    expect(iso(syncWindow(tokyo(2026, 12, 31, 23)).to)).toBe("2027-02-28T15:00:00.000Z");
+  });
+
+  it("UTC ではまだ前の月でも、日本時間の月で決める", () => {
+    // 日本時間の 10 月 1 日 3 時は、UTC では 9 月 30 日
+    const w = syncWindow(tokyo(2026, 10, 1, 3));
+    expect(iso(w.from)).toBe("2026-09-30T15:00:00.000Z");
+  });
+
+  it("期間の外の予定は持たない", () => {
+    // 9 月 21 日に読むと、10 月の予定は入り、翌年の予定は入らない
+    const events = parseIcs(single, syncWindow(tokyo(2026, 9, 21)));
+    expect(events.map((e) => e.uid)).toEqual(["single-1@test"]);
+    expect(parseIcs(single, syncWindow(tokyo(2026, 12, 1)))).toEqual([]);
+  });
+});
+
+describe("Cron Triggers", () => {
+  it("開発と本番の両方で 5 分おきに動かす", () => {
+    const crons = [...wrangler.matchAll(/"crons":\s*\[([^\]]*)\]/g)].map((m) => m[1]!.trim());
+    expect(crons).toEqual(['"*/5 * * * *"', '"*/5 * * * *"']);
   });
 });
 

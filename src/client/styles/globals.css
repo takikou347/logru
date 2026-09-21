@@ -140,12 +140,6 @@
   & a { text-decoration: underline; }
 }
 
-@keyframes drift {
-  to {
-    translate: 24px -18px;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -8,6 +8,15 @@ test("利用規約とプライバシーポリシーを、ログインせずに�
   await expect(page.getByRole("heading", { name: "Logru プライバシーポリシー" })).toBeVisible();
 });
 
+test("奥のインクだまりは動き続けない。動き続けると、ぼかしを描き直して画面がちらつく", async ({ page }) => {
+  await page.goto("/terms");
+  await expect(page.getByRole("heading", { name: "Logru 利用規約" })).toBeVisible();
+  const running = await page.evaluate(
+    () => document.getAnimations().filter((a) => a.effect instanceof KeyframeEffect && a.effect.target?.closest('[aria-hidden="true"]')).length,
+  );
+  expect(running).toBe(0);
+});
+
 test("見つからない画面は、そう伝える", async ({ page }) => {
   await page.goto("/no-such-page");
   await expect(page.getByRole("heading", { name: "ページが見つかりません" })).toBeVisible();

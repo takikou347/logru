@@ -42,7 +42,7 @@ export function SignupPage() {
     setBusy(true);
     setError(null);
     // 確かめ終えた瞬間に画面が移るので、同意は先に覚えておく
-    rememberAgreement();
+    rememberAgreement(email);
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(user, { displayName: name.trim() });

@@ -31,7 +31,7 @@ export function InvitePage() {
     setError(null);
     try {
       // 登録の画面で同意して、そのまま招待に戻ってきたとき。先に同意を送る
-      if (takeRememberedAgreement()) await postAgreement();
+      if (takeRememberedAgreement(user?.email)) await postAgreement();
       const { groupId } = await api<{ groupId: string }>(`/invites/${token}/accept`, { method: "POST" });
       await qc.invalidateQueries();
       navigate(`/?group=${groupId}`, { replace: true });

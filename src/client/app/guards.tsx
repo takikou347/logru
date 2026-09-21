@@ -45,13 +45,13 @@ export function RequireAuth() {
 
   // 登録の画面で受けた同意を送る。送れなければ同意の画面で聞き直す
   useEffect(() => {
-    if (!needsAgreement || !takeRememberedAgreement()) return;
+    if (!needsAgreement || !takeRememberedAgreement(user?.email)) return;
     setPosting(true);
     postAgreement()
       .catch(() => undefined)
       .then(() => qc.invalidateQueries({ queryKey: keys.me }))
       .finally(() => setPosting(false));
-  }, [needsAgreement, qc]);
+  }, [needsAgreement, qc, user?.email]);
 
   if (!ready) return <Loading />;
   if (!user) return <Navigate to={`/login?next=${encodeURIComponent(here)}`} replace />;

@@ -42,7 +42,7 @@ export function DevLogin({ onDone }: { onDone: () => void }) {
     setBusy(true);
     setError(null);
     // ログインした瞬間に画面が移るので、同意は先に覚えておく
-    rememberAgreement();
+    rememberAgreement(email);
     try {
       let cred;
       try {

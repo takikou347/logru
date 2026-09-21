@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LOCK_MS, lockedUntil, recordFailure } from "../src/worker/lib/login-lock";
+import { LOCK_MS, lockedUntil, recordFailure } from "../../src/worker/lib/login-lock";
 
 describe("recordFailure", () => {
   it("4 回目までは残りの回数を返す", () => {

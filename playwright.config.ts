@@ -5,7 +5,7 @@ const baseURL = `http://localhost:${PORT}`;
 
 /**
  * 本番と同じ形に組み立てたものに向けて流す。ブラウザは入っている Chrome を使う。
- * メールは開発用の控えから読む。手元の D1 を使う。
+ * ログインは Firebase の Auth エミュレーターにつなぐ。メールはエミュレーターの控えから読む。手元の D1 を使う。
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -35,10 +35,18 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], channel: "chrome", viewport: { width: 1440, height: 900 } },
     },
   ],
-  webServer: {
-    command: "pnpm build && pnpm db:migrate:local && pnpm preview",
-    url: `${baseURL}/api/health`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
-  },
+  webServer: [
+    {
+      command: "pnpm emulator",
+      url: "http://127.0.0.1:9099/",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      command: "pnpm build --mode test && pnpm db:migrate:local && pnpm preview",
+      url: `${baseURL}/api/health`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+    },
+  ],
 });

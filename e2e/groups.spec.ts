@@ -1,10 +1,11 @@
 import { type Browser, expect, test } from "@playwright/test";
-import { addEvent, signUp } from "./helpers";
+import { PASSWORD, addEvent, apiUser, dayPanel, signUp } from "./helpers";
 
 async function newUser(browser: Browser, next?: string) {
   const context = await browser.newContext();
   const page = await context.newPage();
   const user = await signUp(page, { name: "みか", next });
+  if (next) await expect(page).toHaveURL(new RegExp(next));
   return { context, page, ...user };
 }
 
@@ -31,7 +32,7 @@ test("招待したパートナーと、グループの予定を見合える", as
   await page.goto("/");
   await addEvent(page, "ふたりで夕飯", "ふたり");
   await partner.page.reload();
-  await expect(partner.page.locator(".daypanel").getByRole("button", { name: /ふたりで夕飯/ })).toBeVisible();
+  await expect(dayPanel(partner.page).getByRole("button", { name: /ふたりで夕飯/ })).toBeVisible();
 
   // 自分だけの予定は、相手には見えない
   await addEvent(page, "自分の用事");
@@ -40,8 +41,8 @@ test("招待したパートナーと、グループの予定を見合える", as
 
   // グループで絞ると、そのグループの予定だけになる
   await page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "ふたり" }).click();
-  await expect(page.locator(".daypanel").getByRole("button", { name: /ふたりで夕飯/ })).toBeVisible();
-  await expect(page.locator(".daypanel").getByRole("button", { name: /自分の用事/ })).toHaveCount(0);
+  await expect(dayPanel(page).getByRole("button", { name: /ふたりで夕飯/ })).toBeVisible();
+  await expect(dayPanel(page).getByRole("button", { name: /自分の用事/ })).toHaveCount(0);
 
   await partner.context.close();
 });
@@ -63,9 +64,10 @@ test("最後の管理者は抜けられず、退会もできない。管理者�
   await page.goto("/settings");
   await page.getByRole("button", { name: "アカウントを消す" }).click();
   const del = page.getByRole("dialog", { name: "アカウントを消す" });
-  await del.getByLabel(/削除する/).fill("削除する");
-  await del.getByRole("button", { name: "アカウントを消す" }).click();
   await expect(del.getByText(/ほかに管理者がいないグループがあります。.*実家/)).toBeVisible();
+  await del.getByLabel(/削除する/).fill("削除する");
+  await del.getByLabel("パスワード", { exact: true }).fill(PASSWORD);
+  await expect(del.getByRole("button", { name: "アカウントを消す" })).toBeDisabled();
   await del.getByRole("button", { name: "やめる" }).click();
 
   // 抜けようとしても断られる
@@ -103,19 +105,23 @@ test("招待リンクを取り消すと、使えなくなる", async ({ page, br
   await context.close();
 });
 
-test("ほかの人のグループの予定は読めない", async ({ page, browser }) => {
+test("ほかの人のグループの予定は読めない", async ({ page, request }) => {
   await signUp(page);
   await page.goto("/groups");
   await page.getByLabel("グループの名前").fill("秘密");
   await page.getByRole("button", { name: "作る" }).click();
+  await expect(page.getByRole("heading", { name: "秘密" })).toBeVisible();
   const groupId = page.url().split("/").pop()!;
 
-  const stranger = await newUser(browser);
-  const res = await stranger.page.request.post("/api/events", {
+  const stranger = await apiUser(request);
+  await request.post("/api/me/agreements", { headers: stranger.headers, data: { agreed: true } });
+  const res = await request.post("/api/events", {
+    headers: stranger.headers,
     data: { groupId, title: "のぞき", allDay: false, startsAt: Date.now(), endsAt: null, memo: null },
   });
   expect(res.status()).toBe(404);
-  const list = await stranger.page.request.get(`/api/calendar?from=${Date.now() - 1e8}&to=${Date.now() + 1e8}&group=${groupId}`);
+  const list = await request.get(`/api/calendar?from=${Date.now() - 1e8}&to=${Date.now() + 1e8}&group=${groupId}`, {
+    headers: stranger.headers,
+  });
   expect((await list.json()).items).toEqual([]);
-  await stranger.context.close();
 });

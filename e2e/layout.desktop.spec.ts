@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { dayPanel, signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
@@ -7,13 +7,13 @@ test.beforeEach(async ({ page }) => {
 
 test("PC では左にメニュー、右に選んだ日の予定を出し、下の操作は出さない", async ({ page }) => {
   await expect(page.getByRole("complementary", { name: "メニュー" })).toBeVisible();
-  await expect(page.locator(".daypanel")).toBeVisible();
-  await expect(page.locator(".dock")).toBeHidden();
+  await expect(dayPanel(page)).toBeVisible();
+  await expect(page.getByRole("toolbar", { name: "カレンダーの操作" })).toBeHidden();
   await expect(page.getByRole("button", { name: "メニューを開く" })).toBeHidden();
 });
 
 test("N で予定を足すシートが開き、左右の矢印で月を移り、T で今日に戻る", async ({ page }) => {
-  const month = page.locator("header .month .n");
+  const month = page.getByTestId("month-number");
   const before = await month.textContent();
   await page.keyboard.press("ArrowRight");
   await expect(month).not.toHaveText(before!);

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { PASSWORD, logIn, signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
@@ -35,7 +35,7 @@ test("テーマカラーと自分の色を選べる", async ({ page }) => {
     "true",
   );
   await page.goto("/");
-  await expect(page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "自分" }).locator(".dot")).toHaveClass(
+  await expect(page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "自分" }).locator(".swatch-dot")).toHaveClass(
     /c-fuji/,
   );
 });
@@ -65,12 +65,18 @@ test("表示名を変えられる", async ({ page }) => {
 });
 
 test("アカウントを消すと、ログインできなくなる", async ({ page }) => {
+  const email = await page.getByRole("region", { name: "アカウント" }).getByText(/@example\.com/).textContent();
   await page.getByRole("button", { name: "アカウントを消す" }).click();
   const sheet = page.getByRole("dialog", { name: "アカウントを消す" });
   await expect(sheet.getByRole("button", { name: "アカウントを消す" })).toBeDisabled();
   await sheet.getByLabel(/削除する/).fill("削除する");
+  await sheet.getByLabel("パスワード", { exact: true }).fill("wrong-password");
   await sheet.getByRole("button", { name: "アカウントを消す" }).click();
+  await expect(sheet.getByText("メールアドレスかパスワードが違います。")).toBeVisible();
+  await sheet.getByLabel("パスワード", { exact: true }).fill(PASSWORD);
+  await sheet.getByRole("button", { name: "アカウントを消す" }).click();
+  await expect(page.getByText("アカウントを消しました")).toBeVisible();
   await expect(page).toHaveURL(/\/login/);
-  const res = await page.request.get("/api/me");
-  expect(res.status()).toBe(401);
+  await logIn(page, email!);
+  await expect(page.getByText("メールアドレスかパスワードが違います。")).toBeVisible();
 });

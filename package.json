@@ -16,7 +16,7 @@
     "deploy": "pnpm build && wrangler d1 migrations apply DB --remote && wrangler deploy"
   },
   "dependencies": {
-    "@fontsource/murecho": "^5.3.1",
+    "@fontsource-variable/murecho": "^5.3.1",
     "@holiday-jp/holiday_jp": "^2.5.1",
     "@hono/zod-validator": "^0.9.1",
     "@tanstack/react-query": "^5.103.1",

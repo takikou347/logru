@@ -1,7 +1,6 @@
 import { createBrowserRouter, type RouteObject } from "react-router";
 import { Agree } from "./routes/Agree";
 import { Invite } from "./routes/Invite";
-import { Legal } from "./routes/Legal";
 import { Login } from "./routes/Login";
 import { NotFound } from "./routes/NotFound";
 import { GuestOnly, RequireAuth } from "./routes/RequireAuth";
@@ -13,6 +12,12 @@ const devOnly: RouteObject[] = import.meta.env.DEV
   ? [{ path: "/_components", lazy: async () => ({ Component: (await import("./routes/Components")).Components }) }]
   : [];
 
+// 規約の画面は Markdown の変換を使うので、開いたときに読む
+async function legal(doc: "terms" | "privacy") {
+  const { Legal } = await import("./routes/Legal");
+  return { element: <Legal doc={doc} /> };
+}
+
 export const router = createBrowserRouter([
   {
     element: <GuestOnly />,
@@ -23,8 +28,8 @@ export const router = createBrowserRouter([
   },
   { path: "/verify", element: <Verify /> },
   { path: "/reset-password", element: <ResetPassword /> },
-  { path: "/terms", element: <Legal doc="terms" /> },
-  { path: "/privacy", element: <Legal doc="privacy" /> },
+  { path: "/terms", lazy: () => legal("terms") },
+  { path: "/privacy", lazy: () => legal("privacy") },
   { path: "/invite/:token", element: <Invite /> },
   {
     element: <RequireAuth />,

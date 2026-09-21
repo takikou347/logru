@@ -1,7 +1,4 @@
-import "@fontsource/murecho/400.css";
-import "@fontsource/murecho/500.css";
-import "@fontsource/murecho/700.css";
-import "@fontsource/murecho/800.css";
+import "@fontsource-variable/murecho";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/ui.css";

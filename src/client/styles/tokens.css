@@ -36,7 +36,7 @@
   --on-accent: #fff;
   --accent: var(--aizumi);
 
-  --font: "Murecho", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font: "Murecho Variable", "Murecho", "Hiragino Sans", "Noto Sans JP", sans-serif;
   --r-panel: 28px;
   --r-field: 14px;
   --blur: blur(26px) saturate(180%);

@@ -8,7 +8,7 @@ importers:
 
   .:
     dependencies:
-      '@fontsource/murecho':
+      '@fontsource-variable/murecho':
         specifier: ^5.3.1
         version: 5.3.1
       '@holiday-jp/holiday_jp':
@@ -1338,8 +1338,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@fontsource/murecho@5.3.1':
-    resolution: {integrity: sha512-liKtnI4RQr5oKtKM3PPDTd6Rz8ZvGKJaa0t66IAXM8yCppvz6almI6HLN2C00cXFGV3Gsz+poE3Nfz6XRliD/Q==}
+  '@fontsource-variable/murecho@5.3.1':
+    resolution: {integrity: sha512-wjIOewtCBmJrniMLnc5f+IFPSkZWukwaGyeRTUabl5VF4lkevkWkRurvUstaxSG8FxHHFGHaz2oTwD0R9dUceg==}
 
   '@holiday-jp/holiday_jp@2.5.1':
     resolution: {integrity: sha512-KuXfzsp0xlP830WDZRbsHj99wJzamx4fS55usUJFz+oHZmZ4gJfVdyiyv/rIWK+O7RgfHSi5j5Ajy0ZK/Vlnyg==}
@@ -4588,7 +4588,7 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@fontsource/murecho@5.3.1': {}
+  '@fontsource-variable/murecho@5.3.1': {}
 
   '@holiday-jp/holiday_jp@2.5.1': {}
 

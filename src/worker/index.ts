@@ -4,6 +4,10 @@ import { type AppEnv, HttpError, sameOrigin } from "./app";
 import { createAuth } from "./auth";
 import { createDb } from "./db/client";
 import { devRoutes } from "./routes/dev";
+import { calendarRoutes, eventRoutes } from "./routes/events";
+import { groupRoutes } from "./routes/groups";
+import { inviteRoutes } from "./routes/invites";
+import { meRoutes } from "./routes/me";
 
 const app = new Hono<AppEnv>().basePath("/api");
 
@@ -20,6 +24,11 @@ app.on(["GET", "POST"], "/auth/*", (c) => c.get("auth").handler(c.req.raw));
 
 app.use("*", sameOrigin);
 app.route("/dev", devRoutes);
+app.route("/me", meRoutes);
+app.route("/groups", groupRoutes);
+app.route("/invites", inviteRoutes);
+app.route("/calendar", calendarRoutes);
+app.route("/events", eventRoutes);
 
 app.notFound((c) => c.json({ error: "見つかりません。" }, 404));
 app.onError((err, c) => {

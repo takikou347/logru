@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router";
 import type { Me, ThemeMode } from "../../shared/api-types";
 import { ACCENT_COLORS, GROUP_COLORS } from "../../shared/colors";
 import { poolColorsOf } from "../calendar/model";
-import { ApiError, api } from "../lib/api";
+import { ApiError, api, clearApiCache } from "../lib/api";
 import { groupColor, memberColor } from "../lib/colors";
 import { useColorPref } from "../lib/mutations";
 import { keys, useGroups, useMe } from "../lib/queries";
@@ -228,6 +228,7 @@ function DeleteSheet({ onClose }: { onClose: () => void }) {
     setError(null);
     try {
       await api("/me", { method: "DELETE", body: { confirm } });
+      await clearApiCache();
       qc.clear();
       toast({ message: "アカウントを消しました" });
       navigate("/login", { replace: true });

@@ -31,3 +31,12 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   }
   return data as T;
 }
+
+/** ログアウトや退会のとき、端末に残した API の控えを消す。共有の端末で前の人の予定を見せない */
+export async function clearApiCache(): Promise<void> {
+  try {
+    await caches?.delete("api");
+  } catch {
+    // キャッシュが使えない環境では何もしない
+  }
+}

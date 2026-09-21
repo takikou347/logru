@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
+import { clearApiCache } from "../lib/api";
 import { authClient } from "../lib/auth-client";
 import { useMe } from "../lib/queries";
 import { Pools } from "./Pools";
@@ -11,6 +12,7 @@ export function useSignOut() {
   const navigate = useNavigate();
   return async () => {
     await authClient.signOut();
+    await clearApiCache();
     qc.clear();
     navigate("/login", { replace: true });
   };

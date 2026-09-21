@@ -40,6 +40,8 @@
   --r-panel: 28px;
   --r-field: 14px;
   --blur: blur(26px) saturate(180%);
+  /* 奥がインクだまりだけの面に使う。インクだまりは元からぼけているので、色を濃くするだけで同じに見える。#3 */
+  --glass-filter: saturate(180%);
 }
 
 :root[data-theme="dark"] {
@@ -89,7 +91,7 @@
   :root { --glass: var(--glass-flat); }
 }
 @media (prefers-reduced-transparency: reduce) {
-  :root { --glass: var(--glass-flat); --blur: none; }
+  :root { --glass: var(--glass-flat); --blur: none; --glass-filter: none; }
 }
 
 .c-wakatake { --c: var(--wakatake); }

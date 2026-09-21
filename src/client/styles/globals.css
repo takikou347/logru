@@ -103,8 +103,21 @@
   &:where(:not(.absolute, .fixed, .sticky)) {
     position: relative;
   }
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
+  /*
+   * 奥を読み直す backdrop-filter は、面の数と広さを絞る。#3
+   * 画面に沿って流れる面は、奥がインクだまりだけなので色を濃くするだけにする。
+   * ぼかすのは、中身の上に浮いて止まっている面だけ（スマホの下の操作）。
+   * シートと窓は地がほぼ塗りつぶしで、ぼかしが見えないので読まない。
+   * 規約のように長い面は、奥を読むと描き直しが大きいので読まない。
+   * -webkit- を並べて書くと、組み立てのときに片方が消えて Chrome でぼけなくなるので、ここでは書かない。
+   */
+  backdrop-filter: var(--glass-filter);
+  &:where(.fixed):where(:not([data-slot="dialog-content"], [data-slot="sheet-content"])) {
+    backdrop-filter: var(--blur);
+  }
+  &:where([data-slot="dialog-content"], [data-slot="sheet-content"], .legal-body) {
+    backdrop-filter: none;
+  }
   &::before {
     content: "";
     position: absolute;
@@ -140,7 +153,29 @@
   & a { text-decoration: underline; }
 }
 
-@keyframes drift {
+/*
+ * 見た目の効果を切って、ちらつきの元を目で確かめるためのもの。#3
+ * 開発中だけ、URL の ?debug=noblur,nopools のような指定で html に data-debug が付く。本番では付かない。
+ */
+[data-debug~="noblur"] .glass {
+  backdrop-filter: none !important;
+}
+[data-debug~="oldblur"] .glass {
+  backdrop-filter: var(--blur) !important;
+}
+[data-debug~="nopools"] [data-pools] {
+  display: none;
+}
+[data-debug~="noshine"] .glass::before {
+  display: none;
+}
+[data-debug~="noshadow"] .glass {
+  box-shadow: none !important;
+}
+[data-debug~="drift"] [data-pools] > i {
+  animation: debug-drift 38s ease-in-out infinite alternate;
+}
+@keyframes debug-drift {
   to {
     translate: 24px -18px;
   }

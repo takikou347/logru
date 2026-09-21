@@ -21,11 +21,21 @@
     "types": [
       "vite/client"
     ],
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "paths": {
+      "@/*": [
+        "./src/client/*"
+      ]
+    }
   },
   "include": [
     "src/client",
     "src/shared",
+    "src/extensions/types.ts",
+    "src/extensions/registry.client.ts",
+    "src/extensions/*/manifest.ts",
+    "src/extensions/*/client",
+    "src/extensions/*/shared",
     "tests/client"
   ]
 }

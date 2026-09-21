@@ -1,13 +1,16 @@
-import { useRef } from "react";
-import { WEEKDAYS, DAY_MS, dayTone, formatDay, formatTime, holidayName, onDay, sameDay } from "@/lib/dates";
+import { type CSSProperties, useRef } from "react";
+import { WEEKDAYS, dayTone, formatDay, formatTime, holidayName, onDay, sameDay } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { toneText } from "./DayItems";
+import { type SpanSegment, daySpan, hiddenPerDay, isMultiDay, layoutWeek } from "./lanes";
 import type { ViewItem } from "./model";
 
 /** スマホのマスに出す点の数 */
 const MAX_DOTS = 3;
-/** PC のマスに出す予定の数 */
+/** PC のマスに出す予定の数。帯の段と合わせた数 */
 const MAX_CHIPS = 3;
+/** 週の行に出す帯の段の数。あふれた帯は「ほか n 件」に数える */
+const MAX_LANES = 3;
 /** 長押しとみなす時間 */
 const LONG_PRESS_MS = 500;
 
@@ -15,11 +18,12 @@ const LONG_PRESS_MS = 500;
  * 月の表。0010
  *
  * スマホは、マスに色の点だけを出し、押すと下にその日の予定が出る。長押しでその日の予定を足す。
- * PC は、マスに予定の名前まで出す。何日も続く終日の予定は、色で塗る。
+ * 何日も続く予定は、点の代わりに、かかる日をつなぐ細い線にする。
+ * PC は、マスに予定の名前まで出す。何日も続く予定は、週の行ごとに 1 本の帯にする。
  *
  * 今日は丸で囲まず、マスを板にして、上端にしおりを垂らす。
  *
- * @param days 表に並べる日。6 週ぶん
+ * @param days 表に並べる日。週の頭から、7 日ずつ
  * @param month いまの月。前後の月の日は薄くする
  * @param onLongPress 長押ししたとき
  * @param onOpenItem PC で予定を押したとき
@@ -58,6 +62,10 @@ export function MonthGrid({
     if (press.current) window.clearTimeout(press.current.timer);
   }
 
+  const multi = items.filter(isMultiDay);
+  const singles = items.filter((i) => !isMultiDay(i));
+  const weeks = Array.from({ length: Math.ceil(days.length / 7) }, (_, w) => days.slice(w * 7, w * 7 + 7));
+
   return (
     <section className="glass rounded-panel px-2 pt-2.5 pb-2 lg:flex lg:min-h-[calc(100dvh-106px)] lg:flex-col lg:p-3 lg:pb-2.5" aria-label="月の表">
       <div className="grid grid-cols-7" aria-hidden="true">
@@ -74,84 +82,117 @@ export function MonthGrid({
           </span>
         ))}
       </div>
-      <div className="grid grid-cols-7 lg:flex-1 lg:auto-rows-[minmax(112px,1fr)]" role="grid">
-        {days.map((d) => {
-          const mine = items.filter((i) => onDay(i, d));
-          const tone = dayTone(d);
-          const hol = holidayName(d);
-          const isToday = sameDay(d, today);
-          const isSelected = sameDay(d, selected);
-          const isOut = d.getMonth() !== month;
-          const label = `${formatDay(d)}${hol ? ` ${hol}` : ""}${isToday ? " 今日" : ""}。予定 ${mine.length} 件`;
+      <div className="grid lg:flex-1 lg:auto-rows-[minmax(112px,1fr)]" role="grid">
+        {weeks.map((week) => {
+          const { segments, lanes } = layoutWeek(multi, week[0]!);
+          const shown = Math.min(lanes, MAX_LANES);
+          const hidden = hiddenPerDay(segments, MAX_LANES);
+          const chipSlots = Math.max(1, MAX_CHIPS - shown);
+          // 1 段目は日付、続く段に帯、残りにマスの中身。段の高さは幅で変わるので CSS の変数で持つ
+          const rowStyle = {
+            "--lanes": shown,
+            "--dot-gap": shown ? "9px" : "6px",
+            gridTemplateRows: `var(--head)${shown ? ` repeat(${shown}, var(--lane))` : ""} auto`,
+          } as CSSProperties;
           return (
             <div
-              key={d.getTime()}
-              role="gridcell"
-              data-date={d.getDate()}
-              data-today={isToday || undefined}
-              data-out={isOut || undefined}
-              className={cn(
-                "relative flex min-h-[52px] touch-manipulation flex-col items-center pt-1.5 select-none [-webkit-touch-callout:none]",
-                "lg:@container lg:items-stretch lg:gap-1 lg:border-t lg:border-line lg:px-1.5 lg:pt-2 lg:pb-1.5",
-              )}
+              key={week[0]!.getTime()}
+              role="row"
+              className="grid grid-cols-7 [--head:30px] [--lane:5px] lg:[--head:33px] lg:[--lane:27px]"
+              style={rowStyle}
             >
-              <button
-                type="button"
-                className={cn(
-                  "absolute inset-0 z-[1] rounded-xl",
-                  isSelected && !isToday && "bg-field shadow-[inset_0_0_0_1.5px_var(--line)]",
-                  isToday && "bg-field-strong shadow-[inset_0_1px_0_var(--glass-edge),0_6px_14px_-8px_rgba(0,0,0,.45)]",
-                )}
-                aria-label={label}
-                aria-pressed={isSelected}
-                aria-current={isToday ? "date" : undefined}
-                onPointerDown={() => startPress(d)}
-                onPointerUp={cancelPress}
-                onPointerLeave={cancelPress}
-                onPointerCancel={cancelPress}
-                onContextMenu={(e) => e.preventDefault()}
-                onClick={() => {
-                  if (press.current?.fired) return;
-                  onSelect(d);
-                }}
-              />
-              {isToday && (
-                <span
-                  className="absolute top-0 left-1/2 z-[3] h-[5px] w-4 -translate-x-1/2 rounded-b-[3px] bg-primary lg:left-3.5 lg:w-[22px] lg:translate-x-0"
-                  aria-hidden="true"
-                />
-              )}
-              <span
-                className={cn(
-                  "pointer-events-none relative z-[2] text-[17px] leading-none font-medium lg:pl-1 lg:text-xl",
-                  tone && toneText[tone],
-                  isOut && "text-ink-3 opacity-60",
-                  isToday && "pt-[3px] font-extrabold",
-                )}
-              >
-                {d.getDate()}
-              </span>
-              {hol && (
-                <span className="pointer-events-none absolute top-3 right-2 z-[2] hidden text-[10px] text-sun lg:block @max-[90px]:hidden">
-                  {hol}
-                </span>
-              )}
-              <span className="pointer-events-none relative z-[2] mt-1.5 flex items-center gap-[3px] text-[10px] text-ink-2 lg:hidden" aria-hidden="true">
-                {mine.slice(0, MAX_DOTS).map((i) => (
-                  <span key={`${i.extension}:${i.id}`} className={cn("swatch-dot size-1.5", `c-${i.color}`)} />
+              {week.map((d, col) => {
+                const all = items.filter((i) => onDay(i, d));
+                const mine = singles.filter((i) => onDay(i, d));
+                const tone = dayTone(d);
+                const hol = holidayName(d);
+                const isToday = sameDay(d, today);
+                const isSelected = sameDay(d, selected);
+                const isOut = d.getMonth() !== month;
+                const label = `${formatDay(d)}${hol ? ` ${hol}` : ""}${isToday ? " 今日" : ""}。予定 ${all.length} 件`;
+                const moreDots = Math.max(0, mine.length - MAX_DOTS) + hidden[col]!;
+                const moreChips = Math.max(0, mine.length - chipSlots) + hidden[col]!;
+                return (
+                  <div
+                    key={d.getTime()}
+                    role="gridcell"
+                    data-date={d.getDate()}
+                    data-today={isToday || undefined}
+                    data-out={isOut || undefined}
+                    style={{ gridColumn: col + 1, gridRow: "1 / -1" }}
+                    className={cn(
+                      "relative flex min-h-[52px] touch-manipulation flex-col items-center pt-1.5 select-none [-webkit-touch-callout:none]",
+                      "lg:@container lg:items-stretch lg:gap-1 lg:border-t lg:border-line lg:px-1.5 lg:pt-2 lg:pb-1.5",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      className={cn(
+                        "absolute inset-0 z-[1] rounded-xl",
+                        isSelected && !isToday && "bg-field shadow-[inset_0_0_0_1.5px_var(--line)]",
+                        isToday && "bg-field-strong shadow-[inset_0_1px_0_var(--glass-edge),0_6px_14px_-8px_rgba(0,0,0,.45)]",
+                      )}
+                      aria-label={label}
+                      aria-pressed={isSelected}
+                      aria-current={isToday ? "date" : undefined}
+                      onPointerDown={() => startPress(d)}
+                      onPointerUp={cancelPress}
+                      onPointerLeave={cancelPress}
+                      onPointerCancel={cancelPress}
+                      onContextMenu={(e) => e.preventDefault()}
+                      onClick={() => {
+                        if (press.current?.fired) return;
+                        onSelect(d);
+                      }}
+                    />
+                    {isToday && (
+                      <span
+                        className="absolute top-0 left-1/2 z-[3] h-[5px] w-4 -translate-x-1/2 rounded-b-[3px] bg-primary lg:left-3.5 lg:w-[22px] lg:translate-x-0"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span
+                      className={cn(
+                        "pointer-events-none relative z-[2] text-[17px] leading-none font-medium lg:pl-1 lg:text-xl",
+                        tone && toneText[tone],
+                        isOut && "text-ink-3 opacity-60",
+                        isToday && "pt-[3px] font-extrabold",
+                      )}
+                    >
+                      {d.getDate()}
+                    </span>
+                    {hol && (
+                      <span className="pointer-events-none absolute top-3 right-2 z-[2] hidden text-[10px] text-sun lg:block @max-[90px]:hidden">
+                        {hol}
+                      </span>
+                    )}
+                    <span
+                      className="pointer-events-none relative z-[2] mt-[calc(var(--lanes)*var(--lane)+var(--dot-gap))] flex items-center gap-[3px] text-[10px] text-ink-2 lg:hidden"
+                      aria-hidden="true"
+                    >
+                      {mine.slice(0, MAX_DOTS).map((i) => (
+                        <span key={`${i.extension}:${i.id}`} className={cn("swatch-dot size-1.5", `c-${i.color}`)} />
+                      ))}
+                      {moreDots > 0 && <span>+{moreDots}</span>}
+                    </span>
+                    <span className="relative z-[2] hidden min-w-0 flex-col gap-[3px] lg:mt-[calc(var(--lanes)*var(--lane))] lg:flex">
+                      {mine.slice(0, chipSlots).map((i) => (
+                        <EventChip key={`${i.extension}:${i.id}`} item={i} onOpen={() => onOpenItem(i)} />
+                      ))}
+                      {moreChips > 0 && (
+                        <button type="button" className="pl-1.5 text-left text-[11px] text-ink-2" onClick={() => onSelect(d)}>
+                          ほか {moreChips} 件
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+              {segments
+                .filter((s) => s.lane < MAX_LANES)
+                .map((s) => (
+                  <SpanMarks key={`${s.item.extension}:${s.item.id}`} segment={s} onOpen={() => onOpenItem(s.item)} />
                 ))}
-                {mine.length > MAX_DOTS && <span>+{mine.length - MAX_DOTS}</span>}
-              </span>
-              <span className="relative z-[2] hidden min-w-0 flex-col gap-[3px] lg:flex">
-                {mine.slice(0, MAX_CHIPS).map((i) => (
-                  <EventChip key={`${i.extension}:${i.id}`} item={i} onOpen={() => onOpenItem(i)} />
-                ))}
-                {mine.length > MAX_CHIPS && (
-                  <button type="button" className="pl-1.5 text-left text-[11px] text-ink-2" onClick={() => onSelect(d)}>
-                    ほか {mine.length - MAX_CHIPS} 件
-                  </button>
-                )}
-              </span>
             </div>
           );
         })}
@@ -160,26 +201,73 @@ export function MonthGrid({
   );
 }
 
+/** 帯の読み上げ。`出張、9月21日から9月25日まで` の形 */
+function spanLabel(item: ViewItem): string {
+  const { first, last } = daySpan(item);
+  const day = (d: Date) => `${d.getMonth() + 1}月${d.getDate()}日`;
+  if (item.allDay) return `${item.title}、${day(first)}から${day(last)}まで`;
+  return `${item.title}、${day(first)} ${formatTime(item.startsAt)}から${day(last)} ${formatTime(item.endsAt!)}まで`;
+}
+
 /**
- * PC のマスの中の予定。左に色の縦線を引く。
- * 何日も続く終日の予定は、縦線の代わりに全体を色で塗る。
+ * 何日も続く予定の、1 週ぶんの印。PC は押せる帯、スマホは細い線にする。
+ * 前後の週へ続く側は角を立て、マスの端まで伸ばす。題名は、続きの週でも左端に出す。
+ * 終日は色で塗り、時刻のある予定は 1 日の予定と同じ薄い色に縦線を付ける。
+ */
+function SpanMarks({ segment, onOpen }: { segment: SpanSegment<ViewItem>; onOpen: () => void }) {
+  const { item, col, span, lane, before, after } = segment;
+  const place = { gridColumn: `${col + 1} / span ${span}`, gridRow: lane + 2 };
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        style={place}
+        className={cn(
+          "pointer-events-none relative z-[2] h-[3px] self-start bg-(--c) opacity-80 lg:hidden",
+          before ? "ml-0" : "ml-2.5 rounded-l-full",
+          after ? "mr-0" : "mr-2.5 rounded-r-full",
+          `c-${item.color}`,
+        )}
+      />
+      <button
+        type="button"
+        style={place}
+        className={cn(
+          "relative z-[2] hidden h-6 min-w-0 items-center gap-1.5 self-start overflow-hidden px-1.5 text-left text-xs leading-tight font-medium whitespace-nowrap lg:flex",
+          before ? "ml-0" : "ml-1.5 rounded-l-md",
+          after ? "mr-0" : "mr-1.5 rounded-r-md",
+          item.allDay
+            ? "bg-(--c) text-[#17202c]"
+            : "bg-[color-mix(in_srgb,var(--c)_18%,transparent)]",
+          !item.allDay && !before && "before:w-[3px] before:flex-none before:self-stretch before:rounded-xs before:bg-(--c) before:content-['']",
+          `c-${item.color}`,
+        )}
+        aria-label={spanLabel(item)}
+        onClick={onOpen}
+      >
+        {!item.allDay && !before && <time className="flex-none text-ink-2">{formatTime(item.startsAt)}</time>}
+        <span className="min-w-0 truncate">{item.title}</span>
+      </button>
+    </>
+  );
+}
+
+/**
+ * PC のマスの中の、1 日だけの予定。左に色の縦線を引く。
  * マスが狭いときは、時刻を隠して予定名を優先する。
  */
 function EventChip({ item, onOpen }: { item: ViewItem; onOpen: () => void }) {
-  const spans = item.allDay && item.endsAt != null && item.endsAt - item.startsAt > DAY_MS;
   return (
     <button
       type="button"
       className={cn(
         "flex min-h-6 min-w-0 items-center gap-1.5 overflow-hidden rounded-md px-1.5 py-1 text-left text-xs leading-tight font-medium whitespace-nowrap",
-        spans
-          ? "bg-(--c) text-[#17202c]"
-          : "bg-[color-mix(in_srgb,var(--c)_18%,transparent)] before:w-[3px] before:flex-none before:self-stretch before:rounded-xs before:bg-(--c) before:content-['']",
+        "bg-[color-mix(in_srgb,var(--c)_18%,transparent)] before:w-[3px] before:flex-none before:self-stretch before:rounded-xs before:bg-(--c) before:content-['']",
         `c-${item.color}`,
       )}
       onClick={onOpen}
     >
-      {!item.allDay && <time className={cn("flex-none @max-[90px]:hidden", spans ? "text-[#17202c]" : "text-ink-2")}>{formatTime(item.startsAt)}</time>}
+      {!item.allDay && <time className="flex-none text-ink-2 @max-[90px]:hidden">{formatTime(item.startsAt)}</time>}
       <span className="min-w-0 truncate">{item.title}</span>
     </button>
   );

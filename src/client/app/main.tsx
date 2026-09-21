@@ -1,16 +1,15 @@
+/** 画面の入口。index.html から読む */
 import "@fontsource-variable/murecho";
-import "./styles/tokens.css";
-import "./styles/base.css";
-import "./styles/ui.css";
-import "./styles/auth.css";
+import "@/styles/globals.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";
-import { queryClient } from "./lib/queries";
-import { applyTheme, readStoredTheme, watchSystemTheme } from "./lib/theme";
+import { Toaster } from "@/components/ui/sonner";
+import { queryClient } from "@/lib/queries";
+import { applyTheme, readStoredTheme, watchSystemTheme } from "@/lib/theme";
+import { AuthProvider } from "./auth";
 import { router } from "./router";
-import { ToastProvider } from "./ui/Toast";
 
 const stored = readStoredTheme();
 applyTheme(stored.mode, stored.accent);
@@ -18,10 +17,11 @@ watchSystemTheme();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
-      </ToastProvider>
-    </QueryClientProvider>
+        <Toaster />
+      </QueryClientProvider>
+    </AuthProvider>
   </StrictMode>,
 );

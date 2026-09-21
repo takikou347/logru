@@ -55,6 +55,22 @@ export const colorPrefs = sqliteTable(
   (t) => [primaryKey({ columns: [t.userId, t.targetType, t.targetId] })],
 );
 
+/** カレンダーに出す人の選択。自分の画面だけの設定。hidden が true の人が作った項目を出さない。F-20 */
+export const memberVisibility = sqliteTable(
+  "member_visibility",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    targetUserId: text("target_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    hidden: integer("hidden", { mode: "boolean" }).notNull().default(false),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.targetUserId] })],
+);
+
 /** グループ。登録した人には自分だけのグループを 1 つ作る。0009 */
 export const groups = sqliteTable("groups", {
   id: text("id").primaryKey(),

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { clientExtension, defaultExtension } from "../../../extensions/registry.client";
 import type { EditorTarget } from "../../../extensions/types.client";
+import type { GroupSummary } from "../../../shared/api-types";
 import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components/AppLayout";
 import { Notice } from "@/components/AuthShell";
 import { Chip } from "@/components/Chip";
@@ -11,11 +12,13 @@ import { Segmented } from "@/components/Segmented";
 import { Button } from "@/components/ui/button";
 import { groupColor } from "@/lib/colors";
 import { addDays, addMonths, dateKey, monthGrid, onDay, parseDateKey, sameDay, startOfDay, weekDays } from "@/lib/dates";
+import { useMemberVisibility } from "@/lib/mutations";
 import { useCalendar, useGroups, useMe } from "@/lib/queries";
 import { DayPanel, ItemList } from "./DayItems";
 import { MonthGrid } from "./MonthGrid";
 import { RefreshButton } from "./RefreshButton";
-import { decorate, poolColorsOf, type ViewItem } from "./model";
+import { byPeople, decorate, groupPeopleOf, hiddenPeople, peopleOf, poolColorsOf, type Person, type ViewItem } from "./model";
+import { PeopleChip, SideGroup, useOpenGroups } from "./PeopleFilter";
 import { itemKey, useUndoableDelete } from "./use-undoable-delete";
 import { WeekList } from "./WeekList";
 
@@ -40,9 +43,9 @@ function useToday(): Date {
 }
 
 /**
- * カレンダーの画面。月、週、日で切り替え、グループで絞る。F-05〜F-09
+ * カレンダーの画面。月、週、日で切り替え、グループと人で絞る。F-05〜F-09、F-20
  *
- * 表示の単位、選んだ日、絞り込みは URL に持つ。読み込み直しても、共有しても同じ画面になる。
+ * 表示の単位、選んだ日、グループの絞り込みは URL に持つ。出す人は自分の画面だけの設定として D1 に持つ。読み込み直しても、共有しても同じ画面になる。
  * 項目は拡張から集めたもの。押すと、その項目を出した拡張の編集のシートを開く。
  */
 export function CalendarPage() {
@@ -90,12 +93,18 @@ export function CalendarPage() {
   const calendar = useCalendar(from, to);
 
   const allGroups = useMemo(() => groups.data ?? [], [groups.data]);
+  const sections = useMemo(() => (me.data ? groupPeopleOf(allGroups, me.data) : []), [allGroups, me.data]);
+  const people = useMemo(() => (me.data ? peopleOf(allGroups, me.data) : []), [allGroups, me.data]);
+  const sideOpen = useOpenGroups("logru-side-groups", false);
+  const hiddenIds = useMemo(() => hiddenPeople(me.data?.hiddenMembers ?? [], people), [me.data, people]);
+  const { mutate: setVisibility } = useMemberVisibility();
+  const togglePerson = useCallback((p: Person, hide: boolean) => setVisibility({ userId: p.id, hidden: hide }), [setVisibility]);
   const items = useMemo<ViewItem[]>(() => {
     if (!calendar.data || !me.data) return [];
-    return decorate(calendar.data, allGroups, me.data).filter(
+    return byPeople(decorate(calendar.data, allGroups, me.data), hiddenIds).filter(
       (i) => !hidden.has(itemKey(i)) && (!groupFilter || i.groupId === groupFilter),
     );
-  }, [calendar.data, allGroups, me.data, hidden, groupFilter]);
+  }, [calendar.data, allGroups, me.data, hidden, groupFilter, hiddenIds]);
 
   const move = useCallback(
     (dir: -1 | 1) => {
@@ -132,22 +141,23 @@ export function CalendarPage() {
   const showTodayButton = !sameDay(selected, today) || view !== "month";
   const Editor = editor?.mode === "edit" ? (clientExtension(editor.item.extension)?.Editor ?? null) : defaultExtension.Editor;
 
-  /** 絞り込みの選択肢。スマホは丸いボタン、PC は左の列の行。自分だけのグループは「自分だけの予定」と書く。0009 */
+  /** グループで絞る選択肢の中身。自分だけのグループは「自分だけの予定」と書く。0009 */
+  const groupOption = (g: GroupSummary) => ({
+    key: g.id,
+    pressed: groupFilter === g.id,
+    onClick: () => update({ group: groupFilter === g.id ? null : g.id }),
+    children: (
+      <>
+        <Dot color={me.data ? groupColor(g, me.data.colorPrefs) : g.color} />
+        {g.isPersonal ? "自分だけの予定" : g.name}
+      </>
+    ),
+  });
+
+  /** 絞り込みの選択肢。スマホは丸いボタン、PC は左の列の行 */
   const filters = (render: (p: { key: string; pressed: boolean; onClick: () => void; children: React.ReactNode }) => React.ReactNode) => [
     render({ key: "all", pressed: !groupFilter, onClick: () => update({ group: null }), children: "すべて" }),
-    ...allGroups.map((g) =>
-      render({
-        key: g.id,
-        pressed: groupFilter === g.id,
-        onClick: () => update({ group: groupFilter === g.id ? null : g.id }),
-        children: (
-          <>
-            <Dot color={me.data ? groupColor(g, me.data.colorPrefs) : g.color} />
-            {g.isPersonal ? "自分だけの予定" : g.name}
-          </>
-        ),
-      }),
-    ),
+    ...allGroups.map((g) => render(groupOption(g))),
   ];
 
   const addButton = (
@@ -162,13 +172,32 @@ export function CalendarPage() {
       poolColors={poolColorsOf(allGroups, me.data)}
       poolFocus={focusIndex >= 0 ? focusIndex : null}
       side={
-        <div role="group" aria-label="表示するグループ">
+        <div role="group" aria-label="表示するグループ" className="min-h-0 overflow-y-auto">
           <SideHeading>表示するグループ</SideHeading>
-          {filters(({ key, pressed, onClick, children }) => (
-            <button key={key} type="button" className={sideItemClass} aria-pressed={pressed} onClick={onClick}>
-              {children}
-            </button>
-          ))}
+          {filters(({ key, pressed, onClick, children }) => {
+            // 共有のグループは、矢印でメンバーを開き、人ごとに出し入れできる。F-20
+            const section = sections.find((s) => s.group.id === key);
+            if (!section) {
+              return (
+                <button key={key} type="button" className={sideItemClass} aria-pressed={pressed} onClick={onClick}>
+                  {children}
+                </button>
+              );
+            }
+            return (
+              <SideGroup
+                key={key}
+                section={section}
+                label={children}
+                pressed={pressed}
+                onFilter={onClick}
+                open={sideOpen.isOpen(key)}
+                onOpenChange={(o) => sideOpen.setOpen(key, o)}
+                hidden={hiddenIds}
+                onToggle={togglePerson}
+              />
+            );
+          })}
         </div>
       }
     >
@@ -209,6 +238,7 @@ export function CalendarPage() {
             {children}
           </Chip>
         ))}
+        {sections.length > 0 && <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />}
       </nav>
 
       {calendar.error && <Notice error>{calendar.error.message}</Notice>}

@@ -2,12 +2,12 @@ import { zValidator } from "@hono/zod-validator";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import type { Me } from "../../../shared/api-types";
 import { LEGAL_VERSIONS, type LegalDocument } from "../../../shared/legal";
-import { agreementsInput, colorPrefInput, deleteAccountInput, profileInput, settingsInput } from "../../../shared/schemas";
+import { agreementsInput, colorPrefInput, deleteAccountInput, memberVisibilityInput, profileInput, settingsInput } from "../../../shared/schemas";
 import { HttpError, createRouter, validationHook } from "../../core/app";
 import { missingAgreements, requireAgreement, requireUser } from "../../core/auth/middleware";
 import type { DB } from "../../core/db/client";
-import { colorPrefs, groupMembers, groups, legalAgreements, userSettings, users } from "../../core/db/schema";
-import { myGroupIds } from "../groups/membership";
+import { colorPrefs, groupMembers, groups, legalAgreements, memberVisibility, userSettings, users } from "../../core/db/schema";
+import { myGroupIds, sharesGroup } from "../groups/membership";
 
 /**
  * 退会したときに消すグループと、退会を止めるグループを調べる。
@@ -56,12 +56,17 @@ export const meRoutes = createRouter()
       (await db.select().from(userSettings).where(eq(userSettings.userId, me.id)).get()) ??
       (await db.insert(userSettings).values({ userId: me.id }).returning().get());
     const prefs = await db.select().from(colorPrefs).where(eq(colorPrefs.userId, me.id));
+    const hidden = await db
+      .select({ id: memberVisibility.targetUserId })
+      .from(memberVisibility)
+      .where(and(eq(memberVisibility.userId, me.id), eq(memberVisibility.hidden, true)));
     const body: Me = {
       user: { id: me.id, name: me.name, email: me.email, image: me.image },
       settings: { themeMode: settings.themeMode, accentColor: settings.accentColor, userColor: settings.userColor },
       needsAgreement: await missingAgreements(db, me.id),
       provider: me.provider,
       colorPrefs: prefs.map((p) => ({ targetType: p.targetType, targetId: p.targetId, color: p.color })),
+      hiddenMembers: hidden.map((h) => h.id),
     };
     return c.json(body);
   })
@@ -140,6 +145,19 @@ export const meRoutes = createRouter()
       .values({ userId: me.id, targetType, targetId, ...values })
       .onConflictDoUpdate({ target: [colorPrefs.userId, colorPrefs.targetType, colorPrefs.targetId], set: values });
     return c.json({ targetType, targetId, color: values.color });
+  })
+  .put("/visibility/:userId", zValidator("json", memberVisibilityInput, validationHook), async (c) => {
+    const db = c.get("db");
+    const me = c.get("user");
+    const targetUserId = c.req.param("userId");
+    // 自分と、同じグループのメンバーだけ選べる。F-20
+    if (!(await sharesGroup(db, me.id, targetUserId))) throw new HttpError(404, "見つかりません。");
+    const values = { hidden: c.req.valid("json").hidden, updatedAt: new Date() };
+    await db
+      .insert(memberVisibility)
+      .values({ userId: me.id, targetUserId, ...values })
+      .onConflictDoUpdate({ target: [memberVisibility.userId, memberVisibility.targetUserId], set: values });
+    return c.json({ userId: targetUserId, hidden: values.hidden });
   })
   .delete("/colors/:type/:id", async (c) => {
     const type = c.req.param("type");

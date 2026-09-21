@@ -25,6 +25,9 @@ export const profileInput = z.object({
 /** `PUT /api/me/colors/:type/:id`。自分の画面だけの色 */
 export const colorPrefInput = z.object({ color: groupColorSchema });
 
+/** `PUT /api/me/visibility/:userId`。その人の予定をカレンダーに出すか。F-20 */
+export const memberVisibilityInput = z.object({ hidden: z.boolean() });
+
 /** `POST /api/me/agreements`。最新の規約に同意する */
 export const agreementsInput = z.object({ agreed: z.literal(true) });
 

@@ -1,0 +1,31 @@
+name: 機能を足す
+description: できることを増やしたいとき
+labels: ["追加"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: どこに足すか
+      options:
+        - ログイン、アカウント
+        - カレンダー、予定
+        - グループ
+        - 設定
+        - 新しい拡張
+        - その他
+    validations:
+      required: true
+  - type: textarea
+    id: want
+    attributes:
+      label: やりたいこと
+      description: 誰が、どの画面で、何をしたいか
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: できたと言える条件
+      description: 「何をすると何が起きるか」の形で。例は「予定を長押しすると複製できる」
+    validations:
+      required: true

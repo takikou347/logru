@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
-import { type AppEnv, HttpError, sameOrigin } from "./app";
+import { type AppEnv, HttpError, resolveAppUrl, sameOrigin } from "./app";
 import { createAuth, googleEnabled } from "./auth";
 import { createDb } from "./db/client";
 import { devRoutes } from "./routes/dev";
@@ -14,8 +14,10 @@ const app = new Hono<AppEnv>().basePath("/api");
 app.use("*", secureHeaders());
 app.use("*", async (c, next) => {
   const db = createDb(c.env.DB);
+  const appUrl = resolveAppUrl(c.env, c.req.url);
   c.set("db", db);
-  c.set("auth", createAuth(c.env, db));
+  c.set("appUrl", appUrl);
+  c.set("auth", createAuth(c.env, db, appUrl));
   await next();
 });
 

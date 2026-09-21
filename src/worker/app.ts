@@ -7,8 +7,17 @@ export type SessionUser = { id: string; name: string; email: string; emailVerifi
 
 export type AppEnv = {
   Bindings: Env;
-  Variables: { db: DB; auth: Auth; user: SessionUser };
+  Variables: { db: DB; auth: Auth; user: SessionUser; appUrl: string };
 };
+
+/**
+ * 画面の URL。本番は APP_URL に固定する。
+ * 開発では、開発サーバーと本番と同じ形の確認で番号が違うので、要求が来た出どころを使う。
+ */
+export function resolveAppUrl(env: Env, requestUrl: string): string {
+  if (env.ENVIRONMENT === "development") return new URL(requestUrl).origin;
+  return new URL(env.APP_URL).origin;
+}
 
 export const createRouter = () => new Hono<AppEnv>();
 
@@ -24,8 +33,7 @@ export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
 export const sameOrigin = createMiddleware<AppEnv>(async (c, next) => {
   if (!["GET", "HEAD", "OPTIONS"].includes(c.req.method)) {
     const origin = c.req.header("Origin");
-    const allowed = new URL(c.env.APP_URL).origin;
-    if (origin && origin !== allowed && origin !== new URL(c.req.url).origin) {
+    if (origin && origin !== c.get("appUrl")) {
       return c.json({ error: "許可されていない出どころです。" }, 403);
     }
   }

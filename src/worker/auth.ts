@@ -21,17 +21,17 @@ function normalizeEmail(email: unknown): string | null {
   return typeof email === "string" ? email.trim().toLowerCase() : null;
 }
 
-export function createAuth(env: Env, db: DB) {
+export function createAuth(env: Env, db: DB, appUrl: string) {
   const secrets = env as Env & Secrets;
   const secret = secrets.BETTER_AUTH_SECRET;
   if (!secret && env.ENVIRONMENT === "production") throw new Error("BETTER_AUTH_SECRET が無い");
 
   return betterAuth({
     appName: "Logru",
-    baseURL: env.APP_URL,
+    baseURL: appUrl,
     basePath: "/api/auth",
     secret: secret ?? "development-only-secret-do-not-use-in-production",
-    trustedOrigins: [env.APP_URL],
+    trustedOrigins: [appUrl],
     database: drizzleAdapter(db, { provider: "sqlite", schema }),
     emailAndPassword: {
       enabled: true,

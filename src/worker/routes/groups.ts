@@ -54,7 +54,7 @@ export const groupRoutes = createRouter()
     const token = randomToken();
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
     await db.insert(groupInvites).values({ id: crypto.randomUUID(), groupId: id, token, createdBy: c.get("user").id, expiresAt });
-    return c.json({ token, url: `${c.env.APP_URL}/invite/${token}`, expiresAt: expiresAt.getTime() }, 201);
+    return c.json({ token, url: `${c.get("appUrl")}/invite/${token}`, expiresAt: expiresAt.getTime() }, 201);
   })
   .delete("/:id/invites", async (c) => {
     const db = c.get("db");

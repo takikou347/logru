@@ -15,6 +15,12 @@ const stored = readStoredTheme();
 applyTheme(stored.mode, stored.accent);
 watchSystemTheme();
 
+// 開発中だけ。?debug=noblur,nopools で見た目の効果を切る。globals.css の data-debug を見る。#3
+if (import.meta.env.DEV) {
+  const debug = new URLSearchParams(location.search).get("debug");
+  if (debug) document.documentElement.dataset.debug = debug.split(",").join(" ");
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AuthProvider>

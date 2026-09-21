@@ -16,7 +16,7 @@ export function Pools({ colors, focus }: { colors: string[]; focus?: number | nu
   const grow = (i: number) => focus === i;
   const pool = "absolute aspect-square rounded-full bg-(--c) opacity-(--pool-opacity) blur-[46px] transition-[transform,opacity] duration-900 ease-out";
   return (
-    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
+    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true" data-pools>
       <i className={cn(pool, `c-${a}`, "top-[10vh] -left-[18vw] w-[min(70vw,520px)]", grow(0) && "scale-155", dim(0) && "scale-60 opacity-25")} />
       <i
         className={cn(

@@ -17,6 +17,21 @@ test("奥のインクだまりは動き続けない。動き続けると、ぼ�
   expect(running).toBe(0);
 });
 
+test("規約の長い面は奥を読み直さない。ガラスの色は、組み立てたあとも Chrome に効く", async ({ page }) => {
+  await page.goto("/terms");
+  await expect(page.getByRole("heading", { name: "Logru 利用規約" })).toBeVisible();
+  const article = await page.locator("article").evaluate((el) => getComputedStyle(el).backdropFilter);
+  expect(article).toBe("none");
+  // 同じ glass を付けた、長くない面なら色を濃くする。-webkit- だけが残ると Chrome では none になる
+  const panel = await page.evaluate(() => {
+    const el = document.createElement("section");
+    el.className = "glass";
+    document.body.append(el);
+    return getComputedStyle(el).backdropFilter;
+  });
+  expect(panel).toContain("saturate");
+});
+
 test("見つからない画面は、そう伝える", async ({ page }) => {
   await page.goto("/no-such-page");
   await expect(page.getByRole("heading", { name: "ページが見つかりません" })).toBeVisible();

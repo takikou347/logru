@@ -38,4 +38,13 @@ app.onError((err, c) => {
   return c.json({ error: "サーバーで問題が起きました。時間をおいて、もう一度試してください。" }, 500);
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  /** Cron Triggers。wrangler.jsonc の triggers.crons で 30 分おきに呼ぶ。拡張の定期の処理を順に動かす */
+  async scheduled(_controller, env, ctx) {
+    const db = createDb(env.DB);
+    for (const x of serverExtensions) {
+      if (x.scheduled) ctx.waitUntil(x.scheduled(db as never, env as never));
+    }
+  },
+} satisfies ExportedHandler<Env>;

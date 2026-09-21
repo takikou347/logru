@@ -5,9 +5,9 @@ export type Mail = { to: string; subject: string; text: string };
 
 /**
  * RESEND_API_KEY があれば Resend で送る。
- * 無ければ、本番以外に限り dev_mails に控えを残す。E2E テストはそれを読む。
+ * 無ければ、手元の開発に限り dev_mails に控えを残す。E2E テストはそれを読む。
  */
-export async function sendMail(env: Env, db: DB, mail: Mail): Promise<void> {
+export async function sendMail(env: Env, db: DB, mail: Mail, localDev: boolean): Promise<void> {
   const apiKey = (env as Env & { RESEND_API_KEY?: string }).RESEND_API_KEY;
   if (apiKey) {
     const res = await fetch("https://api.resend.com/emails", {
@@ -18,7 +18,7 @@ export async function sendMail(env: Env, db: DB, mail: Mail): Promise<void> {
     if (!res.ok) throw new Error(`メールを送れなかった: ${res.status} ${await res.text()}`);
     return;
   }
-  if (env.ENVIRONMENT === "production") throw new Error("RESEND_API_KEY が無い");
+  if (!localDev) throw new Error("RESEND_API_KEY が無い");
   await db.insert(devMails).values(mail);
   console.log(`[mail] ${mail.to} ${mail.subject}\n${mail.text}`);
 }

@@ -1,11 +1,11 @@
 import { desc, eq } from "drizzle-orm";
-import { createRouter } from "../app";
+import { createRouter, isLocalDev } from "../app";
 import { devMails } from "../db/schema";
 
 /** 開発のときだけ開く。送ったはずのメールを読む */
 export const devRoutes = createRouter()
   .use("*", async (c, next) => {
-    if (c.env.ENVIRONMENT !== "development") return c.json({ error: "見つかりません。" }, 404);
+    if (!isLocalDev(c.env, c.req.url)) return c.json({ error: "見つかりません。" }, 404);
     await next();
   })
   .get("/mails", async (c) => {

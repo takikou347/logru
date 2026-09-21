@@ -10,12 +10,22 @@ export type AppEnv = {
   Variables: { db: DB; auth: Auth; user: SessionUser; appUrl: string };
 };
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * 手元で開発しているときだけ true。設定が development でも、localhost 以外からの要求は数えない。
+ * 本番の設定を付け忘れて公開しても、開発用の振る舞いが外から使えないようにする。
+ */
+export function isLocalDev(env: Env, requestUrl: string): boolean {
+  return env.ENVIRONMENT === "development" && LOCAL_HOSTS.has(new URL(requestUrl).hostname);
+}
+
 /**
  * 画面の URL。本番は APP_URL に固定する。
- * 開発では、開発サーバーと本番と同じ形の確認で番号が違うので、要求が来た出どころを使う。
+ * 手元では、開発サーバーと本番と同じ形の確認で番号が違うので、要求が来た出どころを使う。
  */
 export function resolveAppUrl(env: Env, requestUrl: string): string {
-  if (env.ENVIRONMENT === "development") return new URL(requestUrl).origin;
+  if (isLocalDev(env, requestUrl)) return new URL(requestUrl).origin;
   return new URL(env.APP_URL).origin;
 }
 

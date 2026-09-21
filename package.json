@@ -11,9 +11,9 @@
     "e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
-    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "db:migrate:remote": "CLOUDFLARE_ENV=production pnpm build && wrangler d1 migrations apply DB --remote",
     "cf-typegen": "wrangler types",
-    "deploy": "pnpm build && wrangler d1 migrations apply DB --remote && wrangler deploy"
+    "deploy": "pnpm db:migrate:remote && wrangler deploy"
   },
   "dependencies": {
     "@fontsource-variable/murecho": "^5.3.1",

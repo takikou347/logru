@@ -21,10 +21,11 @@ function normalizeEmail(email: unknown): string | null {
   return typeof email === "string" ? email.trim().toLowerCase() : null;
 }
 
-export function createAuth(env: Env, db: DB, appUrl: string) {
+export function createAuth(env: Env, db: DB, appUrl: string, localDev: boolean) {
   const secrets = env as Env & Secrets;
   const secret = secrets.BETTER_AUTH_SECRET;
-  if (!secret && env.ENVIRONMENT === "production") throw new Error("BETTER_AUTH_SECRET が無い");
+  // 手元の開発のときだけ、決まった鍵で動かす。それ以外で鍵が無ければ動かさない
+  if (!secret && !localDev) throw new Error("BETTER_AUTH_SECRET が無い");
 
   return betterAuth({
     appName: "Logru",
@@ -42,7 +43,7 @@ export function createAuth(env: Env, db: DB, appUrl: string) {
       revokeSessionsOnPasswordReset: true,
       password: { hash: hashPassword, verify: verifyPassword },
       sendResetPassword: async ({ user, url }) => {
-        await sendMail(env, db, resetPasswordMail(user.email, url));
+        await sendMail(env, db, resetPasswordMail(user.email, url), localDev);
       },
     },
     emailVerification: {
@@ -50,7 +51,7 @@ export function createAuth(env: Env, db: DB, appUrl: string) {
       autoSignInAfterVerification: true,
       expiresIn: 60 * 60 * 24,
       sendVerificationEmail: async ({ user, url }) => {
-        await sendMail(env, db, verificationMail(user.email, url));
+        await sendMail(env, db, verificationMail(user.email, url), localDev);
       },
     },
     socialProviders: googleEnabled(env)

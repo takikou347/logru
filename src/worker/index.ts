@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
-import { type AppEnv, HttpError, resolveAppUrl, sameOrigin } from "./app";
+import { type AppEnv, HttpError, isLocalDev, resolveAppUrl, sameOrigin } from "./app";
 import { createAuth, googleEnabled } from "./auth";
 import { createDb } from "./db/client";
 import { devRoutes } from "./routes/dev";
@@ -17,7 +17,7 @@ app.use("*", async (c, next) => {
   const appUrl = resolveAppUrl(c.env, c.req.url);
   c.set("db", db);
   c.set("appUrl", appUrl);
-  c.set("auth", createAuth(c.env, db, appUrl));
+  c.set("auth", createAuth(c.env, db, appUrl, isLocalDev(c.env, c.req.url)));
   await next();
 });
 

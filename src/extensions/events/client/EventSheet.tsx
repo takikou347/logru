@@ -1,15 +1,23 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
-import type { CalendarItem, GroupSummary, Me } from "../../shared/api-types";
-import { api } from "../lib/api";
-import { groupColor } from "../lib/colors";
-import { DAY_MS, addDays, dateKey, holidayName, parseDateKey, startOfDay, toTimeInput, withTime } from "../lib/dates";
-import { Field, Toggle } from "../ui/controls";
-import { Sheet } from "../ui/Sheet";
-import { useToast } from "../ui/Toast";
+import { toast } from "sonner";
+import { Notice } from "@/components/AuthShell";
+import { Chip } from "@/components/Chip";
+import { Field } from "@/components/Field";
+import { Dot, PanelRow } from "@/components/Panel";
+import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { groupColor } from "@/lib/colors";
+import { DAY_MS, addDays, dateKey, holidayName, parseDateKey, startOfDay, toTimeInput, withTime } from "@/lib/dates";
+import { api } from "@/lib/api";
+import type { ItemEditorProps } from "../../types.client";
 
-export type SheetTarget = { mode: "new"; date: Date; groupId?: string } | { mode: "edit"; item: CalendarItem };
-
+/**
+ * 新しい予定の始まりの時刻。今日なら次の正時、ほかの日なら 9 時。
+ * @param date 予定を足す日
+ */
 function defaultStart(date: Date): number {
   const now = new Date();
   if (startOfDay(date).getTime() === startOfDay(now).getTime()) {
@@ -18,21 +26,14 @@ function defaultStart(date: Date): number {
   return withTime(date, "09:00");
 }
 
-export function EventSheet({
-  target,
-  groups,
-  me,
-  onClose,
-  onDelete,
-}: {
-  target: SheetTarget;
-  groups: GroupSummary[];
-  me: Me;
-  onClose: () => void;
-  onDelete: (item: CalendarItem) => void;
-}) {
+/**
+ * 予定を足す、直すシート。F-05〜F-07
+ *
+ * 終日なら始まりの日と終わりの日、そうでなければ日付と時刻を聞く。
+ * 終わりの時刻が始まりより前なら、日をまたいだとみなす。
+ */
+export function EventSheet({ target, groups, me, onClose, onDelete }: ItemEditorProps) {
   const qc = useQueryClient();
-  const toast = useToast();
   const editing = target.mode === "edit" ? target.item : null;
   const personal = groups.find((g) => g.isPersonal);
 
@@ -58,7 +59,11 @@ export function EventSheet({
   const start = parseDateKey(startDate);
   const hol = start ? holidayName(start) : null;
 
-  function body() {
+  /**
+   * 入れた日付と時刻を、送る形にする。
+   * @throws 日付が無いときと、終わりの日が始まりより前のとき
+   */
+  function times(): { startsAt: number; endsAt: number | null } {
     const s = parseDateKey(startDate);
     if (!s) throw new Error("日付を入れてください。");
     if (allDay) {
@@ -68,7 +73,6 @@ export function EventSheet({
     }
     const startsAt = withTime(s, startTime || "09:00");
     let endsAt: number | null = endTime ? withTime(s, endTime) : null;
-    // 終わりが始まりより前なら、日をまたいだとみなす
     if (endsAt != null && endsAt < startsAt) endsAt += DAY_MS;
     return { startsAt, endsAt };
   }
@@ -76,20 +80,20 @@ export function EventSheet({
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    let times: { startsAt: number; endsAt: number | null };
+    let when: { startsAt: number; endsAt: number | null };
     try {
-      times = body();
+      when = times();
     } catch (err) {
       setError((err as Error).message);
       return;
     }
-    const payload = { title: title.trim(), allDay, memo: memo.trim() || null, groupId, ...times };
+    const payload = { title: title.trim(), allDay, memo: memo.trim() || null, groupId, ...when };
     setBusy(true);
     try {
       if (editing) await api(`/events/${editing.id}`, { method: "PATCH", body: payload });
       else await api("/events", { method: "POST", body: payload });
       await qc.invalidateQueries({ queryKey: ["calendar"] });
-      toast({ message: editing ? "予定を保存しました" : "予定を足しました" });
+      toast(editing ? "予定を保存しました" : "予定を足しました");
       onClose();
     } catch (err) {
       setError((err as Error).message);
@@ -98,30 +102,20 @@ export function EventSheet({
   }
 
   return (
-    <Sheet title={editing ? "予定を直す" : "新しい予定"} onClose={onClose}>
-      <form className="stack" onSubmit={submit} noValidate>
+    <ResponsiveSheet title={editing ? "予定を直す" : "新しい予定"} onClose={onClose}>
+      <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         <Field label="題名">
-          {(p) => (
-            <input
-              {...p}
-              className="input"
-              value={title}
-              maxLength={100}
-              placeholder="例: 歯医者"
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          )}
+          {(p) => <Input {...p} value={title} maxLength={100} placeholder="例: 歯医者" onChange={(e) => setTitle(e.target.value)} />}
         </Field>
-        <div className="line">
-          <span style={{ fontSize: 14 }}>終日</span>
-          <Toggle checked={allDay} onChange={setAllDay} label="終日" />
-        </div>
-        <div className="when-row">
+        <PanelRow>
+          <span>終日</span>
+          <Switch checked={allDay} onCheckedChange={setAllDay} aria-label="終日" />
+        </PanelRow>
+        <div className="flex gap-2.5 *:min-w-0 *:flex-1">
           <Field label={allDay ? "始まりの日" : "日付"} hint={hol ?? undefined}>
             {(p) => (
-              <input
+              <Input
                 {...p}
-                className="input"
                 type="date"
                 value={startDate}
                 onChange={(e) => {
@@ -133,81 +127,59 @@ export function EventSheet({
           </Field>
           {allDay && (
             <Field label="終わりの日">
-              {(p) => (
-                <input {...p} className="input" type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} />
-              )}
+              {(p) => <Input {...p} type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} />}
             </Field>
           )}
         </div>
         {!allDay && (
-          <div className="when-row">
+          <div className="flex gap-2.5 *:min-w-0 *:flex-1">
             <Field label="始まり">
-              {(p) => <input {...p} className="input" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />}
+              {(p) => <Input {...p} type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />}
             </Field>
             <Field label="終わり">
-              {(p) => <input {...p} className="input" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />}
+              {(p) => <Input {...p} type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />}
             </Field>
           </div>
         )}
-        <div className="field">
-          <span className="label" id="group-label">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-ink-2" id="event-group-label">
             だれの予定か
           </span>
-          <div className="wrap" role="radiogroup" aria-labelledby="group-label">
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="event-group-label">
             {groups.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                role="radio"
-                aria-checked={g.id === groupId}
-                className="chip"
-                onClick={() => setGroupId(g.id)}
-              >
-                <span className={`dot c-${groupColor(g, me.colorPrefs)}`} aria-hidden="true" />
+              <Chip key={g.id} role="radio" aria-checked={g.id === groupId} onClick={() => setGroupId(g.id)}>
+                <Dot color={groupColor(g, me.colorPrefs)} />
                 {g.isPersonal ? "自分" : g.name}
-              </button>
+              </Chip>
             ))}
           </div>
         </div>
         <Field label="メモ">
-          {(p) => (
-            <textarea
-              {...p}
-              className="input"
-              value={memo}
-              maxLength={1000}
-              placeholder="お店の名前や持ち物"
-              onChange={(e) => setMemo(e.target.value)}
-            />
-          )}
+          {(p) => <Textarea {...p} value={memo} maxLength={1000} placeholder="お店の名前や持ち物" onChange={(e) => setMemo(e.target.value)} />}
         </Field>
-        {error && (
-          <p className="notice error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="actions">
+        {error && <Notice error>{error}</Notice>}
+        <div className="flex justify-between gap-2">
           {editing ? (
-            <button
+            <Button
               type="button"
-              className="btn danger"
+              variant="danger"
               onClick={() => {
                 onDelete(editing);
                 onClose();
               }}
             >
               予定を消す
-            </button>
+            </Button>
           ) : (
-            <button type="button" className="btn ghost" onClick={onClose}>
+            <Button type="button" variant="ghost" onClick={onClose}>
               やめる
-            </button>
+            </Button>
           )}
-          <button type="submit" className="btn primary" disabled={busy || !title.trim()}>
+          <Button type="submit" disabled={busy || !title.trim()}>
             {busy ? "保存しています" : "保存する"}
-          </button>
+          </Button>
         </div>
       </form>
-    </Sheet>
+    </ResponsiveSheet>
   );
 }

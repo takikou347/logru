@@ -1,5 +1,5 @@
-import type { CalendarItem, GroupSummary, Me } from "../../shared/api-types";
-import { groupColor, memberColor } from "../lib/colors";
+import type { CalendarItem, GroupSummary, Me } from "../../../shared/api-types";
+import { groupColor, memberColor } from "@/lib/colors";
 
 /** 画面で使うための、色と名前を付けた項目 */
 export type ViewItem = CalendarItem & { color: string; groupName: string; creatorName: string | null; creatorColor: string | null };

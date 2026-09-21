@@ -59,7 +59,7 @@ export function SignupPage() {
   return (
     <AuthShell>
       <AuthCard>
-        <BackLink to={next !== "/" ? `/login?next=${encodeURIComponent(next)}` : "/login"}>ログインの画面へ戻る</BackLink>
+        <BackLink to={next !== "/" ? `/login?next=${encodeURIComponent(next)}` : "/login"}>ログインへ戻る</BackLink>
         <AuthTitle>アカウントを作る</AuthTitle>
         <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
           <Field label="表示名" hint="グループのメンバーに見える名前です。">

@@ -40,13 +40,13 @@ export function ResetPasswordPage() {
     <AuthShell>
       {sent ? (
         <AuthCard aria-live="polite">
-          <BackLink to="/login">ログインの画面へ戻る</BackLink>
+          <BackLink to="/login">ログインへ戻る</BackLink>
           <AuthTitle>メールを送りました</AuthTitle>
           <AuthText>{email} が登録されていれば、再設定のリンクが届きます。リンクから新しいパスワードを入れてください。</AuthText>
         </AuthCard>
       ) : (
         <AuthCard>
-          <BackLink to="/login">ログインの画面へ戻る</BackLink>
+          <BackLink to="/login">ログインへ戻る</BackLink>
           <AuthTitle>パスワードを再設定する</AuthTitle>
           <AuthText>登録したメールアドレスに、再設定のリンクを送ります。</AuthText>
           <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>

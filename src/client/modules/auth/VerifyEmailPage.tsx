@@ -4,7 +4,6 @@ import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { needsEmailVerification, useAuth } from "@/app/auth";
 import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/AuthShell";
 import { useSignOut } from "@/components/AppLayout";
-import { BackLink } from "@/components/BackLink";
 import { Button } from "@/components/ui/button";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { safeNext } from "@/lib/utils";
@@ -61,8 +60,6 @@ export function VerifyEmailPage() {
   return (
     <AuthShell>
       <AuthCard aria-live="polite">
-        {/* ログインしたままだとログインの画面からここへ戻されるので、ログアウトしてから戻る */}
-        <BackLink onClick={doSignOut}>ログインの画面へ戻る</BackLink>
         <AuthTitle>確認メールを送りました</AuthTitle>
         <AuthText>{user.email} に届いたメールのリンクを開くと、登録が終わります。</AuthText>
         <p className="text-xs leading-relaxed text-ink-2">届かないときは、迷惑メールのフォルダも見てください。</p>
@@ -78,8 +75,9 @@ export function VerifyEmailPage() {
         <Button variant="secondary" onClick={resend}>
           メールをもう一度送る
         </Button>
+        {/* ログインしたままだとログインの画面からここへ戻されるので、ログアウトしてから戻る */}
         <Button variant="ghost" onClick={doSignOut}>
-          別のアカウントでログインする
+          ログインへ戻る
         </Button>
       </AuthCard>
     </AuthShell>

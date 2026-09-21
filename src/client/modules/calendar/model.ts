@@ -23,22 +23,48 @@ export function decorate(items: CalendarItem[], groups: GroupSummary[], me: Me):
 /** 「表示する人」に並べる 1 人 */
 export type Person = { id: string; name: string; color: string; isMe: boolean };
 
+/** 共有のグループと、そのメンバー。「表示する人」でグループごとに並べる */
+export type GroupPeople = { group: GroupSummary; people: Person[] };
+
+/** 自分を「表示する人」の 1 人にする */
+function selfOf(me: Me): Person {
+  return { id: me.user.id, name: me.user.name, color: memberColor(me.user.id, me.settings.userColor, me.colorPrefs), isMe: true };
+}
+
 /**
- * 「表示する人」に並べる人。自分を先頭に、共有のグループに入っているほかの人を名前の順に 1 人ずつ。F-20
+ * 共有のグループごとに、メンバーを並べる。自分を先頭に、ほかの人を名前の順。F-20
+ * 同じ人が複数のグループにいれば、それぞれに出す。自分だけのグループは含めない。
+ * @param groups 入っているグループ
+ * @param me 自分の情報
+ */
+export function groupPeopleOf(groups: GroupSummary[], me: Me): GroupPeople[] {
+  const self = selfOf(me);
+  return groups
+    .filter((g) => !g.isPersonal)
+    .map((group) => ({
+      group,
+      people: [
+        self,
+        ...group.members
+          .filter((m) => m.id !== me.user.id)
+          .map((m) => ({ id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs), isMe: false }))
+          .sort((x, y) => x.name.localeCompare(y.name, "ja")),
+      ],
+    }));
+}
+
+/**
+ * 「表示する人」に並べる人を、重ねずに 1 人ずつ。自分を先頭に、ほかの人を名前の順。F-20
+ * 共有のグループが無ければ空。選べる相手がいないので、自分も並べない。
  * @param groups 入っているグループ
  * @param me 自分の情報
  */
 export function peopleOf(groups: GroupSummary[], me: Me): Person[] {
+  const sections = groupPeopleOf(groups, me);
+  if (sections.length === 0) return [];
   const others = new Map<string, Person>();
-  for (const g of groups) {
-    if (g.isPersonal) continue;
-    for (const m of g.members) {
-      if (m.id === me.user.id || others.has(m.id)) continue;
-      others.set(m.id, { id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs), isMe: false });
-    }
-  }
-  const self: Person = { id: me.user.id, name: me.user.name, color: memberColor(me.user.id, me.settings.userColor, me.colorPrefs), isMe: true };
-  return [self, ...[...others.values()].sort((a, b) => a.name.localeCompare(b.name, "ja"))];
+  for (const s of sections) for (const p of s.people) if (!p.isMe && !others.has(p.id)) others.set(p.id, p);
+  return [selfOf(me), ...[...others.values()].sort((a, b) => a.name.localeCompare(b.name, "ja"))];
 }
 
 /**

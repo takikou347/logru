@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { clientExtension, defaultExtension } from "../../../extensions/registry.client";
 import type { EditorTarget } from "../../../extensions/types.client";
+import type { GroupSummary } from "../../../shared/api-types";
 import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components/AppLayout";
 import { Notice } from "@/components/AuthShell";
 import { Chip } from "@/components/Chip";
@@ -10,15 +11,14 @@ import { Dot } from "@/components/Panel";
 import { Segmented } from "@/components/Segmented";
 import { Button } from "@/components/ui/button";
 import { groupColor } from "@/lib/colors";
-import { cn } from "@/lib/utils";
 import { addDays, addMonths, dateKey, monthGrid, onDay, parseDateKey, sameDay, startOfDay, weekDays } from "@/lib/dates";
 import { useMemberVisibility } from "@/lib/mutations";
 import { useCalendar, useGroups, useMe } from "@/lib/queries";
 import { DayPanel, ItemList } from "./DayItems";
 import { MonthGrid } from "./MonthGrid";
 import { RefreshButton } from "./RefreshButton";
-import { byPeople, decorate, hiddenPeople, peopleOf, poolColorsOf, type Person, type ViewItem } from "./model";
-import { PeopleChip, PersonToggles } from "./PeopleFilter";
+import { byPeople, decorate, groupPeopleOf, hiddenPeople, peopleOf, poolColorsOf, type Person, type ViewItem } from "./model";
+import { PeopleChip, SideGroup, useOpenGroups } from "./PeopleFilter";
 import { itemKey, useUndoableDelete } from "./use-undoable-delete";
 import { WeekList } from "./WeekList";
 
@@ -93,7 +93,9 @@ export function CalendarPage() {
   const calendar = useCalendar(from, to);
 
   const allGroups = useMemo(() => groups.data ?? [], [groups.data]);
+  const sections = useMemo(() => (me.data ? groupPeopleOf(allGroups, me.data) : []), [allGroups, me.data]);
   const people = useMemo(() => (me.data ? peopleOf(allGroups, me.data) : []), [allGroups, me.data]);
+  const sideOpen = useOpenGroups("logru-side-groups", false);
   const hiddenIds = useMemo(() => hiddenPeople(me.data?.hiddenMembers ?? [], people), [me.data, people]);
   const { mutate: setVisibility } = useMemberVisibility();
   const togglePerson = useCallback((p: Person, hide: boolean) => setVisibility({ userId: p.id, hidden: hide }), [setVisibility]);
@@ -139,22 +141,23 @@ export function CalendarPage() {
   const showTodayButton = !sameDay(selected, today) || view !== "month";
   const Editor = editor?.mode === "edit" ? (clientExtension(editor.item.extension)?.Editor ?? null) : defaultExtension.Editor;
 
-  /** 絞り込みの選択肢。スマホは丸いボタン、PC は左の列の行。自分だけのグループは「自分だけの予定」と書く。0009 */
+  /** グループで絞る選択肢の中身。自分だけのグループは「自分だけの予定」と書く。0009 */
+  const groupOption = (g: GroupSummary) => ({
+    key: g.id,
+    pressed: groupFilter === g.id,
+    onClick: () => update({ group: groupFilter === g.id ? null : g.id }),
+    children: (
+      <>
+        <Dot color={me.data ? groupColor(g, me.data.colorPrefs) : g.color} />
+        {g.isPersonal ? "自分だけの予定" : g.name}
+      </>
+    ),
+  });
+
+  /** 絞り込みの選択肢。スマホは丸いボタン、PC は左の列の行 */
   const filters = (render: (p: { key: string; pressed: boolean; onClick: () => void; children: React.ReactNode }) => React.ReactNode) => [
     render({ key: "all", pressed: !groupFilter, onClick: () => update({ group: null }), children: "すべて" }),
-    ...allGroups.map((g) =>
-      render({
-        key: g.id,
-        pressed: groupFilter === g.id,
-        onClick: () => update({ group: groupFilter === g.id ? null : g.id }),
-        children: (
-          <>
-            <Dot color={me.data ? groupColor(g, me.data.colorPrefs) : g.color} />
-            {g.isPersonal ? "自分だけの予定" : g.name}
-          </>
-        ),
-      }),
-    ),
+    ...allGroups.map((g) => render(groupOption(g))),
   ];
 
   const addButton = (
@@ -169,22 +172,33 @@ export function CalendarPage() {
       poolColors={poolColorsOf(allGroups, me.data)}
       poolFocus={focusIndex >= 0 ? focusIndex : null}
       side={
-        <>
-          <div role="group" aria-label="表示するグループ">
-            <SideHeading>表示するグループ</SideHeading>
-            {filters(({ key, pressed, onClick, children }) => (
-              <button key={key} type="button" className={sideItemClass} aria-pressed={pressed} onClick={onClick}>
-                {children}
-              </button>
-            ))}
-          </div>
-          {people.length > 0 && (
-            <div role="group" aria-label="表示する人">
-              <SideHeading>表示する人</SideHeading>
-              <PersonToggles people={people} hidden={hiddenIds} onToggle={togglePerson} rowClass={cn(sideItemClass, "aria-pressed:bg-transparent")} />
-            </div>
-          )}
-        </>
+        <div role="group" aria-label="表示するグループ" className="min-h-0 overflow-y-auto">
+          <SideHeading>表示するグループ</SideHeading>
+          {filters(({ key, pressed, onClick, children }) => {
+            // 共有のグループは、矢印でメンバーを開き、人ごとに出し入れできる。F-20
+            const section = sections.find((s) => s.group.id === key);
+            if (!section) {
+              return (
+                <button key={key} type="button" className={sideItemClass} aria-pressed={pressed} onClick={onClick}>
+                  {children}
+                </button>
+              );
+            }
+            return (
+              <SideGroup
+                key={key}
+                section={section}
+                label={children}
+                pressed={pressed}
+                onFilter={onClick}
+                open={sideOpen.isOpen(key)}
+                onOpenChange={(o) => sideOpen.setOpen(key, o)}
+                hidden={hiddenIds}
+                onToggle={togglePerson}
+              />
+            );
+          })}
+        </div>
       }
     >
       <header className="glass flex min-h-[58px] items-center justify-between gap-2 rounded-full py-1.5 pr-1.5 pl-5">
@@ -224,7 +238,7 @@ export function CalendarPage() {
             {children}
           </Chip>
         ))}
-        {people.length > 0 && <PeopleChip people={people} hidden={hiddenIds} onToggle={togglePerson} />}
+        {sections.length > 0 && <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />}
       </nav>
 
       {calendar.error && <Notice error>{calendar.error.message}</Notice>}

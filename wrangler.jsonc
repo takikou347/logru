@@ -47,7 +47,7 @@
         // EXTERNAL_CALENDAR_KEY は秘密なので、ここに書かず `wrangler secret put EXTERNAL_CALENDAR_KEY --env production` で置く
         // MEMORIES_PHOTO_KEY も同じく `wrangler secret put MEMORIES_PHOTO_KEY --env production` で置く
         // VAPID の組は README の「本番に出す」で作る。公開鍵だけをここに書き、秘密鍵は `wrangler secret put VAPID_PRIVATE_KEY --env production`
-        "VAPID_PUBLIC_KEY": "replace-me",
+        "VAPID_PUBLIC_KEY": "BFjMYKGKpbDkPXxwXkZIqXZ61MOxLAq3De6rV8roskIT72AjFT7K82l6iEFqxEcES0goFvSg-4Me9a4S-G3fYnY",
         "VAPID_SUBJECT": "mailto:tkkwkut@gmail.com"
       },
       "r2_buckets": [{ "binding": "MEMORIES_BUCKET", "bucket_name": "logru-memories" }],
@@ -57,7 +57,7 @@
           "binding": "DB",
           "database_name": "logru",
           // `wrangler d1 create logru` の結果に置き換える
-          "database_id": "00000000-0000-0000-0000-000000000000",
+          "database_id": "d1ec84e4-bb34-4aaa-8847-da5c9031c18f",
           "migrations_dir": "migrations"
         }
       ]

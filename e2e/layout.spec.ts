@@ -35,6 +35,25 @@ test.beforeEach(async ({ page }) => {
   await signUp(page);
 });
 
+test("上の帯の高さは、月が 1 桁でも 2 桁でも、「今日」が出ても変わらない", async ({ page }) => {
+  // 月を移るたびに帯の高さが変わると落ち着かない。スマホではいつも月と年の下へ操作を置く
+  const header = page.locator("header");
+  const height = async () => (await header.boundingBox())!.height;
+  const before = await height();
+  await page.getByRole("button", { name: "次の月" }).click();
+  await expect(page.getByRole("button", { name: "今日", exact: true })).toBeVisible();
+  expect(await height()).toBe(before);
+});
+
+test("下の操作の帯は折り返さない", async ({ page }) => {
+  const wrapped = await page.locator('[role="toolbar"]').evaluate((el) => {
+    const tallest = Math.max(...[...el.children].map((c) => c.getBoundingClientRect().height));
+    // p-1.5 の上下 12 px ぶんを見込む
+    return el.getBoundingClientRect().height > tallest + 14;
+  });
+  expect(wrapped).toBe(false);
+});
+
 test("2 桁の月でも、上の帯は画面に収まり、「今日」は 1 行のまま", async ({ page }) => {
   // 今日から離れると「今日」のボタンが増え、上の帯がいちばん混む。0012
   await page.getByRole("button", { name: "次の月" }).click();

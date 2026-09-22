@@ -21,6 +21,7 @@ export function useUpdateSettings() {
     mutationFn: (next: Me["settings"]) =>
       api<Me["settings"]>("/me/settings", { method: "PUT", body: next, keepalive: true }),
     onMutate: async (next) => {
+      await qc.cancelQueries({ queryKey: keys.me });
       applyTheme(next.themeMode, next.bgTheme, next.accentColor);
       const prev = qc.getQueryData<Me>(keys.me);
       if (prev) qc.setQueryData<Me>(keys.me, { ...prev, settings: next });

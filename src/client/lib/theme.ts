@@ -30,21 +30,24 @@ function resolve(mode: ThemeMode): "light" | "dark" {
 /**
  * html に明るさ、背景のテーマ、テーマカラーを付け、端末にも覚えさせる。
  * @param mode 端末に合わせる、ライト、ダーク
- * @param bgTheme 背景のテーマ。glass はガラス、flat は平ら
+ * @param bgTheme 背景のテーマ。glass はガラス、flat は平ら。
+ *   Service Worker が古い `/api/me` の返事を出すことがあり、そのときは項目自体が無い。
+ *   その場合は既定の glass にし、`data-bg-theme` が文字の "undefined" にならないようにする。#63
  * @param accent テーマカラーの名前
  */
-export function applyTheme(mode: ThemeMode, bgTheme: BgTheme, accent: string): void {
+export function applyTheme(mode: ThemeMode, bgTheme: BgTheme | undefined, accent: string): void {
+  const resolvedBgTheme = bgTheme ?? "glass";
   const root = document.documentElement;
   const resolved = resolve(mode);
   root.dataset.theme = resolved;
-  root.dataset.bgTheme = bgTheme;
+  root.dataset.bgTheme = resolvedBgTheme;
   root.dataset.accent = accent;
   root.dataset.themeMode = mode;
   document
     .querySelector('meta[name="theme-color"]')
     ?.setAttribute("content", resolved === "dark" ? "#10151c" : "#e6ece8");
   try {
-    localStorage.setItem(KEY, JSON.stringify({ mode, bgTheme, accent } satisfies Stored));
+    localStorage.setItem(KEY, JSON.stringify({ mode, bgTheme: resolvedBgTheme, accent } satisfies Stored));
   } catch {
     // 保存できなくても表示は変わる
   }

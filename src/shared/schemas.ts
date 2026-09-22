@@ -11,10 +11,14 @@ const groupColorSchema = z.enum(GROUP_COLOR_KEYS);
 /** テーマカラーの名前 */
 const accentColorSchema = z.enum(ACCENT_COLOR_KEYS);
 
-/** `PUT /api/me/settings`。F-13、F-14、F-30 */
+/**
+ * `PUT /api/me/settings`。F-13、F-14、F-30
+ * bgTheme は任意。PWA の古い画面は Service Worker が新しくなるまで送ってこないことがあるが、
+ * drizzle は undefined の項目を `set` に入れないので、送らなければ保存してある値がそのまま残る。#63
+ */
 export const settingsInput = z.object({
   themeMode: z.enum(["system", "light", "dark"]),
-  bgTheme: z.enum(["glass", "flat"]),
+  bgTheme: z.enum(["glass", "flat"]).optional(),
   accentColor: accentColorSchema,
   userColor: groupColorSchema,
 });

@@ -115,12 +115,13 @@ staging と本番で、最初の 1 回だけ次を行う。コマンドは `<環
 | | staging | 本番 |
 | --- | --- | --- |
 | Worker | `logru-staging` | `logru-production` |
-| URL | `https://logru-staging.<サブドメイン>.workers.dev` | `https://logru-production.<サブドメイン>.workers.dev` |
+| URL | `https://logru-staging.tkkwkut-400.workers.dev` | `https://logru-production.tkkwkut-400.workers.dev` |
 | D1 | `logru-staging` | `logru` |
 | R2 | `logru-memories-staging` | `logru-memories` |
 | Firebase | 本番と同じプロジェクト | |
 
-`<サブドメイン>` は、Cloudflare のダッシュボードの「Workers & Pages」の右側に出る。独自ドメインは使わない。
+`tkkwkut-400` は、Cloudflare のアカウントの workers.dev のサブドメイン。独自ドメインは使わない。
+URL は `wrangler.jsonc` の `APP_URL` に書いてある。
 
 ### Firebase
 
@@ -128,7 +129,7 @@ staging と本番で 1 つのプロジェクトを使う。作るのは 1 回だ
 
 1. Firebase のコンソールでプロジェクトを作る。料金は無料の Spark プランのままでよい
 2. Authentication の「ログイン方法」で、「メール / パスワード」と「Google」を有効にする
-3. Authentication の「設定」の「承認済みドメイン」に、staging と本番の 2 つのドメインを足す
+3. Authentication の「設定」の「承認済みドメイン」に、`logru-staging.tkkwkut-400.workers.dev` と `logru-production.tkkwkut-400.workers.dev` を足す
 4. Authentication の「テンプレート」で、メールの言語を日本語にする
 5. 「プロジェクトの設定」でウェブアプリを足し、出てきた値を `.env.production` に書く。これらは画面に配られる値で、秘密ではない。staging も同じ値で組み立てる
 
@@ -142,7 +143,7 @@ staging と本番で 1 つのプロジェクトを使う。作るのは 1 回だ
    npx wrangler d1 create logru
    ```
 
-3. `wrangler.jsonc` の `env.<環境>.vars` の `APP_URL` をその環境の URL に、`FIREBASE_PROJECT_ID` を Firebase のプロジェクト ID に書き換える
+3. `wrangler.jsonc` の `env.<環境>.vars` の `FIREBASE_PROJECT_ID` を、Firebase のプロジェクト ID に書き換える
 4. ダッシュボードで R2 を有効にする。10GB までは無料だが、支払い方法の登録を求められる
 5. 思い出の写真の置き場を作る
 

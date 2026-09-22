@@ -117,7 +117,8 @@ staging と本番で、最初の 1 回だけ次を行う。コマンドは `<環
 | Worker | `logru-staging` | `logru-production` |
 | URL | `https://logru-staging.<サブドメイン>.workers.dev` | `https://logru-production.<サブドメイン>.workers.dev` |
 | D1 | `logru-staging` | `logru` |
-| R2 | `logru-memories-staging` | `logru-memories` |
+| R2（思い出） | `logru-memories-staging` | `logru-memories` |
+| R2（アバター） | `logru-avatars-staging` | `logru-avatars` |
 | Firebase | 本番と同じプロジェクト | |
 
 `<サブドメイン>` は、Cloudflare のダッシュボードの「Workers & Pages」の右側に出る。独自ドメインは使わない。
@@ -144,11 +145,13 @@ staging と本番で 1 つのプロジェクトを使う。作るのは 1 回だ
 
 3. `wrangler.jsonc` の `env.<環境>.vars` の `APP_URL` をその環境の URL に、`FIREBASE_PROJECT_ID` を Firebase のプロジェクト ID に書き換える
 4. ダッシュボードで R2 を有効にする。10GB までは無料だが、支払い方法の登録を求められる
-5. 思い出の写真の置き場を作る
+5. 思い出とアバターの写真の置き場を作る
 
    ```bash
    npx wrangler r2 bucket create logru-memories-staging
    npx wrangler r2 bucket create logru-memories
+   npx wrangler r2 bucket create logru-avatars-staging
+   npx wrangler r2 bucket create logru-avatars
    ```
 
 6. 鍵を置く。どれも 32 バイトの乱数を base64 にしたもの。環境ごとに別の値にし、`wrangler.jsonc` にある開発用の値は使わない
@@ -156,10 +159,11 @@ staging と本番で 1 つのプロジェクトを使う。作るのは 1 回だ
    ```bash
    openssl rand -base64 32 | npx wrangler secret put EXTERNAL_CALENDAR_KEY --env <環境>
    openssl rand -base64 32 | npx wrangler secret put MEMORIES_PHOTO_KEY --env <環境>
+   openssl rand -base64 32 | npx wrangler secret put AVATAR_PHOTO_KEY --env <環境>
    ```
 
    外部のカレンダーの鍵を変えると、登録済みの URL が読めなくなる。変えたら、登録し直してもらう。
-   写真の鍵を変えると、配った写真の URL がすぐ切れる。画面を読み直せば新しい URL になる
+   写真の鍵を変えると、配った写真の URL がすぐ切れる。画面を読み直せば新しい URL になる。アバターの鍵も同じ
 
 7. 端末への知らせの VAPID の鍵の組を、環境ごとに作る。公開鍵を `wrangler.jsonc` の `env.<環境>.vars` の `VAPID_PUBLIC_KEY` に書き、秘密鍵を secret に置く
 
@@ -170,7 +174,7 @@ staging と本番で 1 つのプロジェクトを使う。作るのは 1 回だ
 
    鍵を変えると、登録済みの端末に届かなくなる。変えたら、設定の画面で知らせを入れ直してもらう
 
-8. 3 つの鍵が置けたかを見る
+8. 4 つの鍵が置けたかを見る
 
    ```bash
    npx wrangler secret list --env <環境>
@@ -198,7 +202,8 @@ GitHub の Settings の Environments に `staging` と `production` がある。
 - `APP_URL` が `example` のままだと、招待リンクが壊れる
 - 承認済みドメインにその環境のドメインが無いと、Google でのログインが断られる
 - `VAPID_PUBLIC_KEY` が `replace-me` のままだと、知らせを入れられない
-- `MEMORIES_PHOTO_KEY` を置いていないと、写真を配れない
+- `MEMORIES_PHOTO_KEY` を置いていないと、思い出の写真を配れない
+- `AVATAR_PHOTO_KEY` を置いていないと、アバターの写真を配れない
 
 ## 規約を改めるとき
 

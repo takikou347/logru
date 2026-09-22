@@ -1,8 +1,15 @@
 import type { AttendeeResponse } from "@shared/api-types";
 import { cn } from "@/lib/utils";
 
-/** 頭文字の丸に出す人 */
-export type AvatarPerson = { id: string; name: string; color: string; response?: AttendeeResponse };
+/** 頭文字の丸、または置いた写真に出す人。#40 */
+export type AvatarPerson = {
+  id: string;
+  name: string;
+  color: string;
+  response?: AttendeeResponse;
+  /** 置いた写真の URL。頭文字を選んでいるか、写真が無ければ null か undefined */
+  avatarUrl?: string | null;
+};
 
 /** 名前の頭の 1 文字。絵文字や合字を割らないよう、書記素で切る */
 export function initialOf(name: string): string {
@@ -11,8 +18,9 @@ export function initialOf(name: string): string {
 }
 
 /**
- * 人の頭文字の丸。色はその人の色。#28
+ * 人のアバターの丸。頭文字を選んでいれば色付きの丸、写真を選んでいれば同じ大きさの丸い写真。#28、#40
  * 返事待ちは塗らずに枠線だけ、参加しないは薄くする。カレンダーの予定の見た目と同じ決まり。
+ * 置いた写真は、色の枠で囲まない。頭文字の丸と同じ大きさの丸に出すだけ。
  * @param size 丸の直径。px
  */
 export function InitialAvatar({
@@ -25,6 +33,24 @@ export function InitialAvatar({
   className?: string;
 }) {
   const pending = person.response === "pending";
+  if (person.avatarUrl) {
+    return (
+      <img
+        src={person.avatarUrl}
+        alt=""
+        aria-hidden="true"
+        width={size}
+        height={size}
+        style={{ width: size, height: size }}
+        className={cn(
+          "inline-block flex-none rounded-full object-cover leading-none",
+          pending && "shadow-[inset_0_0_0_1.5px_var(--ink-2)]",
+          person.response === "declined" && "opacity-45",
+          className,
+        )}
+      />
+    );
+  }
   return (
     <span
       aria-hidden="true"

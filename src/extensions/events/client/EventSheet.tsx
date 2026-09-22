@@ -163,7 +163,13 @@ export function EventSheet({
   const toPerson = (id: string) => {
     const m = chosen?.members.find((x) => x.id === id);
     return m
-      ? { id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs), isMe: m.id === myId }
+      ? {
+          id: m.id,
+          name: m.name,
+          color: memberColor(m.id, m.userColor, me.colorPrefs),
+          isMe: m.id === myId,
+          avatarUrl: m.avatarUrl,
+        }
       : null;
   };
   const candidates = (shared?.members ?? [])

@@ -26,6 +26,12 @@ export const userSettings = sqliteTable("user_settings", {
     .default("system"),
   accentColor: text("accent_color").notNull().default("aizumi"),
   userColor: text("user_color").notNull().default("wakatake"),
+  /** アバターの出し方。既定は頭文字。#40 */
+  avatarKind: text("avatar_kind", { enum: ["initial", "photo"] })
+    .notNull()
+    .default("initial"),
+  /** いま置いている写真の R2 の鍵の乱数の部分。置き直すたびに変わる。頭文字のときは空 */
+  avatarPhotoKey: text("avatar_photo_key"),
   updatedAt: updatedAt(),
 });
 

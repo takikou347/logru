@@ -10,7 +10,7 @@ import ICAL from "ical.js";
 export const DEFAULT_TIME_ZONE = "Asia/Tokyo";
 
 /** 1 つのカレンダーから持つ予定の上限 */
-export const MAX_OCCURRENCES = 3000;
+const MAX_OCCURRENCES = 3000;
 
 /** 1 つの繰り返しを開く回数の上限。期間の前から続く繰り返しも数える */
 const MAX_ITERATIONS = 5000;
@@ -90,7 +90,15 @@ function readOffset(utcMs: number, f: Intl.DateTimeFormat): number {
  * @param tz IANA の時間帯の名前。例は Asia/Tokyo
  * @returns 時間帯を知らなければ null
  */
-export function wallTimeToUtc(y: number, mo: number, d: number, h: number, mi: number, s: number, tz: string): number | null {
+export function wallTimeToUtc(
+  y: number,
+  mo: number,
+  d: number,
+  h: number,
+  mi: number,
+  s: number,
+  tz: string,
+): number | null {
   const f = formatter(tz);
   if (!f) return null;
   const guess = Date.UTC(y, mo - 1, d, h, mi, s);
@@ -99,7 +107,7 @@ export function wallTimeToUtc(y: number, mo: number, d: number, h: number, mi: n
 }
 
 /** IANA の時間帯の名前として使えるか */
-export function isKnownTimeZone(tz: string | null | undefined): tz is string {
+function isKnownTimeZone(tz: string | null | undefined): tz is string {
   return !!tz && formatter(tz) !== null;
 }
 
@@ -185,7 +193,8 @@ function fastForwardStart(event: ICAL.Event, before: number, calendarTz: string)
   return moved;
 }
 
-const cancelled = (e: ICAL.Event) => String(e.component.getFirstPropertyValue("status") ?? "").toUpperCase() === "CANCELLED";
+const cancelled = (e: ICAL.Event) =>
+  String(e.component.getFirstPropertyValue("status") ?? "").toUpperCase() === "CANCELLED";
 
 /**
  * iCal の文字列を読み、期間にかかる予定を返す。取り消された予定は除く。
@@ -229,7 +238,15 @@ export function parseIcs(text: string, window: { from: number; to: number }): Pa
     if (!event.isRecurring() || event.isRecurrenceException()) {
       if (cancelled(event)) continue;
       const occ = event.recurrenceId ?? event.startDate;
-      push(toParsed(event, event.startDate, event.endDate ?? null, toUtcMs(occ, tzidOf(event, "dtstart"), calendarTz), calendarTz));
+      push(
+        toParsed(
+          event,
+          event.startDate,
+          event.endDate ?? null,
+          toUtcMs(occ, tzidOf(event, "dtstart"), calendarTz),
+          calendarTz,
+        ),
+      );
       continue;
     }
     const it = event.iterator(fastForwardStart(event, window.from - SKIP_MARGIN_MS, calendarTz));

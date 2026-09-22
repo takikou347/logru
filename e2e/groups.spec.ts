@@ -1,5 +1,5 @@
 import { type Browser, expect, test } from "@playwright/test";
-import { PASSWORD, addEvent, apiUser, dayPanel, signUp } from "./helpers";
+import { addEvent, apiUser, dayPanel, PASSWORD, signUp } from "./helpers";
 
 async function newUser(browser: Browser, next?: string) {
   const context = await browser.newContext();
@@ -59,7 +59,10 @@ test("招待したパートナーと、グループの予定を見合える", as
 test("グループの一覧に自分だけのグループは出ず、直接開いても一覧へ戻る", async ({ page }) => {
   await signUp(page);
   // 自分だけのグループの ID は、絞り込みの URL から分かる
-  await page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "自分だけの予定" }).click();
+  await page
+    .getByRole("navigation", { name: "グループで絞る" })
+    .getByRole("button", { name: "自分だけの予定" })
+    .click();
   await expect(page).toHaveURL(/group=/);
   const personalId = new URL(page.url()).searchParams.get("group")!;
 

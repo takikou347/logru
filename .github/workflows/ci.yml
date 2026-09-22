@@ -20,6 +20,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm biome ci .
       - run: pnpm typecheck
       - run: pnpm test
       # ubuntu の実行環境には Chrome が入っている。Playwright はそれを使う

@@ -1,42 +1,37 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import type { GroupSummary } from "../../../shared/api-types";
-import { AppLayout, Page, PageBar } from "@/components/AppLayout";
-import { Field } from "@/components/Field";
-import { Dot, Empty, Panel } from "@/components/Panel";
+import { useGroups, useMe } from "@/api/common";
+import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Field } from "@/components/parts/Field";
+import { Dot, Empty, Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/api";
 import { groupColor } from "@/lib/colors";
-import { keys, useGroups, useMe } from "@/lib/queries";
 import { poolColorsOf } from "../calendar/model";
+import { useCreateGroup } from "./api";
 
 /** グループの一覧と、グループを作る画面。自分だけのグループは一覧に出さない。F-10 */
 export function GroupsPage() {
   const me = useMe();
   const groups = useGroups();
-  const qc = useQueryClient();
   const navigate = useNavigate();
+  const createGroup = useCreateGroup();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const list = groups.data ?? [];
   // 自分だけのグループは、画面ではグループとして見せない。0009
   const shared = list.filter((g) => !g.isPersonal);
   const prefs = me.data?.colorPrefs ?? [];
+  const busy = createGroup.isPending;
 
   async function create(e: FormEvent) {
     e.preventDefault();
-    setBusy(true);
     setError(null);
     try {
-      const g = await api<GroupSummary>("/groups", { method: "POST", body: { name } });
-      await qc.invalidateQueries({ queryKey: keys.groups });
+      const g = await createGroup.mutateAsync(name);
       navigate(`/groups/${g.id}`);
     } catch (err) {
       setError((err as Error).message);
-      setBusy(false);
     }
   }
 

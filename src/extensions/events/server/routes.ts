@@ -1,11 +1,19 @@
 import { zValidator } from "@hono/zod-validator";
+import { createRouter, HttpError, validationHook } from "@server/core/app";
+import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import type { DB } from "@server/core/db/client";
+import { groupMembers } from "@server/core/db/schema";
+import { notify } from "@server/core/notifications/send";
+import { requireMembership } from "@server/modules/groups/membership";
 import { and, eq, inArray } from "drizzle-orm";
-import { HttpError, createRouter, validationHook } from "../../../server/core/app";
-import { requireAgreement, requireUser } from "../../../server/core/auth/middleware";
-import type { DB } from "../../../server/core/db/client";
-import { groupMembers } from "../../../server/core/db/schema";
-import { requireMembership } from "../../../server/modules/groups/membership";
-import { canDeleteEvent, canEditEvent, canRespond, diffAttendees, inviteeIds } from "../shared/permissions";
+import {
+  canDeleteEvent,
+  canEditEvent,
+  canRespond,
+  diffAttendees,
+  inviteeIds,
+  shouldNotifyAccepted,
+} from "../shared/permissions";
 import { eventInput, eventPatchInput, responseInput } from "../shared/schemas";
 import { loadAttendees, toCalendarItem } from "./provider";
 import { eventAttendees, events } from "./schema";
@@ -83,10 +91,12 @@ export const eventRoutes = createRouter()
         memo: input.memo || null,
       }),
       // 作った人は、いつも参加する
-      db.insert(eventAttendees).values([
-        { eventId: id, userId, response: "accepted", respondedAt: now },
-        ...invitees.map((u) => ({ eventId: id, userId: u, response: "pending" as const })),
-      ]),
+      db
+        .insert(eventAttendees)
+        .values([
+          { eventId: id, userId, response: "accepted", respondedAt: now },
+          ...invitees.map((u) => ({ eventId: id, userId: u, response: "pending" as const })),
+        ]),
     ]);
     return c.json(await reload(db, userId, id), 201);
   })
@@ -137,17 +147,23 @@ export const eventRoutes = createRouter()
         })
         .where(eq(events.id, current.id)),
       ...(remove.length
-        ? [db.delete(eventAttendees).where(and(eq(eventAttendees.eventId, current.id), inArray(eventAttendees.userId, remove)))]
+        ? [
+            db
+              .delete(eventAttendees)
+              .where(and(eq(eventAttendees.eventId, current.id), inArray(eventAttendees.userId, remove))),
+          ]
         : []),
       ...(add.length
         ? [
-            db.insert(eventAttendees).values(
-              add.map((u) =>
-                u === current.createdBy
-                  ? { eventId: current.id, userId: u, response: "accepted" as const, respondedAt: now }
-                  : { eventId: current.id, userId: u, response: "pending" as const },
+            db
+              .insert(eventAttendees)
+              .values(
+                add.map((u) =>
+                  u === current.createdBy
+                    ? { eventId: current.id, userId: u, response: "accepted" as const, respondedAt: now }
+                    : { eventId: current.id, userId: u, response: "pending" as const },
+                ),
               ),
-            ),
           ]
         : []),
     ]);
@@ -160,10 +176,21 @@ export const eventRoutes = createRouter()
     if (!canRespond({ createdBy: row.createdBy, attendees }, userId)) {
       throw new HttpError(403, "返事ができるのは、この予定に招待された人だけです。");
     }
+    const response = c.req.valid("json").response;
+    const previous = attendees.find((a) => a.userId === userId)?.response;
     await db
       .update(eventAttendees)
-      .set({ response: c.req.valid("json").response, respondedAt: new Date() })
+      .set({ response, respondedAt: new Date() })
       .where(and(eq(eventAttendees.eventId, row.id), eq(eventAttendees.userId, userId)));
+    // 招待した人に「参加する」が返ったときだけ知らせる。前の答えが既に「参加する」だったときは積まない。
+    // 作った人自身の返事や「参加しない」も積まない。0017、#32
+    if (row.createdBy && shouldNotifyAccepted(response, previous, row.createdBy, userId)) {
+      await notify(db, [row.createdBy], "events.invite_accepted", {
+        eventId: row.id,
+        title: row.title,
+        byUserId: userId,
+      });
+    }
     return c.json(await reload(db, userId, row.id));
   })
   .delete("/:id", async (c) => {

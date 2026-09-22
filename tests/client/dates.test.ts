@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { addMonths, dateKey, dayTone, holidayName, monthGrid, onDay, parseDateKey, weekDays } from "../../src/client/lib/dates";
+import {
+  addMonths,
+  dateKey,
+  dayTone,
+  holidayName,
+  monthGrid,
+  onDay,
+  parseDateKey,
+  weekDays,
+} from "../../src/client/lib/dates";
 
 const d = (y: number, m: number, day: number, h = 0, min = 0) => new Date(y, m - 1, day, h, min);
 

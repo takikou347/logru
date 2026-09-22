@@ -6,7 +6,14 @@
  */
 import exifr from "exifr";
 
-export type PreparedPhoto = { full: Blob; thumb: Blob; tiny: string; width: number; height: number; takenAt: number | null };
+export type PreparedPhoto = {
+  full: Blob;
+  thumb: Blob;
+  tiny: string;
+  width: number;
+  height: number;
+  takenAt: number | null;
+};
 
 /** 大きさの上限。サーバーの PHOTO_LIMITS と合わせる */
 const MAX_FULL_BYTES = 3 * 1024 * 1024;
@@ -46,7 +53,9 @@ export async function preparePhoto(file: File): Promise<PreparedPhoto> {
 /** Exif の撮った時刻。無いか読めなければ null */
 async function readTakenAt(file: File): Promise<number | null> {
   try {
-    const data = (await exifr.parse(file, ["DateTimeOriginal", "CreateDate"])) as { DateTimeOriginal?: Date; CreateDate?: Date } | undefined;
+    const data = (await exifr.parse(file, ["DateTimeOriginal", "CreateDate"])) as
+      | { DateTimeOriginal?: Date; CreateDate?: Date }
+      | undefined;
     const d = data?.DateTimeOriginal ?? data?.CreateDate;
     return d instanceof Date && !Number.isNaN(d.getTime()) ? d.getTime() : null;
   } catch {

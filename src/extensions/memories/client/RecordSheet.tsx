@@ -1,19 +1,18 @@
+import type { GroupSummary, Me } from "@shared/api-types";
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera, ImagePlus, RotateCw, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import type { GroupSummary, Me } from "../../../shared/api-types";
-import { Chip } from "@/components/Chip";
-import { Dot, FieldMessage, PanelRow } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { Chip } from "@/components/parts/Chip";
+import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
-import { api } from "@/lib/api";
 import { groupColor } from "@/lib/colors";
 import { auth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import type { MemoryItem, MemoryRecord, Photo } from "../shared/types";
-import { memoryKeys, useInvalidateMemories } from "./api";
+import { memoryKeys, useDeleteRecord, useInvalidateMemories, useSaveRecord } from "./api";
 import { preparePhoto, uploadPhoto } from "./image";
 import { PhotoImg } from "./parts";
 
@@ -63,9 +62,16 @@ export function RecordSheet({
 }) {
   const qc = useQueryClient();
   const invalidate = useInvalidateMemories();
+  const saveRecord = useSaveRecord();
+  const deleteRecord = useDeleteRecord();
   const personal = groups.find((g) => g.isPersonal);
-  const [groupId, setGroupId] = useState(record?.groupId ?? (groups.some((g) => g.id === defaultGroupId) ? defaultGroupId! : (personal?.id ?? groups[0]?.id ?? "")));
-  const [slots, setSlots] = useState<Slot[]>(() => (record?.photos ?? []).map((p) => ({ key: p.id, state: "done" as const, photo: p })));
+  const [groupId, setGroupId] = useState(
+    record?.groupId ??
+      (groups.some((g) => g.id === defaultGroupId) ? defaultGroupId! : (personal?.id ?? groups[0]?.id ?? "")),
+  );
+  const [slots, setSlots] = useState<Slot[]>(() =>
+    (record?.photos ?? []).map((p) => ({ key: p.id, state: "done" as const, photo: p })),
+  );
   const [body, setBody] = useState(record?.body ?? "");
   const [time, setTime] = useState<string | null>(record ? toLocalInput(record.occurredAt) : null);
   const [itemId, setItemId] = useState<string | null>(null);
@@ -102,7 +108,13 @@ export function RecordSheet({
     const room = MAX_PHOTOS - slots.length;
     const list = [...files].slice(0, Math.max(0, room));
     if (files.length > room) toast.error(`写真は 1 回に ${MAX_PHOTOS} 枚までです。`);
-    const added = list.map((file) => ({ key: crypto.randomUUID(), state: "sending" as const, preview: URL.createObjectURL(file), progress: 0, file }));
+    const added = list.map((file) => ({
+      key: crypto.randomUUID(),
+      state: "sending" as const,
+      preview: URL.createObjectURL(file),
+      progress: 0,
+      file,
+    }));
     setSlots((all) => [...all, ...added]);
     for (const s of added) void send(s.key, s.file);
   }
@@ -125,11 +137,13 @@ export function RecordSheet({
     const occurredAt = chosen;
     try {
       if (record) {
-        await api(`/memories/records/${record.id}`, { method: "PATCH", body: { body: body.trim() || null, occurredAt, photoIds: done.map((s) => s.photo.id) } });
+        await saveRecord.mutateAsync({
+          id: record.id,
+          body: { body: body.trim() || null, occurredAt, photoIds: done.map((s) => s.photo.id) },
+        });
         toast("記録を保存しました");
       } else {
-        await api("/memories/records", {
-          method: "POST",
+        await saveRecord.mutateAsync({
           body: { groupId, body: body.trim() || null, occurredAt, photoIds: done.map((s) => s.photo.id), itemId },
         });
         toast("記録しました");
@@ -147,12 +161,14 @@ export function RecordSheet({
   function remove() {
     if (!record) return;
     onClose();
-    qc.setQueriesData<MemoryRecord[]>({ queryKey: ["memories", "records"] }, (old) => old?.filter((r) => r.id !== record.id));
+    qc.setQueriesData<MemoryRecord[]>({ queryKey: ["memories", "records"] }, (old) =>
+      old?.filter((r) => r.id !== record.id),
+    );
     let undone = false;
     const timer = window.setTimeout(async () => {
       if (undone) return;
       try {
-        await api(`/memories/records/${record.id}`, { method: "DELETE", keepalive: true });
+        await deleteRecord.mutateAsync(record.id);
       } catch (e) {
         toast.error((e as Error).message);
       }
@@ -173,8 +189,22 @@ export function RecordSheet({
 
   return (
     <ResponsiveSheet title={record ? "記録を編集" : "記録する"} onClose={onClose}>
-      <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => (addFiles(e.target.files), (e.target.value = ""))} />
-      <input ref={picker} type="file" accept="image/*" multiple className="hidden" onChange={(e) => (addFiles(e.target.files), (e.target.value = ""))} />
+      <input
+        ref={camera}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => (addFiles(e.target.files), (e.target.value = ""))}
+      />
+      <input
+        ref={picker}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => (addFiles(e.target.files), (e.target.value = ""))}
+      />
 
       {!komaLocked && (
         <div className="grid grid-cols-2 gap-2">
@@ -196,15 +226,33 @@ export function RecordSheet({
               {s.state === "done" ? (
                 <PhotoImg photo={s.photo} className="size-full" alt={`写真 ${i + 1}`} />
               ) : (
-                <img src={s.preview} alt={`写真 ${i + 1}`} className={cn("size-full object-cover", s.state === "failed" && "opacity-40")} />
+                <img
+                  src={s.preview}
+                  alt={`写真 ${i + 1}`}
+                  className={cn("size-full object-cover", s.state === "failed" && "opacity-40")}
+                />
               )}
               {s.state === "sending" && (
-                <span className="absolute inset-x-1.5 bottom-1.5 h-1 rounded-full bg-white/50" role="progressbar" aria-valuenow={Math.round(s.progress * 100)} aria-label="送っています">
-                  <i className="block h-full rounded-full bg-white" style={{ width: `${Math.round(s.progress * 100)}%` }} />
+                <span
+                  className="absolute inset-x-1.5 bottom-1.5 h-1 rounded-full bg-white/50"
+                  role="progressbar"
+                  aria-valuenow={Math.round(s.progress * 100)}
+                  aria-label="送っています"
+                >
+                  <i
+                    className="block h-full rounded-full bg-white"
+                    style={{ width: `${Math.round(s.progress * 100)}%` }}
+                  />
                 </span>
               )}
               {s.state === "failed" && (
-                <button type="button" className="absolute inset-0 grid place-items-center text-sun" aria-label={`もう一度送る。${s.error}`} title={s.error} onClick={() => retry(s)}>
+                <button
+                  type="button"
+                  className="absolute inset-0 grid place-items-center text-sun"
+                  aria-label={`もう一度送る。${s.error}`}
+                  title={s.error}
+                  onClick={() => retry(s)}
+                >
                   <RotateCw className="size-5" />
                 </button>
               )}
@@ -236,9 +284,19 @@ export function RecordSheet({
         {!record && (
           <PanelRow>
             <span>共有</span>
-            <span className="flex max-w-[70%] flex-wrap justify-end gap-1.5" role="radiogroup" aria-label="共有するグループ">
+            <span
+              className="flex max-w-[70%] flex-wrap justify-end gap-1.5"
+              role="radiogroup"
+              aria-label="共有するグループ"
+            >
               {groups.map((g) => (
-                <Chip key={g.id} role="radio" aria-checked={groupId === g.id} onClick={() => setGroupId(g.id)} disabled={slots.length > 0}>
+                <Chip
+                  key={g.id}
+                  role="radio"
+                  aria-checked={groupId === g.id}
+                  onClick={() => setGroupId(g.id)}
+                  disabled={slots.length > 0}
+                >
                   <Dot color={groupColor(g, me.colorPrefs)} />
                   {g.isPersonal ? "共有しない" : g.name}
                 </Chip>
@@ -261,7 +319,12 @@ export function RecordSheet({
         {!record && wishes.length > 0 && (
           <PanelRow>
             <label htmlFor="record-wish">できたやりたいこと</label>
-            <select id="record-wish" value={itemId ?? ""} onChange={(e) => setItemId(e.target.value || null)} className="min-h-11 max-w-[60%] bg-transparent text-right text-sm">
+            <select
+              id="record-wish"
+              value={itemId ?? ""}
+              onChange={(e) => setItemId(e.target.value || null)}
+              className="min-h-11 max-w-[60%] bg-transparent text-right text-sm"
+            >
               <option value="">選ばない</option>
               {wishes.map((w) => (
                 <option key={w.id} value={w.id}>

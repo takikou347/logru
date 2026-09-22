@@ -6,4 +6,5 @@ export const eventsManifest: ExtensionManifest = {
   label: "予定",
   description: "日付と時刻のある予定を登録する",
   alwaysOn: true,
+  notificationKinds: ["events.invite_accepted"],
 };

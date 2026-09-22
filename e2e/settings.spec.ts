@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PASSWORD, logIn, signUp } from "./helpers";
+import { logIn, PASSWORD, signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
@@ -42,6 +42,20 @@ test("端末と同じが既定で、端末の明るさに合わせる", async ({
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 });
 
+test("背景のテーマを平らにすると、すぐ変わり、読み込み直しても残る。#50", async ({ page }) => {
+  await expect(page.getByRole("radio", { name: "ガラス" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator("html")).not.toHaveAttribute("data-bg-theme", "flat");
+  const saved = page.waitForResponse((r) => r.url().endsWith("/api/me/settings") && r.request().method() === "PUT");
+  await page.getByRole("radio", { name: "平ら" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-bg-theme", "flat");
+  expect((await saved).ok()).toBe(true);
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-bg-theme", "flat");
+  await expect(page.getByRole("radio", { name: "平ら" })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("radio", { name: "ガラス" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-bg-theme", "glass");
+});
+
 test("テーマカラーと自分の色を選べる", async ({ page }) => {
   await page.getByRole("radiogroup", { name: "テーマカラー" }).getByRole("radio", { name: "紺" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-accent", "kon");
@@ -52,9 +66,12 @@ test("テーマカラーと自分の色を選べる", async ({ page }) => {
     "true",
   );
   await page.goto("/");
-  await expect(page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "自分だけの予定" }).locator(".swatch-dot")).toHaveClass(
-    /c-fuji/,
-  );
+  await expect(
+    page
+      .getByRole("navigation", { name: "グループで絞る" })
+      .getByRole("button", { name: "自分だけの予定" })
+      .locator(".swatch-dot"),
+  ).toHaveClass(/c-fuji/);
 });
 
 test("グループの色を、自分の画面の中だけで変え、元に戻せる", async ({ page }) => {
@@ -109,7 +126,10 @@ test("表示名を直している途中で Esc を押すと、元の名前に戻
 });
 
 test("アカウントを消すと、ログインできなくなる", async ({ page }) => {
-  const email = await page.getByRole("region", { name: "アカウント" }).getByText(/@example\.com/).textContent();
+  const email = await page
+    .getByRole("region", { name: "アカウント" })
+    .getByText(/@example\.com/)
+    .textContent();
   await page.getByRole("button", { name: "アカウントを消す" }).click();
   const sheet = page.getByRole("dialog", { name: "アカウントを消す" });
   await expect(sheet.getByRole("button", { name: "アカウントを消す" })).toBeDisabled();

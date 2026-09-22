@@ -1,6 +1,6 @@
+import { createdAt, updatedAt } from "@server/core/db/columns";
+import { users } from "@server/core/db/schema";
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { createdAt, updatedAt } from "../../../server/core/db/columns";
-import { users } from "../../../server/core/db/schema";
 
 /**
  * 外部のカレンダー。1 人がいくつでも登録できる。

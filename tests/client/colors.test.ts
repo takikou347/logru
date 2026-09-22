@@ -1,6 +1,6 @@
+import { GROUP_COLOR_KEYS, pickUnusedColor } from "@shared/colors";
 import { describe, expect, it } from "vitest";
 import { groupColor, memberColor } from "../../src/client/lib/colors";
-import { GROUP_COLOR_KEYS, pickUnusedColor } from "../../src/shared/colors";
 
 describe("pickUnusedColor", () => {
   it("使われていない色のうち、並びの最初を返す", () => {

@@ -1,33 +1,37 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { clientExtensions } from "@extensions/client/registry";
+import type { BgTheme, Me, ThemeMode } from "@shared/api-types";
+import { ACCENT_COLORS, GROUP_COLORS } from "@shared/colors";
+import { profileInput } from "@shared/schemas";
 import { Check, Pencil, X } from "lucide-react";
 import { type FormEvent, type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
-import type { Me, ThemeMode } from "../../../shared/api-types";
-import { ACCENT_COLORS, GROUP_COLORS } from "../../../shared/colors";
-import { clientExtensions } from "../../../extensions/registry.client";
-import { profileInput } from "../../../shared/schemas";
+import { useColorPref, useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar, useSignOut } from "@/components/AppLayout";
-import { ColorSheet } from "@/components/ColorSheet";
-import { ColorSwatches } from "@/components/ColorSwatches";
-import { Dot, FieldMessage, Panel, PanelRow, RowButton } from "@/components/Panel";
-import { Segmented } from "@/components/Segmented";
+import { AppLayout, Page, PageBar, useSignOut } from "@/components/layout/AppLayout";
+import { ColorSheet } from "@/components/parts/ColorSheet";
+import { ColorSwatches } from "@/components/parts/ColorSwatches";
+import { Dot, FieldMessage, Panel, PanelRow, RowButton } from "@/components/parts/Panel";
+import { Segmented } from "@/components/parts/Segmented";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/api";
 import { groupColor, memberColor } from "@/lib/colors";
-import { useColorPref } from "@/lib/mutations";
-import { keys, useGroups, useMe } from "@/lib/queries";
-import { applyTheme } from "@/lib/theme";
 import { poolColorsOf } from "../calendar/model";
-import { DeleteAccountSheet } from "./DeleteAccountSheet";
-import { PushSection } from "./PushSection";
+import { AvatarSection } from "./AvatarSection";
+import { useUpdateName, useUpdateSettings } from "./api";
+import { DeleteAccountSheet } from "./components/DeleteAccountSheet";
+import { PushSection } from "./components/PushSection";
 
 const MODES = [
   { value: "system", label: "端末と同じ" },
   { value: "light", label: "ライト" },
   { value: "dark", label: "ダーク" },
+] as const;
+
+/** 背景のテーマ。明るさとは別の軸。#50 */
+const BG_THEMES = [
+  { value: "glass", label: "ガラス" },
+  { value: "flat", label: "平ら" },
 ] as const;
 
 /** ログインに使った手段の、画面での名前 */
@@ -42,31 +46,12 @@ type Target = { type: "group" | "user"; id: string; title: string; fallback: str
 export function SettingsPage() {
   const me = useMe();
   const groups = useGroups();
-  const qc = useQueryClient();
   const doSignOut = useSignOut();
   const colorPref = useColorPref();
   const [target, setTarget] = useState<Target | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const settings = useMutation({
-    // 押してすぐ読み込み直しても、保存を途中で切らせない
-    mutationFn: (next: Me["settings"]) => api<Me["settings"]>("/me/settings", { method: "PUT", body: next, keepalive: true }),
-    onMutate: async (next) => {
-      applyTheme(next.themeMode, next.accentColor);
-      const prev = qc.getQueryData<Me>(keys.me);
-      if (prev) qc.setQueryData<Me>(keys.me, { ...prev, settings: next });
-      return { prev };
-    },
-    onError: (e, _n, ctx) => {
-      if (ctx?.prev) {
-        qc.setQueryData(keys.me, ctx.prev);
-        applyTheme(ctx.prev.settings.themeMode, ctx.prev.settings.accentColor);
-      }
-      toast.error((e as Error).message);
-    },
-    // 自分の色は、自分だけのグループの色でもある
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.groups }),
-  });
+  const settings = useUpdateSettings();
 
   if (!me.data) return <Loading />;
   const data = me.data;
@@ -76,25 +61,57 @@ export function SettingsPage() {
   const shared = list.filter((g) => !g.isPersonal);
   const others = otherMembers(shared, data.user.id);
   const change = (patch: Partial<Me["settings"]>) => settings.mutate({ ...s, ...patch });
-  const isCustom = (type: "group" | "user", id: string) => prefs.some((p) => p.targetType === type && p.targetId === id);
+  const isCustom = (type: "group" | "user", id: string) =>
+    prefs.some((p) => p.targetType === type && p.targetId === id);
 
   return (
     <AppLayout poolColors={poolColorsOf(list, data)}>
       <Page>
         <PageBar title="設定" />
 
+        <AvatarSection me={data} />
+
         <Panel title="明るさ">
-          <Segmented<ThemeMode> full label="明るさ" value={s.themeMode} options={MODES} onChange={(themeMode) => change({ themeMode })} />
+          <Segmented<ThemeMode>
+            full
+            label="明るさ"
+            value={s.themeMode}
+            options={MODES}
+            onChange={(themeMode) => change({ themeMode })}
+          />
+        </Panel>
+
+        <Panel title="背景のテーマ">
+          <FieldMessage>ガラスは奥を透かします。平らは透かさず塗り、文字が読みやすくなります。</FieldMessage>
+          <Segmented<BgTheme>
+            full
+            label="背景のテーマ"
+            value={s.bgTheme}
+            options={BG_THEMES}
+            onChange={(bgTheme) => change({ bgTheme })}
+          />
         </Panel>
 
         <Panel title="テーマカラー">
           <FieldMessage>主ボタンと今日の印に使います。</FieldMessage>
-          <ColorSwatches label="テーマカラー" value={s.accentColor} options={ACCENT_COLORS} onChange={(accentColor) => change({ accentColor })} />
+          <ColorSwatches
+            label="テーマカラー"
+            value={s.accentColor}
+            options={ACCENT_COLORS}
+            onChange={(accentColor) => change({ accentColor })}
+          />
         </Panel>
 
         <Panel title="自分の色">
-          <FieldMessage>カレンダーの「自分だけの予定」の色になります。グループのメンバーにも、この色で見えます。</FieldMessage>
-          <ColorSwatches label="自分の色" value={s.userColor} options={GROUP_COLORS} onChange={(userColor) => change({ userColor })} />
+          <FieldMessage>
+            カレンダーの「自分だけの予定」の色になります。グループのメンバーにも、この色で見えます。
+          </FieldMessage>
+          <ColorSwatches
+            label="自分の色"
+            value={s.userColor}
+            options={GROUP_COLORS}
+            onChange={(userColor) => change({ userColor })}
+          />
         </Panel>
 
         {(shared.length > 0 || others.length > 0) && (
@@ -102,14 +119,22 @@ export function SettingsPage() {
             <FieldMessage>ほかの人の画面は変わりません。</FieldMessage>
             <div>
               {shared.map((g) => (
-                <RowButton key={g.id} onClick={() => setTarget({ type: "group", id: g.id, title: `${g.name} の色`, fallback: g.color })}>
+                <RowButton
+                  key={g.id}
+                  onClick={() => setTarget({ type: "group", id: g.id, title: `${g.name} の色`, fallback: g.color })}
+                >
                   <Dot color={groupColor(g, prefs)} className="size-3" />
                   <span className="flex-1">{g.name}</span>
-                  <span className="text-xs text-ink-2">{isCustom("group", g.id) ? "自分だけ変えた" : "グループの色のまま"}</span>
+                  <span className="text-xs text-ink-2">
+                    {isCustom("group", g.id) ? "自分だけ変えた" : "グループの色のまま"}
+                  </span>
                 </RowButton>
               ))}
               {others.map((o) => (
-                <RowButton key={o.id} onClick={() => setTarget({ type: "user", id: o.id, title: `${o.name} の色`, fallback: o.userColor })}>
+                <RowButton
+                  key={o.id}
+                  onClick={() => setTarget({ type: "user", id: o.id, title: `${o.name} の色`, fallback: o.userColor })}
+                >
                   <Dot color={memberColor(o.id, o.userColor, prefs)} className="size-3" />
                   <span className="flex-1">{o.name}</span>
                   <span className="text-xs text-ink-2">{o.groups.join("、")}のメンバー</span>
@@ -168,7 +193,10 @@ export function SettingsPage() {
  * 共有のグループのメンバーを、自分を除いて 1 人 1 行にまとめる。
  * 同じ人が複数のグループにいれば、グループの名前を並べる。
  */
-function otherMembers(shared: { name: string; members: { id: string; name: string; userColor: string }[] }[], myId: string) {
+function otherMembers(
+  shared: { name: string; members: { id: string; name: string; userColor: string }[] }[],
+  myId: string,
+) {
   const others = new Map<string, { id: string; name: string; userColor: string; groups: string[] }>();
   for (const g of shared) {
     for (const m of g.members) {
@@ -186,7 +214,6 @@ function otherMembers(shared: { name: string; members: { id: string; name: strin
  * 鉛筆のボタンを押すと、その行で直せる。Enter か保存のボタンで送り、Esc で元に戻す。
  */
 function NameRow({ current }: { current: string }) {
-  const qc = useQueryClient();
   const id = useId();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(current);
@@ -202,15 +229,7 @@ function NameRow({ current }: { current: string }) {
     wasEditing.current = editing;
   }, [editing]);
 
-  const save = useMutation({
-    mutationFn: (next: string) => api("/me", { method: "PATCH", body: { name: next } }),
-    onSuccess: async () => {
-      await qc.invalidateQueries();
-      toast("表示名を変えました");
-      setEditing(false);
-    },
-    onError: (e) => setError((e as Error).message),
-  });
+  const save = useUpdateName();
 
   function open() {
     setName(current);
@@ -232,7 +251,13 @@ function NameRow({ current }: { current: string }) {
       return;
     }
     if (parsed.data.name === current) return cancel();
-    save.mutate(parsed.data.name);
+    save.mutate(parsed.data.name, {
+      onSuccess: () => {
+        toast("表示名を変えました");
+        setEditing(false);
+      },
+      onError: (e) => setError((e as Error).message),
+    });
   }
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Escape") return;
@@ -246,7 +271,14 @@ function NameRow({ current }: { current: string }) {
         <span>表示名</span>
         <span className="flex min-w-0 items-center gap-1">
           <span className="min-w-0 truncate">{current}</span>
-          <Button ref={pencilRef} variant="ghost" size="icon" className="-mr-2.5" aria-label="表示名を変える" onClick={open}>
+          <Button
+            ref={pencilRef}
+            variant="ghost"
+            size="icon"
+            className="-mr-2.5"
+            aria-label="表示名を変える"
+            onClick={open}
+          >
             <Pencil />
           </Button>
         </span>
@@ -278,7 +310,14 @@ function NameRow({ current }: { current: string }) {
         <Button type="submit" variant="ghost" size="icon" aria-label="保存する" disabled={save.isPending}>
           <Check />
         </Button>
-        <Button variant="ghost" size="icon" className="-mr-2.5" aria-label="やめる" onClick={cancel} disabled={save.isPending}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="-mr-2.5"
+          aria-label="やめる"
+          onClick={cancel}
+          disabled={save.isPending}
+        >
           <X />
         </Button>
       </div>

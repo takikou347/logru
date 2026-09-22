@@ -1,7 +1,7 @@
+import type { CalendarContext } from "@extensions/server/types";
+import type { DB } from "@server/core/db/client";
+import type { Attendee, CalendarItem } from "@shared/api-types";
 import { and, gte, inArray, isNull, lt, or } from "drizzle-orm";
-import type { Attendee, CalendarItem } from "../../../shared/api-types";
-import type { DB } from "../../../server/core/db/client";
-import type { CalendarContext } from "../../types.server";
 import { type EventRow, eventAttendees, events } from "./schema";
 
 /** D1 は 1 つの問い合わせに渡せる値の数に上限がある。予定の ID はこの数ずつ渡す */
@@ -62,7 +62,13 @@ export function toCalendarItem(row: EventRow, attendees: Attendee[], userId: str
  * @param to 期間の終わり。含まない
  * @param ctx 項目を呼ぶ人
  */
-export async function listEvents(db: DB, groupIds: string[], from: number, to: number, ctx: CalendarContext): Promise<CalendarItem[]> {
+export async function listEvents(
+  db: DB,
+  groupIds: string[],
+  from: number,
+  to: number,
+  ctx: CalendarContext,
+): Promise<CalendarItem[]> {
   const rows = await db
     .select()
     .from(events)

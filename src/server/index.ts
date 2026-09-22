@@ -3,16 +3,19 @@
  *
  * 土台の機能は modules/ に、拡張は extensions/ にある。拡張の API は registry.server.ts から読んで載せる。
  */
+
+import { serverExtensions } from "@extensions/server/registry";
+import { type AppEnv, HttpError, resolveAppUrl } from "@server/core/app";
+import { createDb } from "@server/core/db/client";
+import { cleanupOldNotifications } from "@server/core/notifications/send";
+import { calendarRoutes } from "@server/modules/calendar/routes";
+import { extensionRoutes } from "@server/modules/group-extensions/routes";
+import { groupRoutes } from "@server/modules/groups/routes";
+import { inviteRoutes } from "@server/modules/invites/routes";
+import { meRoutes } from "@server/modules/me/routes";
+import { notificationRoutes } from "@server/modules/notifications/routes";
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
-import { serverExtensions } from "../extensions/registry.server";
-import { type AppEnv, HttpError, resolveAppUrl } from "./core/app";
-import { createDb } from "./core/db/client";
-import { calendarRoutes } from "./modules/calendar/routes";
-import { extensionRoutes } from "./modules/group-extensions/routes";
-import { groupRoutes } from "./modules/groups/routes";
-import { inviteRoutes } from "./modules/invites/routes";
-import { meRoutes } from "./modules/me/routes";
 
 const app = new Hono<AppEnv>().basePath("/api");
 
@@ -29,6 +32,7 @@ app.route("/groups", groupRoutes);
 app.route("/invites", inviteRoutes);
 app.route("/calendar", calendarRoutes);
 app.route("/extensions", extensionRoutes);
+app.route("/notifications", notificationRoutes);
 for (const x of serverExtensions) {
   if (x.routes) app.route(x.routes.basePath, x.routes.router);
 }
@@ -48,5 +52,7 @@ export default {
     for (const x of serverExtensions) {
       if (x.scheduled) ctx.waitUntil(x.scheduled(db, env));
     }
+    // お知らせの掃除は拡張ではなく土台の仕事。90 日を過ぎた行を消す。#32
+    ctx.waitUntil(cleanupOldNotifications(db));
   },
 } satisfies ExportedHandler<Env>;

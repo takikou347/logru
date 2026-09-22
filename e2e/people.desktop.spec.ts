@@ -1,4 +1,4 @@
-import { type Page, expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { addEvent, dayPanel, signUp } from "./helpers";
 
 async function createGroup(page: Page, name: string) {
@@ -32,10 +32,9 @@ test("PC は左の列のグループを開き、メンバーごとに予定を�
   await expect(self).toHaveAttribute("aria-pressed", "false");
   await expect(dayPanel(page).getByRole("button", { name: /歯医者/ })).toHaveCount(0);
   await side.getByRole("button", { name: "実家 のメンバー" }).click();
-  await expect(side.getByRole("group", { name: "実家 のメンバー" }).getByRole("button", { name: "自分" })).toHaveAttribute(
-    "aria-pressed",
-    "false",
-  );
+  await expect(
+    side.getByRole("group", { name: "実家 のメンバー" }).getByRole("button", { name: "自分" }),
+  ).toHaveAttribute("aria-pressed", "false");
 
   // 読み込み直しても、開け閉めと印は同じ
   await page.reload();

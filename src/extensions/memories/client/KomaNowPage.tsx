@@ -3,22 +3,21 @@ import { BellOff, Camera, ChevronLeft } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
+import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout } from "@/components/AppLayout";
-import { InitialAvatar } from "@/components/Avatars";
-import { LoadFailure } from "@/components/Failure";
-import { FieldMessage } from "@/components/Panel";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { InitialAvatar } from "@/components/parts/Avatars";
+import { LoadFailure } from "@/components/parts/Failure";
+import { FieldMessage } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/api";
 import { memberColor } from "@/lib/colors";
 import { auth } from "@/lib/firebase";
-import { useMe } from "@/lib/queries";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { useInvalidateMemories, useMemoryGroups } from "./api";
 import { preparePhoto, uploadPhoto } from "./image";
-import { deviceTimeZone, komaKeys, useKomaNow } from "./koma-api";
 import { KomaLinkSheet } from "./KomaLinkSheet";
+import { deviceTimeZone, komaKeys, useKomaNow, useSaveKomaDay, useSaveKomaNow } from "./koma-api";
 import { Ambient, PhotoImg } from "./parts";
 
 /**
@@ -32,6 +31,8 @@ export function KomaNowPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const invalidate = useInvalidateMemories();
+  const saveKomaNow = useSaveKomaNow();
+  const saveKomaDay = useSaveKomaDay();
   const camera = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<{ url: string; file: File } | null>(null);
   const [word, setWord] = useState("");
@@ -53,7 +54,7 @@ export function KomaNowPage() {
     try {
       const prepared = await preparePhoto(preview.file);
       const photo = await uploadPhoto(data.groupId, prepared, await auth.currentUser?.getIdToken(), () => undefined);
-      await api("/memories/koma", { method: "PUT", body: { photoId: photo.id, slot: slot.start, body: word.trim() || null } });
+      await saveKomaNow.mutateAsync({ photoId: photo.id, slot: slot.start, body: word.trim() || null });
       await Promise.all([invalidate(), qc.invalidateQueries({ queryKey: komaKeys.now })]);
       toast(`${slot.hour} 時のひとコマを保存しました`);
       navigate(data.memory ? `/memories/${data.memory.id}` : "/memories/koma", { replace: true });
@@ -66,7 +67,13 @@ export function KomaNowPage() {
 
   async function mute() {
     if (!data?.groupId) return;
-    await api(`/memories/koma/days/${data.day}`, { method: "PUT", body: { groupId: data.groupId, memoryId: data.memory?.id ?? null, timeZone: deviceTimeZone(), muted: !data.muted } });
+    await saveKomaDay.mutateAsync({
+      day: data.day,
+      groupId: data.groupId,
+      memoryId: data.memory?.id ?? null,
+      timeZone: deviceTimeZone(),
+      muted: !data.muted,
+    });
     await qc.invalidateQueries({ queryKey: komaKeys.now });
     toast(data.muted ? "今日の通知をオンにしました" : "今日の通知をオフにしました");
   }
@@ -89,17 +96,23 @@ export function KomaNowPage() {
             </Button>
           )}
         </header>
-        {now.error && !now.data && <LoadFailure what="今日のひとコマ" error={now.error} onRetry={() => void now.refetch()} />}
+        {now.error && !now.data && (
+          <LoadFailure what="今日のひとコマ" error={now.error} onRetry={() => void now.refetch()} />
+        )}
 
         {!data?.started && (
           <section className="glass flex flex-col gap-3 rounded-panel p-5">
-            <p className="text-sm leading-relaxed">今日のひとコマはまだ始めていません。始めると、7 時から 22 時台まで、1 時間に 1 枚ずつ写真を残せます。</p>
+            <p className="text-sm leading-relaxed">
+              今日のひとコマはまだ始めていません。始めると、7 時から 22 時台まで、1 時間に 1 枚ずつ写真を残せます。
+            </p>
             <Button onClick={() => setStarting(true)}>今日のひとコマを始める</Button>
           </section>
         )}
 
         {data?.started && !slot && (
-          <section className="glass rounded-panel p-5 text-sm leading-relaxed">ひとコマを撮れるのは 7 時から 22 時台までです。</section>
+          <section className="glass rounded-panel p-5 text-sm leading-relaxed">
+            ひとコマを撮れるのは 7 時から 22 時台までです。
+          </section>
         )}
 
         {data?.started && slot && (
@@ -127,7 +140,13 @@ export function KomaNowPage() {
                 </span>
               )}
             </button>
-            <Input value={word} maxLength={40} placeholder="ひとこと" aria-label="ひとこと" onChange={(e) => setWord(e.target.value)} />
+            <Input
+              value={word}
+              maxLength={40}
+              placeholder="ひとこと"
+              aria-label="ひとこと"
+              onChange={(e) => setWord(e.target.value)}
+            />
             {data.others.length > 0 && (
               <ul className="flex flex-col gap-1.5 px-1.5 pb-1" aria-label="同じグループの人のひとコマ">
                 {data.others.map((o) => {
@@ -135,7 +154,11 @@ export function KomaNowPage() {
                   return (
                     <li key={o.userId} className="flex items-center gap-2 text-xs text-ink-2">
                       <PhotoImg photo={o.photo} className="h-10 w-[30px] flex-none rounded-lg" />
-                      {m && <InitialAvatar person={{ id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.data.colorPrefs) }} />}
+                      {m && (
+                        <InitialAvatar
+                          person={{ id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.data.colorPrefs) }}
+                        />
+                      )}
                       {m?.name ?? "メンバー"} が撮りました
                     </li>
                   );
@@ -169,7 +192,9 @@ export function KomaNowPage() {
           </div>
         )}
       </div>
-      {starting && data && <KomaLinkSheet day={data.day} groups={groups} me={me.data} onClose={() => setStarting(false)} />}
+      {starting && data && (
+        <KomaLinkSheet day={data.day} groups={groups} me={me.data} onClose={() => setStarting(false)} />
+      )}
     </AppLayout>
   );
 }

@@ -11,7 +11,7 @@ const groupColorSchema = z.enum(GROUP_COLOR_KEYS);
 /** テーマカラーの名前 */
 const accentColorSchema = z.enum(ACCENT_COLOR_KEYS);
 
-/** `PUT /api/me/settings`。F-13、F-14、F-29 */
+/** `PUT /api/me/settings`。F-13、F-14、F-30 */
 export const settingsInput = z.object({
   themeMode: z.enum(["system", "light", "dark"]),
   bgTheme: z.enum(["glass", "flat"]),

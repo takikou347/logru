@@ -5,9 +5,9 @@
 import { dayKeyIn, hourIn } from "./days";
 
 export const KOMA_FIRST_HOUR = 7;
-export const KOMA_LAST_HOUR = 22;
+const KOMA_LAST_HOUR = 22;
 /** 枠が過ぎてから残せる時間。5 分 */
-export const KOMA_GRACE_MS = 5 * 60 * 1000;
+const KOMA_GRACE_MS = 5 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 
 /** 枠 1 つ。start は枠の始まりの時刻 */
@@ -50,7 +50,8 @@ export function slotsOfDay(dayStart: number, timeZone: string): KomaSlot[] {
   const out: KomaSlot[] = [];
   for (let t = dayStart; t < dayStart + 26 * HOUR_MS; t += HOUR_MS) {
     const s = slotAt(t, timeZone);
-    if (s && s.day === dayKeyIn(dayStart, timeZone) && !out.some((x) => x.hour === s.hour)) out.push({ ...s, start: hourStartIn(t, timeZone) });
+    if (s && s.day === dayKeyIn(dayStart, timeZone) && !out.some((x) => x.hour === s.hour))
+      out.push({ ...s, start: hourStartIn(t, timeZone) });
   }
   return out;
 }

@@ -109,13 +109,19 @@ test("PC でもマスの空いた所を押すと、その日の予定を足す�
   await page.goto("/?date=2026-09-01");
 
   // 予定の名前の下の、空いた所を押す
-  const cell = page.getByRole("region", { name: "月の表" }).locator('[data-date="15"]:not([data-out]) > button').first();
+  const cell = page
+    .getByRole("region", { name: "月の表" })
+    .locator('[data-date="15"]:not([data-out]) > button')
+    .first();
   const box = (await cell.boundingBox())!;
   await cell.click({ position: { x: box.width / 2, y: box.height - 10 } });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByLabel("日付")).toHaveValue("2026-09-15");
   await expect(page).toHaveURL(/date=2026-09-15/);
-  await sheet.getByRole("region", { name: "9月15日の予定" }).getByRole("button", { name: /歯医者/ }).click();
+  await sheet
+    .getByRole("region", { name: "9月15日の予定" })
+    .getByRole("button", { name: /歯医者/ })
+    .click();
   await expect(page.getByRole("dialog", { name: "予定を直す" }).getByLabel("題名")).toHaveValue("歯医者");
 });
 

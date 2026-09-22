@@ -1,4 +1,4 @@
-import { type Page, expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { addEvent, apiUser, dayPanel, logIn, signUp } from "./helpers";
 
 /** スマホの「人」のボタンからシートを開き、「ふたり」のまとまりでその人の印を押して閉じる */
@@ -10,7 +10,10 @@ async function togglePerson(page: Page, name: string) {
   await expect(sheet).toHaveCount(0);
 }
 
-test("相手の印を外すと相手の予定が消え、読み込み直しても別の端末でも同じ。相手の画面は変わらない", async ({ page, browser }) => {
+test("相手の印を外すと相手の予定が消え、読み込み直しても別の端末でも同じ。相手の画面は変わらない", async ({
+  page,
+  browser,
+}) => {
   test.setTimeout(90_000);
   const kota = await signUp(page, { name: "こた" });
   await page.goto("/groups");
@@ -54,10 +57,9 @@ test("相手の印を外すと相手の予定が消え、読み込み直して�
   await togglePerson(page, "みか");
   await expect(panel.getByRole("button", { name: /みかの予定/ })).toHaveCount(0);
   await expect(panel.getByRole("button", { name: /こたの予定/ })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "表示する人" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(
+    page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "表示する人" }),
+  ).toHaveAttribute("aria-pressed", "true");
 
   // 読み込み直しても同じ
   await page.reload();

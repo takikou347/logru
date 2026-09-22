@@ -1,28 +1,28 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, asc, count, desc, eq, inArray, max } from "drizzle-orm";
+import { type AppEnv, createRouter, HttpError, validationHook } from "@server/core/app";
+import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import type { DB } from "@server/core/db/client";
+import { groupMembers, notifications } from "@server/core/db/schema";
+import { and, asc, count, desc, eq, inArray, isNull, max, sql } from "drizzle-orm";
 import type { Context } from "hono";
-import { type AppEnv, HttpError, createRouter, validationHook } from "../../../server/core/app";
-import { requireAgreement, requireUser } from "../../../server/core/auth/middleware";
-import type { DB } from "../../../server/core/db/client";
-import { groupMembers } from "../../../server/core/db/schema";
-import { MAX_MEMORY_DAYS, addDaysToKey, dayKeyIn, startOfDayIn } from "../shared/days";
+import { addDaysToKey, dayKeyIn, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
 import {
-  PHOTO_LIMITS,
+  eventLinkInput,
   itemCopyInput,
   itemInput,
   itemPatchInput,
   memoryInput,
   memoryPatchInput,
+  PHOTO_LIMITS,
   recordInput,
   recordPatchInput,
-  eventLinkInput,
   recordsQuery,
 } from "../shared/schemas";
 import type { MemoryDetail, MemoryList } from "../shared/types";
 import { requireMemoriesGroup, usableGroupIds } from "./access";
 import { komaRoutes } from "./koma";
 import { loadRecord, loadRecords, recentRecords, toItem, toMemory } from "./load";
-import { PhotoSigner, type PhotoSize, isJpeg, photoKey, verifyPhotoUrl } from "./photos";
+import { isJpeg, PhotoSigner, type PhotoSize, photoKey, verifyPhotoUrl } from "./photos";
 import { memories, memoryEventExclusions, memoryItems, memoryLikes, memoryPhotos, memoryRecords } from "./schema";
 
 const signer = (c: Context<AppEnv>) => new PhotoSigner(c.env.MEMORIES_PHOTO_KEY);
@@ -53,7 +53,8 @@ function periodOf(firstDay: string, lastDay: string, timeZone: string) {
   const startsAt = startOfDayIn(firstDay, timeZone);
   const endsAt = startOfDayIn(addDaysToKey(lastDay, 1), timeZone);
   if (endsAt <= startsAt) throw new HttpError(400, "終わりは始まりより後にしてください。");
-  if (endsAt - startsAt > (MAX_MEMORY_DAYS + 1) * 86_400_000) throw new HttpError(400, `期間は ${MAX_MEMORY_DAYS} 日までです。`);
+  if (endsAt - startsAt > (MAX_MEMORY_DAYS + 1) * 86_400_000)
+    throw new HttpError(400, `期間は ${MAX_MEMORY_DAYS} 日までです。`);
   return { startsAt: new Date(startsAt), endsAt: new Date(endsAt) };
 }
 
@@ -74,7 +75,9 @@ async function isMember(db: DB, groupId: string, userId: string): Promise<boolea
 async function requirePhotos(db: DB, userId: string, groupId: string, ids: string[], recordId?: string) {
   if (ids.length === 0) return;
   const rows = await db.select().from(memoryPhotos).where(inArray(memoryPhotos.id, ids));
-  const ok = rows.filter((p) => p.createdBy === userId && p.groupId === groupId && (p.recordId === null || p.recordId === recordId));
+  const ok = rows.filter(
+    (p) => p.createdBy === userId && p.groupId === groupId && (p.recordId === null || p.recordId === recordId),
+  );
   if (ok.length !== new Set(ids).size) throw new HttpError(400, "付けられない写真があります。送り直してください。");
   return rows;
 }
@@ -89,14 +92,29 @@ export const memoryRoutes = createRouter()
     const { photoId } = c.req.param();
     const size = c.req.param("size") as PhotoSize;
     if (size !== "full" && size !== "thumb") throw new HttpError(404, "見つかりません。");
-    const ok = await verifyPhotoUrl(c.env.MEMORIES_PHOTO_KEY, photoId, size, Number(c.req.query("e")), c.req.query("s") ?? "");
+    const ok = await verifyPhotoUrl(
+      c.env.MEMORIES_PHOTO_KEY,
+      photoId,
+      size,
+      Number(c.req.query("e")),
+      c.req.query("s") ?? "",
+    );
     if (!ok) throw new HttpError(403, "写真の URL の期限が切れています。画面を読み直してください。");
-    const row = await c.get("db").select({ id: memoryPhotos.id }).from(memoryPhotos).where(eq(memoryPhotos.id, photoId)).get();
+    const row = await c
+      .get("db")
+      .select({ id: memoryPhotos.id })
+      .from(memoryPhotos)
+      .where(eq(memoryPhotos.id, photoId))
+      .get();
     if (!row) throw new HttpError(404, "写真が見つかりません。");
     const object = await c.env.MEMORIES_BUCKET.get(photoKey(photoId, size));
     if (!object) throw new HttpError(404, "写真が見つかりません。");
     return new Response(object.body, {
-      headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=86400, immutable", ETag: object.httpEtag },
+      headers: {
+        "Content-Type": "image/jpeg",
+        "Cache-Control": "private, max-age=86400, immutable",
+        ETag: object.httpEtag,
+      },
     });
   })
   .use("*", requireUser, requireAgreement)
@@ -107,7 +125,11 @@ export const memoryRoutes = createRouter()
     const wanted = c.req.query("group")?.split(",").filter(Boolean);
     const groupIds = await usableGroupIds(db, c.get("user").id, wanted);
     if (groupIds.length === 0) return c.json({ memories: [], recent: [] } satisfies MemoryList);
-    const rows = await db.select().from(memories).where(inArray(memories.groupId, groupIds)).orderBy(desc(memories.startsAt));
+    const rows = await db
+      .select()
+      .from(memories)
+      .where(inArray(memories.groupId, groupIds))
+      .orderBy(desc(memories.startsAt));
     const s = signer(c);
     const body: MemoryList = {
       memories: await Promise.all(rows.map((r) => toMemory(db, s, r))),
@@ -132,9 +154,14 @@ export const memoryRoutes = createRouter()
       ...periodOf(input.firstDay, input.lastDay, input.timeZone),
     });
     if (input.excludedEventIds.length) {
-      await db.insert(memoryEventExclusions).values([...new Set(input.excludedEventIds)].map((eventId) => ({ memoryId: id, eventId })));
+      await db
+        .insert(memoryEventExclusions)
+        .values([...new Set(input.excludedEventIds)].map((eventId) => ({ memoryId: id, eventId })));
     }
-    return c.json(await toMemory(db, signer(c), (await db.select().from(memories).where(eq(memories.id, id)).get())!), 201);
+    return c.json(
+      await toMemory(db, signer(c), (await db.select().from(memories).where(eq(memories.id, id)).get())!),
+      201,
+    );
   })
   .get("/records", zValidator("query", recordsQuery, validationHook), async (c) => {
     const db = c.get("db");
@@ -156,16 +183,25 @@ export const memoryRoutes = createRouter()
     const height = Number(form.get("height"));
     const takenAtRaw = Number(form.get("takenAt"));
     if (!(full instanceof File) || !(thumb instanceof File)) throw new HttpError(400, "写真を送り直してください。");
-    if (full.size > PHOTO_LIMITS.fullBytes || thumb.size > PHOTO_LIMITS.thumbBytes || tiny.length > PHOTO_LIMITS.tinyChars) {
+    if (
+      full.size > PHOTO_LIMITS.fullBytes ||
+      thumb.size > PHOTO_LIMITS.thumbBytes ||
+      tiny.length > PHOTO_LIMITS.tinyChars
+    ) {
       return c.json({ error: "写真が大きすぎます。" }, 413);
     }
     if (!tiny.startsWith("data:image/jpeg;base64,")) throw new HttpError(400, "写真を送り直してください。");
-    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) throw new HttpError(400, "写真を送り直してください。");
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1)
+      throw new HttpError(400, "写真を送り直してください。");
     const [fullBytes, thumbBytes] = await Promise.all([full.arrayBuffer(), thumb.arrayBuffer()]);
-    if (!isJpeg(new Uint8Array(fullBytes)) || !isJpeg(new Uint8Array(thumbBytes))) throw new HttpError(400, "JPEG の写真だけを受け付けます。");
+    if (!isJpeg(new Uint8Array(fullBytes)) || !isJpeg(new Uint8Array(thumbBytes)))
+      throw new HttpError(400, "JPEG の写真だけを受け付けます。");
     const total = await db.select({ n: count() }).from(memoryPhotos).where(eq(memoryPhotos.groupId, groupId)).get();
     if ((total?.n ?? 0) >= PHOTO_LIMITS.perGroup) {
-      throw new HttpError(409, `このグループの写真は ${PHOTO_LIMITS.perGroup} 枚までです。古い記録を消してから足してください。`);
+      throw new HttpError(
+        409,
+        `このグループの写真は ${PHOTO_LIMITS.perGroup} 枚までです。古い記録を消してから足してください。`,
+      );
     }
     const id = crypto.randomUUID();
     await Promise.all([
@@ -194,17 +230,36 @@ export const memoryRoutes = createRouter()
     const firstTaken = input.photoIds.map((id) => photos.find((p) => p.id === id)?.takenAt).find(Boolean);
     const occurredAt = new Date(Math.min(input.occurredAt ?? firstTaken?.getTime() ?? Date.now(), Date.now()));
     requireNotFuture(input.occurredAt);
-    const item = input.itemId ? await db.select().from(memoryItems).where(eq(memoryItems.id, input.itemId)).get() : undefined;
+    const item = input.itemId
+      ? await db.select().from(memoryItems).where(eq(memoryItems.id, input.itemId)).get()
+      : undefined;
     if (input.itemId) {
       const owner = item ? await db.select().from(memories).where(eq(memories.id, item.memoryId)).get() : undefined;
-      if (!item || item.kind !== "wish" || owner?.groupId !== input.groupId) throw new HttpError(400, "そのやりたいことは選べません。");
+      if (!item || item.kind !== "wish" || owner?.groupId !== input.groupId)
+        throw new HttpError(400, "そのやりたいことは選べません。");
     }
     const id = crypto.randomUUID();
     const now = new Date();
     await db.batch([
-      db.insert(memoryRecords).values({ id, groupId: input.groupId, createdBy: me.id, body: input.body || null, occurredAt, itemId: input.itemId }),
-      ...input.photoIds.map((pid, i) => db.update(memoryPhotos).set({ recordId: id, sortOrder: i }).where(eq(memoryPhotos.id, pid))),
-      ...(item ? [db.update(memoryItems).set({ doneAt: occurredAt, doneBy: me.id, updatedAt: now }).where(eq(memoryItems.id, item.id))] : []),
+      db.insert(memoryRecords).values({
+        id,
+        groupId: input.groupId,
+        createdBy: me.id,
+        body: input.body || null,
+        occurredAt,
+        itemId: input.itemId,
+      }),
+      ...input.photoIds.map((pid, i) =>
+        db.update(memoryPhotos).set({ recordId: id, sortOrder: i }).where(eq(memoryPhotos.id, pid)),
+      ),
+      ...(item
+        ? [
+            db
+              .update(memoryItems)
+              .set({ doneAt: occurredAt, doneBy: me.id, updatedAt: now })
+              .where(eq(memoryItems.id, item.id)),
+          ]
+        : []),
     ] as unknown as Parameters<typeof db.batch>[0]);
     return c.json(await loadRecord(db, signer(c), id), 201);
   })
@@ -215,20 +270,30 @@ export const memoryRoutes = createRouter()
     if (row.createdBy !== me.id) throw new HttpError(403, "記録を編集できるのは、記録した人だけです。");
     const input = c.req.valid("json");
     requireNotFuture(input.occurredAt);
-    const current = await db.select({ id: memoryPhotos.id }).from(memoryPhotos).where(eq(memoryPhotos.recordId, row.id));
+    const current = await db
+      .select({ id: memoryPhotos.id })
+      .from(memoryPhotos)
+      .where(eq(memoryPhotos.recordId, row.id));
     const nextIds = input.photoIds ?? current.map((p) => p.id);
     const body = input.body === undefined ? row.body : input.body || null;
     if (!body && nextIds.length === 0) throw new HttpError(400, "写真か文章を入力してください。");
-    if (row.kind === "koma" && nextIds.length === 0) throw new HttpError(400, "ひとコマの写真は外せません。不要なときは記録ごと削除してください。");
+    if (row.kind === "koma" && nextIds.length === 0)
+      throw new HttpError(400, "ひとコマの写真は外せません。不要なときは記録ごと削除してください。");
     await requirePhotos(db, me.id, row.groupId, nextIds, row.id);
     const removed = current.map((p) => p.id).filter((id) => !nextIds.includes(id));
     await db.batch([
       db
         .update(memoryRecords)
-        .set({ body, occurredAt: input.occurredAt ? new Date(input.occurredAt) : row.occurredAt, updatedAt: new Date() })
+        .set({
+          body,
+          occurredAt: input.occurredAt ? new Date(input.occurredAt) : row.occurredAt,
+          updatedAt: new Date(),
+        })
         .where(eq(memoryRecords.id, row.id)),
       ...(removed.length ? [db.delete(memoryPhotos).where(inArray(memoryPhotos.id, removed))] : []),
-      ...nextIds.map((pid, i) => db.update(memoryPhotos).set({ recordId: row.id, sortOrder: i }).where(eq(memoryPhotos.id, pid))),
+      ...nextIds.map((pid, i) =>
+        db.update(memoryPhotos).set({ recordId: row.id, sortOrder: i }).where(eq(memoryPhotos.id, pid)),
+      ),
     ] as unknown as Parameters<typeof db.batch>[0]);
     return c.json(await loadRecord(db, signer(c), row.id));
   })
@@ -245,7 +310,45 @@ export const memoryRoutes = createRouter()
     const db = c.get("db");
     const me = c.get("user");
     const row = await loadRecordRow(db, me.id, c.req.param("recordId"));
-    await db.insert(memoryLikes).values({ recordId: row.id, userId: me.id }).onConflictDoNothing();
+    const already = await db
+      .select({ userId: memoryLikes.userId })
+      .from(memoryLikes)
+      .where(and(eq(memoryLikes.recordId, row.id), eq(memoryLikes.userId, me.id)))
+      .get();
+    // 外して付け直しても積み過ぎないよう、同じ人と記録の未読のお知らせが既にあれば足さない。F-116、#32
+    const recipient = row.createdBy;
+    const shouldNotify = !already && recipient !== null && recipient !== me.id;
+    const dupe =
+      shouldNotify && recipient
+        ? await db
+            .select({ id: notifications.id })
+            .from(notifications)
+            .where(
+              and(
+                eq(notifications.userId, recipient),
+                eq(notifications.kind, "memories.like"),
+                isNull(notifications.readAt),
+                sql`json_extract(${notifications.payload}, '$.recordId') = ${row.id}`,
+                sql`json_extract(${notifications.payload}, '$.byUserId') = ${me.id}`,
+              ),
+            )
+            .get()
+        : undefined;
+    // いいねと通知の書き込みを 1 つの batch にまとめ、通知だけが失敗して二度と知らせなくなることを防ぐ。#32
+    await db.batch([
+      db.insert(memoryLikes).values({ recordId: row.id, userId: me.id }).onConflictDoNothing(),
+      ...(shouldNotify && !dupe && recipient
+        ? [
+            db.insert(notifications).values({
+              id: crypto.randomUUID(),
+              userId: recipient,
+              kind: "memories.like",
+              payload: { recordId: row.id, occurredAt: row.occurredAt.getTime(), byUserId: me.id },
+              createdAt: new Date(),
+            }),
+          ]
+        : []),
+    ] as unknown as Parameters<typeof db.batch>[0]);
     return c.json({ likes: await likesOf(db, row.id) });
   })
   .delete("/records/:recordId/like", async (c) => {
@@ -258,7 +361,11 @@ export const memoryRoutes = createRouter()
   .get("/:id", async (c) => {
     const db = c.get("db");
     const row = await loadMemory(db, c.get("user").id, c.req.param("id"));
-    const items = await db.select().from(memoryItems).where(eq(memoryItems.memoryId, row.id)).orderBy(asc(memoryItems.sortOrder), asc(memoryItems.createdAt));
+    const items = await db
+      .select()
+      .from(memoryItems)
+      .where(eq(memoryItems.memoryId, row.id))
+      .orderBy(asc(memoryItems.sortOrder), asc(memoryItems.createdAt));
     const s = signer(c);
     const records = await loadRecords(db, s, [row.groupId], row.startsAt.getTime(), row.endsAt.getTime());
     const memory = await toMemory(db, s, row);
@@ -266,7 +373,9 @@ export const memoryRoutes = createRouter()
     const first = dayKeyIn(row.startsAt.getTime(), row.timeZone);
     const dayCounts = Array.from({ length: Math.max(1, days) }, (_, i) => {
       const key = addDaysToKey(first, i);
-      return records.filter((r) => dayKeyIn(r.occurredAt, row.timeZone) === key).reduce((n, r) => n + r.photos.length, 0);
+      return records
+        .filter((r) => dayKeyIn(r.occurredAt, row.timeZone) === key)
+        .reduce((n, r) => n + r.photos.length, 0);
     });
     return c.json({ memory, items: items.map(toItem), dayCounts } satisfies MemoryDetail);
   })
@@ -297,10 +406,14 @@ export const memoryRoutes = createRouter()
       const ids = [...new Set(input.excludedEventIds)];
       await db.batch([
         db.delete(memoryEventExclusions).where(eq(memoryEventExclusions.memoryId, row.id)),
-        ...(ids.length ? [db.insert(memoryEventExclusions).values(ids.map((eventId) => ({ memoryId: row.id, eventId })))] : []),
+        ...(ids.length
+          ? [db.insert(memoryEventExclusions).values(ids.map((eventId) => ({ memoryId: row.id, eventId })))]
+          : []),
       ] as unknown as Parameters<typeof db.batch>[0]);
     }
-    return c.json(await toMemory(db, signer(c), (await db.select().from(memories).where(eq(memories.id, row.id)).get())!));
+    return c.json(
+      await toMemory(db, signer(c), (await db.select().from(memories).where(eq(memories.id, row.id)).get())!),
+    );
   })
   .put("/:id/events/:eventId", zValidator("json", eventLinkInput, validationHook), async (c) => {
     const db = c.get("db");
@@ -308,7 +421,9 @@ export const memoryRoutes = createRouter()
     const eventId = c.req.param("eventId");
     // 入れるなら外した印を消し、外すなら印を置く。予定が期間とグループに合うかは、画面が決めて送る
     if (c.req.valid("json").included) {
-      await db.delete(memoryEventExclusions).where(and(eq(memoryEventExclusions.memoryId, row.id), eq(memoryEventExclusions.eventId, eventId)));
+      await db
+        .delete(memoryEventExclusions)
+        .where(and(eq(memoryEventExclusions.memoryId, row.id), eq(memoryEventExclusions.eventId, eventId)));
     } else {
       await db.insert(memoryEventExclusions).values({ memoryId: row.id, eventId }).onConflictDoNothing();
     }
@@ -328,8 +443,13 @@ export const memoryRoutes = createRouter()
     const me = c.get("user");
     const row = await loadMemory(db, me.id, c.req.param("id"));
     const input = c.req.valid("json");
-    if (input.assigneeId && !(await isMember(db, row.groupId, input.assigneeId))) throw new HttpError(400, "担当はグループのメンバーから選んでください。");
-    const last = await db.select({ n: max(memoryItems.sortOrder) }).from(memoryItems).where(eq(memoryItems.memoryId, row.id)).get();
+    if (input.assigneeId && !(await isMember(db, row.groupId, input.assigneeId)))
+      throw new HttpError(400, "担当はグループのメンバーから選んでください。");
+    const last = await db
+      .select({ n: max(memoryItems.sortOrder) })
+      .from(memoryItems)
+      .where(eq(memoryItems.memoryId, row.id))
+      .get();
     const id = crypto.randomUUID();
     await db.insert(memoryItems).values({
       id,
@@ -360,8 +480,15 @@ export const memoryRoutes = createRouter()
       .from(memoryItems)
       .where(and(eq(memoryItems.memoryId, row.id), eq(memoryItems.kind, "packing")));
     const have = new Set(existing.map((e) => e.title));
-    const last = await db.select({ n: max(memoryItems.sortOrder) }).from(memoryItems).where(eq(memoryItems.memoryId, row.id)).get();
-    const members = await db.select({ id: groupMembers.userId }).from(groupMembers).where(eq(groupMembers.groupId, row.groupId));
+    const last = await db
+      .select({ n: max(memoryItems.sortOrder) })
+      .from(memoryItems)
+      .where(eq(memoryItems.memoryId, row.id))
+      .get();
+    const members = await db
+      .select({ id: groupMembers.userId })
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, row.groupId));
     const memberIds = new Set(members.map((m) => m.id));
     // 同じ名前の持ち物は写さない。担当は、写す先のグループにいる人だけ残す。印は外す
     const values = source
@@ -376,7 +503,11 @@ export const memoryRoutes = createRouter()
         sortOrder: (last?.n ?? 0) + i + 1,
       }));
     if (values.length) await db.insert(memoryItems).values(values);
-    const items = await db.select().from(memoryItems).where(eq(memoryItems.memoryId, row.id)).orderBy(asc(memoryItems.sortOrder));
+    const items = await db
+      .select()
+      .from(memoryItems)
+      .where(eq(memoryItems.memoryId, row.id))
+      .orderBy(asc(memoryItems.sortOrder));
     return c.json({ items: items.map(toItem), copied: values.length });
   })
   .patch("/:id/items/:itemId", zValidator("json", itemPatchInput, validationHook), async (c) => {
@@ -390,8 +521,14 @@ export const memoryRoutes = createRouter()
       .get();
     if (!item) throw new HttpError(404, "見つかりません。");
     const input = c.req.valid("json");
-    if (input.assigneeId && !(await isMember(db, row.groupId, input.assigneeId))) throw new HttpError(400, "担当はグループのメンバーから選んでください。");
-    const done = input.done === undefined ? undefined : input.done ? { doneAt: new Date(), doneBy: me.id } : { doneAt: null, doneBy: null };
+    if (input.assigneeId && !(await isMember(db, row.groupId, input.assigneeId)))
+      throw new HttpError(400, "担当はグループのメンバーから選んでください。");
+    const done =
+      input.done === undefined
+        ? undefined
+        : input.done
+          ? { doneAt: new Date(), doneBy: me.id }
+          : { doneAt: null, doneBy: null };
     await db
       .update(memoryItems)
       .set({
@@ -439,4 +576,3 @@ async function likesOf(db: DB, recordId: string): Promise<string[]> {
     .orderBy(asc(memoryLikes.createdAt));
   return rows.map((r) => r.userId);
 }
-

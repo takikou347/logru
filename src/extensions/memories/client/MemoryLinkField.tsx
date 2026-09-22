@@ -1,10 +1,9 @@
+import type { ItemAddonProps } from "@extensions/client/types";
 import { useEffect, useRef, useState } from "react";
-import { PanelRow } from "@/components/Panel";
+import { PanelRow } from "@/components/parts/Panel";
 import { Switch } from "@/components/ui/switch";
-import { api } from "@/lib/api";
-import type { ItemAddonProps } from "../../types.client";
 import { candidatesOf, memoryOfEvent } from "../shared/links";
-import { useInvalidateMemories, useMemoryGroups, useMemoryList } from "./api";
+import { useInvalidateMemories, useLinkEventToMemory, useMemoryGroups, useMemoryList } from "./api";
 
 /**
  * 予定のシートに足す「思い出に入れる」の欄。0020
@@ -16,6 +15,7 @@ export function MemoryLinkField({ draft, register, disabled }: ItemAddonProps) {
   const usable = groups.some((g) => g.id === draft.groupId);
   const list = useMemoryList(usable ? draft.groupId : null);
   const invalidate = useInvalidateMemories();
+  const linkEvent = useLinkEventToMemory();
   const memories = usable ? (list.data?.memories ?? []).filter((m) => m.groupId === draft.groupId) : [];
   const probe = { id: draft.id ?? "", groupId: draft.groupId, startsAt: draft.startsAt, endsAt: draft.endsAt };
   const candidate = candidatesOf(probe, memories)[0];
@@ -32,10 +32,10 @@ export function MemoryLinkField({ draft, register, disabled }: ItemAddonProps) {
       register(async (itemId) => {
         const { target: m, included: on, changed } = state.current;
         if (!m || !changed) return;
-        await api(`/memories/${m.id}/events/${itemId}`, { method: "PUT", body: { included: on } });
+        await linkEvent.mutateAsync({ memoryId: m.id, itemId, included: on });
         await invalidate();
       }),
-    [register, invalidate],
+    [register, invalidate, linkEvent],
   );
 
   if (!target) return null;
@@ -46,7 +46,12 @@ export function MemoryLinkField({ draft, register, disabled }: ItemAddonProps) {
         <br />
         <span className="text-xs text-ink-2">{target.title}</span>
       </span>
-      <Switch checked={included} disabled={disabled} aria-label={`「${target.title}」に入れる`} onCheckedChange={setPicked} />
+      <Switch
+        checked={included}
+        disabled={disabled}
+        aria-label={`「${target.title}」に入れる`}
+        onCheckedChange={setPicked}
+      />
     </PanelRow>
   );
 }

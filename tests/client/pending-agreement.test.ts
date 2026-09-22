@@ -1,6 +1,10 @@
+import { LEGAL_VERSIONS } from "@shared/legal";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { LEGAL_VERSIONS } from "../../src/shared/legal";
-import { forgetAgreement, rememberAgreement, takeRememberedAgreement } from "../../src/client/modules/auth/pending-agreement";
+import {
+  forgetAgreement,
+  rememberAgreement,
+  takeRememberedAgreement,
+} from "../../src/client/modules/auth/pending-agreement";
 
 describe("登録の画面で受けた同意", () => {
   beforeEach(() => {

@@ -1,4 +1,4 @@
-import { type APIRequestContext, type Page, expect, test } from "@playwright/test";
+import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
 import { apiUser, dayPanel, signUp } from "./helpers";
 
 /** 手元の開発のときだけ Worker が配る、見本の iCal。今日の打ち合わせ、明日からの旅行、毎週の読書会が入る */
@@ -129,7 +129,10 @@ test("https でない URL は断り、読めない URL は登録して理由を�
   await expect(row.getByRole("alert")).toContainText("カレンダーが見つかりません。");
 });
 
-test("取り込んだ予定は本人だけに出て、グループの拡張の切り替えにも出ない。退会すると登録も消える", async ({ request, baseURL }) => {
+test("取り込んだ予定は本人だけに出て、グループの拡張の切り替えにも出ない。退会すると登録も消える", async ({
+  request,
+  baseURL,
+}) => {
   const owner = await agreedUser(request);
   const other = await agreedUser(request);
   const created = await request.post("/api/external-calendars", {

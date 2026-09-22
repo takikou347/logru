@@ -1,6 +1,6 @@
 /** ひとコマの読み書き。0022 */
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { api } from "@/api/client";
 import type { KomaDay, KomaNow } from "../shared/types";
 
 export const komaKeys = { now: ["memories", "koma", "now"] as const, days: ["memories", "koma", "days"] as const };
@@ -24,5 +24,39 @@ export function useKomaNow(enabled = true) {
 
 /** 自分のひとコマを日ごとに */
 export function useKomaDays() {
-  return useQuery({ queryKey: komaKeys.days, queryFn: () => api<{ days: KomaDay[] }>("/memories/koma").then((r) => r.days) });
+  return useQuery({
+    queryKey: komaKeys.days,
+    queryFn: () => api<{ days: KomaDay[] }>("/memories/koma").then((r) => r.days),
+  });
+}
+
+/** ある日のひとコマの、共有先と思い出のつなぎを保存する。muted を渡すと通知のオン・オフも変える */
+export function useSaveKomaDay() {
+  return useMutation({
+    mutationFn: ({
+      day,
+      groupId,
+      memoryId,
+      timeZone,
+      muted,
+    }: {
+      day: string;
+      groupId: string;
+      memoryId: string | null;
+      timeZone: string;
+      muted?: boolean;
+    }) =>
+      api(`/memories/koma/days/${day}`, {
+        method: "PUT",
+        body: { groupId, memoryId, timeZone, ...(muted === undefined ? {} : { muted }) },
+      }),
+  });
+}
+
+/** いまの枠のひとコマを保存する */
+export function useSaveKomaNow() {
+  return useMutation({
+    mutationFn: ({ photoId, slot, body }: { photoId: string; slot: number; body: string | null }) =>
+      api("/memories/koma", { method: "PUT", body: { photoId, slot, body } }),
+  });
 }

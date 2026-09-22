@@ -2,17 +2,24 @@
  * 土台の API の入力の検証。画面の入力とサーバーの検証で同じものを使う。
  * 拡張の入力は src/extensions/<名前>/shared/ に置く。
  */
+
+import { ACCENT_COLOR_KEYS, GROUP_COLOR_KEYS } from "@shared/colors";
+import { HOME_WIDGET_SIZES, isValidHomeLayout } from "@shared/home";
 import { z } from "zod";
-import { ACCENT_COLOR_KEYS, GROUP_COLOR_KEYS } from "./colors";
 
 /** グループの色と、自分の色の名前 */
-export const groupColorSchema = z.enum(GROUP_COLOR_KEYS);
+const groupColorSchema = z.enum(GROUP_COLOR_KEYS);
 /** テーマカラーの名前 */
-export const accentColorSchema = z.enum(ACCENT_COLOR_KEYS);
+const accentColorSchema = z.enum(ACCENT_COLOR_KEYS);
 
-/** `PUT /api/me/settings`。F-13、F-14 */
+/**
+ * `PUT /api/me/settings`。F-13、F-14、F-30
+ * bgTheme は任意。PWA の古い画面は Service Worker が新しくなるまで送ってこないことがあるが、
+ * drizzle は undefined の項目を `set` に入れないので、送らなければ保存してある値がそのまま残る。#63
+ */
 export const settingsInput = z.object({
   themeMode: z.enum(["system", "light", "dark"]),
+  bgTheme: z.enum(["glass", "flat"]).optional(),
   accentColor: accentColorSchema,
   userColor: groupColorSchema,
 });
@@ -61,7 +68,7 @@ export const pushSubscriptionInput = z.object({
 export const extensionToggleInput = z.object({ enabled: z.boolean() });
 
 /** カレンダーで 1 回に読める期間の上限。100 日 */
-export const MAX_RANGE_MS = 100 * 24 * 60 * 60 * 1000;
+const MAX_RANGE_MS = 100 * 24 * 60 * 60 * 1000;
 
 /** `GET /api/calendar` の問い合わせ。group はカンマで区切ったグループの ID */
 export const calendarQuery = z
@@ -73,3 +80,17 @@ export const calendarQuery = z
   .refine((v) => v.to > v.from && v.to - v.from <= MAX_RANGE_MS, { message: "期間が正しくありません。" });
 
 export type SettingsInput = z.infer<typeof settingsInput>;
+
+/** `GET /api/me/home-layout` の問い合わせ。0029 */
+export const homeLayoutQuery = z.object({ form: z.enum(["desktop", "mobile"]) });
+
+/** `PUT /api/me/home-layout`。並びに同じ key を 2 つ許さず、カレンダーの本体を必ず含む。0029 */
+export const homeLayoutInput = z
+  .object({
+    form: z.enum(["desktop", "mobile"]),
+    widgets: z
+      .array(z.object({ key: z.string().min(1).max(80), size: z.enum(HOME_WIDGET_SIZES) }))
+      .min(1)
+      .max(60),
+  })
+  .refine((v) => isValidHomeLayout(v.widgets), { message: "並びが正しくありません。" });

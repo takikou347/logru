@@ -13,7 +13,9 @@ describe("enabledKeys", () => {
       { isPersonal: true, extensions: ["memories"] },
       { isPersonal: false, extensions: [] },
     ];
-    expect(enabledKeys([x("events", true), x("memories"), x("money")], groups)).toEqual(new Set(["events", "memories"]));
+    expect(enabledKeys([x("events", true), x("memories"), x("money")], groups)).toEqual(
+      new Set(["events", "memories"]),
+    );
   });
 
   it("共有のグループで有効でも、本人が使わないなら使えない", () => {

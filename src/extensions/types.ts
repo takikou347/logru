@@ -26,4 +26,10 @@ export type ExtensionManifest = {
    * 項目は登録した本人にだけ、その人の自分だけのグループの項目として出す
    */
   perUser?: boolean;
+  /**
+   * この拡張が土台の notify() で積む、お知らせの kind の一覧。`<この key>.<名前>` の形。#32
+   * `/api/notifications/unread-count` は、ここに載っている kind だけを数える。
+   * 画面の describeNotification が出せない kind を数えて、一覧は空なのに数字が出ることを防ぐ
+   */
+  notificationKinds?: string[];
 };

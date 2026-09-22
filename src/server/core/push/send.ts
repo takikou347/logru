@@ -1,7 +1,7 @@
+import type { DB } from "@server/core/db/client";
+import { pushSubscriptions } from "@server/core/db/schema";
+import { sendWebPush, type VapidKeys } from "@server/core/push/web-push";
 import { eq, inArray, sql } from "drizzle-orm";
-import type { DB } from "../db/client";
-import { pushSubscriptions } from "../db/schema";
-import { type VapidKeys, sendWebPush } from "./web-push";
 
 /** 知らせの中身。Service Worker の push-sw.js が読む */
 export type PushPayload = {
@@ -20,7 +20,11 @@ const MAX_FAILURES = 5;
 export function vapidKeys(env: Env): VapidKeys | null {
   const e = env as Env & { VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string };
   if (!e.VAPID_PUBLIC_KEY || !e.VAPID_PRIVATE_KEY) return null;
-  return { publicKey: e.VAPID_PUBLIC_KEY, privateKey: e.VAPID_PRIVATE_KEY, subject: e.VAPID_SUBJECT || "mailto:tkkwkut@gmail.com" };
+  return {
+    publicKey: e.VAPID_PUBLIC_KEY,
+    privateKey: e.VAPID_PRIVATE_KEY,
+    subject: e.VAPID_SUBJECT || "mailto:tkkwkut@gmail.com",
+  };
 }
 
 /**
@@ -47,7 +51,8 @@ export async function sendPush(db: DB, env: Env, userIds: string[], payload: Pus
     }
     if (status >= 200 && status < 300) {
       sent += 1;
-      if (t.failedCount) await db.update(pushSubscriptions).set({ failedCount: 0 }).where(eq(pushSubscriptions.id, t.id));
+      if (t.failedCount)
+        await db.update(pushSubscriptions).set({ failedCount: 0 }).where(eq(pushSubscriptions.id, t.id));
     } else if (status === 404 || status === 410 || t.failedCount + 1 >= MAX_FAILURES) {
       await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, t.id));
     } else {

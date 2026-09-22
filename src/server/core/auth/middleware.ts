@@ -1,10 +1,10 @@
+import { type AppEnv, HttpError, isLocalDev } from "@server/core/app";
+import { InvalidTokenError, verifyFirebaseToken } from "@server/core/auth/verify-token";
+import { legalAgreements } from "@server/core/db/schema";
+import { ensureUser } from "@server/modules/users/onboarding";
+import { LEGAL_VERSIONS, type LegalDocument } from "@shared/legal";
 import { and, eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
-import { LEGAL_VERSIONS, type LegalDocument } from "../../../shared/legal";
-import { ensureUser } from "../../modules/users/onboarding";
-import { type AppEnv, HttpError, isLocalDev } from "../app";
-import { legalAgreements } from "../db/schema";
-import { InvalidTokenError, verifyFirebaseToken } from "./verify-token";
 
 /**
  * ログインしていなければ 401 を返す。通れば c.get("user") に利用者が入る。
@@ -28,7 +28,11 @@ export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
     throw e;
   }
   if (claims.provider === "password" && !claims.emailVerified) {
-    throw new HttpError(403, "メールアドレスを確かめてください。届いたメールのリンクを開いてください。", "EMAIL_NOT_VERIFIED");
+    throw new HttpError(
+      403,
+      "メールアドレスを確かめてください。届いたメールのリンクを開いてください。",
+      "EMAIL_NOT_VERIFIED",
+    );
   }
 
   const user = await ensureUser(c.get("db"), claims);
@@ -54,7 +58,10 @@ export const requireAgreement = createMiddleware<AppEnv>(async (c, next) => {
  * @param userId 利用者の ID
  */
 export async function missingAgreements(db: AppEnv["Variables"]["db"], userId: string): Promise<LegalDocument[]> {
-  const agreed = await db.select().from(legalAgreements).where(and(eq(legalAgreements.userId, userId)));
+  const agreed = await db
+    .select()
+    .from(legalAgreements)
+    .where(and(eq(legalAgreements.userId, userId)));
   return (Object.keys(LEGAL_VERSIONS) as LegalDocument[]).filter(
     (doc) => !agreed.some((a) => a.document === doc && a.version === LEGAL_VERSIONS[doc]),
   );

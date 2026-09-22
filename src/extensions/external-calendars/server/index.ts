@@ -1,4 +1,4 @@
-import type { ServerExtension } from "../../types.server";
+import type { ServerExtension } from "@extensions/server/types";
 import { externalCalendarsManifest } from "../manifest";
 import { listExternalEvents } from "./provider";
 import { externalCalendarRoutes } from "./routes";

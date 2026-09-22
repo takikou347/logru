@@ -1,5 +1,5 @@
+import { GROUP_COLOR_KEYS } from "@shared/colors";
 import { z } from "zod";
-import { GROUP_COLOR_KEYS } from "../../../shared/colors";
 
 /** 外部のカレンダーを登録するときの入力 */
 export const externalCalendarInput = z.object({

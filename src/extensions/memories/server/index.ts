@@ -1,10 +1,10 @@
+import type { ServerExtension } from "@extensions/server/types";
+import type { DB } from "@server/core/db/client";
 import { and, eq } from "drizzle-orm";
-import type { DB } from "../../../server/core/db/client";
-import type { ServerExtension } from "../../types.server";
 import { memoriesManifest } from "../manifest";
+import { notifyKoma } from "./koma";
 import { listMemoryItems } from "./provider";
 import { memoryRoutes } from "./routes";
-import { notifyKoma } from "./koma";
 import { cleanUpPhotos } from "./scheduled";
 import * as schema from "./schema";
 
@@ -13,7 +13,9 @@ import * as schema from "./schema";
  * 記録と写真は、グループの記録として残す。
  */
 async function leaveKomaDays(db: DB, groupId: string, userId: string) {
-  await db.delete(schema.memoryKomaDays).where(and(eq(schema.memoryKomaDays.groupId, groupId), eq(schema.memoryKomaDays.userId, userId)));
+  await db
+    .delete(schema.memoryKomaDays)
+    .where(and(eq(schema.memoryKomaDays.groupId, groupId), eq(schema.memoryKomaDays.userId, userId)));
 }
 
 /** 思い出の拡張のサーバー側 */

@@ -1,7 +1,7 @@
+import { expiryFor, isJpeg, PhotoSigner, photoKey, verifyPhotoUrl } from "@extensions/memories/server/photos";
+import { addDaysToKey, dayIndexOf, dayKeyIn, hourIn, memoryDays, startOfDayIn } from "@extensions/memories/shared/days";
+import { memoryInput, recordInput } from "@extensions/memories/shared/schemas";
 import { describe, expect, it } from "vitest";
-import { addDaysToKey, dayIndexOf, dayKeyIn, hourIn, memoryDays, startOfDayIn } from "../../src/extensions/memories/shared/days";
-import { memoryInput, recordInput } from "../../src/extensions/memories/shared/schemas";
-import { PhotoSigner, expiryFor, isJpeg, photoKey, verifyPhotoUrl } from "../../src/extensions/memories/server/photos";
 
 describe("思い出の日付", () => {
   it("時間帯での 0 時を UTC で返す", () => {
@@ -19,7 +19,11 @@ describe("思い出の日付", () => {
     expect(addDaysToKey("2026-09-30", 1)).toBe("2026-10-01");
   });
 
-  const memory = { startsAt: startOfDayIn("2026-09-19", "Asia/Tokyo"), endsAt: startOfDayIn("2026-09-21", "Asia/Tokyo"), timeZone: "Asia/Tokyo" };
+  const memory = {
+    startsAt: startOfDayIn("2026-09-19", "Asia/Tokyo"),
+    endsAt: startOfDayIn("2026-09-21", "Asia/Tokyo"),
+    timeZone: "Asia/Tokyo",
+  };
 
   it("思い出の日を並べる", () => {
     expect(memoryDays(memory)).toEqual(["2026-09-19", "2026-09-20"]);
@@ -33,7 +37,13 @@ describe("思い出の日付", () => {
 });
 
 describe("思い出の入力", () => {
-  const base = { groupId: "g", title: "箱根 1 泊", firstDay: "2026-09-19", lastDay: "2026-09-20", timeZone: "Asia/Tokyo" };
+  const base = {
+    groupId: "g",
+    title: "箱根 1 泊",
+    firstDay: "2026-09-19",
+    lastDay: "2026-09-20",
+    timeZone: "Asia/Tokyo",
+  };
 
   it("32 日以上と、終わりが始まりより前は断る。F-101", () => {
     expect(memoryInput.safeParse(base).success).toBe(true);
@@ -88,14 +98,18 @@ describe("写真の URL", () => {
   });
 });
 
-import { hourStartIn, openSlots, slotAt, slotsOfDay } from "../../src/extensions/memories/shared/koma";
+import { hourStartIn, openSlots, slotAt, slotsOfDay } from "@extensions/memories/shared/koma";
 
 describe("ひとコマの枠。0022", () => {
   const tz = "Asia/Tokyo";
   it("7 時台から 22 時台の外は枠が無い", () => {
     expect(slotAt(Date.parse("2026-09-22T06:59:00+09:00"), tz)).toBeNull();
     expect(slotAt(Date.parse("2026-09-22T23:00:00+09:00"), tz)).toBeNull();
-    expect(slotAt(Date.parse("2026-09-22T14:37:12+09:00"), tz)).toEqual({ start: Date.parse("2026-09-22T14:00:00+09:00"), hour: 14, day: "2026-09-22" });
+    expect(slotAt(Date.parse("2026-09-22T14:37:12+09:00"), tz)).toEqual({
+      start: Date.parse("2026-09-22T14:00:00+09:00"),
+      hour: 14,
+      day: "2026-09-22",
+    });
   });
 
   it("過ぎてから 5 分は、前の枠にも残せる", () => {
@@ -105,7 +119,9 @@ describe("ひとコマの枠。0022", () => {
   });
 
   it("30 分ずれた時間帯でも、1 時間の始まりに合う", () => {
-    expect(new Date(hourStartIn(Date.parse("2026-09-22T10:10:00Z"), "Asia/Kolkata")).toISOString()).toBe("2026-09-22T09:30:00.000Z");
+    expect(new Date(hourStartIn(Date.parse("2026-09-22T10:10:00Z"), "Asia/Kolkata")).toISOString()).toBe(
+      "2026-09-22T09:30:00.000Z",
+    );
   });
 
   it("1 日の枠は 16 個", () => {
@@ -114,12 +130,17 @@ describe("ひとコマの枠。0022", () => {
   });
 });
 
-import { memoryOfEvent } from "../../src/extensions/memories/shared/links";
+import { memoryOfEvent } from "@extensions/memories/shared/links";
 
 describe("予定がどの思い出に入るか。0020", () => {
   const day = (d: number) => Date.parse(`2026-09-${String(d).padStart(2, "0")}T00:00:00+09:00`);
   const trip = { id: "trip", groupId: "g", startsAt: day(19), endsAt: day(21), excludedEventIds: [] as string[] };
-  const event = (id: string, start: number, end: number | null, groupId = "g") => ({ id, groupId, startsAt: start, endsAt: end });
+  const event = (id: string, start: number, end: number | null, groupId = "g") => ({
+    id,
+    groupId,
+    startsAt: start,
+    endsAt: end,
+  });
 
   it("期間に重なる同じグループの予定は、自動で入る", () => {
     expect(memoryOfEvent(event("e", day(19) + 3_600_000, day(19) + 7_200_000), [trip])?.id).toBe("trip");

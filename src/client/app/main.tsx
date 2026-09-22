@@ -5,9 +5,10 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";
+import { setApiFailureHandlers } from "@/api/client";
+import { keys } from "@/api/keys";
+import { queryClient } from "@/api/query-client";
 import { Toaster } from "@/components/ui/sonner";
-import { setApiFailureHandlers } from "@/lib/api";
-import { keys, queryClient } from "@/lib/queries";
 import { isSessionExpired, markSessionExpired } from "@/lib/session-expired";
 import { applyTheme, readStoredTheme, watchSystemTheme } from "@/lib/theme";
 import { AuthProvider, signOut } from "./auth";
@@ -48,7 +49,7 @@ window.setTimeout(() => {
 }, 10_000);
 
 const stored = readStoredTheme();
-applyTheme(stored.mode, stored.accent);
+applyTheme(stored.mode, stored.bgTheme, stored.accent);
 watchSystemTheme();
 
 // 開発中だけ。?debug=noblur,nopools で見た目の効果を切る。globals.css の data-debug を見る。#3

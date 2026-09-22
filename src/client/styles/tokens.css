@@ -14,7 +14,8 @@
   --glass-flat: rgba(236, 241, 238, 0.92);
   --glass-edge: rgba(255, 255, 255, 0.72);
   --glass-shine: rgba(255, 255, 255, 0.55);
-  --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(23, 32, 44, 0.06),
+  --glass-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(23, 32, 44, 0.06),
     0 18px 40px -18px rgba(23, 32, 44, 0.35);
   --scrim: rgba(10, 14, 20, 0.22);
   --pool-opacity: 0.78;
@@ -59,8 +60,8 @@
   --glass-flat: rgba(28, 34, 44, 0.94);
   --glass-edge: rgba(255, 255, 255, 0.14);
   --glass-shine: rgba(255, 255, 255, 0.1);
-  --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.3),
-    0 18px 40px -18px rgba(0, 0, 0, 0.7);
+  --glass-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.3), 0 18px 40px -18px rgba(0, 0, 0, 0.7);
   --scrim: rgba(0, 0, 0, 0.45);
   --pool-opacity: 0.5;
 
@@ -81,29 +82,79 @@
   --on-accent: #10151c;
 }
 
-:root[data-accent="fukamidori"] { --accent: var(--fukamidori); }
-:root[data-accent="kon"] { --accent: var(--kon); }
-:root[data-accent="beni"] { --accent: var(--beni); }
-:root[data-accent="kogecha"] { --accent: var(--kogecha); }
+:root[data-accent="fukamidori"] {
+  --accent: var(--fukamidori);
+}
+:root[data-accent="kon"] {
+  --accent: var(--kon);
+}
+:root[data-accent="beni"] {
+  --accent: var(--beni);
+}
+:root[data-accent="kogecha"] {
+  --accent: var(--kogecha);
+}
 
 /* ぼかしが重い端末では、ぼかしを切って塗る */
 @supports not (backdrop-filter: blur(1px)) {
-  :root { --glass: var(--glass-flat); }
+  :root {
+    --glass: var(--glass-flat);
+  }
 }
 @media (prefers-reduced-transparency: reduce) {
-  :root { --glass: var(--glass-flat); --blur: none; --glass-filter: none; }
+  :root {
+    --glass: var(--glass-flat);
+    --blur: none;
+    --glass-filter: none;
+  }
 }
 
-.c-wakatake { --c: var(--wakatake); }
-.c-yamabuki { --c: var(--yamabuki); }
-.c-asagi { --c: var(--asagi); }
-.c-toki { --c: var(--toki); }
-.c-fuji { --c: var(--fuji); }
-.c-kaki { --c: var(--kaki); }
-.c-moegi { --c: var(--moegi); }
-.c-nezumi { --c: var(--nezumi); }
-.c-aizumi { --c: var(--aizumi); }
-.c-fukamidori { --c: var(--fukamidori); }
-.c-kon { --c: var(--kon); }
-.c-beni { --c: var(--beni); }
-.c-kogecha { --c: var(--kogecha); }
+/*
+ * 背景のテーマ「平ら」。端末の「透明度を下げる」と同じ --glass-flat を常に使い、ぼかしも切る。
+ * インクだまりと思い出の表紙は変えない。グループの色と写真は、奥の色としてそのまま残す。#50、0010、0024
+ */
+:root[data-bg-theme="flat"] {
+  --glass: var(--glass-flat);
+  --blur: none;
+  --glass-filter: none;
+}
+
+.c-wakatake {
+  --c: var(--wakatake);
+}
+.c-yamabuki {
+  --c: var(--yamabuki);
+}
+.c-asagi {
+  --c: var(--asagi);
+}
+.c-toki {
+  --c: var(--toki);
+}
+.c-fuji {
+  --c: var(--fuji);
+}
+.c-kaki {
+  --c: var(--kaki);
+}
+.c-moegi {
+  --c: var(--moegi);
+}
+.c-nezumi {
+  --c: var(--nezumi);
+}
+.c-aizumi {
+  --c: var(--aizumi);
+}
+.c-fukamidori {
+  --c: var(--fukamidori);
+}
+.c-kon {
+  --c: var(--kon);
+}
+.c-beni {
+  --c: var(--beni);
+}
+.c-kogecha {
+  --c: var(--kogecha);
+}

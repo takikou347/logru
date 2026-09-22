@@ -1,10 +1,11 @@
 import { Camera } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
+import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/AppLayout";
+import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { useCalendar, useMe } from "@/lib/queries";
+import { useCalendar } from "@/modules/calendar/api";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { DAY_MS, DEFAULT_TIME_ZONE, startOfDayIn } from "../shared/days";
 import type { MemoryRecord } from "../shared/types";
@@ -12,7 +13,7 @@ import { useMemoryGroups, useMemoryList, useRecords } from "./api";
 import { Dock } from "./Dock";
 import { Flow } from "./Flow";
 import { entriesOf, Lightbox } from "./Lightbox";
-import { Ambient, GroupFilter, PhotoImg, SideGroupFilter, formatSpan } from "./parts";
+import { Ambient, formatSpan, GroupFilter, PhotoImg, SideGroupFilter } from "./parts";
 import { RecordSheet } from "./RecordSheet";
 
 /**
@@ -42,23 +43,48 @@ export function OnDayPage() {
   const events = (calendar.data ?? []).filter((e) => e.extension === "events" && usable.has(e.groupId));
   const memory = (list.data?.memories ?? []).find((m) => m.startsAt < to && m.endsAt > from);
   const entries = entriesOf(records.data ?? []);
-  const title = valid ? new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "short", timeZone: "UTC" }).format(Date.parse(date)) : "その日";
+  const title = valid
+    ? new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "short", timeZone: "UTC" }).format(
+        Date.parse(date),
+      )
+    : "その日";
 
   return (
     <AppLayout
       poolColors={poolColorsOf(groups, data)}
-      side={<SideGroupFilter groups={groups} me={data} value={group} onChange={(v) => setParams(v ? { group: v } : {}, { replace: true })} />}
+      side={
+        <SideGroupFilter
+          groups={groups}
+          me={data}
+          value={group}
+          onChange={(v) => setParams(v ? { group: v } : {}, { replace: true })}
+        />
+      }
     >
       <Ambient photo={memory?.cover ?? null} />
       <Page>
         <PageBar title={title} back="/memories" />
-        <GroupFilter groups={groups} me={data} value={group} onChange={(v) => setParams(v ? { group: v } : {}, { replace: true })} />
+        <GroupFilter
+          groups={groups}
+          me={data}
+          value={group}
+          onChange={(v) => setParams(v ? { group: v } : {}, { replace: true })}
+        />
         {memory && (
-          <Link to={`/memories/${memory.id}`} className="glass grid grid-cols-[72px_1fr] items-center gap-3 rounded-3xl p-2 no-underline">
-            {memory.cover ? <PhotoImg photo={memory.cover} className="size-[72px] rounded-2xl" /> : <span className="size-[72px] rounded-2xl bg-field" />}
+          <Link
+            to={`/memories/${memory.id}`}
+            className="glass grid grid-cols-[72px_1fr] items-center gap-3 rounded-3xl p-2 no-underline"
+          >
+            {memory.cover ? (
+              <PhotoImg photo={memory.cover} className="size-[72px] rounded-2xl" />
+            ) : (
+              <span className="size-[72px] rounded-2xl bg-field" />
+            )}
             <span>
               <b className="block">{memory.title}</b>
-              <small className="text-xs text-ink-2">{formatSpan(memory.startsAt, memory.endsAt, memory.timeZone)}・思い出を開く</small>
+              <small className="text-xs text-ink-2">
+                {formatSpan(memory.startsAt, memory.endsAt, memory.timeZone)}・思い出を開く
+              </small>
             </span>
           </Link>
         )}
@@ -78,9 +104,34 @@ export function OnDayPage() {
           </Button>
         </Dock>
       </Page>
-      {recording && <RecordSheet groups={groups} me={data} defaultGroupId={group} range={{ min: from, max: to - 1 }} onClose={() => setRecording(false)} />}
-      {editing && <RecordSheet groups={groups} me={data} record={editing} range={{ min: from, max: to - 1 }} onClose={() => setEditing(null)} />}
-      {photoAt !== null && photoAt >= 0 && <Lightbox entries={entries} index={photoAt} onIndex={setPhotoAt} onClose={() => setPhotoAt(null)} groups={groups} me={data} />}
+      {recording && (
+        <RecordSheet
+          groups={groups}
+          me={data}
+          defaultGroupId={group}
+          range={{ min: from, max: to - 1 }}
+          onClose={() => setRecording(false)}
+        />
+      )}
+      {editing && (
+        <RecordSheet
+          groups={groups}
+          me={data}
+          record={editing}
+          range={{ min: from, max: to - 1 }}
+          onClose={() => setEditing(null)}
+        />
+      )}
+      {photoAt !== null && photoAt >= 0 && (
+        <Lightbox
+          entries={entries}
+          index={photoAt}
+          onIndex={setPhotoAt}
+          onClose={() => setPhotoAt(null)}
+          groups={groups}
+          me={data}
+        />
+      )}
     </AppLayout>
   );
 }

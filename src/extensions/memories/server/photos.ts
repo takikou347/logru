@@ -31,11 +31,17 @@ const encoder = new TextEncoder();
 /** 署名の鍵を読み込む。鍵が無ければ、写真を配れないので止める */
 async function importKey(secret: string | undefined): Promise<CryptoKey> {
   if (!secret) throw new Error("MEMORIES_PHOTO_KEY が置かれていません。");
-  return crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+  return crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, [
+    "sign",
+    "verify",
+  ]);
 }
 
 function toBase64Url(buf: ArrayBuffer): string {
-  return btoa(String.fromCharCode(...new Uint8Array(buf))).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
 }
 
 function fromBase64Url(s: string): Uint8Array | null {

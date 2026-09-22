@@ -6,4 +6,5 @@ export const memoriesManifest: ExtensionManifest = {
   label: "思い出",
   description: "旅行やお出かけのしおりと、写真の記録をまとめる。ふとした出来事も、その日に残せる。",
   alwaysOn: false,
+  notificationKinds: ["memories.like"],
 };

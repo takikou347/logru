@@ -1,0 +1,14 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/client/app/main.tsx",
+    "src/server/index.ts",
+    "src/extensions/client/registry.ts",
+    "src/extensions/server/registry.ts",
+    "e2e/**/*.spec.ts",
+    "tests/**/*.test.ts",
+    "scripts/**/*.{mjs,js,ts}"
+  ],
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignoreDependencies": ["tailwindcss", "tw-animate-css"]
+}

@@ -1,9 +1,9 @@
+import { extensionSchemas } from "@extensions/server/registry";
+import * as core from "@server/core/db/schema";
 import { drizzle } from "drizzle-orm/d1";
-import { extensionSchemas } from "../../../extensions/registry.server";
-import * as core from "./schema";
 
 /** 土台の表と、すべての拡張の表 */
-export const schema = { ...core, ...extensionSchemas };
+const schema = { ...core, ...extensionSchemas };
 
 /**
  * D1 を Drizzle で包む。要求ごとに 1 つ作る。

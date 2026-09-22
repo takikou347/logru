@@ -1,13 +1,19 @@
 /** 画面と API がやり取りする形。API の応答はここの型に合わせる */
-import type { LegalDocument } from "./legal";
+import type { LegalDocument } from "@shared/legal";
 
 /** 明るさの設定。system は端末に合わせる */
 export type ThemeMode = "system" | "light" | "dark";
 
+/** アバターの出し方。既定は頭文字。#40 */
+export type AvatarKind = "initial" | "photo";
+
+/** 背景のテーマ。glass は奥を透かすガラス、flat は透かさず塗る。#50 */
+export type BgTheme = "glass" | "flat";
+
 /** `GET /api/me` の応答 */
 export type Me = {
-  user: { id: string; name: string; email: string; image: string | null };
-  settings: { themeMode: ThemeMode; accentColor: string; userColor: string };
+  user: { id: string; name: string; email: string; image: string | null; avatarUrl: string | null };
+  settings: { themeMode: ThemeMode; bgTheme: BgTheme; accentColor: string; userColor: string; avatarKind: AvatarKind };
   /** 同意を取り直す文書。空なら同意済み */
   needsAgreement: LegalDocument[];
   /** ログインに使った手段。`google.com` か `password` */
@@ -19,7 +25,14 @@ export type Me = {
 };
 
 /** グループのメンバー */
-export type GroupMember = { id: string; name: string; userColor: string; role: "admin" | "member" };
+export type GroupMember = {
+  id: string;
+  name: string;
+  userColor: string;
+  role: "admin" | "member";
+  /** 置いた写真の URL。頭文字を選んでいるか、写真が無ければ null。#40 */
+  avatarUrl: string | null;
+};
 
 /** `GET /api/groups` の 1 件 */
 export type GroupSummary = {
@@ -101,3 +114,29 @@ export type PushInfo = {
   publicKey: string | null;
   devices: { id: string; endpoint: string; userAgent: string | null; createdAt: number }[];
 };
+
+/** ホームの並びを持つ形。PC とスマホで別に持つ。0029 */
+export type HomeForm = "desktop" | "mobile";
+
+/** ウィジェットの大きさ。0029 */
+export type HomeWidgetSize = "small" | "medium" | "large";
+
+/** 並びの 1 件。ウィジェットの中身は持たず、key と大きさだけ */
+export type HomeWidgetEntry = { key: string; size: HomeWidgetSize };
+
+/** `GET`、`PUT /api/me/home-layout` の応答。保存がまだ無ければ widgets は null。0029 */
+export type HomeLayout = { widgets: HomeWidgetEntry[] | null };
+
+/** お知らせの一覧の 1 件。文言と行き先は、積んだ拡張の describeNotification が決める。#32 */
+export type NotificationItem = {
+  id: string;
+  /** `<拡張の key>.<拡張が決めた名前>` の形。例は `events.invite_accepted` */
+  kind: string;
+  payload: Record<string, unknown>;
+  /** 既読にした時刻。まだなら null */
+  readAt: number | null;
+  createdAt: number;
+};
+
+/** `GET /api/notifications` の応答。25 件ずつのページ */
+export type NotificationPage = { items: NotificationItem[]; nextCursor: string | null };

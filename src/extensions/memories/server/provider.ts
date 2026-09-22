@@ -1,11 +1,11 @@
+import type { DB } from "@server/core/db/client";
+import type { CalendarItem } from "@shared/api-types";
 import { and, gt, gte, inArray, lt } from "drizzle-orm";
-import type { CalendarItem } from "../../../shared/api-types";
-import type { DB } from "../../../server/core/db/client";
 import { DAY_MS, DEFAULT_TIME_ZONE, dayKeyIn, startOfDayIn } from "../shared/days";
 import { memories, memoryRecords } from "./schema";
 
 /** カレンダーの項目の ID の頭。思い出と、日ごとにまとめた記録を見分ける */
-export const ITEM_PREFIX = { memory: "m:", records: "r:" } as const;
+const ITEM_PREFIX = { memory: "m:", records: "r:" } as const;
 
 /**
  * カレンダーに渡す項目。0008
@@ -22,11 +22,23 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
   const rows = await db
     .select()
     .from(memories)
-    .where(and(inArray(memories.groupId, groupIds), lt(memories.startsAt, new Date(to)), gt(memories.endsAt, new Date(from))));
+    .where(
+      and(
+        inArray(memories.groupId, groupIds),
+        lt(memories.startsAt, new Date(to)),
+        gt(memories.endsAt, new Date(from)),
+      ),
+    );
   const records = await db
     .select({ groupId: memoryRecords.groupId, occurredAt: memoryRecords.occurredAt })
     .from(memoryRecords)
-    .where(and(inArray(memoryRecords.groupId, groupIds), gte(memoryRecords.occurredAt, new Date(from)), lt(memoryRecords.occurredAt, new Date(to))));
+    .where(
+      and(
+        inArray(memoryRecords.groupId, groupIds),
+        gte(memoryRecords.occurredAt, new Date(from)),
+        lt(memoryRecords.occurredAt, new Date(to)),
+      ),
+    );
 
   const counts = new Map<string, { groupId: string; day: string; n: number }>();
   for (const r of records) {

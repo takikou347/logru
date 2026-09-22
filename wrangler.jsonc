@@ -71,7 +71,7 @@
         "FIREBASE_PROJECT_ID": "logre-c9505",
         "FIREBASE_AUTH_EMULATOR_HOST": "",
         // 秘密の 3 つは本番と別の値を `wrangler secret put <名前> --env staging` で置く。VAPID の組も本番と分ける
-        "VAPID_PUBLIC_KEY": "replace-me",
+        "VAPID_PUBLIC_KEY": "BIwBq_YWW08NYgXRsec50Cijzku_YwUMsN-aiy7Lw16qFwm0cdde7jtyV1sQ8P6q_WVFrCKQkO_2jc6WmAvu5mQ",
         "VAPID_SUBJECT": "mailto:tkkwkut@gmail.com"
       },
       "r2_buckets": [{ "binding": "MEMORIES_BUCKET", "bucket_name": "logru-memories-staging" }],
@@ -81,7 +81,7 @@
           "binding": "DB",
           "database_name": "logru-staging",
           // `wrangler d1 create logru-staging` の結果に置き換える
-          "database_id": "00000000-0000-0000-0000-000000000000",
+          "database_id": "9b7333a0-d07b-4fd0-896f-42f177ce9531",
           "migrations_dir": "migrations"
         }
       ]

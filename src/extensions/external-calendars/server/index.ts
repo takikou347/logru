@@ -1,4 +1,4 @@
-import type { ServerExtension } from "../../types";
+import type { ServerExtension } from "../../types.server";
 import { externalCalendarsManifest } from "../manifest";
 import { listExternalEvents } from "./provider";
 import { externalCalendarRoutes } from "./routes";
@@ -9,7 +9,7 @@ import { syncDueCalendars } from "./sync";
 export const externalCalendarsServer: ServerExtension = {
   manifest: externalCalendarsManifest,
   schema,
-  listCalendarItems: listExternalEvents as ServerExtension["listCalendarItems"],
-  routes: { basePath: "/external-calendars", router: externalCalendarRoutes as never },
-  scheduled: syncDueCalendars as ServerExtension["scheduled"],
+  listCalendarItems: listExternalEvents,
+  routes: { basePath: "/external-calendars", router: externalCalendarRoutes },
+  scheduled: syncDueCalendars,
 };

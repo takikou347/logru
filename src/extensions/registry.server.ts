@@ -5,7 +5,7 @@
 import { eventsServer } from "./events/server";
 import { externalCalendarsServer } from "./external-calendars/server";
 import { memoriesServer } from "./memories/server";
-import type { ServerExtension } from "./types";
+import type { ServerExtension } from "./types.server";
 
 /** すべての拡張。並びはカレンダーの項目の並びに影響しない */
 export const serverExtensions: ServerExtension[] = [eventsServer, externalCalendarsServer, memoriesServer];

@@ -9,7 +9,7 @@ import { serverExtensions } from "../extensions/registry.server";
 import { type AppEnv, HttpError, resolveAppUrl } from "./core/app";
 import { createDb } from "./core/db/client";
 import { calendarRoutes } from "./modules/calendar/routes";
-import { extensionRoutes } from "./modules/extensions/routes";
+import { extensionRoutes } from "./modules/group-extensions/routes";
 import { groupRoutes } from "./modules/groups/routes";
 import { inviteRoutes } from "./modules/invites/routes";
 import { meRoutes } from "./modules/me/routes";
@@ -30,7 +30,7 @@ app.route("/invites", inviteRoutes);
 app.route("/calendar", calendarRoutes);
 app.route("/extensions", extensionRoutes);
 for (const x of serverExtensions) {
-  if (x.routes) app.route(x.routes.basePath, x.routes.router as never);
+  if (x.routes) app.route(x.routes.basePath, x.routes.router);
 }
 
 app.notFound((c) => c.json({ error: "見つかりません。" }, 404));
@@ -46,7 +46,7 @@ export default {
   async scheduled(_controller, env, ctx) {
     const db = createDb(env.DB);
     for (const x of serverExtensions) {
-      if (x.scheduled) ctx.waitUntil(x.scheduled(db as never, env as never));
+      if (x.scheduled) ctx.waitUntil(x.scheduled(db, env));
     }
   },
 } satisfies ExportedHandler<Env>;

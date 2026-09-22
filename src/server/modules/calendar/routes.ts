@@ -3,7 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { CalendarItem } from "../../../shared/api-types";
 import { calendarQuery } from "../../../shared/schemas";
 import { serverExtensions } from "../../../extensions/registry.server";
-import type { CalendarContext } from "../../../extensions/types";
+import type { CalendarContext } from "../../../extensions/types.server";
 import { createRouter, validationHook } from "../../core/app";
 import { requireAgreement, requireUser } from "../../core/auth/middleware";
 import type { DB } from "../../core/db/client";
@@ -56,7 +56,7 @@ export async function listCalendarItems(
         : used.has(x.manifest.key)
           ? groupIds.filter((g) => g === personal?.id || enabled.some((r) => r.groupId === g && r.extensionKey === x.manifest.key))
           : [];
-      return ids.length ? x.listCalendarItems(db as never, ids, from, to, ctx) : Promise.resolve([]);
+      return ids.length ? x.listCalendarItems(db, ids, from, to, ctx) : Promise.resolve([]);
     }),
   );
   return results.flat().sort((a, b) => a.startsAt - b.startsAt || a.title.localeCompare(b.title, "ja"));

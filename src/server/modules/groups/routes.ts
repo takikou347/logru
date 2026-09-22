@@ -108,7 +108,7 @@ export const groupRoutes = createRouter()
       throw new HttpError(409, "ほかに管理者がいません。先にほかの人を管理者にしてください。");
     }
     // 拡張に、抜ける人のデータを片付けさせる。予定の拡張は、その人を予定の参加者から外す。#28
-    for (const x of serverExtensions) await x.onMemberLeave?.(db as never, groupId, me.id);
+    for (const x of serverExtensions) await x.onMemberLeave?.(db, groupId, me.id);
     await db.delete(groupMembers).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, me.id)));
     return c.body(null, 204);
   })

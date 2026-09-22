@@ -23,6 +23,7 @@
     "src/server",
     "src/shared",
     "src/extensions/types.ts",
+    "src/extensions/types.server.ts",
     "src/extensions/registry.server.ts",
     "src/extensions/*/manifest.ts",
     "src/extensions/*/server",

@@ -152,9 +152,9 @@ describe("syncWindow", () => {
 });
 
 describe("Cron Triggers", () => {
-  it("開発と本番の両方で 5 分おきに動かす", () => {
+  it("開発、本番、staging のすべてで 5 分おきに動かす", () => {
     const crons = [...wrangler.matchAll(/"crons":\s*\[([^\]]*)\]/g)].map((m) => m[1]!.trim());
-    expect(crons).toEqual(['"*/5 * * * *"', '"*/5 * * * *"']);
+    expect(crons).toEqual(['"*/5 * * * *"', '"*/5 * * * *"', '"*/5 * * * *"']);
   });
 });
 

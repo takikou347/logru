@@ -61,6 +61,30 @@
           "migrations_dir": "migrations"
         }
       ]
+    },
+    // 本番の手前で確かめる環境。develop に入ると自動で出る。データと鍵は本番と分け、Firebase だけ本番と同じプロジェクトを使う
+    "staging": {
+      "vars": {
+        "ENVIRONMENT": "staging",
+        // workers.dev の URL に書き換える。README の「本番に出す」を参照
+        "APP_URL": "https://logru-staging.example.workers.dev",
+        "FIREBASE_PROJECT_ID": "logru-app",
+        "FIREBASE_AUTH_EMULATOR_HOST": "",
+        // 秘密の 3 つは本番と別の値を `wrangler secret put <名前> --env staging` で置く。VAPID の組も本番と分ける
+        "VAPID_PUBLIC_KEY": "replace-me",
+        "VAPID_SUBJECT": "mailto:tkkwkut@gmail.com"
+      },
+      "r2_buckets": [{ "binding": "MEMORIES_BUCKET", "bucket_name": "logru-memories-staging" }],
+      "triggers": { "crons": ["*/5 * * * *"] },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "logru-staging",
+          // `wrangler d1 create logru-staging` の結果に置き換える
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ]
     }
   }
 }

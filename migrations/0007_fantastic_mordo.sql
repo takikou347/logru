@@ -1,0 +1,1 @@
+ALTER TABLE `user_settings` ADD `bg_theme` text DEFAULT 'glass' NOT NULL;

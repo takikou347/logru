@@ -49,7 +49,7 @@ window.setTimeout(() => {
 }, 10_000);
 
 const stored = readStoredTheme();
-applyTheme(stored.mode, stored.accent);
+applyTheme(stored.mode, stored.bgTheme, stored.accent);
 watchSystemTheme();
 
 // 開発中だけ。?debug=noblur,nopools で見た目の効果を切る。globals.css の data-debug を見る。#3

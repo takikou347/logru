@@ -109,6 +109,16 @@
   }
 }
 
+/*
+ * 背景のテーマ「平ら」。端末の「透明度を下げる」と同じ --glass-flat を常に使い、ぼかしも切る。
+ * インクだまりと思い出の表紙は変えない。グループの色と写真は、奥の色としてそのまま残す。#50、0010、0024
+ */
+:root[data-bg-theme="flat"] {
+  --glass: var(--glass-flat);
+  --blur: none;
+  --glass-filter: none;
+}
+
 .c-wakatake {
   --c: var(--wakatake);
 }

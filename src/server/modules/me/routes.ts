@@ -85,7 +85,12 @@ export const meRoutes = createRouter()
       .where(and(eq(memberVisibility.userId, me.id), eq(memberVisibility.hidden, true)));
     const body: Me = {
       user: { id: me.id, name: me.name, email: me.email, image: me.image },
-      settings: { themeMode: settings.themeMode, accentColor: settings.accentColor, userColor: settings.userColor },
+      settings: {
+        themeMode: settings.themeMode,
+        bgTheme: settings.bgTheme,
+        accentColor: settings.accentColor,
+        userColor: settings.userColor,
+      },
       needsAgreement: await missingAgreements(db, me.id),
       provider: me.provider,
       colorPrefs: prefs.map((p) => ({ targetType: p.targetType, targetId: p.targetId, color: p.color })),
@@ -148,7 +153,12 @@ export const meRoutes = createRouter()
       .onConflictDoUpdate({ target: userSettings.userId, set: values })
       .returning()
       .get();
-    return c.json({ themeMode: row.themeMode, accentColor: row.accentColor, userColor: row.userColor });
+    return c.json({
+      themeMode: row.themeMode,
+      bgTheme: row.bgTheme,
+      accentColor: row.accentColor,
+      userColor: row.userColor,
+    });
   })
   .put("/colors/:type/:id", zValidator("json", colorPrefInput, validationHook), async (c) => {
     const db = c.get("db");

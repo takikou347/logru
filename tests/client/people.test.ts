@@ -11,7 +11,7 @@ import {
 
 const me: Me = {
   user: { id: "me", name: "こた", email: "kota@example.com", image: null },
-  settings: { themeMode: "system", accentColor: "aizumi", userColor: "wakatake" },
+  settings: { themeMode: "system", bgTheme: "glass", accentColor: "aizumi", userColor: "wakatake" },
   needsAgreement: [],
   provider: "password",
   colorPrefs: [{ targetType: "user", targetId: "mika", color: "asagi" }],

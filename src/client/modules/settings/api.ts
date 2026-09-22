@@ -21,7 +21,7 @@ export function useUpdateSettings() {
     mutationFn: (next: Me["settings"]) =>
       api<Me["settings"]>("/me/settings", { method: "PUT", body: next, keepalive: true }),
     onMutate: async (next) => {
-      applyTheme(next.themeMode, next.accentColor);
+      applyTheme(next.themeMode, next.bgTheme, next.accentColor);
       const prev = qc.getQueryData<Me>(keys.me);
       if (prev) qc.setQueryData<Me>(keys.me, { ...prev, settings: next });
       return { prev };
@@ -29,7 +29,7 @@ export function useUpdateSettings() {
     onError: (e, _n, ctx) => {
       if (ctx?.prev) {
         qc.setQueryData(keys.me, ctx.prev);
-        applyTheme(ctx.prev.settings.themeMode, ctx.prev.settings.accentColor);
+        applyTheme(ctx.prev.settings.themeMode, ctx.prev.settings.bgTheme, ctx.prev.settings.accentColor);
       }
       toast.error((e as Error).message);
     },

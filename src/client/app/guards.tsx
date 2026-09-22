@@ -41,7 +41,7 @@ export function RequireAuth() {
   const needsAgreement = (me.data?.needsAgreement.length ?? 0) > 0;
 
   useEffect(() => {
-    if (me.data) applyTheme(me.data.settings.themeMode, me.data.settings.accentColor);
+    if (me.data) applyTheme(me.data.settings.themeMode, me.data.settings.bgTheme, me.data.settings.accentColor);
   }, [me.data]);
 
   // 登録の画面で受けた同意を送る。送れなければ同意の画面で聞き直す

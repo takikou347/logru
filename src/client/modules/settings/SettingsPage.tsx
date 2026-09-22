@@ -1,5 +1,5 @@
 import { clientExtensions } from "@extensions/client/registry";
-import type { Me, ThemeMode } from "@shared/api-types";
+import type { BgTheme, Me, ThemeMode } from "@shared/api-types";
 import { ACCENT_COLORS, GROUP_COLORS } from "@shared/colors";
 import { profileInput } from "@shared/schemas";
 import { Check, Pencil, X } from "lucide-react";
@@ -25,6 +25,12 @@ const MODES = [
   { value: "system", label: "端末と同じ" },
   { value: "light", label: "ライト" },
   { value: "dark", label: "ダーク" },
+] as const;
+
+/** 背景のテーマ。明るさとは別の軸。#50 */
+const BG_THEMES = [
+  { value: "glass", label: "ガラス" },
+  { value: "flat", label: "平ら" },
 ] as const;
 
 /** ログインに使った手段の、画面での名前 */
@@ -69,6 +75,17 @@ export function SettingsPage() {
             value={s.themeMode}
             options={MODES}
             onChange={(themeMode) => change({ themeMode })}
+          />
+        </Panel>
+
+        <Panel title="背景のテーマ">
+          <FieldMessage>ガラスは奥を透かします。平らは透かさず塗り、文字が読みやすくなります。</FieldMessage>
+          <Segmented<BgTheme>
+            full
+            label="背景のテーマ"
+            value={s.bgTheme}
+            options={BG_THEMES}
+            onChange={(bgTheme) => change({ bgTheme })}
           />
         </Panel>
 

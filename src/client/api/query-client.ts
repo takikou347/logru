@@ -9,5 +9,10 @@ export const queryClient = new QueryClient({
       staleTime: 30_000,
       retry: (count, error) => !(error instanceof ApiError && error.status >= 400 && error.status < 500) && count < 2,
     },
+    mutations: {
+      // 既定の "online" だとオフライン中は mutation が保留のまま止まり、つながった瞬間に画面を離れた後でも黙って送られる。
+      // "always" にして、これまでと同じく api() が「通信できません」を返して失敗させる
+      networkMode: "always",
+    },
   },
 });

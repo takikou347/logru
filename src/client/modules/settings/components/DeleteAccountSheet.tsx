@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { auth, googleProvider } from "@/lib/firebase";
-import { useDeleteAccount, useDeletionCheck } from "./api";
+import { useDeleteAccount, useDeletionCheck } from "../api";
 
 const CONFIRM_WORD = "削除する";
 

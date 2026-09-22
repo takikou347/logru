@@ -36,6 +36,13 @@
       "when": 1790051322206,
       "tag": "0004_green_young_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790052585384,
+      "tag": "0005_naive_black_bolt",
+      "breakpoints": true
     }
   ]
 }

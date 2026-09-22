@@ -87,3 +87,29 @@ describe("写真の URL", () => {
     expect(isJpeg(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBe(false);
   });
 });
+
+import { hourStartIn, openSlots, slotAt, slotsOfDay } from "../../src/extensions/memories/shared/koma";
+
+describe("ひとコマの枠。0022", () => {
+  const tz = "Asia/Tokyo";
+  it("7 時台から 22 時台の外は枠が無い", () => {
+    expect(slotAt(Date.parse("2026-09-22T06:59:00+09:00"), tz)).toBeNull();
+    expect(slotAt(Date.parse("2026-09-22T23:00:00+09:00"), tz)).toBeNull();
+    expect(slotAt(Date.parse("2026-09-22T14:37:12+09:00"), tz)).toEqual({ start: Date.parse("2026-09-22T14:00:00+09:00"), hour: 14, day: "2026-09-22" });
+  });
+
+  it("過ぎてから 5 分は、前の枠にも残せる", () => {
+    expect(openSlots(Date.parse("2026-09-22T15:03:00+09:00"), tz).map((s) => s.hour)).toEqual([15, 14]);
+    expect(openSlots(Date.parse("2026-09-22T15:06:00+09:00"), tz).map((s) => s.hour)).toEqual([15]);
+    expect(openSlots(Date.parse("2026-09-22T23:02:00+09:00"), tz).map((s) => s.hour)).toEqual([22]);
+  });
+
+  it("30 分ずれた時間帯でも、1 時間の始まりに合う", () => {
+    expect(new Date(hourStartIn(Date.parse("2026-09-22T10:10:00Z"), "Asia/Kolkata")).toISOString()).toBe("2026-09-22T09:30:00.000Z");
+  });
+
+  it("1 日の枠は 16 個", () => {
+    const slots = slotsOfDay(Date.parse("2026-09-22T00:00:00+09:00"), tz);
+    expect(slots.map((s) => s.hour)).toEqual([7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]);
+  });
+});

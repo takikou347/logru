@@ -50,6 +50,13 @@ export const groupPatchInput = z.object({
 /** `PATCH /api/groups/:id/members/:userId`。管理者の受け渡し */
 export const memberRoleInput = z.object({ role: z.enum(["admin", "member"]) });
 
+/** `POST /api/me/push`。ブラウザーの PushSubscription の中身。F-23 */
+export const pushSubscriptionInput = z.object({
+  endpoint: z.string().url().startsWith("https://", "送り先が正しくありません。").max(1000),
+  keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
+  userAgent: z.string().max(200).optional(),
+});
+
 /** `PUT /api/groups/:id/extensions/:key` */
 export const extensionToggleInput = z.object({ enabled: z.boolean() });
 

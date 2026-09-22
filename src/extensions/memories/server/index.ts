@@ -1,18 +1,30 @@
+import { and, eq } from "drizzle-orm";
+import type { DB } from "../../../server/core/db/client";
 import type { ServerExtension } from "../../types";
 import { memoriesManifest } from "../manifest";
 import { listMemoryItems } from "./provider";
 import { memoryRoutes } from "./routes";
+import { notifyKoma } from "./koma";
 import { cleanUpPhotos } from "./scheduled";
 import * as schema from "./schema";
 
 /**
- * 思い出の拡張のサーバー側。
- * グループを抜けた人の記録は、グループの記録として残す。片付けるものは無い。
+ * グループを抜けた人の、そのグループにつないだひとコマの日を外す。これからの知らせが止まる。
+ * 記録と写真は、グループの記録として残す。
  */
+async function leaveKomaDays(db: DB, groupId: string, userId: string) {
+  await db.delete(schema.memoryKomaDays).where(and(eq(schema.memoryKomaDays.groupId, groupId), eq(schema.memoryKomaDays.userId, userId)));
+}
+
+/** 思い出の拡張のサーバー側 */
 export const memoriesServer: ServerExtension = {
   manifest: memoriesManifest,
   schema,
   listCalendarItems: listMemoryItems as ServerExtension["listCalendarItems"],
   routes: { basePath: "/memories", router: memoryRoutes as never },
-  scheduled: cleanUpPhotos as ServerExtension["scheduled"],
+  scheduled: (async (db: never, env: never) => {
+    await notifyKoma(db, env);
+    await cleanUpPhotos(db, env);
+  }) as ServerExtension["scheduled"],
+  onMemberLeave: leaveKomaDays as ServerExtension["onMemberLeave"],
 };

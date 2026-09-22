@@ -10,6 +10,7 @@ import type { MemoryRecord } from "../shared/types";
 import { useRecords } from "./api";
 import { Dock } from "./Dock";
 import { Flow } from "./Flow";
+import { KomaStrip } from "./KomaStrip";
 import { entriesOf, Lightbox } from "./Lightbox";
 import { MemoryShell, type ShellProps } from "./MemoryShell";
 import { RecordSheet } from "./RecordSheet";
@@ -52,9 +53,18 @@ function Day({ detail, me, groups }: ShellProps) {
         </div>
       )}
       {records.error && <LoadFailure what="この日の記録" error={records.error} onRetry={() => void records.refetch()} />}
+      {(memory.komaEnabled || (records.data ?? []).some((r) => r.kind === "koma")) && (
+        <KomaStrip
+          dayStart={from}
+          timeZone={memory.timeZone}
+          records={records.data ?? []}
+          nowPath={Date.now() >= from && Date.now() < to ? "/memories/koma/now" : undefined}
+          onOpen={(r) => (r.createdBy === me.user.id ? setEditing(r) : setPhotoAt(entries.findIndex((e) => e.record.id === r.id)))}
+        />
+      )}
       <Flow
         events={events}
-        records={records.data ?? []}
+        records={(records.data ?? []).filter((r) => r.kind !== "koma")}
         wishes={doneToday}
         groups={groups}
         me={me}

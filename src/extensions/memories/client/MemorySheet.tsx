@@ -8,6 +8,7 @@ import { Dot, FieldMessage, PanelRow } from "@/components/Panel";
 import { ResponsiveSheet } from "@/components/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
 import { groupColor } from "@/lib/colors";
 import { dateKey } from "@/lib/dates";
@@ -156,6 +157,14 @@ export function MemorySheet({
             </span>
           </PanelRow>
         )}
+        <PanelRow>
+          <span className="py-2">
+            ひとコマ
+            <br />
+            <span className="text-xs text-ink-2">期間の 7 時台から 22 時台まで、1 時間に 1 枚。メンバーに知らせる</span>
+          </span>
+          <Switch checked={komaEnabled} onCheckedChange={setKomaEnabled} aria-label="ひとコマを使う" />
+        </PanelRow>
         {extra?.({ komaEnabled, setKomaEnabled })}
         {error && <FieldMessage error>{error}</FieldMessage>}
         <div className="flex gap-2">

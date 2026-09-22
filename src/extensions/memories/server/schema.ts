@@ -136,3 +136,43 @@ export type MemoryRow = typeof memories.$inferSelect;
 export type MemoryItemRow = typeof memoryItems.$inferSelect;
 export type MemoryRecordRow = typeof memoryRecords.$inferSelect;
 export type MemoryPhotoRow = typeof memoryPhotos.$inferSelect;
+
+/**
+ * ひとコマを始めた日と、つなぎ先。人と日ごとに 1 行。0022
+ * 思い出でひとコマを有効にした日は、その思い出とグループに自動でつながる。自分で始めた日は、既定が自分だけで思い出なし。
+ * memory_id は思い出を消すと空になる。写真は残る。
+ */
+export const memoryKomaDays = sqliteTable(
+  "memory_koma_days",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** `2026-09-22` の形。time_zone での日付 */
+    day: text("day").notNull(),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    memoryId: text("memory_id").references(() => memories.id, { onDelete: "set null" }),
+    timeZone: text("time_zone").notNull(),
+    /** その日は知らせない */
+    muted: integer("muted", { mode: "boolean" }).notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.day] }), index("memory_koma_days_day_idx").on(t.day)],
+);
+
+/** その枠の知らせを送ったしるし。2 重に送らないために持つ */
+export const memoryKomaNotices = sqliteTable(
+  "memory_koma_notices",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    slot: integer("slot", { mode: "timestamp_ms" }).notNull(),
+    sentAt: integer("sent_at", { mode: "timestamp_ms" }).notNull().default(now),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.slot] })],
+);
+
+export type KomaDayRow = typeof memoryKomaDays.$inferSelect;

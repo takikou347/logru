@@ -81,3 +81,21 @@ test("思い出の拡張を無効にしたグループは、読めなくなる�
   const again = await (await request.get("/api/memories", { headers: a.headers })).json();
   expect(again.recent.map((r: { body: string }) => r.body)).toEqual(["メモ"]);
 });
+
+test("端末の送り先は本人だけが置けて外せる。https だけを受け付ける。F-23", async ({ request }) => {
+  const a = await memoriesUser(request);
+  const b = await memoriesUser(request);
+  const info = await (await request.get("/api/me/push", { headers: a.headers })).json();
+  expect(info.publicKey).toBeTruthy();
+  const keys = { p256dh: "BPUm_oLClft9DRthvDIJ303Z0PABoblpADTHcpnZtA0zpfzPQQvBFAfi6afKxM4dsTjIbTqkEH9MCj3xFw6hBOs", auth: "c2VjcmV0c2VjcmV0MTIzNA" };
+  const http = await request.post("/api/me/push", { headers: a.headers, data: { endpoint: "http://push.example/x", keys } });
+  expect(http.status()).toBe(400);
+  const ok = await request.post("/api/me/push", { headers: a.headers, data: { endpoint: `https://push.example/${Date.now()}`, keys } });
+  expect(ok.status()).toBe(201);
+  const { id } = await ok.json();
+  // ほかの人は外せない
+  await request.delete(`/api/me/push/${id}`, { headers: b.headers });
+  expect((await (await request.get("/api/me/push", { headers: a.headers })).json()).devices).toHaveLength(1);
+  await request.delete(`/api/me/push/${id}`, { headers: a.headers });
+  expect((await (await request.get("/api/me/push", { headers: a.headers })).json()).devices).toHaveLength(0);
+});

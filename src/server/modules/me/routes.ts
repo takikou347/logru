@@ -1,12 +1,21 @@
 import { zValidator } from "@hono/zod-validator";
 import { and, eq, inArray, ne } from "drizzle-orm";
-import type { Me } from "../../../shared/api-types";
+import type { Me, PushInfo } from "../../../shared/api-types";
 import { LEGAL_VERSIONS, type LegalDocument } from "../../../shared/legal";
-import { agreementsInput, colorPrefInput, deleteAccountInput, memberVisibilityInput, profileInput, settingsInput } from "../../../shared/schemas";
+import {
+  agreementsInput,
+  colorPrefInput,
+  deleteAccountInput,
+  memberVisibilityInput,
+  profileInput,
+  pushSubscriptionInput,
+  settingsInput,
+} from "../../../shared/schemas";
 import { HttpError, createRouter, validationHook } from "../../core/app";
 import { missingAgreements, requireAgreement, requireUser } from "../../core/auth/middleware";
 import type { DB } from "../../core/db/client";
-import { colorPrefs, groupMembers, groups, legalAgreements, memberVisibility, userSettings, users } from "../../core/db/schema";
+import { colorPrefs, groupMembers, groups, legalAgreements, memberVisibility, pushSubscriptions, userSettings, users } from "../../core/db/schema";
+import { vapidKeys } from "../../core/push/send";
 import { myGroupIds, sharesGroup } from "../groups/membership";
 
 /**
@@ -167,4 +176,41 @@ export const meRoutes = createRouter()
       .delete(colorPrefs)
       .where(and(eq(colorPrefs.userId, c.get("user").id), eq(colorPrefs.targetType, type), eq(colorPrefs.targetId, c.req.param("id"))));
     return c.body(null, 204);
+  })
+  // 端末への知らせの送り先。F-23、0023
+  .get("/push", async (c) => {
+    const rows = await c.get("db").select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, c.get("user").id));
+    const body: PushInfo = {
+      publicKey: vapidKeys(c.env)?.publicKey ?? null,
+      devices: rows.map((r) => ({ id: r.id, endpoint: r.endpoint, userAgent: r.userAgent, createdAt: r.createdAt.getTime() })),
+    };
+    return c.json(body);
+  })
+  .post("/push", zValidator("json", pushSubscriptionInput, validationHook), async (c) => {
+    const db = c.get("db");
+    const me = c.get("user");
+    const input = c.req.valid("json");
+    const mine = await db.select({ id: pushSubscriptions.id, endpoint: pushSubscriptions.endpoint }).from(pushSubscriptions).where(eq(pushSubscriptions.userId, me.id));
+    if (mine.length >= MAX_DEVICES && !mine.some((m) => m.endpoint === input.endpoint)) {
+      throw new HttpError(409, `知らせを受ける端末は ${MAX_DEVICES} 台までです。使わない端末を外してください。`);
+    }
+    // 同じ送り先なら置き換える。別の人が同じ端末で登録し直したときも、今の人のものにする
+    const values = { userId: me.id, p256dh: input.keys.p256dh, auth: input.keys.auth, userAgent: input.userAgent ?? null, failedCount: 0 };
+    const row = await db
+      .insert(pushSubscriptions)
+      .values({ id: crypto.randomUUID(), endpoint: input.endpoint, ...values })
+      .onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: values })
+      .returning()
+      .get();
+    return c.json({ id: row.id }, 201);
+  })
+  .delete("/push/:id", async (c) => {
+    await c
+      .get("db")
+      .delete(pushSubscriptions)
+      .where(and(eq(pushSubscriptions.id, c.req.param("id")), eq(pushSubscriptions.userId, c.get("user").id)));
+    return c.body(null, 204);
   });
+
+/** 知らせを受ける端末の上限。0023 */
+const MAX_DEVICES = 10;

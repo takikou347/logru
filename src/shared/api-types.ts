@@ -90,3 +90,10 @@ export type ExtensionOverview = {
 
 /** `GET /api/invites/:token` の応答 */
 export type InviteInfo = { groupName: string; expiresAt: number; valid: boolean; reason?: "expired" | "revoked" };
+
+/** `GET /api/me/push` の応答。F-23 */
+export type PushInfo = {
+  /** VAPID の公開鍵。無ければ、この環境では知らせを送れない */
+  publicKey: string | null;
+  devices: { id: string; endpoint: string; userAgent: string | null; createdAt: number }[];
+};

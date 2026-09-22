@@ -66,3 +66,33 @@ export type MemoryList = { memories: Memory[]; recent: MemoryRecord[] };
 
 /** `GET /api/memories/:id` の応答 */
 export type MemoryDetail = { memory: Memory; items: MemoryItem[]; dayCounts: number[] };
+
+/** `GET /api/memories/koma/now` の応答。近道の帯と、ひとコマを撮る画面が使う。0022 */
+export type KomaNow = {
+  /** 端末の時間帯での今日 */
+  day: string;
+  started: boolean;
+  groupId: string | null;
+  memory: { id: string; title: string } | null;
+  muted: boolean;
+  /** いまの枠。7 時台から 22 時台の外なら空 */
+  slot: { start: number; hour: number } | null;
+  /** いま残せる枠。いまの枠と、過ぎてから 5 分以内の前の枠 */
+  open: { start: number; hour: number }[];
+  /** いまの枠に、自分が残したか */
+  taken: boolean;
+  /** 今日の自分の、最後のひとコマの写真 */
+  last: Photo | null;
+  /** 同じグループの人が、いまの枠に残したもの */
+  others: { userId: string; photo: Photo }[];
+};
+
+/** `GET /api/memories/koma` の 1 日。確認画面の 1 段 */
+export type KomaDay = {
+  day: string;
+  groupId: string;
+  memory: { id: string; title: string; dayIndex: number } | null;
+  timeZone: string;
+  muted: boolean;
+  records: MemoryRecord[];
+};

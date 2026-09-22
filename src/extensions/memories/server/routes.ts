@@ -19,6 +19,7 @@ import {
 } from "../shared/schemas";
 import type { MemoryDetail, MemoryList } from "../shared/types";
 import { requireMemoriesGroup, usableGroupIds } from "./access";
+import { komaRoutes } from "./koma";
 import { loadRecord, loadRecords, recentRecords, toItem, toMemory } from "./load";
 import { PhotoSigner, type PhotoSize, isJpeg, photoKey, verifyPhotoUrl } from "./photos";
 import { memories, memoryItems, memoryLikes, memoryPhotos, memoryRecords } from "./schema";
@@ -98,6 +99,8 @@ export const memoryRoutes = createRouter()
     });
   })
   .use("*", requireUser, requireAgreement)
+  // ひとコマ。`/:id` より先に載せる。後に置くと `/koma` が思い出の ID として読まれる
+  .route("/koma", komaRoutes)
   .get("/", async (c) => {
     const db = c.get("db");
     const wanted = c.req.query("group")?.split(",").filter(Boolean);

@@ -109,3 +109,18 @@ export const PHOTO_LIMITS = { fullBytes: 3 * 1024 * 1024, thumbBytes: 200 * 1024
 
 export type MemoryInput = z.infer<typeof memoryInput>;
 export type ItemInput = z.infer<typeof itemInput>;
+
+/** `PUT /api/memories/koma/days/:day`。始める、止める、つなぎ直す。0022 */
+export const komaDayInput = z.object({
+  groupId: z.string().min(1, "グループを選んでください。"),
+  memoryId: z.string().min(1).nullable().default(null),
+  timeZone,
+  muted: z.boolean().optional(),
+});
+
+/** `PUT /api/memories/koma`。写真は先に送っておく */
+export const komaInput = z.object({
+  photoId: z.string().min(1, "写真を撮ってください。"),
+  slot: z.number().int(),
+  body: z.string().trim().max(40, "一言は 40 文字までです。").nullable().default(null),
+});

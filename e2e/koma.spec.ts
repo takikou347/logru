@@ -13,14 +13,14 @@ test("思い出が無い日でも、今日をひとコマで始め、近道の�
   test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
   await signUp(page, { name: "こた" });
   await page.goto("/extensions");
-  await page.getByRole("switch", { name: "思い出を自分だけで使う" }).click();
+  await page.getByRole("switch", { name: "思い出を使う" }).click();
 
   // 機能のシートの「ひとコマ」から確認画面へ。今日を始める
   await page.goto("/");
   await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
   await page.getByRole("dialog", { name: "機能" }).getByRole("link", { name: /ひとコマ/ }).click();
-  await page.getByRole("button", { name: "今日をひとコマで残す" }).click();
-  const start = page.getByRole("dialog", { name: "今日をひとコマで残す" });
+  await page.getByRole("button", { name: "今日のひとコマを始める" }).click();
+  const start = page.getByRole("dialog", { name: "今日のひとコマを始める" });
   await expect(start.getByRole("radio", { name: "自分だけ" })).toHaveAttribute("aria-checked", "true");
   await start.getByRole("button", { name: "始める" }).click();
   await expect(page.getByText("今日のひとコマを始めました")).toBeVisible();
@@ -33,9 +33,9 @@ test("思い出が無い日でも、今日をひとコマで始め、近道の�
   await expect(page).toHaveURL(/\/memories\/koma\/now$/);
 
   await page.locator('input[type="file"][capture]').setInputFiles(PHOTO);
-  await page.getByLabel("一言").fill("お昼");
-  await page.getByRole("button", { name: "この 1 枚を残す" }).click();
-  await expect(page.getByText(/時のひとコマを残しました/)).toBeVisible();
+  await page.getByLabel("ひとこと").fill("お昼");
+  await page.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText(/時のひとコマを保存しました/)).toBeVisible();
 
   // 確認画面に今日の 1 枚が出て、帯は消える
   await expect(page).toHaveURL(/\/memories\/koma$/);
@@ -48,7 +48,7 @@ test("ひとコマは思い出を消しても残り、つなぎ直せる。F-128
   test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
   await signUp(page, { name: "こた" });
   await page.goto("/extensions");
-  await page.getByRole("switch", { name: "思い出を自分だけで使う" }).click();
+  await page.getByRole("switch", { name: "思い出を使う" }).click();
 
   // 今日の日帰りの思い出を、ひとコマを有効にして作る
   await page.goto("/memories");
@@ -62,20 +62,20 @@ test("ひとコマは思い出を消しても残り、つなぎ直せる。F-128
   const strip = page.getByRole("region", { name: "ひとコマ" });
   await strip.getByRole("link", { name: /のひとコマを撮る/ }).click();
   await page.locator('input[type="file"][capture]').setInputFiles(PHOTO);
-  await page.getByRole("button", { name: "この 1 枚を残す" }).click();
-  await expect(page.getByText(/時のひとコマを残しました/)).toBeVisible();
+  await page.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText(/時のひとコマを保存しました/)).toBeVisible();
   await expect(page.getByRole("region", { name: "ひとコマ" }).getByRole("button", { name: /のひとコマ$/ })).toBeVisible();
 
   // 思い出を消す
-  await page.getByRole("button", { name: "思い出を直す" }).click();
-  await page.getByRole("dialog", { name: "思い出を直す" }).getByRole("button", { name: "消す" }).click();
-  await page.getByRole("dialog", { name: "思い出を消しますか" }).getByRole("button", { name: "消す" }).click();
+  await page.getByRole("button", { name: "思い出を編集" }).click();
+  await page.getByRole("dialog", { name: "思い出を編集" }).getByRole("button", { name: "削除" }).click();
+  await page.getByRole("dialog", { name: "思い出を削除しますか" }).getByRole("button", { name: "削除する" }).click();
   await expect(page).toHaveURL(/\/memories$/);
 
   // 確認画面には、つなぎの外れた今日のひとコマが残る
   await page.goto("/memories/koma");
-  const link = page.getByRole("button", { name: /のつなぎを変える/ }).first();
-  await expect(link).toContainText("思い出につなぐ");
+  const link = page.getByRole("button", { name: /の共有先と思い出を変える/ }).first();
+  await expect(link).toContainText("思い出を選ぶ");
   await expect(page.getByRole("button", { name: `${hourInTokyo()} 時 のひとコマ` })).toBeVisible();
   void request;
 });

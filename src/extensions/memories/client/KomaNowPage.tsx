@@ -55,7 +55,7 @@ export function KomaNowPage() {
       const photo = await uploadPhoto(data.groupId, prepared, await auth.currentUser?.getIdToken(), () => undefined);
       await api("/memories/koma", { method: "PUT", body: { photoId: photo.id, slot: slot.start, body: word.trim() || null } });
       await Promise.all([invalidate(), qc.invalidateQueries({ queryKey: komaKeys.now })]);
-      toast(`${slot.hour} 時のひとコマを残しました`);
+      toast(`${slot.hour} 時のひとコマを保存しました`);
       navigate(data.memory ? `/memories/${data.memory.id}` : "/memories/koma", { replace: true });
     } catch (e) {
       setError((e as Error).message);
@@ -68,7 +68,7 @@ export function KomaNowPage() {
     if (!data?.groupId) return;
     await api(`/memories/koma/days/${data.day}`, { method: "PUT", body: { groupId: data.groupId, memoryId: data.memory?.id ?? null, timeZone: deviceTimeZone(), muted: !data.muted } });
     await qc.invalidateQueries({ queryKey: komaKeys.now });
-    toast(data.muted ? "今日も知らせます" : "今日はもう知らせません");
+    toast(data.muted ? "今日の通知をオンにしました" : "今日の通知をオフにしました");
   }
 
   return (
@@ -85,7 +85,7 @@ export function KomaNowPage() {
           {data?.started && (
             <Button variant="ghost" size="sm" onClick={mute}>
               <BellOff className="size-4" />
-              {data.muted ? "今日も知らせる" : "今日は知らせない"}
+              {data.muted ? "今日の通知をオン" : "今日の通知をオフ"}
             </Button>
           )}
         </header>
@@ -93,13 +93,13 @@ export function KomaNowPage() {
 
         {!data?.started && (
           <section className="glass flex flex-col gap-3 rounded-panel p-5">
-            <p className="text-sm leading-relaxed">今日はまだひとコマを始めていません。始めると、7 時台から 22 時台まで、1 時間に 1 枚ずつ残せます。</p>
-            <Button onClick={() => setStarting(true)}>今日をひとコマで残す</Button>
+            <p className="text-sm leading-relaxed">今日のひとコマはまだ始めていません。始めると、7 時から 22 時台まで、1 時間に 1 枚ずつ写真を残せます。</p>
+            <Button onClick={() => setStarting(true)}>今日のひとコマを始める</Button>
           </section>
         )}
 
         {data?.started && !slot && (
-          <section className="glass rounded-panel p-5 text-sm leading-relaxed">いまはひとコマの時間の外です。7 時台から 22 時台まで残せます。</section>
+          <section className="glass rounded-panel p-5 text-sm leading-relaxed">ひとコマを撮れるのは 7 時から 22 時台までです。</section>
         )}
 
         {data?.started && slot && (
@@ -127,7 +127,7 @@ export function KomaNowPage() {
                 </span>
               )}
             </button>
-            <Input value={word} maxLength={40} placeholder="一言を添える" aria-label="一言" onChange={(e) => setWord(e.target.value)} />
+            <Input value={word} maxLength={40} placeholder="ひとこと" aria-label="ひとこと" onChange={(e) => setWord(e.target.value)} />
             {data.others.length > 0 && (
               <ul className="flex flex-col gap-1.5 px-1.5 pb-1" aria-label="同じグループの人のひとコマ">
                 {data.others.map((o) => {
@@ -136,7 +136,7 @@ export function KomaNowPage() {
                     <li key={o.userId} className="flex items-center gap-2 text-xs text-ink-2">
                       <PhotoImg photo={o.photo} className="h-10 w-[30px] flex-none rounded-lg" />
                       {m && <InitialAvatar person={{ id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.data.colorPrefs) }} />}
-                      {m?.name ?? "メンバー"} は残した
+                      {m?.name ?? "メンバー"} が撮りました
                     </li>
                   );
                 })}
@@ -164,7 +164,7 @@ export function KomaNowPage() {
               撮り直す
             </Button>
             <Button className="flex-1" disabled={!preview || saving} onClick={keep}>
-              {saving ? "送っています" : "この 1 枚を残す"}
+              {saving ? "保存しています" : "保存する"}
             </Button>
           </div>
         )}

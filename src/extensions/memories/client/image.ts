@@ -66,7 +66,7 @@ async function encode(bitmap: ImageBitmap, max: number, qualities: number[], lim
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("写真を縮められませんでした。");
+  if (!ctx) throw new Error("写真を処理できませんでした。");
   ctx.drawImage(bitmap, 0, 0, w, h);
   let blob: Blob | null = null;
   for (const q of qualities) {

@@ -45,8 +45,8 @@ export function KomaDaysPage() {
         {days.error && <LoadFailure what="ひとコマ" error={days.error} onRetry={() => void days.refetch()} />}
         {!startedToday && now.data && (
           <section className="glass flex flex-col gap-3 rounded-3xl p-4">
-            <p className="text-sm leading-relaxed">思い出が無い日も、始めた日だけ、1 時間に 1 枚の写真で 1 日を残せます。</p>
-            <Button onClick={() => setLinking("today")}>今日をひとコマで残す</Button>
+            <p className="text-sm leading-relaxed">思い出がない日でも、1 時間に 1 枚ずつ写真を撮って 1 日を残せます。</p>
+            <Button onClick={() => setLinking("today")}>今日のひとコマを始める</Button>
           </section>
         )}
         {list.length === 0 && <Empty>まだひとコマはありません。</Empty>}
@@ -67,16 +67,16 @@ export function KomaDaysPage() {
                   <button
                     type="button"
                     className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-(--glass-edge) bg-field pr-2 pl-2.5 text-xs font-bold"
-                    aria-label={`${label} のつなぎを変える`}
+                    aria-label={`${label} の共有先と思い出を変える`}
                     onClick={() => setLinking(d)}
                   >
                     {group && <Dot color={groupColor(group, data.colorPrefs)} />}
-                    {d.memory ? d.memory.title : `${group?.isPersonal ? "自分だけ" : (group?.name ?? "")}・思い出につなぐ`}
+                    {d.memory ? d.memory.title : `${group?.isPersonal ? "自分だけ" : (group?.name ?? "")}・思い出を選ぶ`}
                     <ChevronRight className="size-3.5 text-ink-3" aria-hidden="true" />
                   </button>
                   {d.memory && (
                     <Link to={`/memories/${d.memory.id}/days/${d.memory.dayIndex}`} className="text-[11px] text-ink-2">
-                      開く
+                      思い出を開く
                     </Link>
                   )}
                 </span>

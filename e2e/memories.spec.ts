@@ -9,7 +9,7 @@ const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/
 /** 機能の一覧で、思い出を自分だけで使えるようにする */
 async function enableMemories(page: import("@playwright/test").Page) {
   await page.goto("/extensions");
-  const toggle = page.getByRole("switch", { name: "思い出を自分だけで使う" });
+  const toggle = page.getByRole("switch", { name: "思い出を使う" });
   await toggle.click();
   await expect(toggle).toBeChecked();
 }
@@ -43,10 +43,10 @@ test("思い出を作り、写真付きで記録し、いいねを付け、カ�
   await page.getByRole("toolbar", { name: "1 日の操作" }).getByRole("button", { name: "記録する" }).click();
   const record = page.getByRole("dialog", { name: "記録する" });
   await record.locator('input[type="file"][multiple]').setInputFiles(PHOTO);
-  await expect(record.getByRole("button", { name: "残す" })).toBeEnabled({ timeout: 15_000 });
+  await expect(record.getByRole("button", { name: "保存する" })).toBeEnabled({ timeout: 15_000 });
   await record.getByLabel("文章").fill("湯本に着いた。まずは和菓子。");
-  await record.getByRole("button", { name: "残す" }).click();
-  await expect(page.getByText("記録を残しました")).toBeVisible();
+  await record.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
 
   const flow = page.getByRole("list", { name: "1 日の流れ" });
   const article = flow.getByRole("article", { name: "こた の記録" });
@@ -84,29 +84,29 @@ test("しおりにやること、持ち物を足して済みにできる。思�
 
   await page.getByRole("radio", { name: "しおり" }).click();
   await page.getByRole("tab", { name: /やること/ }).click();
-  await page.getByRole("button", { name: "やることを足す" }).click();
-  await page.getByRole("textbox", { name: "やることを足す" }).fill("おでんの店を予約する");
-  await page.getByRole("button", { name: "足す", exact: true }).click();
-  const todo = page.getByRole("checkbox", { name: "おでんの店を予約する を済みにする" });
+  await page.getByRole("button", { name: "やることを追加" }).click();
+  await page.getByRole("textbox", { name: "やることを追加" }).fill("おでんの店を予約する");
+  await page.getByRole("button", { name: "追加", exact: true }).click();
+  const todo = page.getByRole("checkbox", { name: "おでんの店を予約する を完了にする" });
   await todo.click();
   await expect(todo).toBeChecked();
 
   await page.getByRole("tab", { name: /持ち物/ }).click();
-  await page.getByRole("button", { name: "持ち物を足す" }).click();
-  await page.getByRole("textbox", { name: "持ち物を足す" }).fill("充電器");
-  await page.getByRole("button", { name: "足す", exact: true }).click();
-  await expect(page.getByRole("checkbox", { name: "充電器 を済みにする" })).toBeVisible();
+  await page.getByRole("button", { name: "持ち物を追加" }).click();
+  await page.getByRole("textbox", { name: "持ち物を追加" }).fill("充電器");
+  await page.getByRole("button", { name: "追加", exact: true }).click();
+  await expect(page.getByRole("checkbox", { name: "充電器 を完了にする" })).toBeVisible();
 
   // 文章だけの記録を残してから、思い出を消す
   await page.getByRole("radio", { name: "1 日" }).click();
   await page.getByRole("toolbar", { name: "1 日の操作" }).getByRole("button", { name: "記録する" }).click();
   await page.getByRole("dialog", { name: "記録する" }).getByLabel("文章").fill("出発");
-  await page.getByRole("dialog", { name: "記録する" }).getByRole("button", { name: "残す" }).click();
-  await expect(page.getByText("記録を残しました")).toBeVisible();
+  await page.getByRole("dialog", { name: "記録する" }).getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
 
-  await page.getByRole("button", { name: "思い出を直す" }).click();
-  await page.getByRole("dialog", { name: "思い出を直す" }).getByRole("button", { name: "消す" }).click();
-  await page.getByRole("dialog", { name: "思い出を消しますか" }).getByRole("button", { name: "消す" }).click();
+  await page.getByRole("button", { name: "思い出を編集" }).click();
+  await page.getByRole("dialog", { name: "思い出を編集" }).getByRole("button", { name: "削除" }).click();
+  await page.getByRole("dialog", { name: "思い出を削除しますか" }).getByRole("button", { name: "削除する" }).click();
   await expect(page).toHaveURL(/\/memories$/);
   await expect(page.getByRole("region", { name: "最近の記録" }).getByText("出発")).toBeVisible();
 });

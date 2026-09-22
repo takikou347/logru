@@ -47,6 +47,7 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
       endsAt: m.endsAt.getTime(),
       allDay: true,
       title: m.title,
+      tag: "思い出",
       ...(m.place ? { place: m.place } : {}),
     })),
     ...[...counts.values()].map<CalendarItem>((c) => {
@@ -60,6 +61,8 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
         endsAt: start + DAY_MS,
         allDay: true,
         title: `記録 ${c.n}`,
+        tag: "記録",
+        secondary: true,
       };
     }),
   ];

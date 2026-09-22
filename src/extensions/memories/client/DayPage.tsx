@@ -35,6 +35,8 @@ function Day({ detail, me, groups }: ShellProps) {
   const wishes = items.filter((i) => i.kind === "wish");
   const doneToday = wishes.filter((w) => w.doneAt && w.doneAt >= from && w.doneAt < to);
   const [recording, setRecording] = useState(false);
+  // まだ来ていない日には記録できない
+  const upcoming = from > Date.now();
   const [editing, setEditing] = useState<MemoryRecord | null>(null);
   const [photoAt, setPhotoAt] = useState<number | null>(null);
   const entries = entriesOf(records.data ?? []);
@@ -70,20 +72,27 @@ function Day({ detail, me, groups }: ShellProps) {
         me={me}
         timeZone={memory.timeZone}
         big
-        empty="この日の記録はまだありません。「記録する」で、写真と一言を残せます。"
+        empty="この日の記録はまだありません。「記録する」から写真や文章を追加できます。"
         onOpenPhoto={(_r, p) => setPhotoAt(entries.findIndex((e) => e.photo.id === p.id))}
         onEditRecord={setEditing}
       />
       <Dock label="1 日の操作">
-        <Button onClick={() => setRecording(true)}>
+        <Button onClick={() => setRecording(true)} disabled={upcoming}>
           <Camera className="size-5" />
-          記録する
+          {upcoming ? "この日になったら記録できます" : "記録する"}
         </Button>
       </Dock>
       {recording && (
-        <RecordSheet groups={groups} me={me} defaultGroupId={memory.groupId} wishes={wishes.filter((w) => !w.doneAt)} onClose={() => setRecording(false)} />
+        <RecordSheet
+          groups={groups}
+          me={me}
+          defaultGroupId={memory.groupId}
+          wishes={wishes.filter((w) => !w.doneAt)}
+          range={{ min: from, max: to - 1 }}
+          onClose={() => setRecording(false)}
+        />
       )}
-      {editing && <RecordSheet groups={groups} me={me} record={editing} onClose={() => setEditing(null)} />}
+      {editing && <RecordSheet groups={groups} me={me} record={editing} range={{ min: from, max: to - 1 }} onClose={() => setEditing(null)} />}
       {photoAt !== null && photoAt >= 0 && (
         <Lightbox entries={entries} index={photoAt} onIndex={setPhotoAt} onClose={() => setPhotoAt(null)} groups={groups} me={me} memoryId={memory.id} timeZone={memory.timeZone} />
       )}

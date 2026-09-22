@@ -74,7 +74,7 @@ function DayItemList({ day, items, onOpen }: { day: Date; items: DayItem[]; onOp
  * 保存に失敗しても閉じず、入れた内容を残す。通信が切れている間は、入力だけさせて保存を止める。
  * 直している間にほかの人が消していたら、閉じて知らせる。0025
  */
-export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, onDelete }: ItemEditorProps) {
+export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose, onDelete }: ItemEditorProps) {
   const qc = useQueryClient();
   const editing = target.mode === "edit" ? target.item : null;
   const myId = me.user.id;
@@ -109,6 +109,9 @@ export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const online = useOnline();
+  // 新しく作るときは、選んでいる日の予定を並べる。日付を変えたら、その日の予定に切り替える
+  const listDay = target.mode === "new" ? (parseDateKey(startDate) ?? target.date) : null;
+  const dayItems = listDay && dayItemsOf ? dayItemsOf(listDay) : [];
 
   // 招待。作った人はいつも参加するので、選ぶ対象にも送る値にも入れない。#28
   const [attendees, setAttendees] = useState<Attendee[]>(editing?.attendees ?? []);
@@ -215,9 +218,7 @@ export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, 
 
   return (
     <ResponsiveSheet title={!editing ? "新しい予定" : canEdit ? "予定を直す" : "予定"} onClose={onClose}>
-      {target.mode === "new" && dayItems && dayItems.length > 0 && onOpenItem && (
-        <DayItemList day={target.date} items={dayItems} onOpen={onOpenItem} />
-      )}
+      {listDay && dayItems.length > 0 && onOpenItem && <DayItemList day={listDay} items={dayItems} onOpen={onOpenItem} />}
       {showRsvp && (
         <RsvpBar color={chosen ? groupColor(chosen, me.colorPrefs) : "nezumi"} inviter={inviter} response={response} busy={responding} onRespond={respond} />
       )}

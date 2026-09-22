@@ -15,7 +15,7 @@ import type { Memory, MemoryRecord } from "../shared/types";
 import { useMemoryGroups, useMemoryList } from "./api";
 import { Dock } from "./Dock";
 import { MemorySheet } from "./MemorySheet";
-import { GroupFilter, GroupLabel, PhotoImg, formatClock, formatSpan } from "./parts";
+import { GroupFilter, GroupLabel, PhotoImg, SideGroupFilter, formatClock, formatSpan } from "./parts";
 import { RecordSheet } from "./RecordSheet";
 
 const FILTER_KEY = "logru-memories-group";
@@ -82,7 +82,7 @@ export function MemoriesPage() {
   const empty = list.data && list.data.memories.length === 0 && list.data.recent.length === 0;
 
   return (
-    <AppLayout poolColors={poolColorsOf(groups, data)}>
+    <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter groups={groups} me={data} value={group} onChange={setGroup} />}>
       <Page>
         <PageBar title="思い出" />
         <GroupFilter groups={groups} me={data} value={group} onChange={setGroup} />
@@ -92,7 +92,7 @@ export function MemoriesPage() {
           <Empty>
             思い出はまだありません。
             <br />
-            旅行やお出かけの前に作ると、しおりを書けます。ふとしたことは「記録する」で残せます。
+            旅行やお出かけの前に作ると、しおりを作れます。日々のできごとは「記録する」から残せます。
           </Empty>
         )}
         {upcoming.map((m, i) => (i === 0 ? <Upcoming key={m.id} memory={m} me={data} now={now} /> : null))}
@@ -101,7 +101,7 @@ export function MemoriesPage() {
           <Shelf title="これから" memories={upcoming.slice(1)} me={data} />
         )}
         {byYear.map(([year, ms]) => (
-          <Shelf key={year} year={year} title="済んだ思い出" memories={ms} me={data} />
+          <Shelf key={year} year={year} title="過去の思い出" memories={ms} me={data} />
         ))}
         <Dock label="思い出の操作">
           <Button variant="secondary" onClick={() => setParams((p) => (p.set("record", "1"), p))}>
@@ -127,14 +127,14 @@ function Upcoming({ memory, me, now }: { memory: Memory; me: Me; now: number }) 
   const days = daysUntil(memory, now);
   const during = memory.startsAt <= now;
   return (
-    <Link to={`/memories/${memory.id}`} className="glass flex flex-col rounded-panel p-2 no-underline" aria-label={`${memory.title}、${during ? "期間の中" : `出発まで ${days} 日`}`}>
+    <Link to={`/memories/${memory.id}`} className="glass flex flex-col rounded-panel p-2 no-underline" aria-label={`${memory.title}、${during ? "期間中" : `出発まで ${days} 日`}`}>
       {memory.cover ? <PhotoImg photo={memory.cover} className="h-[180px] rounded-[22px]" /> : <div className={`h-[120px] rounded-[22px] bg-(--c) opacity-70 c-${group?.color ?? "nezumi"}`} />}
       <div className="grid grid-cols-[1fr_auto] items-end gap-x-3 px-2.5 pt-3 pb-1.5">
         <h2 className="text-xl font-extrabold">{memory.title}</h2>
         <div className="row-span-2 text-right leading-none">
-          <span className="mb-1 block text-[11px] text-ink-2">{during ? "いま" : "出発まで"}</span>
+          <span className="mb-1 block text-[11px] text-ink-2">{during ? "現在" : "出発まで"}</span>
           {during ? (
-            <span className="text-[22px] font-extrabold">期間の中</span>
+            <span className="text-[22px] font-extrabold">期間中</span>
           ) : (
             <>
               <span className="text-[44px] font-extrabold tracking-[-0.04em]">{days}</span>
@@ -156,7 +156,7 @@ function Recent({ records, me }: { records: MemoryRecord[]; me: Me }) {
   return (
     <section className="glass rounded-3xl px-3 pt-3 pb-2" aria-label="最近の記録">
       <h2 className="mb-2 flex text-xs font-bold text-ink-2">
-        最近の記録<span className="ml-auto font-medium">思い出の外の日も</span>
+        最近の記録<span className="ml-auto font-medium">思い出以外の日も含む</span>
       </h2>
       <ScrollArea orientation="horizontal" viewportClassName="pb-2">
         <ul className="flex w-max gap-2">

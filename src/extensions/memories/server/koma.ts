@@ -10,7 +10,7 @@ import { DAY_MS, addDaysToKey, dayIndexOf, dayKeyIn, hourIn, startOfDayIn } from
 import { KOMA_FIRST_HOUR, openSlots, slotAt } from "../shared/koma";
 import { komaDayInput, komaInput } from "../shared/schemas";
 import type { KomaDay, KomaNow } from "../shared/types";
-import { requireMemoriesGroup, usableGroupIds } from "./access";
+import { requireMemoriesGroup, usableGroupIds, usersUsingMemories } from "./access";
 import { withPhotos } from "./load";
 import { PhotoSigner } from "./photos";
 import { type KomaDayRow, memories, memoryKomaDays, memoryKomaNotices, memoryPhotos, memoryRecords } from "./schema";
@@ -46,9 +46,11 @@ async function komaMemoryOn(db: DB, groupIds: string[], at: number) {
  */
 async function todayRow(db: DB, userId: string, now: number, tz: string): Promise<KomaDayRow | undefined> {
   const day = dayKeyIn(now, tz);
+  const usable = await usableGroupIds(db, userId);
   const found = await db.select().from(memoryKomaDays).where(and(eq(memoryKomaDays.userId, userId), eq(memoryKomaDays.day, day))).get();
-  if (found) return found;
-  const memory = await komaMemoryOn(db, await usableGroupIds(db, userId), now);
+  // つないだグループで思い出が使えなくなったら、始めていない扱いにする。始め直すと、別のグループにつなぎ直せる
+  if (found) return usable.includes(found.groupId) ? found : undefined;
+  const memory = await komaMemoryOn(db, usable, now);
   if (!memory) return undefined;
   const row = { userId, day: dayKeyIn(now, memory.timeZone), groupId: memory.groupId, memoryId: memory.id, timeZone: memory.timeZone };
   await db.insert(memoryKomaDays).values(row).onConflictDoNothing();
@@ -155,7 +157,7 @@ export const komaRoutes = createRouter()
     if (input.memoryId) {
       const memory = await db.select().from(memories).where(eq(memories.id, input.memoryId)).get();
       if (!memory || memory.groupId !== input.groupId || memory.startsAt.getTime() > dayStart || memory.endsAt.getTime() <= dayStart) {
-        throw new HttpError(400, "つなげられるのは、選んだグループの、その日を含む思い出だけです。");
+        throw new HttpError(400, "選べる思い出は、共有先のグループで、その日を含むものだけです。");
       }
     }
     const values = { groupId: input.groupId, memoryId: input.memoryId, muted: input.muted ?? found?.muted ?? false };
@@ -182,7 +184,7 @@ export const komaRoutes = createRouter()
     const now = Date.now();
     const rows = await db.select().from(memoryKomaDays).where(eq(memoryKomaDays.userId, me.id)).orderBy(desc(memoryKomaDays.day)).limit(2);
     const row = rows.find((r) => openSlots(now, r.timeZone).some((s) => s.start === input.slot && s.day === r.day));
-    if (!row) throw new HttpError(409, "この枠にはもう残せません。次の枠で撮ってください。");
+    if (!row) throw new HttpError(409, "この時間のひとコマは、もう保存できません。次の時間に撮ってください。");
     const photo = await db.select().from(memoryPhotos).where(eq(memoryPhotos.id, input.photoId)).get();
     if (!photo || photo.createdBy !== me.id || photo.groupId !== row.groupId || photo.recordId) throw new HttpError(400, "写真を撮り直してください。");
     const existing = await db
@@ -224,12 +226,16 @@ export async function notifyKoma(db: DB, env: Env): Promise<void> {
       .where(and(eq(groupExtensions.groupId, m.groupId), eq(groupExtensions.extensionKey, memoriesManifest.key), eq(groupExtensions.enabled, true)))
       .get();
     if (!on) continue;
-    const members = await db.select({ id: groupMembers.userId }).from(groupMembers).where(eq(groupMembers.groupId, m.groupId));
+    // 思い出を使わないと決めた人には、行を作らず知らせない
+    const members = await usersUsingMemories(
+      db,
+      (await db.select({ id: groupMembers.userId }).from(groupMembers).where(eq(groupMembers.groupId, m.groupId))).map((u) => u.id),
+    );
     const day = dayKeyIn(now, m.timeZone);
     if (members.length) {
       await db
         .insert(memoryKomaDays)
-        .values(members.map((u) => ({ userId: u.id, day, groupId: m.groupId, memoryId: m.id, timeZone: m.timeZone })))
+        .values(members.map((id) => ({ userId: id, day, groupId: m.groupId, memoryId: m.id, timeZone: m.timeZone })))
         .onConflictDoNothing();
     }
   }
@@ -242,6 +248,7 @@ export async function notifyKoma(db: DB, env: Env): Promise<void> {
   for (const row of candidates) {
     if (sent >= PUSH_PER_RUN) break;
     if (row.day !== dayKeyIn(now, row.timeZone)) continue;
+    if ((await usersUsingMemories(db, [row.userId])).length === 0) continue;
     const slot = slotAt(now, row.timeZone);
     if (!slot || now - slot.start > NOTICE_WINDOW_MS) continue;
     const taken = await db
@@ -255,7 +262,7 @@ export async function notifyKoma(db: DB, env: Env): Promise<void> {
     const memory = row.memoryId ? await db.select({ title: memories.title }).from(memories).where(eq(memories.id, row.memoryId)).get() : undefined;
     await sendPush(db, env, [row.userId], {
       title: memory?.title ?? "ひとコマ",
-      body: `${slot.hour} 時のひとコマを残せます`,
+      body: `${slot.hour} 時のひとコマを撮りましょう`,
       path: "/memories/koma/now",
       tag: "koma",
     });

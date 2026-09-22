@@ -99,3 +99,19 @@ test("端末の送り先は本人だけが置けて外せる。https だけを�
   await request.delete(`/api/me/push/${id}`, { headers: a.headers });
   expect((await (await request.get("/api/me/push", { headers: a.headers })).json()).devices).toHaveLength(0);
 });
+
+test("未来の時刻の記録は断る", async ({ request }) => {
+  const a = await memoriesUser(request);
+  const future = await request.post("/api/memories/records", {
+    headers: a.headers,
+    data: { groupId: a.groupId, body: "まだ", occurredAt: Date.now() + 3 * 60 * 60 * 1000 },
+  });
+  expect(future.status()).toBe(400);
+});
+
+test("自分で使わないと決めると、グループで有効でも思い出の API は使えない。0019", async ({ request }) => {
+  const a = await memoriesUser(request);
+  await request.put(`/api/groups/${a.groupId}/extensions/memories`, { headers: a.headers, data: { enabled: false } });
+  const res = await request.post("/api/memories/records", { headers: a.headers, data: { groupId: a.groupId, body: "x" } });
+  expect(res.status()).toBe(404);
+});

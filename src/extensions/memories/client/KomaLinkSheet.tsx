@@ -47,7 +47,7 @@ export function KomaLinkSheet({
     try {
       await api(`/memories/koma/days/${day}`, { method: "PUT", body: { groupId, memoryId: choices.some((m) => m.id === memoryId) ? memoryId : null, timeZone: tz } });
       await invalidate();
-      toast(current ? "つなぎ直しました" : "今日のひとコマを始めました");
+      toast(current ? "保存しました" : "今日のひとコマを始めました");
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -58,8 +58,8 @@ export function KomaLinkSheet({
 
   return (
     <ResponsiveSheet
-      title={current ? "ひとコマをつなぎ直す" : "今日をひとコマで残す"}
-      description={current ? undefined : "7 時台から 22 時台まで、1 時間に 1 枚、いまの写真を残せます。今日だけ動きます。"}
+      title={current ? "共有先と思い出を変える" : "今日のひとコマを始める"}
+      description={current ? undefined : "今日の 7 時から 22 時台まで、1 時間に 1 枚ずつ写真を残せます。"}
       onClose={onClose}
     >
       <PanelRow>
@@ -84,7 +84,7 @@ export function KomaLinkSheet({
       <PanelRow>
         <label htmlFor="koma-memory">思い出</label>
         <select id="koma-memory" value={memoryId ?? ""} onChange={(e) => setMemoryId(e.target.value || null)} className="min-h-11 max-w-[60%] bg-transparent text-right text-sm">
-          <option value="">つなげない</option>
+          <option value="">選ばない</option>
           {choices.map((m) => (
             <option key={m.id} value={m.id}>
               {m.title}
@@ -92,14 +92,14 @@ export function KomaLinkSheet({
           ))}
         </select>
       </PanelRow>
-      {changed && <FieldMessage>グループを変えると、この日のひとコマの見える人も変わります。</FieldMessage>}
+      {changed && <FieldMessage>共有先を変えると、この日のひとコマを見られる人も変わります。</FieldMessage>}
       {error && <FieldMessage error>{error}</FieldMessage>}
       <div className="flex gap-2">
         <Button variant="ghost" onClick={onClose}>
           やめる
         </Button>
         <Button className="flex-1" onClick={save} disabled={saving || !groupId}>
-          {current ? "つなぎ直す" : "始める"}
+          {current ? "保存する" : "始める"}
         </Button>
       </div>
     </ResponsiveSheet>

@@ -17,6 +17,7 @@ export const memoriesClient: ClientExtension = {
     { label: "ひとコマ", icon: Timer, path: "/memories/koma", hint: "1 時間に 1 枚" },
   ],
   useShortcut: useKomaShortcut,
+  notifies: "ひとコマの時間",
   pages: [
     { path: "/memories", load: async () => ({ Component: (await import("./MemoriesPage")).MemoriesPage }) },
     { path: "/memories/on/:date", load: async () => ({ Component: (await import("./OnDayPage")).OnDayPage }) },

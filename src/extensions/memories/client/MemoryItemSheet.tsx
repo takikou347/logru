@@ -1,19 +1,23 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
+import { Loading } from "@/app/guards";
 import { ResponsiveSheet } from "@/components/ResponsiveSheet";
-import { Button } from "@/components/ui/button";
 import type { ItemEditorProps } from "../../types.client";
-import { GroupLabel, formatSpan } from "./parts";
+import { useMemory, useMemoryGroups } from "./api";
+import { MemorySheet } from "./MemorySheet";
 
 /**
  * カレンダーの思い出の項目を押したときのシート。0008
- * - 思い出の帯: 題名、期間、場所と「開く」を出す。押すと思い出を開く
+ * - 思い出の帯: 予定と同じく、その場で題名や期間を直せる。シートの中に「思い出を開く」を置く
  * - 日ごとの記録: シートを出さず、その日の画面へ移る
  */
-export function MemoryItemSheet({ target, groups, me, onClose }: ItemEditorProps) {
+export function MemoryItemSheet({ target, me, onClose }: ItemEditorProps) {
   const navigate = useNavigate();
   const item = target.mode === "edit" ? target.item : null;
   const recordsDay = item?.id.startsWith("r:") ? item.id.split(":").slice(2).join(":") : null;
+  const id = item && !recordsDay ? item.id.slice(2) : "";
+  const detail = useMemory(id, Boolean(id));
+  const { groups } = useMemoryGroups();
 
   useEffect(() => {
     if (!item || !recordsDay) return;
@@ -22,23 +26,12 @@ export function MemoryItemSheet({ target, groups, me, onClose }: ItemEditorProps
   }, [item, recordsDay, navigate, onClose]);
 
   if (!item || recordsDay) return null;
-  const id = item.id.slice(2);
-  const group = groups.find((g) => g.id === item.groupId);
-  return (
-    <ResponsiveSheet title={item.title} onClose={onClose}>
-      <p className="text-[22px] font-extrabold tracking-[-0.02em]">{formatSpan(item.startsAt, item.endsAt ?? item.startsAt + 1, Intl.DateTimeFormat().resolvedOptions().timeZone)}</p>
-      <div className="flex flex-wrap items-center gap-3">
-        <GroupLabel group={group} me={me} />
-        {item.place && <span className="text-xs text-ink-2">{item.place}</span>}
-      </div>
-      <div className="flex gap-2">
-        <Button variant="ghost" onClick={onClose}>
-          閉じる
-        </Button>
-        <Button className="flex-1" onClick={() => (onClose(), navigate(`/memories/${id}`))}>
-          開く
-        </Button>
-      </div>
-    </ResponsiveSheet>
-  );
+  if (!detail.data) {
+    return (
+      <ResponsiveSheet title={item.title} onClose={onClose}>
+        {detail.error ? <p className="text-sm text-ink-2">{detail.error.message}</p> : <Loading />}
+      </ResponsiveSheet>
+    );
+  }
+  return <MemorySheet groups={groups} me={me} memory={detail.data.memory} onClose={onClose} openLink />;
 }

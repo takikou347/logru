@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { MAX_MEMORY_DAYS } from "./days";
 
-const title = z.string().trim().min(1, "題名を入れてください。").max(60, "題名は 60 文字までです。");
+const title = z.string().trim().min(1, "題名を入力してください。").max(60, "題名は 60 文字までです。");
 const place = z.string().trim().max(60, "場所は 60 文字までです。").nullable();
 const timeZone = z.string().min(1).max(64).refine(
   (tz) => {
@@ -22,7 +22,7 @@ const rangeOk = (v: { firstDay?: string; lastDay?: string }) => {
   const days = (Date.parse(v.lastDay) - Date.parse(v.firstDay)) / 86_400_000 + 1;
   return days >= 1 && days <= MAX_MEMORY_DAYS;
 };
-const rangeMessage = { message: `期間は 1 日から ${MAX_MEMORY_DAYS} 日までです。終わりは始まりより後にしてください。`, path: ["lastDay"] };
+const rangeMessage = { message: `期間は 1 日から ${MAX_MEMORY_DAYS} 日までです。終わりの日は始まりの日以降にしてください。`, path: ["lastDay"] };
 
 /** `POST /api/memories`。期間は日付で受け、サーバーが時間帯で 0 時に直す */
 export const memoryInput = z
@@ -53,7 +53,7 @@ export const memoryPatchInput = z
 /** `POST /api/memories/:id/items` */
 export const itemInput = z.object({
   kind: z.enum(["wish", "todo", "packing"]),
-  title: z.string().trim().min(1, "中身を入れてください。").max(80, "80 文字までです。"),
+  title: z.string().trim().min(1, "内容を入力してください。").max(80, "80 文字までです。"),
   place: place.default(null),
   dayIndex: z.number().int().min(0).max(MAX_MEMORY_DAYS - 1).nullable().default(null),
   assigneeId: z.string().min(1).nullable().default(null),
@@ -86,7 +86,7 @@ export const recordInput = z
     photoIds: photoIds.default([]),
     itemId: z.string().min(1).nullable().default(null),
   })
-  .refine((v) => (v.body && v.body.length > 0) || v.photoIds.length > 0, { message: "文章か写真を入れてください。", path: ["body"] });
+  .refine((v) => (v.body && v.body.length > 0) || v.photoIds.length > 0, { message: "写真か文章を入力してください。", path: ["body"] });
 
 /** `PATCH /api/memories/records/:recordId` */
 export const recordPatchInput = z.object({

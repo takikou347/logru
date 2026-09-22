@@ -12,7 +12,7 @@ import { useMemoryGroups, useMemoryList, useRecords } from "./api";
 import { Dock } from "./Dock";
 import { Flow } from "./Flow";
 import { entriesOf, Lightbox } from "./Lightbox";
-import { Ambient, GroupFilter, PhotoImg, formatSpan } from "./parts";
+import { Ambient, GroupFilter, PhotoImg, SideGroupFilter, formatSpan } from "./parts";
 import { RecordSheet } from "./RecordSheet";
 
 /**
@@ -45,7 +45,10 @@ export function OnDayPage() {
   const title = valid ? new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "short", timeZone: "UTC" }).format(Date.parse(date)) : "その日";
 
   return (
-    <AppLayout poolColors={poolColorsOf(groups, data)}>
+    <AppLayout
+      poolColors={poolColorsOf(groups, data)}
+      side={<SideGroupFilter groups={groups} me={data} value={group} onChange={(v) => setParams(v ? { group: v } : {}, { replace: true })} />}
+    >
       <Ambient photo={memory?.cover ?? null} />
       <Page>
         <PageBar title={title} back="/memories" />
@@ -69,14 +72,14 @@ export function OnDayPage() {
           onEditRecord={setEditing}
         />
         <Dock label="その日の操作">
-          <Button onClick={() => setRecording(true)}>
+          <Button onClick={() => setRecording(true)} disabled={from > Date.now()}>
             <Camera className="size-5" />
-            記録する
+            {from > Date.now() ? "この日になったら記録できます" : "記録する"}
           </Button>
         </Dock>
       </Page>
-      {recording && <RecordSheet groups={groups} me={data} defaultGroupId={group} onClose={() => setRecording(false)} />}
-      {editing && <RecordSheet groups={groups} me={data} record={editing} onClose={() => setEditing(null)} />}
+      {recording && <RecordSheet groups={groups} me={data} defaultGroupId={group} range={{ min: from, max: to - 1 }} onClose={() => setRecording(false)} />}
+      {editing && <RecordSheet groups={groups} me={data} record={editing} range={{ min: from, max: to - 1 }} onClose={() => setEditing(null)} />}
       {photoAt !== null && photoAt >= 0 && <Lightbox entries={entries} index={photoAt} onIndex={setPhotoAt} onClose={() => setPhotoAt(null)} groups={groups} me={data} />}
     </AppLayout>
   );

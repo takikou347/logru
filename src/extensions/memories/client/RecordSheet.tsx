@@ -41,7 +41,8 @@ function toLocalInput(ms: number): string {
  * @param groups 思い出の拡張が有効なグループ
  * @param defaultGroupId 最初に選ぶグループ。無ければ自分だけ
  * @param wishes 済んだ印を付けられるやりたいこと。思い出の中で開いたときだけ
- * @param record 直す記録。無ければ新しく作る
+ * @param record 編集する記録。無ければ新しく作る
+ * @param range 選べる時刻。思い出の日から開いたときは、その日の中で、いままで。無ければ、いままで
  */
 export function RecordSheet({
   groups,
@@ -49,6 +50,7 @@ export function RecordSheet({
   defaultGroupId,
   wishes = [],
   record,
+  range,
   onClose,
 }: {
   groups: GroupSummary[];
@@ -56,6 +58,7 @@ export function RecordSheet({
   defaultGroupId?: string | null;
   wishes?: MemoryItem[];
   record?: MemoryRecord;
+  range?: { min: number; max: number };
   onClose: () => void;
 }) {
   const qc = useQueryClient();
@@ -74,7 +77,10 @@ export function RecordSheet({
   const sending = slots.some((s) => s.state === "sending");
   const done = slots.filter((s): s is Extract<Slot, { state: "done" }> => s.state === "done");
   const firstTaken = done.map((s) => s.photo.takenAt).find((t): t is number => t !== null);
-  const shownTime = time ?? toLocalInput(firstTaken ?? Date.now());
+  const min = range?.min ?? null;
+  const max = Math.min(range?.max ?? Date.now(), Date.now());
+  const clamp = (t: number) => Math.min(Math.max(t, min ?? t), max);
+  const shownTime = time ?? toLocalInput(clamp(firstTaken ?? Date.now()));
   const komaLocked = record?.kind === "koma";
 
   /** 1 枚を縮めて送る。失敗したら、その欄に理由を出し、押せば送り直せる */
@@ -109,21 +115,24 @@ export function RecordSheet({
   async function save() {
     setError(null);
     if (!body.trim() && done.length === 0) {
-      setError("文章か写真を入れてください。");
+      setError("写真か文章を入力してください。");
       return;
     }
+    const chosen = new Date(shownTime).getTime();
+    if (chosen > Date.now() + 60_000) return setError("未来の時刻は選べません。");
+    if (min !== null && (chosen < min || chosen > max)) return setError("この日の中の時刻を選んでください。");
     setSaving(true);
-    const occurredAt = time ? new Date(time).getTime() : undefined;
+    const occurredAt = chosen;
     try {
       if (record) {
         await api(`/memories/records/${record.id}`, { method: "PATCH", body: { body: body.trim() || null, occurredAt, photoIds: done.map((s) => s.photo.id) } });
-        toast("記録を直しました");
+        toast("記録を保存しました");
       } else {
         await api("/memories/records", {
           method: "POST",
           body: { groupId, body: body.trim() || null, occurredAt, photoIds: done.map((s) => s.photo.id), itemId },
         });
-        toast("記録を残しました");
+        toast("記録しました");
       }
       await invalidate();
       onClose();
@@ -149,7 +158,7 @@ export function RecordSheet({
       }
       await invalidate();
     }, 5000);
-    toast("記録を消しました", {
+    toast("記録を削除しました", {
       duration: 5000,
       action: {
         label: "元に戻す",
@@ -163,7 +172,7 @@ export function RecordSheet({
   }
 
   return (
-    <ResponsiveSheet title={record ? "記録を直す" : "記録する"} onClose={onClose}>
+    <ResponsiveSheet title={record ? "記録を編集" : "記録する"} onClose={onClose}>
       <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => (addFiles(e.target.files), (e.target.value = ""))} />
       <input ref={picker} type="file" accept="image/*" multiple className="hidden" onChange={(e) => (addFiles(e.target.files), (e.target.value = ""))} />
 
@@ -195,7 +204,7 @@ export function RecordSheet({
                 </span>
               )}
               {s.state === "failed" && (
-                <button type="button" className="absolute inset-0 grid place-items-center text-sun" aria-label={`送り直す。${s.error}`} title={s.error} onClick={() => retry(s)}>
+                <button type="button" className="absolute inset-0 grid place-items-center text-sun" aria-label={`もう一度送る。${s.error}`} title={s.error} onClick={() => retry(s)}>
                   <RotateCw className="size-5" />
                 </button>
               )}
@@ -216,7 +225,7 @@ export function RecordSheet({
 
       <Textarea
         aria-label="文章"
-        placeholder={record?.kind === "koma" ? "一言を添える" : "その日のこと"}
+        placeholder={record?.kind === "koma" ? "ひとこと" : "できごとや、ひとこと"}
         value={body}
         maxLength={record?.kind === "koma" ? 40 : 1000}
         onChange={(e) => setBody(e.target.value)}
@@ -243,13 +252,15 @@ export function RecordSheet({
             id="record-time"
             type="datetime-local"
             value={shownTime}
+            min={min !== null ? toLocalInput(min) : undefined}
+            max={toLocalInput(max)}
             onChange={(e) => setTime(e.target.value)}
             className="min-h-11 rounded-xl bg-transparent text-right text-sm font-bold"
           />
         </PanelRow>
         {!record && wishes.length > 0 && (
           <PanelRow>
-            <label htmlFor="record-wish">済んだやりたいこと</label>
+            <label htmlFor="record-wish">できたやりたいこと</label>
             <select id="record-wish" value={itemId ?? ""} onChange={(e) => setItemId(e.target.value || null)} className="min-h-11 max-w-[60%] bg-transparent text-right text-sm">
               <option value="">選ばない</option>
               {wishes.map((w) => (
@@ -261,13 +272,13 @@ export function RecordSheet({
           </PanelRow>
         )}
       </div>
-      {slots.length > 0 && !record && <FieldMessage>写真を送り始めたら、共有するグループは変えられません。</FieldMessage>}
+      {slots.length > 0 && !record && <FieldMessage>写真を追加した後は、共有先を変えられません。</FieldMessage>}
       {error && <FieldMessage error>{error}</FieldMessage>}
 
       <div className="flex gap-2">
         {record ? (
           <Button variant="danger" onClick={remove}>
-            消す
+            削除
           </Button>
         ) : (
           <Button variant="ghost" onClick={onClose}>
@@ -275,7 +286,7 @@ export function RecordSheet({
           </Button>
         )}
         <Button className="flex-1" onClick={save} disabled={sending || saving}>
-          {sending ? "写真を送っています" : record ? "直す" : "残す"}
+          {sending ? "写真を送信しています" : "保存する"}
         </Button>
       </div>
     </ResponsiveSheet>

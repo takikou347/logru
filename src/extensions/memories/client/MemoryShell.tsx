@@ -32,16 +32,13 @@ export type ShellProps = { detail: MemoryDetail; me: Me; groups: GroupSummary[];
  * @param face いまの面
  * @param children 面の中身
  * @param side PC の右の列に置くもの
- * @param extraSheet 思い出のシートの下に足す欄。ひとコマの切り替えなど
  */
 export function MemoryShell({
   face,
   children,
-  extraSheet,
 }: {
   face: Face;
   children: (p: ShellProps) => ReactNode;
-  extraSheet?: Parameters<typeof MemorySheet>[0]["extra"];
 }) {
   const { id = "" } = useParams();
   const me = useMe();
@@ -61,7 +58,7 @@ export function MemoryShell({
   if (!detail.data) {
     return (
       <AppLayout poolColors={poolColorsOf(groups, me.data)}>
-        <Empty>思い出が見つかりません。消えたか、グループを抜けています。</Empty>
+        <Empty>思い出が見つかりません。削除されたか、グループから抜けた可能性があります。</Empty>
         <Link to="/memories">思い出の一覧へ</Link>
       </AppLayout>
     );
@@ -85,7 +82,7 @@ export function MemoryShell({
             </Link>
           </Button>
           <h1 className="min-w-0 flex-1 truncate text-[17px] font-bold">{data.memory.title}</h1>
-          <Button variant="ghost" size="icon" aria-label="思い出を直す" onClick={() => setEditing(true)}>
+          <Button variant="ghost" size="icon" aria-label="思い出を編集" onClick={() => setEditing(true)}>
             <MoreHorizontal className="size-5" />
           </Button>
         </header>
@@ -94,7 +91,7 @@ export function MemoryShell({
         </div>
         {children({ detail: data, me: me.data, groups, group })}
       </div>
-      {editing && <MemorySheet groups={groups} me={me.data} memory={data.memory} onClose={() => setEditing(false)} extra={extraSheet} />}
+      {editing && <MemorySheet groups={groups} me={me.data} memory={data.memory} onClose={() => setEditing(false)} />}
     </AppLayout>
   );
 }

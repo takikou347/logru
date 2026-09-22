@@ -8,12 +8,19 @@ describe("enabledKeys", () => {
     expect([...enabledKeys([x("events", true)], [])]).toEqual(["events"]);
   });
 
-  it("切り替えられる拡張は、どれかのグループで有効なら使える。0019", () => {
-    const groups = [{ extensions: [] }, { extensions: ["memories"] }];
+  it("切り替えられる拡張は、本人が使うと決めたときだけ使える。0019", () => {
+    const groups = [
+      { isPersonal: true, extensions: ["memories"] },
+      { isPersonal: false, extensions: [] },
+    ];
     expect(enabledKeys([x("events", true), x("memories"), x("money")], groups)).toEqual(new Set(["events", "memories"]));
   });
 
-  it("どのグループでも無効なら使えない", () => {
-    expect(enabledKeys([x("memories")], [{ extensions: [] }]).has("memories")).toBe(false);
+  it("共有のグループで有効でも、本人が使わないなら使えない", () => {
+    const groups = [
+      { isPersonal: true, extensions: [] },
+      { isPersonal: false, extensions: ["memories"] },
+    ];
+    expect(enabledKeys([x("memories")], groups).has("memories")).toBe(false);
   });
 });

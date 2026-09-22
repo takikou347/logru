@@ -27,10 +27,11 @@ export type DayItem = CalendarItem & {
 export type ItemEditorProps = {
   target: EditorTarget;
   /**
-   * target が new のとき、その日に既にある項目。時刻の順。
-   * シートはフォームの上に一覧で出し、押されたら onOpenItem を呼ぶ。空なら何も出さない
+   * target が new のとき、ある日に既にある予定を返す。時刻の順。月の表だけに出す項目は含めない。
+   * シートは選んでいる日を渡してフォームの上に一覧で出し、押されたら onOpenItem を呼ぶ。空なら何も出さない。
+   * 日付を変えたら、その日の予定に切り替わる
    */
-  dayItems?: DayItem[];
+  dayItemsOf?: (date: Date) => DayItem[];
   /** dayItems の項目が押されたとき。カレンダーが、その項目の拡張の直すシートに切り替える */
   onOpenItem?: (item: CalendarItem) => void;
   /** 入っているグループ。項目をどのグループに置くかを選ばせる */
@@ -90,4 +91,6 @@ export type ClientExtension = {
    * hook なので、呼ぶ順を変えないよう、拡張の一覧の順にいつも呼ぶ。使えないときは enabled が false で、読み込みを止める
    */
   useShortcut?: (enabled: boolean) => ExtensionShortcut | null;
+  /** 端末に知らせるもの。例は「ひとコマの時刻」。知らせる拡張を使っているときだけ、設定に知らせの欄を出す。F-23 */
+  notifies?: string;
 };

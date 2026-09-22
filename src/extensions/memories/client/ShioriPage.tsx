@@ -47,7 +47,7 @@ function Shiori({ detail, me, group }: ShellProps) {
               <InitialAvatar key={m.id} person={{ id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs) }} className={cn(i > 0 && "-ml-2")} />
             ))}
           </span>
-          {todoLeft > 0 ? <b className="font-bold text-sun">やること 残り {todoLeft}</b> : "やることは済んだ"}
+          {todoLeft > 0 ? <b className="font-bold text-sun">やること 残り {todoLeft}</b> : "やることはすべて完了"}
         </p>
         {now < memory.startsAt ? (
           <p className="text-right leading-none">
@@ -56,7 +56,7 @@ function Shiori({ detail, me, group }: ShellProps) {
             <span className="ml-0.5 text-xs font-bold">日</span>
           </p>
         ) : (
-          <p className="text-right text-sm font-bold">{now < memory.endsAt ? "期間の中" : "済んだ"}</p>
+          <p className="text-right text-sm font-bold">{now < memory.endsAt ? "期間中" : "終了"}</p>
         )}
       </section>
 
@@ -87,12 +87,12 @@ function Wishes({ detail, group, me }: ListProps) {
   const loose = wishes.filter((w) => w.dayIndex === null || w.dayIndex >= days.length);
   return (
     <>
-      <Panel aria-label="通して">
+      <Panel aria-label="いつでも">
         <h2 className="flex items-baseline gap-2 text-sm font-bold">
-          通して<span className="ml-auto text-[11px] font-medium text-ink-2">日を決めずにやりたいこと</span>
+          いつでも<span className="ml-auto text-[11px] font-medium text-ink-2">日を決めずにやりたいこと</span>
         </h2>
         <ItemRows items={loose} detail={detail} group={group} me={me} />
-        <AddRow detail={detail} kind="wish" dayIndex={null} placeholder="やりたいことを足す" />
+        <AddRow detail={detail} kind="wish" dayIndex={null} placeholder="やりたいことを追加" />
       </Panel>
       {days.map((day, i) => {
         const dayEvents = events.filter((e) => dayKeyIn(e.startsAt, memory.timeZone) === day);
@@ -115,7 +115,7 @@ function Wishes({ detail, group, me }: ListProps) {
               ))}
             </ul>
             <ItemRows items={dayWishes} detail={detail} group={group} me={me} />
-            <AddRow detail={detail} kind="wish" dayIndex={i} placeholder="この日にやりたいことを足す" />
+            <AddRow detail={detail} kind="wish" dayIndex={i} placeholder="この日にやりたいことを追加" />
           </Panel>
         );
       })}
@@ -132,9 +132,9 @@ function Todos({ detail, group, me }: ListProps) {
       <h2 className="flex items-baseline text-sm font-bold">
         やること<span className="ml-auto text-[11px] font-medium text-ink-2">出発までに</span>
       </h2>
-      {sorted.length === 0 && <Empty>予約や下調べなど、出発までにやることを足せます。</Empty>}
+      {sorted.length === 0 && <Empty>予約や下調べなど、出発までにやることを追加できます。</Empty>}
       <ItemRows items={sorted} detail={detail} group={group} me={me} />
-      <AddRow detail={detail} kind="todo" placeholder="やることを足す" group={group} withDue />
+      <AddRow detail={detail} kind="todo" placeholder="やることを追加" group={group} withDue />
     </Panel>
   );
 }
@@ -148,18 +148,18 @@ function Packing({ detail, group, me }: ListProps) {
   return (
     <Panel aria-label="持ち物">
       <h2 className="flex items-baseline text-sm font-bold">持ち物</h2>
-      {packing.length === 0 && <Empty>持ち物を足すと、誰が持つかを分けられます。</Empty>}
+      {packing.length === 0 && <Empty>持ち物を追加すると、誰が持っていくかを決められます。</Empty>}
       <ItemRows items={packing} detail={detail} group={group} me={me} />
-      <AddRow detail={detail} kind="packing" placeholder="持ち物を足す" group={group} />
+      <AddRow detail={detail} kind="packing" placeholder="持ち物を追加" group={group} />
       {others.length > 0 && (
         <label className="flex min-h-11 items-center justify-between gap-3 border-t border-line pt-2 text-sm">
-          前の思い出から写す
+          ほかの思い出からコピー
           <select
             className="min-h-10 max-w-[55%] rounded-xl border border-line bg-field px-2 text-sm"
             value=""
             onChange={(e) => e.target.value && copy.mutate(e.target.value)}
           >
-            <option value="">選ぶ</option>
+            <option value="">選択</option>
             {others.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.title}
@@ -193,7 +193,7 @@ function ItemRows({ items, detail, group, me }: { items: MemoryItem[]; detail: M
           <li key={item.id} className="grid min-h-[52px] grid-cols-[34px_1fr_auto] items-center gap-1 border-t border-line text-sm">
             <Checkbox
               checked={Boolean(item.doneAt)}
-              aria-label={`${item.title} を済みにする`}
+              aria-label={`${item.title} を完了にする`}
               onCheckedChange={(v) => update.mutate({ id: item.id, done: v === true })}
               className="size-[22px] rounded-[7px]"
             />
@@ -202,7 +202,7 @@ function ItemRows({ items, detail, group, me }: { items: MemoryItem[]; detail: M
               {(item.place || item.dueOn) && (
                 <small className={cn("text-[11px] text-ink-2", late && "font-bold text-sun")}>
                   {item.place}
-                  {item.dueOn && `${item.dueOn.slice(5).replace("-", ".")} まで${late ? "・過ぎている" : ""}`}
+                  {item.dueOn && `${item.dueOn.slice(5).replace("-", ".")} まで${late ? "・期限切れ" : ""}`}
                 </small>
               )}
             </span>
@@ -213,7 +213,7 @@ function ItemRows({ items, detail, group, me }: { items: MemoryItem[]; detail: M
                 assigneeName(item, group) && <span className="text-[11px] text-ink-2">{assigneeName(item, group)}</span>
               )}
               {item.createdBy === me.user.id && (
-                <button type="button" className="grid size-9 place-items-center text-ink-3" aria-label={`${item.title} を消す`} onClick={() => remove.mutate(item.id)}>
+                <button type="button" className="grid size-9 place-items-center text-ink-3" aria-label={`${item.title} を削除`} onClick={() => remove.mutate(item.id)}>
                   <Trash2 className="size-4" />
                 </button>
               )}
@@ -277,7 +277,7 @@ function AddRow({
     <form className="flex flex-col gap-2 border-t border-line pt-2.5" onSubmit={submit}>
       <Input autoFocus value={title} maxLength={80} placeholder={placeholder} aria-label={placeholder} onChange={(e) => setTitle(e.target.value)} />
       <div className="flex flex-wrap gap-2">
-        {kind === "wish" && <Input value={place} maxLength={60} placeholder="場所。省けます" aria-label="場所" className="flex-1" onChange={(e) => setPlace(e.target.value)} />}
+        {kind === "wish" && <Input value={place} maxLength={60} placeholder="場所" aria-label="場所" className="flex-1" onChange={(e) => setPlace(e.target.value)} />}
         {kind !== "wish" && shared && (
           <select aria-label="担当" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} className="min-h-11 flex-1 rounded-[14px] border border-line bg-field px-3 text-sm">
             <option value="">みんな</option>
@@ -292,10 +292,10 @@ function AddRow({
       </div>
       <div className="flex justify-end gap-2">
         <button type="button" className="min-h-10 px-3 text-sm text-ink-2" onClick={() => setOpen(false)}>
-          閉じる
+          キャンセル
         </button>
         <button type="submit" className="min-h-10 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground" disabled={!title.trim() || add.isPending}>
-          足す
+          追加
         </button>
       </div>
     </form>

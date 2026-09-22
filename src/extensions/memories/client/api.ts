@@ -16,10 +16,17 @@ export const memoryKeys = {
   records: (group: string, from: number, to: number) => ["memories", "records", group, from, to] as const,
 };
 
-/** 思い出の拡張が有効な、入っているグループ。自分だけのグループが先頭 */
+/**
+ * 思い出に使えるグループ。自分だけのグループが先頭で、「共有しない」に当たる。0019
+ * 本人が使わないと決めていれば空。使うなら、自分だけのグループと、思い出を有効にした共有のグループ
+ */
 export function useMemoryGroups(): { groups: GroupSummary[]; ready: boolean } {
   const groups = useGroups();
-  const list = useMemo(() => (groups.data ?? []).filter((g) => g.extensions.includes(memoriesManifest.key)), [groups.data]);
+  const list = useMemo(() => {
+    const all = groups.data ?? [];
+    if (!all.some((g) => g.isPersonal && g.extensions.includes(memoriesManifest.key))) return [];
+    return all.filter((g) => g.isPersonal || g.extensions.includes(memoriesManifest.key));
+  }, [groups.data]);
   return { groups: list, ready: !groups.isPending };
 }
 
@@ -35,8 +42,8 @@ export function useMemoryList(group: string | null) {
 }
 
 /** 思い出 1 件と、しおりの行を読む */
-export function useMemory(id: string) {
-  return useQuery({ queryKey: memoryKeys.detail(id), queryFn: () => api<MemoryDetail>(`/memories/${id}`) });
+export function useMemory(id: string, enabled = true) {
+  return useQuery({ queryKey: memoryKeys.detail(id), queryFn: () => api<MemoryDetail>(`/memories/${id}`), enabled });
 }
 
 /**
@@ -102,7 +109,7 @@ export function useItemMutations(memoryId: string) {
   const copy = useMutation({
     mutationFn: (fromMemoryId: string) =>
       api<{ items: MemoryItem[]; copied: number }>(`/memories/${memoryId}/items/copy`, { method: "POST", body: { fromMemoryId } }),
-    onSuccess: (r) => toast(r.copied ? `持ち物を ${r.copied} つ写しました` : "写す持ち物はありませんでした"),
+    onSuccess: (r) => toast(r.copied ? `持ち物を ${r.copied} 件コピーしました` : "コピーできる持ち物はありませんでした"),
     onError: (e) => toast.error((e as Error).message),
     onSettled: settle,
   });

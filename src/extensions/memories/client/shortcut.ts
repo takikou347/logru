@@ -13,7 +13,7 @@ export function useKomaShortcut(enabled: boolean): ExtensionShortcut | null {
   if (!enabled || !data?.started || !data.slot || data.taken) return null;
   return {
     label: `${data.slot.hour} 時のひとコマ`,
-    sub: `${data.memory?.title ?? "ひとコマ"}・${data.slot.hour + 1}:00 まで残せる`,
+    sub: `${data.memory?.title ?? "ひとコマ"}・${data.slot.hour + 1}:00 まで`,
     image: data.last?.thumbUrl,
     path: "/memories/koma/now",
     action: "撮る",

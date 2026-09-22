@@ -298,7 +298,7 @@ export function CalendarPage() {
         <Editor
           key={editor.mode === "edit" ? `edit:${itemKey(editor.item)}` : "new"}
           target={editor}
-          dayItems={editor.mode === "new" ? items.filter((i) => onDay(i, editor.date)) : undefined}
+          dayItemsOf={editor.mode === "new" ? (d) => items.filter((i) => !i.secondary && onDay(i, d)) : undefined}
           onOpenItem={(item) => setEditor({ mode: "edit", item })}
           groups={allGroups}
           me={me.data}

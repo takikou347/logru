@@ -16,9 +16,10 @@ import { poolColorsOf } from "../calendar/model";
 type Overview = { extensions: ExtensionOverview[]; personalGroupId: string | null };
 
 /**
- * 機能の一覧。拡張ごとに、自分だけで使うかを切り替える。F-24、0019
+ * 機能の一覧。拡張ごとに、自分が使うかを切り替える。F-24、0019
  *
- * グループで使うかは、そのグループの設定で管理者が決める。ここでは使っているグループの名前だけを出し、押すとグループの設定へ移る。
+ * 切ると、グループで有効でも、自分の画面には入口も項目も出ない。
+ * どのグループで共有できるかは、そのグループの設定で管理者が決める。ここではグループの名前だけを出し、押すとグループの設定へ移る。
  */
 export function ExtensionsPage() {
   const me = useMe();
@@ -28,7 +29,7 @@ export function ExtensionsPage() {
   const toggle = useMutation({
     mutationFn: ({ key, enabled }: { key: string; enabled: boolean }) =>
       api(`/groups/${overview.data?.personalGroupId}/extensions/${key}`, { method: "PUT", body: { enabled } }),
-    onSuccess: (_r, v) => toast(v.enabled ? "自分だけで使えるようにしました" : "自分だけでは使わないようにしました"),
+    onSuccess: (_r, v) => toast(v.enabled ? "使えるようにしました" : "使わないようにしました"),
     onError: (e) => toast.error((e as Error).message),
     // 入口の出し分けはグループの有効な拡張で決まるので、グループも読み直す
     onSettled: () => Promise.all([qc.invalidateQueries({ queryKey: keys.extensionOverview }), qc.invalidateQueries({ queryKey: keys.groups })]),
@@ -62,13 +63,13 @@ export function ExtensionsPage() {
                 </div>
                 <Switch
                   checked={checked}
-                  aria-label={`${x.label}を自分だけで使う`}
+                  aria-label={`${x.label}を使う`}
                   disabled={!overview.data?.personalGroupId || pending}
                   onCheckedChange={(enabled) => toggle.mutate({ key: x.key, enabled })}
                 />
               </div>
               <div className="flex flex-wrap items-center gap-1.5 border-t border-line pt-2.5">
-                <span className="mr-1 text-xs text-ink-2">使っているグループ</span>
+                <span className="mr-1 text-xs text-ink-2">共有できるグループ</span>
                 {x.groups.length === 0 && <span className="text-xs text-ink-3">まだありません</span>}
                 {x.groups.map((g) => {
                   const group = byId.get(g.id);
@@ -85,7 +86,7 @@ export function ExtensionsPage() {
                   );
                 })}
               </div>
-              <FieldMessage>ほかのグループでも使うには、そのグループの設定で管理者が足します。</FieldMessage>
+              <FieldMessage>使うと、共有しない記録はいつでも残せます。グループで共有するには、そのグループの設定で管理者が有効にします。</FieldMessage>
             </Panel>
           );
         })}

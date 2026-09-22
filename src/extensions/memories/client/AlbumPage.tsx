@@ -21,7 +21,7 @@ function Album({ detail, me, groups }: ShellProps) {
   const days = memoryDays(memory);
 
   if (records.error) return <LoadFailure what="写真" error={records.error} onRetry={() => void records.refetch()} />;
-  if (records.data && entries.length === 0) return <Empty>写真はまだありません。1 日の面の「記録する」で足せます。</Empty>;
+  if (records.data && entries.length === 0) return <Empty>写真はまだありません。「1 日」から記録すると、ここに並びます。</Empty>;
   return (
     <>
       {days.map((day) => {

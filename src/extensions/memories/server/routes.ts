@@ -188,7 +188,8 @@ export const memoryRoutes = createRouter()
     await requireMemoriesGroup(db, me.id, input.groupId);
     const photos = (await requirePhotos(db, me.id, input.groupId, input.photoIds)) ?? [];
     const firstTaken = input.photoIds.map((id) => photos.find((p) => p.id === id)?.takenAt).find(Boolean);
-    const occurredAt = new Date(input.occurredAt ?? firstTaken?.getTime() ?? Date.now());
+    const occurredAt = new Date(Math.min(input.occurredAt ?? firstTaken?.getTime() ?? Date.now(), Date.now()));
+    requireNotFuture(input.occurredAt);
     const item = input.itemId ? await db.select().from(memoryItems).where(eq(memoryItems.id, input.itemId)).get() : undefined;
     if (input.itemId) {
       const owner = item ? await db.select().from(memories).where(eq(memories.id, item.memoryId)).get() : undefined;
@@ -207,13 +208,14 @@ export const memoryRoutes = createRouter()
     const db = c.get("db");
     const me = c.get("user");
     const row = await loadRecordRow(db, me.id, c.req.param("recordId"));
-    if (row.createdBy !== me.id) throw new HttpError(403, "記録を直せるのは、書いた人だけです。");
+    if (row.createdBy !== me.id) throw new HttpError(403, "記録を編集できるのは、記録した人だけです。");
     const input = c.req.valid("json");
+    requireNotFuture(input.occurredAt);
     const current = await db.select({ id: memoryPhotos.id }).from(memoryPhotos).where(eq(memoryPhotos.recordId, row.id));
     const nextIds = input.photoIds ?? current.map((p) => p.id);
     const body = input.body === undefined ? row.body : input.body || null;
-    if (!body && nextIds.length === 0) throw new HttpError(400, "文章か写真を入れてください。");
-    if (row.kind === "koma" && nextIds.length === 0) throw new HttpError(400, "ひとコマの写真は外せません。消すときは記録ごと消してください。");
+    if (!body && nextIds.length === 0) throw new HttpError(400, "写真か文章を入力してください。");
+    if (row.kind === "koma" && nextIds.length === 0) throw new HttpError(400, "ひとコマの写真は外せません。不要なときは記録ごと削除してください。");
     await requirePhotos(db, me.id, row.groupId, nextIds, row.id);
     const removed = current.map((p) => p.id).filter((id) => !nextIds.includes(id));
     await db.batch([
@@ -230,7 +232,7 @@ export const memoryRoutes = createRouter()
     const db = c.get("db");
     const me = c.get("user");
     const row = await loadRecordRow(db, me.id, c.req.param("recordId"));
-    if (row.createdBy !== me.id) throw new HttpError(403, "記録を消せるのは、書いた人だけです。");
+    if (row.createdBy !== me.id) throw new HttpError(403, "記録を削除できるのは、記録した人だけです。");
     // 写真といいねは外部キーで消える。写真の行が消えると、トリガーが R2 の鍵を消す待ちに積む
     await db.delete(memoryRecords).where(eq(memoryRecords.id, row.id));
     return c.body(null, 204);
@@ -293,7 +295,7 @@ export const memoryRoutes = createRouter()
     const db = c.get("db");
     const me = c.get("user");
     const row = await loadMemory(db, me.id, c.req.param("id"));
-    if (row.createdBy !== me.id) throw new HttpError(403, "思い出を消せるのは、作った人だけです。");
+    if (row.createdBy !== me.id) throw new HttpError(403, "思い出を削除できるのは、作った人だけです。");
     // しおりの行は外部キーで消える。記録は思い出に属さないので残る。0020
     await db.delete(memories).where(eq(memories.id, row.id));
     return c.body(null, 204);
@@ -392,10 +394,18 @@ export const memoryRoutes = createRouter()
       .where(and(eq(memoryItems.id, c.req.param("itemId")), eq(memoryItems.memoryId, row.id)))
       .get();
     if (!item) throw new HttpError(404, "見つかりません。");
-    if (item.createdBy !== me.id) throw new HttpError(403, "消せるのは、書いた人だけです。");
+    if (item.createdBy !== me.id) throw new HttpError(403, "削除できるのは、追加した人だけです。");
     await db.delete(memoryItems).where(eq(memoryItems.id, item.id));
     return c.body(null, 204);
   });
+
+/** 端末の時計のずれを見込んで、この先まで受け付ける。10 分 */
+const CLOCK_SKEW_MS = 10 * 60 * 1000;
+
+/** 未来の時刻の記録は断る。まだ起きていないことは記録できない */
+function requireNotFuture(at: number | undefined) {
+  if (at !== undefined && at > Date.now() + CLOCK_SKEW_MS) throw new HttpError(400, "未来の時刻には記録できません。");
+}
 
 /** 記録にいいねを付けた人。付けた順 */
 async function likesOf(db: DB, recordId: string): Promise<string[]> {

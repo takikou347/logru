@@ -65,7 +65,7 @@ export function Flow({
                 <Check className="size-3" strokeWidth={3} />
               </span>
               {row.item.title}
-              <span className="ml-auto text-[11px] text-ink-3">しおりから</span>
+              <span className="ml-auto text-[11px] text-ink-3">やりたいこと</span>
             </div>
           )}
           {row.type === "record" && (

@@ -4,6 +4,7 @@ import { type ReactNode, useState } from "react";
 import type { GroupSummary, Me } from "../../../shared/api-types";
 import { AvatarStack, InitialAvatar } from "@/components/Avatars";
 import { Chip } from "@/components/Chip";
+import { SideHeading, sideItemClass } from "@/components/AppLayout";
 import { Dot } from "@/components/Panel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { groupColor, memberColor } from "@/lib/colors";
@@ -142,7 +143,7 @@ export function RecordBody({
         {record.kind === "koma" && <span className="rounded-full bg-field px-1.5 text-[10px] text-ink-2">ひとコマ</span>}
         {mine && onEdit && (
           <button type="button" className="ml-auto min-h-8 px-2 text-xs font-medium text-ink-2" onClick={() => onEdit(record)}>
-            直す
+            編集
           </button>
         )}
       </div>
@@ -154,7 +155,7 @@ export function RecordBody({
 
 /**
  * グループの絞り込み。すべて、自分だけ、共有のグループ。カレンダーと同じ形。F-102
- * 横に流れ、下にバーをいつも出す。F-25
+ * スマホは横に流れるチップで、下にバーをいつも出す。F-25。PC は左の列の SideGroupFilter を使う
  */
 export function GroupFilter({
   groups,
@@ -168,8 +169,8 @@ export function GroupFilter({
   onChange: (id: string | null) => void;
 }) {
   return (
-    <nav className="-mx-4 lg:mx-0" aria-label="グループで絞る">
-      <ScrollArea orientation="horizontal" className="px-4 lg:px-0" viewportClassName="pb-1.5" scrollbarClassName="left-4! right-4! lg:left-0! lg:right-0!">
+    <nav className="-mx-4 lg:hidden" aria-label="グループで絞る">
+      <ScrollArea orientation="horizontal" className="px-4" viewportClassName="pb-1.5" scrollbarClassName="left-4! right-4!">
         <div className="flex w-max gap-2">
           <Chip aria-pressed={value === null} onClick={() => onChange(null)}>
             すべて
@@ -183,6 +184,34 @@ export function GroupFilter({
         </div>
       </ScrollArea>
     </nav>
+  );
+}
+
+/** PC の左の列に置く、グループの絞り込み。カレンダーの左の列と同じ形 */
+export function SideGroupFilter({
+  groups,
+  me,
+  value,
+  onChange,
+}: {
+  groups: GroupSummary[];
+  me: Me;
+  value: string | null;
+  onChange: (id: string | null) => void;
+}) {
+  return (
+    <div role="group" aria-label="表示するグループ" className="pr-2">
+      <SideHeading>表示するグループ</SideHeading>
+      <button type="button" className={sideItemClass} aria-pressed={value === null} onClick={() => onChange(null)}>
+        すべて
+      </button>
+      {groups.map((g) => (
+        <button key={g.id} type="button" className={sideItemClass} aria-pressed={value === g.id} onClick={() => onChange(value === g.id ? null : g.id)}>
+          <Dot color={groupColor(g, me.colorPrefs)} />
+          {g.isPersonal ? "自分だけ" : g.name}
+        </button>
+      ))}
+    </div>
   );
 }
 

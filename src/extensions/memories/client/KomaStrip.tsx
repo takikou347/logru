@@ -42,11 +42,11 @@ export function KomaStrip({
     <section className="glass rounded-3xl px-3.5 pt-3 pb-2" aria-label={title}>
       <header className="mb-2 flex items-baseline gap-2">
         <h2 className="text-[13px] font-bold">{title}</h2>
-        {header ?? <span className="text-[11px] text-ink-2">1 時間に 1 枚・{shots.length} 枚</span>}
+        {header ?? <span className="text-[11px] text-ink-2">{shots.length} 枚</span>}
         {shots.length > 0 && (
           <button type="button" className="ml-auto inline-flex min-h-9 items-center gap-1 text-xs font-bold" onClick={() => setPlaying(true)}>
             <Play className="size-3 fill-current" aria-hidden="true" />
-            流して見る
+            再生
           </button>
         )}
       </header>
@@ -74,7 +74,7 @@ export function KomaStrip({
                   </Link>
                 ) : (
                   <span
-                    aria-label={later ? `${label}、これから` : `${label}、残していない`}
+                    aria-label={later ? `${label}、これから` : `${label}、写真なし`}
                     className={cn("h-[54px] w-10 rounded-[10px] border-[1.5px] border-[color-mix(in_srgb,var(--ink)_16%,transparent)]", later && "border-dashed")}
                   />
                 )}

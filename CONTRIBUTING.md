@@ -37,7 +37,7 @@
 
 ## 依存の向き
 
-土台が拡張を読んでよいのは `src/extensions/registry.server.ts` と `registry.client.ts` だけ。
+土台が拡張を読んでよいのは `src/extensions/server/registry.ts` と `src/extensions/client/registry.ts` だけ。
 `src/server/` から拡張の中の `client/`、`server/`、`shared/` を直接読まない。この禁止は Biome の
 `noRestrictedImports`(`src/server/**` への override)が見る。詳しい理由は 0013。
 
@@ -50,7 +50,7 @@
 | `@server/` | `src/server/` |
 | `@extensions/` | `src/extensions/` |
 
-`tsconfig.json`(と `tsconfig.app.json`)、`vite.config.ts` の両方に定義がある。別名を足したら両方直す。
+`tsconfig.app.json`、`tsconfig.worker.json`、`vite.config.ts`、`vitest.config.ts` の 4 か所に定義がある。別名を足したら 4 か所とも直す。
 
 ## コメントで決定・機能・issue を引く
 

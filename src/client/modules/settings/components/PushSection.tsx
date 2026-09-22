@@ -4,7 +4,7 @@ import { FieldMessage, Panel, PanelRow } from "@/components/parts/Panel";
 import { Switch } from "@/components/ui/switch";
 import { useEnabledExtensions } from "@/lib/extensions";
 import { currentSubscription, disablePush, enablePush, pushSupport } from "@/lib/push";
-import { useInvalidatePushInfo, usePushInfo } from "./api";
+import { useInvalidatePushInfo, usePushInfo } from "../api";
 
 /**
  * 設定の「この端末の知らせ」。端末ごとに切り替える。F-23

@@ -83,7 +83,7 @@ Auth エミュレーターが動いていなければ、テストの間だけ立
 
 1. `develop` からブランチを切り、`develop` へ PR を出す
 2. CI が通ったらマージする。staging に出るので、`logru-staging` で動きを確かめる
-3. 本番に出すときは、`develop` から `main` へ PR を出してマージする
+3. 本番に出すときは、`develop` から `main` へ PR を出し、「Create a merge commit」でマージする。squash や rebase にすると、develop と main の履歴がずれる
 4. `hotfix/*` を `main` に入れたら、`main` を `develop` にもマージして戻す
 
 `main` と `develop` は保護している。直接の push はできず、PR の CI の `check` と `branch-rule` が通らないとマージできない。

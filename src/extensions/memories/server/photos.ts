@@ -9,9 +9,12 @@ import type { MemoryPhotoRow } from "./schema";
 
 export type PhotoSize = "full" | "thumb";
 
-/** R2 の鍵。full はそのまま、thumb は末尾を `_t.jpg` にする */
-export function photoKey(groupId: string, photoId: string, size: PhotoSize): string {
-  return `m/${groupId}/${photoId}${size === "thumb" ? "_t" : ""}.jpg`;
+/**
+ * R2 の鍵。full はそのまま、thumb は末尾を `_t.jpg` にする。
+ * グループは鍵に入れない。ひとコマをつなぎ直してグループが変わっても、置き場を移さずに済む
+ */
+export function photoKey(photoId: string, size: PhotoSize): string {
+  return `m/${photoId}${size === "thumb" ? "_t" : ""}.jpg`;
 }
 
 /**

@@ -81,8 +81,8 @@ describe("写真の URL", () => {
   });
 
   it("R2 の鍵と、JPEG の見分け", () => {
-    expect(photoKey("g", "p", "full")).toBe("m/g/p.jpg");
-    expect(photoKey("g", "p", "thumb")).toBe("m/g/p_t.jpg");
+    expect(photoKey("p", "full")).toBe("m/p.jpg");
+    expect(photoKey("p", "thumb")).toBe("m/p_t.jpg");
     expect(isJpeg(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe(true);
     expect(isJpeg(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBe(false);
   });

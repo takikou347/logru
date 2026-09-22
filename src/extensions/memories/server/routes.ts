@@ -89,9 +89,9 @@ export const memoryRoutes = createRouter()
     if (size !== "full" && size !== "thumb") throw new HttpError(404, "見つかりません。");
     const ok = await verifyPhotoUrl(c.env.MEMORIES_PHOTO_KEY, photoId, size, Number(c.req.query("e")), c.req.query("s") ?? "");
     if (!ok) throw new HttpError(403, "写真の URL の期限が切れています。画面を読み直してください。");
-    const row = await c.get("db").select({ groupId: memoryPhotos.groupId }).from(memoryPhotos).where(eq(memoryPhotos.id, photoId)).get();
+    const row = await c.get("db").select({ id: memoryPhotos.id }).from(memoryPhotos).where(eq(memoryPhotos.id, photoId)).get();
     if (!row) throw new HttpError(404, "写真が見つかりません。");
-    const object = await c.env.MEMORIES_BUCKET.get(photoKey(row.groupId, photoId, size));
+    const object = await c.env.MEMORIES_BUCKET.get(photoKey(photoId, size));
     if (!object) throw new HttpError(404, "写真が見つかりません。");
     return new Response(object.body, {
       headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=86400, immutable", ETag: object.httpEtag },
@@ -162,8 +162,8 @@ export const memoryRoutes = createRouter()
     }
     const id = crypto.randomUUID();
     await Promise.all([
-      c.env.MEMORIES_BUCKET.put(photoKey(groupId, id, "full"), fullBytes, { httpMetadata: { contentType: "image/jpeg" } }),
-      c.env.MEMORIES_BUCKET.put(photoKey(groupId, id, "thumb"), thumbBytes, { httpMetadata: { contentType: "image/jpeg" } }),
+      c.env.MEMORIES_BUCKET.put(photoKey(id, "full"), fullBytes, { httpMetadata: { contentType: "image/jpeg" } }),
+      c.env.MEMORIES_BUCKET.put(photoKey(id, "thumb"), thumbBytes, { httpMetadata: { contentType: "image/jpeg" } }),
     ]);
     await db.insert(memoryPhotos).values({
       id,

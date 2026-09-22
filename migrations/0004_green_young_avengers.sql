@@ -92,6 +92,6 @@ CREATE UNIQUE INDEX `memory_records_koma_uniq` ON `memory_records` (`created_by`
 -- 写真の行が消えたら、R2 の鍵を消す待ちに積む。記録、思い出のグループ、アカウントのどれを消しても、外部キーで写真の行が消え、ここを通る。0021
 CREATE TRIGGER `memory_photos_to_trash` AFTER DELETE ON `memory_photos`
 BEGIN
-	INSERT OR IGNORE INTO `memory_photo_trash` (`key`) VALUES ('m/' || OLD.`group_id` || '/' || OLD.`id` || '.jpg');
-	INSERT OR IGNORE INTO `memory_photo_trash` (`key`) VALUES ('m/' || OLD.`group_id` || '/' || OLD.`id` || '_t.jpg');
+	INSERT OR IGNORE INTO `memory_photo_trash` (`key`) VALUES ('m/' || OLD.`id` || '.jpg');
+	INSERT OR IGNORE INTO `memory_photo_trash` (`key`) VALUES ('m/' || OLD.`id` || '_t.jpg');
 END;

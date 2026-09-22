@@ -175,3 +175,25 @@ export const pushSubscriptions = sqliteTable(
   },
   (t) => [index("push_subscriptions_user_idx").on(t.userId)],
 );
+
+/**
+ * お知らせの一覧に積む 1 件。拡張が土台の notify() で積む。押した端末に知らせる push とは別物。#32
+ * kind は `<拡張の key>.<拡張が決めた名前>` の形にする。文言と行き先は、積んだ拡張の describeNotification が決める
+ */
+export const notifications = sqliteTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    payload: text("payload", { mode: "json" }).notNull(),
+    readAt: integer("read_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("notifications_user_created_idx").on(t.userId, t.createdAt),
+    index("notifications_user_unread_idx").on(t.userId, t.readAt),
+  ],
+);

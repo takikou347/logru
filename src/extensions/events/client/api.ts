@@ -21,3 +21,8 @@ export function updateEvent(id: string, payload: unknown) {
 export function deleteEvent(id: string, opts: { keepalive: boolean }) {
   return api<void>(`/events/${id}`, { method: "DELETE", keepalive: opts.keepalive });
 }
+
+/** 予定を 1 件読む。お知らせを押して開くときに使う。#32 */
+export function loadEvent(id: string) {
+  return api<CalendarItem>(`/events/${id}`);
+}

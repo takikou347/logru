@@ -17,3 +17,8 @@ export const extensionSchemas = Object.assign({}, ...serverExtensions.map((x) =>
 export function toggleableExtensions(): ServerExtension[] {
   return serverExtensions.filter((x) => !x.manifest.alwaysOn && !x.manifest.perUser);
 }
+
+/** すべての拡張が notify() で積む kind の一覧。`/api/notifications/unread-count` が数える範囲を絞るのに使う。#32 */
+export function knownNotificationKinds(): string[] {
+  return serverExtensions.flatMap((x) => x.manifest.notificationKinds ?? []);
+}

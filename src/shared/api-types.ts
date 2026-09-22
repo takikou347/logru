@@ -126,3 +126,17 @@ export type HomeWidgetEntry = { key: string; size: HomeWidgetSize };
 
 /** `GET`、`PUT /api/me/home-layout` の応答。保存がまだ無ければ widgets は null。0029 */
 export type HomeLayout = { widgets: HomeWidgetEntry[] | null };
+
+/** お知らせの一覧の 1 件。文言と行き先は、積んだ拡張の describeNotification が決める。#32 */
+export type NotificationItem = {
+  id: string;
+  /** `<拡張の key>.<拡張が決めた名前>` の形。例は `events.invite_accepted` */
+  kind: string;
+  payload: Record<string, unknown>;
+  /** 既読にした時刻。まだなら null */
+  readAt: number | null;
+  createdAt: number;
+};
+
+/** `GET /api/notifications` の応答。25 件ずつのページ */
+export type NotificationPage = { items: NotificationItem[]; nextCursor: string | null };

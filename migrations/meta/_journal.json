@@ -71,6 +71,13 @@
       "when": 1790081709684,
       "tag": "0009_rich_carnage",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790081746847,
+      "tag": "0010_clean_vengeance",
+      "breakpoints": true
     }
   ]
 }

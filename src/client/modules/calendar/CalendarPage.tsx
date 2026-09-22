@@ -11,6 +11,7 @@ import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components
 import { Chip } from "@/components/parts/Chip";
 import { LoadFailure } from "@/components/parts/Failure";
 import { FeatureSheet } from "@/components/parts/FeatureSheet";
+import { NotificationBell } from "@/components/parts/NotificationBell";
 import { Dot } from "@/components/parts/Panel";
 import { Segmented } from "@/components/parts/Segmented";
 import { Button } from "@/components/ui/button";
@@ -229,6 +230,38 @@ export function CalendarPage() {
     setEditedEntries(visibleHomeLayout(catalogDefault, HOME_WIDGET_CATALOG, visible));
   };
 
+  // お知らせを押して開いたとき。openExt の拡張の loadItem で 1 件読み、編集のシートを開く。#32
+  // お知らせのシートを閉じても画面は移らないので、値そのものを依存にして、同じ画面の中の遷移でも拾う
+  const openExt = params.get("openExt");
+  const openId = params.get("openId");
+  useEffect(() => {
+    if (!openExt || !openId) return;
+    let cancelled = false;
+    // params を消すのは読み終えてから。先に消すと、この effect が依存の変化でもう 1 度呼ばれ、
+    // cleanup が cancelled を立てて、届いた読み込みの結果を捨ててしまう
+    clientExtension(openExt)
+      ?.loadItem?.(openId)
+      .then((item) => {
+        if (!cancelled) setEditor({ mode: "edit", item });
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (cancelled) return;
+        setParams(
+          (p) => {
+            const q = new URLSearchParams(p);
+            q.delete("openExt");
+            q.delete("openId");
+            return q;
+          },
+          { replace: true },
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [openExt, openId, setParams]);
+
   // PC のキー。左右で移る、T で今日、N で予定を足す。0012
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -376,6 +409,7 @@ export function CalendarPage() {
               {addButton}
             </div>
           )}
+          <NotificationBell />
           <AccountMenu />
         </div>
       </header>

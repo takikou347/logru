@@ -1,6 +1,7 @@
 import type { ClientExtension } from "@extensions/client/types";
 import { BookOpen, Camera, Timer } from "lucide-react";
 import { memoriesManifest } from "../manifest";
+import { describeMemoriesNotification } from "../shared/notifications";
 import { MemoriesHomeWidget } from "./HomeWidget";
 import { MemoryItemSheet } from "./MemoryItemSheet";
 import { MemoryLinkField } from "./MemoryLinkField";
@@ -20,6 +21,7 @@ export const memoriesClient: ClientExtension = {
   ],
   useShortcut: useKomaShortcut,
   notifies: "ひとコマの時間",
+  describeNotification: describeMemoriesNotification,
   itemAddons: [{ extension: "events", Component: MemoryLinkField }],
   widgets: [
     {

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
  *
  * @param label 切り替えの名前。読み上げに使う
  * @param full 横いっぱいに広げ、選択肢を同じ幅にする
+ * @param compact 選択肢の幅を詰める。スマホの下の操作に、ほかのボタンと並べるときに使う
  */
 export function Segmented<T extends string>({
   value,
@@ -14,12 +15,14 @@ export function Segmented<T extends string>({
   onChange,
   label,
   full,
+  compact,
 }: {
   value: T;
   options: readonly { value: T; label: string }[];
   onChange: (v: T) => void;
   label: string;
   full?: boolean;
+  compact?: boolean;
 }) {
   return (
     <ToggleGroup
@@ -38,6 +41,7 @@ export function Segmented<T extends string>({
             "data-[state=on]:bg-white data-[state=on]:text-ink data-[state=on]:shadow-[0_2px_6px_-2px_rgba(0,0,0,.3)]",
             "dark:data-[state=on]:bg-field-strong",
             full && "flex-1 text-[13px]",
+            compact && "min-w-11 px-2",
           )}
         >
           {o.label}

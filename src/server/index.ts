@@ -9,6 +9,7 @@ import { serverExtensions } from "../extensions/registry.server";
 import { type AppEnv, HttpError, resolveAppUrl } from "./core/app";
 import { createDb } from "./core/db/client";
 import { calendarRoutes } from "./modules/calendar/routes";
+import { extensionRoutes } from "./modules/extensions/routes";
 import { groupRoutes } from "./modules/groups/routes";
 import { inviteRoutes } from "./modules/invites/routes";
 import { meRoutes } from "./modules/me/routes";
@@ -27,6 +28,7 @@ app.route("/me", meRoutes);
 app.route("/groups", groupRoutes);
 app.route("/invites", inviteRoutes);
 app.route("/calendar", calendarRoutes);
+app.route("/extensions", extensionRoutes);
 for (const x of serverExtensions) {
   if (x.routes) app.route(x.routes.basePath, x.routes.router as never);
 }

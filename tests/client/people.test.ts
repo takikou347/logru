@@ -18,6 +18,7 @@ const group = (id: string, members: [string, string][], isPersonal = false): Gro
   isPersonal,
   role: "member",
   members: members.map(([mid, name]) => ({ id: mid, name, userColor: "sango", role: "member" })),
+  extensions: [],
 });
 
 const groups = [

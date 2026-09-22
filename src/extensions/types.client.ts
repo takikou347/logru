@@ -4,6 +4,7 @@
  * カレンダーは拡張の中身を知らない。項目を押したら、項目の extension に合う拡張の Editor を開き、
  * 消すときは同じ拡張の deleteItem を呼ぶ。
  */
+import type { LucideIcon } from "lucide-react";
 import type { ComponentType } from "react";
 import type { CalendarItem, GroupSummary, Me } from "../shared/api-types";
 import type { ExtensionManifest } from "./types";
@@ -40,6 +41,26 @@ export type ItemEditorProps = {
   onDelete: (item: CalendarItem) => void;
 };
 
+/** 拡張の画面。0019 */
+export type ExtensionPage = {
+  /** 道順。拡張の名前で始める。例は `/memories/:id` */
+  path: string;
+  /** 開いたときに読む画面 */
+  load: () => Promise<{ Component: ComponentType }>;
+};
+
+/** 入口に出す画面。PC は左の列、スマホは機能のシートに並ぶ */
+export type ExtensionNav = { label: string; icon: LucideIcon; path: string; description?: string };
+
+/** 機能のシートに出す、すぐする操作。押すと path へ移る。例は「記録する」 */
+export type ExtensionAction = { label: string; icon: LucideIcon; path: string; hint?: string };
+
+/**
+ * いま押してほしい近道。カレンダーの上の帯に出す。F-26
+ * 返すものが無ければ帯は出ない。
+ */
+export type ExtensionShortcut = { label: string; sub: string; image?: string; path: string; action: string; icon: LucideIcon };
+
 /** 画面の側の拡張 */
 export type ClientExtension = {
   manifest: ExtensionManifest;
@@ -58,4 +79,15 @@ export type ClientExtension = {
    * @returns 読めなかったものの名前。画面の知らせに出す
    */
   refresh?: () => Promise<{ failed: string[] }>;
+  /** 拡張の画面。どれかのグループで有効なときだけ開ける。0019 */
+  pages?: ExtensionPage[];
+  /** 入口に出す画面 */
+  nav?: ExtensionNav;
+  /** 機能のシートに出す、すぐする操作 */
+  actions?: ExtensionAction[];
+  /**
+   * 近道を返す hook。F-26
+   * hook なので、呼ぶ順を変えないよう、拡張の一覧の順にいつも呼ぶ。使えないときは enabled が false で、読み込みを止める
+   */
+  useShortcut?: (enabled: boolean) => ExtensionShortcut | null;
 };

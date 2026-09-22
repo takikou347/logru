@@ -31,6 +31,8 @@ export type GroupSummary = {
   /** 自分の役割 */
   role: "admin" | "member";
   members: GroupMember[];
+  /** このグループで有効にした、切り替えられる拡張の key。いつも有効な拡張は含めない。0019 */
+  extensions: string[];
 };
 
 /** カレンダーに並べる 1 件。拡張はこの形で項目を渡す。0002、0008 */
@@ -74,6 +76,17 @@ export type Attendee = { userId: string; response: AttendeeResponse };
 
 /** グループの設定に出す、切り替えられる拡張 */
 export type ExtensionInfo = { key: string; label: string; description: string; enabled: boolean };
+
+/** `GET /api/extensions` の 1 件。機能の一覧に出す。F-24 */
+export type ExtensionOverview = {
+  key: string;
+  label: string;
+  description: string;
+  /** 自分だけのグループで有効か */
+  personal: boolean;
+  /** この拡張を有効にしている、入っている共有のグループ */
+  groups: { id: string; name: string }[];
+};
 
 /** `GET /api/invites/:token` の応答 */
 export type InviteInfo = { groupName: string; expiresAt: number; valid: boolean; reason?: "expired" | "revoked" };

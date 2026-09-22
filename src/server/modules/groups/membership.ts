@@ -2,7 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { GroupSummary } from "../../../shared/api-types";
 import { HttpError } from "../../core/app";
 import type { DB } from "../../core/db/client";
-import { groupMembers, groups, userSettings, users } from "../../core/db/schema";
+import { groupExtensions, groupMembers, groups, userSettings, users } from "../../core/db/schema";
 
 /**
  * 利用者が入っているグループの ID を返す。
@@ -85,6 +85,18 @@ export async function listGroups(db: DB, userId: string): Promise<GroupSummary[]
       ),
     );
   const mySettings = await db.select().from(userSettings).where(eq(userSettings.userId, userId)).get();
+  const enabled = await db
+    .select({ groupId: groupExtensions.groupId, key: groupExtensions.extensionKey })
+    .from(groupExtensions)
+    .where(
+      and(
+        inArray(
+          groupExtensions.groupId,
+          mine.map((m) => m.group.id),
+        ),
+        eq(groupExtensions.enabled, true),
+      ),
+    );
 
   return mine
     .map(({ group, role }) => ({
@@ -96,6 +108,7 @@ export async function listGroups(db: DB, userId: string): Promise<GroupSummary[]
       members: members
         .filter((m) => m.groupId === group.id)
         .map((m) => ({ id: m.id, name: m.name, role: m.role, userColor: m.userColor ?? "wakatake" })),
+      extensions: enabled.filter((e) => e.groupId === group.id).map((e) => e.key),
     }))
     .sort((a, b) => Number(b.isPersonal) - Number(a.isPersonal) || a.name.localeCompare(b.name, "ja"));
 }

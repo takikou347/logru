@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutGrid, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { clientExtension, defaultExtension } from "../../../extensions/registry.client";
@@ -7,8 +7,11 @@ import type { GroupSummary } from "../../../shared/api-types";
 import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components/AppLayout";
 import { LoadFailure } from "@/components/Failure";
 import { Chip } from "@/components/Chip";
+import { FeatureSheet } from "@/components/FeatureSheet";
 import { Dot } from "@/components/Panel";
 import { Segmented } from "@/components/Segmented";
+import { ShortcutBand } from "@/components/ShortcutBand";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { groupColor } from "@/lib/colors";
 import { addDays, addMonths, dateKey, monthGrid, onDay, parseDateKey, sameDay, startOfDay, weekDays } from "@/lib/dates";
@@ -54,6 +57,7 @@ export function CalendarPage() {
   const me = useMe();
   const groups = useGroups();
   const [editor, setEditor] = useState<EditorTarget | null>(null);
+  const [features, setFeatures] = useState(false);
   const { hidden, remove } = useUndoableDelete();
 
   const view = (["month", "week", "day"].includes(params.get("view") ?? "") ? params.get("view") : "month") as View;
@@ -122,7 +126,7 @@ export function CalendarPage() {
   // PC のキー。左右で移る、T で今日、N で予定を足す。0012
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (editor || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (editor || features || e.metaKey || e.ctrlKey || e.altKey) return;
       if ((e.target as HTMLElement).closest("input, textarea, select, [contenteditable]")) return;
       if (e.key === "ArrowLeft") move(-1);
       else if (e.key === "ArrowRight") move(1);
@@ -133,7 +137,7 @@ export function CalendarPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [editor, move, update, today, selected, addNew]);
+  }, [editor, features, move, update, today, selected, addNew]);
 
   const focusIndex = groupFilter ? allGroups.slice(0, 3).findIndex((g) => g.id === groupFilter) : -1;
   const open = (item: ViewItem) => setEditor({ mode: "edit", item });
@@ -172,7 +176,7 @@ export function CalendarPage() {
       poolColors={poolColorsOf(allGroups, me.data)}
       poolFocus={focusIndex >= 0 ? focusIndex : null}
       side={
-        <div role="group" aria-label="表示するグループ" className="min-h-0 overflow-y-auto">
+        <div role="group" aria-label="表示するグループ" className="pr-2">
           <SideHeading>表示するグループ</SideHeading>
           {filters(({ key, pressed, onClick, children }) => {
             // 共有のグループは、矢印でメンバーを開き、人ごとに出し入れできる。F-20
@@ -232,13 +236,20 @@ export function CalendarPage() {
         </div>
       </header>
 
-      <nav className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] lg:hidden" aria-label="グループで絞る">
-        {filters(({ key, pressed, onClick, children }) => (
-          <Chip key={key} aria-pressed={pressed} onClick={onClick}>
-            {children}
-          </Chip>
-        ))}
-        {sections.length > 0 && <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />}
+      <ShortcutBand className="lg:hidden" />
+
+      {/* グループが多いときは横に流れる。流せることが分かるよう、下にいつもバーを出す。F-25 */}
+      <nav className="-mx-4 lg:hidden" aria-label="グループで絞る">
+        <ScrollArea orientation="horizontal" className="px-4" viewportClassName="pb-1.5" scrollbarClassName="left-4! right-4!">
+          <div className="flex w-max gap-2">
+            {filters(({ key, pressed, onClick, children }) => (
+              <Chip key={key} aria-pressed={pressed} onClick={onClick}>
+                {children}
+              </Chip>
+            ))}
+            {sections.length > 0 && <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />}
+          </div>
+        </ScrollArea>
       </nav>
 
       {calendar.error && (!calendar.data || calendar.isPlaceholderData) && <LoadFailure what={`${selected.getMonth() + 1} 月の予定`} error={calendar.error} onRetry={() => void calendar.refetch()} />}
@@ -272,10 +283,15 @@ export function CalendarPage() {
       <div
         role="toolbar"
         aria-label="カレンダーの操作"
-        className="glass fixed inset-x-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[528px] items-center justify-between rounded-full p-1.5 lg:hidden">
-        <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} />
+        className="glass fixed inset-x-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[528px] items-center justify-between gap-1.5 rounded-full p-1.5 lg:hidden">
+        <Button variant="ghost" size="icon" aria-label="機能" onClick={() => setFeatures(true)}>
+          <LayoutGrid className="size-5" />
+        </Button>
+        <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} compact />
         {addButton}
       </div>
+
+      {features && <FeatureSheet onClose={() => setFeatures(false)} />}
 
       {editor && Editor && me.data && (
         // 一覧から選んで直すシートに切り替えたとき、入力の中身を作り直すために key を変える

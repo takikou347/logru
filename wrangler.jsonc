@@ -40,8 +40,8 @@
     "production": {
       "vars": {
         "ENVIRONMENT": "production",
-        // workers.dev の URL と Firebase のプロジェクト ID に書き換える。README の「本番に出す」を参照
-        "APP_URL": "https://logru-production.example.workers.dev",
+        // Firebase のプロジェクト ID は、作ったものに書き換える。README の「本番に出す」を参照
+        "APP_URL": "https://logru-production.tkkwkut-400.workers.dev",
         "FIREBASE_PROJECT_ID": "logru-app",
         "FIREBASE_AUTH_EMULATOR_HOST": "",
         // EXTERNAL_CALENDAR_KEY は秘密なので、ここに書かず `wrangler secret put EXTERNAL_CALENDAR_KEY --env production` で置く
@@ -66,8 +66,8 @@
     "staging": {
       "vars": {
         "ENVIRONMENT": "staging",
-        // workers.dev の URL に書き換える。README の「本番に出す」を参照
-        "APP_URL": "https://logru-staging.example.workers.dev",
+        // Firebase のプロジェクト ID は本番と同じ値にする
+        "APP_URL": "https://logru-staging.tkkwkut-400.workers.dev",
         "FIREBASE_PROJECT_ID": "logru-app",
         "FIREBASE_AUTH_EMULATOR_HOST": "",
         // 秘密の 3 つは本番と別の値を `wrangler secret put <名前> --env staging` で置く。VAPID の組も本番と分ける

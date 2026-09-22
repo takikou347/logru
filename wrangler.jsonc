@@ -1,0 +1,66 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "logru",
+  "main": "src/server/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "logru",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // 手元の開発。Firebase はエミュレーターを使う。demo- で始まるプロジェクトは本物に届かない
+  "vars": {
+    "ENVIRONMENT": "development",
+    "APP_URL": "http://localhost:5173",
+    "FIREBASE_PROJECT_ID": "demo-logru",
+    "FIREBASE_AUTH_EMULATOR_HOST": "127.0.0.1:9099",
+    // 外部のカレンダーの URL を暗号にする鍵。手元の開発だけで使う値。本番は `wrangler secret put` で別の値を置く
+    "EXTERNAL_CALENDAR_KEY": "A1lHffWgU+kOnJWlq6FGLBf/FWjnKGDp6cGYq5fvPnQ=",
+    // 思い出の写真の URL に付ける署名の鍵。手元の開発だけで使う値。本番は `wrangler secret put` で別の値を置く
+    "MEMORIES_PHOTO_KEY": "dev-only-memories-photo-key-change-me-in-production",
+    // 端末への知らせの VAPID の鍵。手元の開発だけで使う組。本番は公開鍵を env.production.vars に、秘密鍵を `wrangler secret put VAPID_PRIVATE_KEY` で置く
+    "VAPID_PUBLIC_KEY": "BPUm_oLClft9DRthvDIJ303Z0PABoblpADTHcpnZtA0zpfzPQQvBFAfi6afKxM4dsTjIbTqkEH9MCj3xFw6hBOs",
+    "VAPID_PRIVATE_KEY": "i5Zr5HBvx46JLosvvrcZDcLGQt2dfRRa87Zq52NLeMc",
+    "VAPID_SUBJECT": "mailto:tkkwkut@gmail.com"
+  },
+  // 思い出の写真の置き場。手元では Miniflare が .wrangler の下に作る
+  "r2_buckets": [{ "binding": "MEMORIES_BUCKET", "bucket_name": "logru-memories" }],
+  // 外部のカレンダーを 5 分おきに読み直す
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "observability": { "enabled": true },
+  "env": {
+    "production": {
+      "vars": {
+        "ENVIRONMENT": "production",
+        // workers.dev の URL と Firebase のプロジェクト ID に書き換える。README の「本番に出す」を参照
+        "APP_URL": "https://logru-production.example.workers.dev",
+        "FIREBASE_PROJECT_ID": "logru-app",
+        "FIREBASE_AUTH_EMULATOR_HOST": "",
+        // EXTERNAL_CALENDAR_KEY は秘密なので、ここに書かず `wrangler secret put EXTERNAL_CALENDAR_KEY --env production` で置く
+        // MEMORIES_PHOTO_KEY も同じく `wrangler secret put MEMORIES_PHOTO_KEY --env production` で置く
+        // VAPID の組は README の「本番に出す」で作る。公開鍵だけをここに書き、秘密鍵は `wrangler secret put VAPID_PRIVATE_KEY --env production`
+        "VAPID_PUBLIC_KEY": "replace-me",
+        "VAPID_SUBJECT": "mailto:tkkwkut@gmail.com"
+      },
+      "r2_buckets": [{ "binding": "MEMORIES_BUCKET", "bucket_name": "logru-memories" }],
+      "triggers": { "crons": ["*/5 * * * *"] },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "logru",
+          // `wrangler d1 create logru` の結果に置き換える
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
+}

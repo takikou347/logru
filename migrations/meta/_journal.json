@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1789971679930,
+      "tag": "0000_thankful_orphan",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789988582400,
+      "tag": "0001_dry_phantom_reporter",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790001759719,
+      "tag": "0002_redundant_tana_nile",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790003487092,
+      "tag": "0003_chubby_molten_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790051322206,
+      "tag": "0004_green_young_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790052585384,
+      "tag": "0005_naive_black_bolt",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790059182533,
+      "tag": "0006_legal_mach_iv",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+name: 不具合
+description: 思ったとおりに動かないとき
+labels: ["不具合"]
+body:
+  - type: textarea
+    id: steps
+    attributes:
+      label: やったこと
+      description: 番号つきで。例は「1. 設定を開く 2. ダークを選ぶ」
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 起きてほしかったこと
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 起きたこと
+      description: 出た文やスクリーンショットがあれば貼る
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 環境
+      placeholder: 例は「手元、Chrome、スマホの幅」

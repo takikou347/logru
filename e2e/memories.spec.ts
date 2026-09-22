@@ -1,0 +1,112 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { expect, test } from "@playwright/test";
+import { signUp } from "./helpers";
+
+// 写真は Unsplash License のフリー写真を小さくしたもの。出どころは develop-docs の docs/logru/extensions/memories/images/photos/sources.txt
+const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
+
+/** 機能の一覧で、思い出を自分だけで使えるようにする */
+async function enableMemories(page: import("@playwright/test").Page) {
+  await page.goto("/extensions");
+  const toggle = page.getByRole("switch", { name: "思い出を使う" });
+  await toggle.click();
+  await expect(toggle).toBeChecked();
+}
+
+test("使えるようにする前は、思い出の画面は開けない", async ({ page }) => {
+  await signUp(page);
+  await page.goto("/memories");
+  await expect(page).toHaveURL(/\/extensions$/);
+});
+
+test("思い出を作り、写真付きで記録し、いいねを付け、カレンダーに出る", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableMemories(page);
+
+  // 機能のシートに入口と「記録する」が出る
+  await page.goto("/");
+  await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
+  const sheet = page.getByRole("dialog", { name: "機能" });
+  await expect(sheet.getByRole("link", { name: /記録する/ })).toBeVisible();
+  await sheet.getByRole("link", { name: /思い出/ }).click();
+
+  // 今日の日帰りの思い出を作ると、その 1 日が開く
+  await page.getByRole("button", { name: "思い出を作る" }).click();
+  const create = page.getByRole("dialog", { name: "思い出を作る" });
+  await create.getByLabel("題名").fill("箱根 日帰り");
+  await create.getByRole("button", { name: "作る" }).click();
+  await expect(page.getByRole("heading", { name: "箱根 日帰り" })).toBeVisible();
+  await expect(page).toHaveURL(/\/days\/0$/);
+
+  // 写真を選ぶと送り始め、送り終えたら残せる
+  await page.getByRole("toolbar", { name: "1 日の操作" }).getByRole("button", { name: "記録する" }).click();
+  const record = page.getByRole("dialog", { name: "記録する" });
+  await record.locator('input[type="file"][multiple]').setInputFiles(PHOTO);
+  await expect(record.getByRole("button", { name: "保存する" })).toBeEnabled({ timeout: 15_000 });
+  await record.getByLabel("文章").fill("湯本に着いた。まずは和菓子。");
+  await record.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  const flow = page.getByRole("list", { name: "1 日の流れ" });
+  const article = flow.getByRole("article", { name: "こた の記録" });
+  await expect(article.getByText("湯本に着いた。まずは和菓子。")).toBeVisible();
+  await expect(article.locator("img")).toHaveJSProperty("complete", true);
+
+  // いいねを付けると 1、もう一度押すと 0
+  await article.getByRole("button", { name: /いいねを付ける/ }).click();
+  await expect(article.getByRole("button", { name: /いいねを外す。いま 1/ })).toBeVisible();
+  await article.getByRole("button", { name: /いいねを外す/ }).click();
+  await expect(article.getByRole("button", { name: /いいねを付ける。いま 0/ })).toBeVisible();
+
+  // アルバムに写真が並び、押すと大きく出る
+  await page.getByRole("radio", { name: "アルバム" }).click();
+  await page.getByRole("button", { name: /の写真を大きく見る/ }).first().click();
+  await expect(page.getByRole("dialog", { name: "写真 1 / 1" })).toBeVisible();
+  await page.getByRole("dialog", { name: "写真 1 / 1" }).getByRole("button", { name: "表紙にする" }).click();
+  await expect(page.getByText("表紙にしました")).toBeVisible();
+
+  // カレンダーに思い出の帯と、その日の記録の数が出る
+  await page.goto("/");
+  const day = page.getByTestId("day-panel");
+  await expect(day.getByRole("button", { name: /箱根 日帰り/ })).toBeVisible();
+  await expect(day.getByRole("button", { name: /記録 1/ })).toBeVisible();
+});
+
+test("しおりにやること、持ち物を足して済みにできる。思い出を消しても記録は残る", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableMemories(page);
+  await page.goto("/memories");
+  await page.getByRole("button", { name: "思い出を作る" }).click();
+  const create = page.getByRole("dialog", { name: "思い出を作る" });
+  await create.getByLabel("題名").fill("金沢 2 泊");
+  await create.getByRole("button", { name: "作る" }).click();
+
+  await page.getByRole("radio", { name: "しおり" }).click();
+  await page.getByRole("tab", { name: /やること/ }).click();
+  await page.getByRole("button", { name: "やることを追加" }).click();
+  await page.getByRole("textbox", { name: "やることを追加" }).fill("おでんの店を予約する");
+  await page.getByRole("button", { name: "追加", exact: true }).click();
+  const todo = page.getByRole("checkbox", { name: "おでんの店を予約する を完了にする" });
+  await todo.click();
+  await expect(todo).toBeChecked();
+
+  await page.getByRole("tab", { name: /持ち物/ }).click();
+  await page.getByRole("button", { name: "持ち物を追加" }).click();
+  await page.getByRole("textbox", { name: "持ち物を追加" }).fill("充電器");
+  await page.getByRole("button", { name: "追加", exact: true }).click();
+  await expect(page.getByRole("checkbox", { name: "充電器 を完了にする" })).toBeVisible();
+
+  // 文章だけの記録を残してから、思い出を消す
+  await page.getByRole("radio", { name: "1 日" }).click();
+  await page.getByRole("toolbar", { name: "1 日の操作" }).getByRole("button", { name: "記録する" }).click();
+  await page.getByRole("dialog", { name: "記録する" }).getByLabel("文章").fill("出発");
+  await page.getByRole("dialog", { name: "記録する" }).getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  await page.getByRole("button", { name: "思い出を編集" }).click();
+  await page.getByRole("dialog", { name: "思い出を編集" }).getByRole("button", { name: "削除" }).click();
+  await page.getByRole("dialog", { name: "思い出を削除しますか" }).getByRole("button", { name: "削除する" }).click();
+  await expect(page).toHaveURL(/\/memories$/);
+  await expect(page.getByRole("region", { name: "最近の記録" }).getByText("出発")).toBeVisible();
+});

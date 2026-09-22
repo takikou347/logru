@@ -1,0 +1,191 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./tokens.css";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * shadcn/ui の名前に、Logru の色の決まりを割り当てる。0010
+ * 部品は shadcn の名前で色を指し、値はライトとダークで tokens.css が変える。
+ */
+:root {
+  --radius: 14px;
+  --background: var(--ground);
+  --foreground: var(--ink);
+  --card: var(--glass-flat);
+  --card-foreground: var(--ink);
+  --popover: var(--glass-flat);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: var(--on-accent);
+  --secondary: var(--field);
+  --secondary-foreground: var(--ink);
+  --muted: var(--field);
+  --muted-foreground: var(--ink-2);
+  --accent-surface: var(--field-strong);
+  --destructive: var(--sun);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--ink);
+}
+
+@theme inline {
+  --font-sans: var(--font);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-panel: var(--r-panel);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent-surface);
+  --color-accent-foreground: var(--foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Logru の名前。暦の色と文字の濃さ */
+  --color-ground: var(--ground);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-sun: var(--sun);
+  --color-sat: var(--sat);
+  --color-line: var(--line);
+  --color-field: var(--field);
+  --color-field-strong: var(--field-strong);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    background: var(--ground);
+  }
+  body {
+    /* 地の色は html に持たせる。body に塗るとインクだまりが隠れる */
+    min-height: 100dvh;
+    font-family: var(--font);
+    font-feature-settings: "tnum";
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+}
+
+/* ガラス。浮いている層にだけ使う。0010 */
+@utility glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+  /* 光沢の層の基準にする。fixed や sticky と重ねたときは、そちらを勝たせる */
+  &:where(:not(.absolute, .fixed, .sticky)) {
+    position: relative;
+  }
+  /*
+   * 奥を読み直す backdrop-filter は、面の数と広さを絞る。#3
+   * 画面に沿って流れる面は、奥がインクだまりだけなので色を濃くするだけにする。
+   * ぼかすのは、中身の上に浮いて止まっている面だけ（スマホの下の操作）。
+   * シートと窓は地がほぼ塗りつぶしで、ぼかしが見えないので読まない。
+   * 規約のように長い面は、奥を読むと描き直しが大きいので読まない。
+   * -webkit- を並べて書くと、組み立てのときに片方が消えて Chrome でぼけなくなるので、ここでは書かない。
+   */
+  backdrop-filter: var(--glass-filter);
+  &:where(.fixed):where(:not([data-slot="dialog-content"], [data-slot="sheet-content"])) {
+    backdrop-filter: var(--blur);
+  }
+  &:where([data-slot="dialog-content"], [data-slot="sheet-content"], .legal-body) {
+    backdrop-filter: none;
+  }
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(120% 60% at 18% 0%, var(--glass-shine), transparent 55%);
+  }
+  /* 光沢の層より手前に出す。閉じるボタンのように自分で位置を決めるものは除く */
+  & > :where(:not(.absolute, .fixed)) {
+    position: relative;
+  }
+}
+
+/* 色の名前の点。色は .c-<名前> が --c に入れる */
+@utility swatch-dot {
+  background: var(--c);
+  border-radius: 9999px;
+  flex: none;
+}
+
+/* 規約の本文。Markdown から作った HTML に当てる */
+@utility legal-body {
+  font-size: 15px;
+  line-height: 1.9;
+  & h1 { font-size: 24px; font-weight: 700; line-height: 1.4; margin-bottom: 16px; }
+  & h2 { font-size: 17px; font-weight: 700; margin: 28px 0 8px; }
+  & p, & li { margin: 6px 0; }
+  & ol { list-style: decimal; padding-left: 1.4em; }
+  & ul { list-style: disc; padding-left: 1.4em; }
+  & table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  & th, & td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; vertical-align: top; }
+  & a { text-decoration: underline; }
+}
+
+/*
+ * 見た目の効果を切って、ちらつきの元を目で確かめるためのもの。#3
+ * 開発中だけ、URL の ?debug=noblur,nopools のような指定で html に data-debug が付く。本番では付かない。
+ */
+[data-debug~="noblur"] .glass {
+  backdrop-filter: none !important;
+}
+[data-debug~="oldblur"] .glass {
+  backdrop-filter: var(--blur) !important;
+}
+[data-debug~="nopools"] [data-pools] {
+  display: none;
+}
+[data-debug~="noshine"] .glass::before {
+  display: none;
+}
+[data-debug~="noshadow"] .glass {
+  box-shadow: none !important;
+}
+[data-debug~="drift"] [data-pools] > i {
+  animation: debug-drift 38s ease-in-out infinite alternate;
+}
+@keyframes debug-drift {
+  to {
+    translate: 24px -18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

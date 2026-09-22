@@ -1,0 +1,40 @@
+name: 見た目を直す
+description: 色、大きさ、並び、文言など、画面の見た目を直したいとき
+labels: ["見た目"]
+body:
+  - type: dropdown
+    id: screen
+    attributes:
+      label: 画面
+      options:
+        - ログイン、登録、メール確認
+        - カレンダー
+        - 予定のシート
+        - グループ
+        - 設定
+        - 規約
+        - その他
+    validations:
+      required: true
+  - type: checkboxes
+    id: where
+    attributes:
+      label: どこで気になったか
+      options:
+        - label: スマホの幅
+        - label: PC の幅
+        - label: ライト
+        - label: ダーク
+  - type: textarea
+    id: now
+    attributes:
+      label: いまの見た目
+      description: スクリーンショットを貼ると早い
+    validations:
+      required: true
+  - type: textarea
+    id: want
+    attributes:
+      label: こうしたい
+    validations:
+      required: true

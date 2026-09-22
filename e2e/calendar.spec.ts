@@ -42,9 +42,10 @@ test("予定は「共有しない」が既定で、「自分だけの予定」�
   await filter.getByRole("button", { name: "ふたり" }).click();
   await expect(dayPanel(page).getByRole("button", { name: /ひとりの用事/ })).toHaveCount(0);
   await page.getByRole("button", { name: "予定を足す" }).last().click();
-  await expect(
-    page.getByRole("dialog", { name: "新しい予定" }).getByRole("radio", { name: "ふたり" }),
-  ).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("dialog", { name: "新しい予定" }).getByRole("radio", { name: "ふたり" })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
 });
 
 test("グループの一覧が届く前にシートを開いても、自分だけのグループに保存できる", async ({ page }) => {
@@ -72,7 +73,9 @@ test("題名が空なら保存できない", async ({ page }) => {
 
 test("予定を直せる", async ({ page }) => {
   await addEvent(page, "買い物");
-  await dayPanel(page).getByRole("button", { name: /買い物/ }).click();
+  await dayPanel(page)
+    .getByRole("button", { name: /買い物/ })
+    .click();
   const sheet = page.getByRole("dialog", { name: "予定を直す" });
   await sheet.getByLabel("題名").fill("夕飯の買い出し");
   await sheet.getByRole("button", { name: "保存する" }).click();

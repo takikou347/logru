@@ -1,7 +1,7 @@
-import { WEEKDAYS, dayTone, holidayName, onDay, sameDay } from "@/lib/dates";
+import { dayTone, holidayName, onDay, sameDay, WEEKDAYS } from "@/lib/dates";
 import { cn } from "@/lib/utils";
-import { ItemList, toneText } from "./DayItems";
 import type { ViewItem } from "../model";
+import { ItemList, toneText } from "./DayItems";
 
 /**
  * 週と日の表示。日ごとに予定を並べる。今日の日付にはテーマカラーの下線を引く。
@@ -21,13 +21,20 @@ export function WeekList({
   onOpen: (i: ViewItem) => void;
 }) {
   return (
-    <section className="glass flex flex-col rounded-panel px-4 py-2" aria-label={days.length === 1 ? "日の予定" : "週の予定"}>
+    <section
+      className="glass flex flex-col rounded-panel px-4 py-2"
+      aria-label={days.length === 1 ? "日の予定" : "週の予定"}
+    >
       {days.map((d) => {
         const tone = dayTone(d);
         const hol = holidayName(d);
         const isToday = sameDay(d, today);
         return (
-          <div key={d.getTime()} data-testid="week-row" className="grid grid-cols-[64px_1fr] gap-2.5 border-b border-line py-2.5 last:border-b-0">
+          <div
+            key={d.getTime()}
+            data-testid="week-row"
+            className="grid grid-cols-[64px_1fr] gap-2.5 border-b border-line py-2.5 last:border-b-0"
+          >
             <button
               type="button"
               className={cn("flex min-h-11 flex-col items-start text-left", tone && toneText[tone])}

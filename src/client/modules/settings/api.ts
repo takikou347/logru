@@ -1,7 +1,8 @@
 /** 設定の画面(SettingsPage、DeleteAccountSheet、PushSection)が使う API の hook */
+
+import type { Me, PushInfo } from "@shared/api-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { Me, PushInfo } from "@shared/api-types";
 import { api } from "@/api/client";
 import { keys } from "@/api/keys";
 import { applyTheme } from "@/lib/theme";
@@ -17,7 +18,8 @@ export function useUpdateSettings() {
   const qc = useQueryClient();
   return useMutation({
     // 押してすぐ読み込み直しても、保存を途中で切らせない
-    mutationFn: (next: Me["settings"]) => api<Me["settings"]>("/me/settings", { method: "PUT", body: next, keepalive: true }),
+    mutationFn: (next: Me["settings"]) =>
+      api<Me["settings"]>("/me/settings", { method: "PUT", body: next, keepalive: true }),
     onMutate: async (next) => {
       applyTheme(next.themeMode, next.accentColor);
       const prev = qc.getQueryData<Me>(keys.me);

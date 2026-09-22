@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PASSWORD, logIn, signUp } from "./helpers";
+import { logIn, PASSWORD, signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
@@ -52,9 +52,12 @@ test("テーマカラーと自分の色を選べる", async ({ page }) => {
     "true",
   );
   await page.goto("/");
-  await expect(page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "自分だけの予定" }).locator(".swatch-dot")).toHaveClass(
-    /c-fuji/,
-  );
+  await expect(
+    page
+      .getByRole("navigation", { name: "グループで絞る" })
+      .getByRole("button", { name: "自分だけの予定" })
+      .locator(".swatch-dot"),
+  ).toHaveClass(/c-fuji/);
 });
 
 test("グループの色を、自分の画面の中だけで変え、元に戻せる", async ({ page }) => {
@@ -109,7 +112,10 @@ test("表示名を直している途中で Esc を押すと、元の名前に戻
 });
 
 test("アカウントを消すと、ログインできなくなる", async ({ page }) => {
-  const email = await page.getByRole("region", { name: "アカウント" }).getByText(/@example\.com/).textContent();
+  const email = await page
+    .getByRole("region", { name: "アカウント" })
+    .getByText(/@example\.com/)
+    .textContent();
   await page.getByRole("button", { name: "アカウントを消す" }).click();
   const sheet = page.getByRole("dialog", { name: "アカウントを消す" });
   await expect(sheet.getByRole("button", { name: "アカウントを消す" })).toBeDisabled();

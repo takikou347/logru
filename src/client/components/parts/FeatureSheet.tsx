@@ -1,9 +1,9 @@
 import { ChevronRight, SlidersHorizontal, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-import { ResponsiveSheet } from "./ResponsiveSheet";
-import { useEnabledExtensions } from "@/lib/extensions";
 import { useGroups } from "@/api/common";
+import { useEnabledExtensions } from "@/lib/extensions";
+import { ResponsiveSheet } from "./ResponsiveSheet";
 
 /**
  * スマホの機能のシート。下の操作の「機能」で開く。0019
@@ -37,21 +37,58 @@ export function FeatureSheet({ onClose }: { onClose: () => void }) {
       )}
       <ul aria-label="画面" className="flex flex-col">
         {navs.map((n) => (
-          <FeatureRow key={n.path} to={n.path} icon={<n.icon className="size-5" />} label={n.label} sub={n.description} onClick={onClose} />
+          <FeatureRow
+            key={n.path}
+            to={n.path}
+            icon={<n.icon className="size-5" />}
+            label={n.label}
+            sub={n.description}
+            onClick={onClose}
+          />
         ))}
-        <FeatureRow to="/groups" icon={<Users className="size-5" />} label="グループ" sub={shared ? `${shared} つのグループ` : "まだありません"} onClick={onClose} />
-        <FeatureRow to="/extensions" icon={<SlidersHorizontal className="size-5" />} label="機能を足す、外す" onClick={onClose} />
+        <FeatureRow
+          to="/groups"
+          icon={<Users className="size-5" />}
+          label="グループ"
+          sub={shared ? `${shared} つのグループ` : "まだありません"}
+          onClick={onClose}
+        />
+        <FeatureRow
+          to="/extensions"
+          icon={<SlidersHorizontal className="size-5" />}
+          label="機能を足す、外す"
+          onClick={onClose}
+        />
       </ul>
     </ResponsiveSheet>
   );
 }
 
 /** 機能のシートの 1 行 */
-function FeatureRow({ to, icon, label, sub, onClick }: { to: string; icon: ReactNode; label: string; sub?: string; onClick: () => void }) {
+function FeatureRow({
+  to,
+  icon,
+  label,
+  sub,
+  onClick,
+}: {
+  to: string;
+  icon: ReactNode;
+  label: string;
+  sub?: string;
+  onClick: () => void;
+}) {
   return (
     <li className="border-line not-first:border-t">
-      <Link to={to} onClick={onClick} className="grid min-h-15 grid-cols-[40px_1fr_auto] items-center gap-3 no-underline">
-        <span className="grid size-10 place-items-center rounded-xl border border-line bg-field-strong" aria-hidden="true">
+      <Link
+        to={to}
+        onClick={onClick}
+        className="grid min-h-15 grid-cols-[40px_1fr_auto] items-center gap-3 no-underline"
+      >
+        <span
+          className="grid size-10 place-items-center rounded-xl border border-line bg-field-strong"
+          aria-hidden="true"
+        >
           {icon}
         </span>
         <span className="flex min-w-0 flex-col">

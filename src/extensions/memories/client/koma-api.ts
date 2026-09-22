@@ -24,14 +24,32 @@ export function useKomaNow(enabled = true) {
 
 /** 自分のひとコマを日ごとに */
 export function useKomaDays() {
-  return useQuery({ queryKey: komaKeys.days, queryFn: () => api<{ days: KomaDay[] }>("/memories/koma").then((r) => r.days) });
+  return useQuery({
+    queryKey: komaKeys.days,
+    queryFn: () => api<{ days: KomaDay[] }>("/memories/koma").then((r) => r.days),
+  });
 }
 
 /** ある日のひとコマの、共有先と思い出のつなぎを保存する。muted を渡すと通知のオン・オフも変える */
 export function useSaveKomaDay() {
   return useMutation({
-    mutationFn: ({ day, groupId, memoryId, timeZone, muted }: { day: string; groupId: string; memoryId: string | null; timeZone: string; muted?: boolean }) =>
-      api(`/memories/koma/days/${day}`, { method: "PUT", body: { groupId, memoryId, timeZone, ...(muted === undefined ? {} : { muted }) } }),
+    mutationFn: ({
+      day,
+      groupId,
+      memoryId,
+      timeZone,
+      muted,
+    }: {
+      day: string;
+      groupId: string;
+      memoryId: string | null;
+      timeZone: string;
+      muted?: boolean;
+    }) =>
+      api(`/memories/koma/days/${day}`, {
+        method: "PUT",
+        body: { groupId, memoryId, timeZone, ...(muted === undefined ? {} : { muted }) },
+      }),
   });
 }
 

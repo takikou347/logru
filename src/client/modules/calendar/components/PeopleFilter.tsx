@@ -123,7 +123,11 @@ export function SideGroup({
           {label}
         </button>
         <CollapsibleTrigger asChild>
-          <button type="button" className="grid size-[42px] flex-none place-items-center rounded-xl hover:bg-field" aria-label={`${name} のメンバー`}>
+          <button
+            type="button"
+            className="grid size-[42px] flex-none place-items-center rounded-xl hover:bg-field"
+            aria-label={`${name} のメンバー`}
+          >
             <Chevron />
           </button>
         </CollapsibleTrigger>
@@ -166,8 +170,7 @@ export function PeopleChip({
   return (
     <>
       <Chip aria-label="表示する人" aria-haspopup="dialog" aria-pressed={filtering} onClick={() => setOpen(true)}>
-        <Users className="size-4" aria-hidden="true" />
-        人
+        <Users className="size-4" aria-hidden="true" />人
         {filtering && (
           <span className="text-[12px] tabular-nums">
             {total - hidden.size}/{total}

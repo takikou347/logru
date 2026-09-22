@@ -1,8 +1,9 @@
 /** 思い出の拡張が API から読むデータと、書き換え */
+
+import type { GroupSummary } from "@shared/api-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { toast } from "sonner";
-import type { GroupSummary } from "@shared/api-types";
 import { api } from "@/api/client";
 import { useGroups } from "@/api/common";
 import { memoriesManifest } from "../manifest";
@@ -53,7 +54,10 @@ export function useMemory(id: string, enabled = true) {
 export function useRecords(groups: string, from: number, to: number, enabled = true) {
   return useQuery({
     queryKey: memoryKeys.records(groups, from, to),
-    queryFn: () => api<{ records: MemoryRecord[] }>(`/memories/records?group=${groups}&from=${from}&to=${to}`).then((r) => r.records),
+    queryFn: () =>
+      api<{ records: MemoryRecord[] }>(`/memories/records?group=${groups}&from=${from}&to=${to}`).then(
+        (r) => r.records,
+      ),
     enabled: enabled && groups.length > 0,
   });
 }
@@ -61,7 +65,8 @@ export function useRecords(groups: string, from: number, to: number, enabled = t
 /** 思い出の拡張のデータを、全部読み直させる。カレンダーの帯と記録の数も変わるので、カレンダーも読み直す */
 export function useInvalidateMemories() {
   const qc = useQueryClient();
-  return () => Promise.all([qc.invalidateQueries({ queryKey: memoryKeys.all }), qc.invalidateQueries({ queryKey: ["calendar"] })]);
+  return () =>
+    Promise.all([qc.invalidateQueries({ queryKey: memoryKeys.all }), qc.invalidateQueries({ queryKey: ["calendar"] })]);
 }
 
 /** しおりの行を足す、直す、消す。押した瞬間に画面に効かせ、失敗したら戻す */
@@ -80,18 +85,36 @@ export function useItemMutations(memoryId: string) {
   const settle = () => qc.invalidateQueries({ queryKey: key });
 
   const add = useMutation({
-    mutationFn: (input: { kind: ItemKind; title: string; place?: string | null; dayIndex?: number | null; assigneeId?: string | null; dueOn?: string | null }) =>
-      api<MemoryItem>(`/memories/${memoryId}/items`, { method: "POST", body: input }),
+    mutationFn: (input: {
+      kind: ItemKind;
+      title: string;
+      place?: string | null;
+      dayIndex?: number | null;
+      assigneeId?: string | null;
+      dueOn?: string | null;
+    }) => api<MemoryItem>(`/memories/${memoryId}/items`, { method: "POST", body: input }),
     onError: (e) => toast.error((e as Error).message),
     onSettled: settle,
   });
   const update = useMutation({
-    mutationFn: ({ id, ...patch }: { id: string; done?: boolean; title?: string; assigneeId?: string | null; dueOn?: string | null; dayIndex?: number | null; place?: string | null }) =>
-      api<MemoryItem>(`/memories/${memoryId}/items/${id}`, { method: "PATCH", body: patch }),
+    mutationFn: ({
+      id,
+      ...patch
+    }: {
+      id: string;
+      done?: boolean;
+      title?: string;
+      assigneeId?: string | null;
+      dueOn?: string | null;
+      dayIndex?: number | null;
+      place?: string | null;
+    }) => api<MemoryItem>(`/memories/${memoryId}/items/${id}`, { method: "PATCH", body: patch }),
     onMutate: async ({ id, done, ...rest }) => {
       await qc.cancelQueries({ queryKey: key });
       return patchLocal((items) =>
-        items.map((i) => (i.id === id ? { ...i, ...rest, ...(done === undefined ? {} : { doneAt: done ? Date.now() : null }) } : i)),
+        items.map((i) =>
+          i.id === id ? { ...i, ...rest, ...(done === undefined ? {} : { doneAt: done ? Date.now() : null }) } : i,
+        ),
       );
     },
     onError: rollback,
@@ -108,8 +131,12 @@ export function useItemMutations(memoryId: string) {
   });
   const copy = useMutation({
     mutationFn: (fromMemoryId: string) =>
-      api<{ items: MemoryItem[]; copied: number }>(`/memories/${memoryId}/items/copy`, { method: "POST", body: { fromMemoryId } }),
-    onSuccess: (r) => toast(r.copied ? `持ち物を ${r.copied} 件コピーしました` : "コピーできる持ち物はありませんでした"),
+      api<{ items: MemoryItem[]; copied: number }>(`/memories/${memoryId}/items/copy`, {
+        method: "POST",
+        body: { fromMemoryId },
+      }),
+    onSuccess: (r) =>
+      toast(r.copied ? `持ち物を ${r.copied} 件コピーしました` : "コピーできる持ち物はありませんでした"),
     onError: (e) => toast.error((e as Error).message),
     onSettled: settle,
   });
@@ -123,9 +150,14 @@ export function useLike() {
     mutationFn: ({ record, on }: { record: MemoryRecord; on: boolean; me: string }) =>
       api<{ likes: string[] }>(`/memories/records/${record.id}/like`, { method: on ? "PUT" : "DELETE" }),
     onMutate: async ({ record, on, me }) => {
-      const patch = (r: MemoryRecord) => (r.id === record.id ? { ...r, likes: on ? [...r.likes.filter((u) => u !== me), me] : r.likes.filter((u) => u !== me) } : r);
+      const patch = (r: MemoryRecord) =>
+        r.id === record.id
+          ? { ...r, likes: on ? [...r.likes.filter((u) => u !== me), me] : r.likes.filter((u) => u !== me) }
+          : r;
       qc.setQueriesData<MemoryRecord[]>({ queryKey: ["memories", "records"] }, (old) => old?.map(patch));
-      qc.setQueriesData<MemoryList>({ queryKey: ["memories", "list"] }, (old) => (old ? { ...old, recent: old.recent.map(patch) } : old));
+      qc.setQueriesData<MemoryList>({ queryKey: ["memories", "list"] }, (old) =>
+        old ? { ...old, recent: old.recent.map(patch) } : old,
+      );
     },
     onError: (e) => toast.error((e as Error).message),
     onSettled: () => qc.invalidateQueries({ queryKey: ["memories", "records"] }),
@@ -145,7 +177,9 @@ export function useSaveMemory() {
   const invalidate = useInvalidateMemories();
   return useMutation({
     mutationFn: ({ id, body }: { id?: string; body: Record<string, unknown> }) =>
-      id ? api<Memory>(`/memories/${id}`, { method: "PATCH", body }) : api<Memory>("/memories", { method: "POST", body }),
+      id
+        ? api<Memory>(`/memories/${id}`, { method: "PATCH", body })
+        : api<Memory>("/memories", { method: "POST", body }),
     onSettled: invalidate,
   });
 }
@@ -161,7 +195,9 @@ export function useDeleteMemory() {
 export function useSaveRecord() {
   return useMutation({
     mutationFn: ({ id, body }: { id?: string; body: Record<string, unknown> }) =>
-      id ? api(`/memories/records/${id}`, { method: "PATCH", body }) : api("/memories/records", { method: "POST", body }),
+      id
+        ? api(`/memories/records/${id}`, { method: "PATCH", body })
+        : api("/memories/records", { method: "POST", body }),
   });
 }
 

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+// biome-ignore lint/style/noRestrictedImports: エラーの型 ApiError だけを使う。api() 本体は ./api から呼ぶ
+import { ApiError } from "@/api/client";
 import { needsEmailVerification, useAuth } from "@/app/auth";
 import { Loading } from "@/app/guards";
 import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/layout/AuthShell";
 import { Button } from "@/components/ui/button";
-import { ApiError } from "@/api/client";
 import { postAgreement } from "@/modules/auth/AgreePage";
 import { takeRememberedAgreement } from "@/modules/auth/pending-agreement";
 import { useAcceptInvite, useInviteInfo } from "./api";

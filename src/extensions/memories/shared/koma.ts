@@ -50,7 +50,8 @@ export function slotsOfDay(dayStart: number, timeZone: string): KomaSlot[] {
   const out: KomaSlot[] = [];
   for (let t = dayStart; t < dayStart + 26 * HOUR_MS; t += HOUR_MS) {
     const s = slotAt(t, timeZone);
-    if (s && s.day === dayKeyIn(dayStart, timeZone) && !out.some((x) => x.hour === s.hour)) out.push({ ...s, start: hourStartIn(t, timeZone) });
+    if (s && s.day === dayKeyIn(dayStart, timeZone) && !out.some((x) => x.hour === s.hour))
+      out.push({ ...s, start: hourStartIn(t, timeZone) });
   }
   return out;
 }

@@ -26,7 +26,10 @@ export function ColorSwatches({
       value={value}
       onValueChange={onChange}
       aria-label={label}
-      className={cn("flex flex-wrap gap-1.5", options.length > 6 && "max-[440px]:grid max-[440px]:grid-cols-[repeat(4,44px)] max-[440px]:gap-x-3.5")}
+      className={cn(
+        "flex flex-wrap gap-1.5",
+        options.length > 6 && "max-[440px]:grid max-[440px]:grid-cols-[repeat(4,44px)] max-[440px]:gap-x-3.5",
+      )}
     >
       {options.map((o) => (
         <RadioGroupPrimitive.Item

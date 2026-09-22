@@ -1,5 +1,5 @@
-import { type Context, Hono } from "hono";
 import type { DB } from "@server/core/db/client";
+import { type Context, Hono } from "hono";
 
 /** 認証を通った利用者。D1 の users 表の 1 行に当たる */
 export type SessionUser = {

@@ -1,12 +1,12 @@
 import { ChevronRight } from "lucide-react";
 import { Link } from "react-router";
+import { useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Dot, Empty, FieldMessage, Panel } from "@/components/parts/Panel";
 import { Switch } from "@/components/ui/switch";
 import { groupColor } from "@/lib/colors";
-import { useGroups, useMe } from "@/api/common";
 import { poolColorsOf } from "../calendar/model";
 import { useExtensionOverview, useToggleExtension } from "./api";
 
@@ -30,7 +30,9 @@ export function ExtensionsPage() {
     <AppLayout poolColors={poolColorsOf(groups.data ?? [], me.data)}>
       <Page>
         <PageBar title="機能" />
-        {overview.error && <LoadFailure what="機能の一覧" error={overview.error} onRetry={() => void overview.refetch()} />}
+        {overview.error && (
+          <LoadFailure what="機能の一覧" error={overview.error} onRetry={() => void overview.refetch()} />
+        )}
         {list.length === 0 && !overview.error && (
           <Empty>
             足せる機能はまだありません。
@@ -73,7 +75,9 @@ export function ExtensionsPage() {
                   );
                 })}
               </div>
-              <FieldMessage>使うと、共有しない記録はいつでも残せます。グループで共有するには、そのグループの設定で管理者が有効にします。</FieldMessage>
+              <FieldMessage>
+                使うと、共有しない記録はいつでも残せます。グループで共有するには、そのグループの設定で管理者が有効にします。
+              </FieldMessage>
             </Panel>
           );
         })}

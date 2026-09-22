@@ -1,12 +1,16 @@
+import type { AttendeeResponse } from "@shared/api-types";
 import { Check, X } from "lucide-react";
 import { type AvatarPerson, InitialAvatar } from "@/components/parts/Avatars";
 import { Chip } from "@/components/parts/Chip";
 import { FieldMessage } from "@/components/parts/Panel";
 import { cn } from "@/lib/utils";
-import type { AttendeeResponse } from "@shared/api-types";
 
 /** 返事の言葉。参加者の一覧に出す */
-const RESPONSE_LABEL: Record<AttendeeResponse, string> = { accepted: "参加する", pending: "返事待ち", declined: "参加しない" };
+const RESPONSE_LABEL: Record<AttendeeResponse, string> = {
+  accepted: "参加する",
+  pending: "返事待ち",
+  declined: "参加しない",
+};
 
 /**
  * 招待された人がシートを開いたときに、いちばん上に出す返事の欄。#28
@@ -46,16 +50,29 @@ export function RsvpBar({
       <div className="flex items-center gap-2.5">
         {inviter && <InitialAvatar person={inviter} size={28} />}
         <p className="text-[13px] leading-snug">
-          <span className="font-bold">{inviter ? `${inviter.name}さん` : "グループのメンバー"}</span>から招待されています
-          <span className="block text-xs text-ink-2">{response === "pending" ? "まだ返事をしていません。" : "返事は後から変えられます。"}</span>
+          <span className="font-bold">{inviter ? `${inviter.name}さん` : "グループのメンバー"}</span>
+          から招待されています
+          <span className="block text-xs text-ink-2">
+            {response === "pending" ? "まだ返事をしていません。" : "返事は後から変えられます。"}
+          </span>
         </p>
       </div>
       <div className="grid grid-cols-2 gap-2" role="group" aria-label="返事">
-        <Chip aria-pressed={response === "accepted"} disabled={busy} className="justify-center" onClick={() => onRespond("accepted")}>
+        <Chip
+          aria-pressed={response === "accepted"}
+          disabled={busy}
+          className="justify-center"
+          onClick={() => onRespond("accepted")}
+        >
           <Check className="size-4" aria-hidden="true" />
           参加する
         </Chip>
-        <Chip aria-pressed={response === "declined"} disabled={busy} className="justify-center" onClick={() => onRespond("declined")}>
+        <Chip
+          aria-pressed={response === "declined"}
+          disabled={busy}
+          className="justify-center"
+          onClick={() => onRespond("declined")}
+        >
           <X className="size-4" aria-hidden="true" />
           参加しない
         </Chip>
@@ -99,12 +116,27 @@ export function InvitePicker({
         <FieldMessage>このグループには、ほかのメンバーがいません。</FieldMessage>
       ) : (
         <>
-          <div className="flex flex-wrap gap-2" role="group" aria-labelledby="event-invite-label" aria-describedby="event-invite-hint">
-            <Chip aria-pressed={all} disabled={disabled} onClick={() => onChange(all ? new Set() : new Set(candidates.map((c) => c.id)))}>
+          <div
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-labelledby="event-invite-label"
+            aria-describedby="event-invite-hint"
+          >
+            <Chip
+              aria-pressed={all}
+              disabled={disabled}
+              onClick={() => onChange(all ? new Set() : new Set(candidates.map((c) => c.id)))}
+            >
               全員
             </Chip>
             {candidates.map((c) => (
-              <Chip key={c.id} aria-pressed={selected.has(c.id)} disabled={disabled} className="pl-1.5" onClick={() => toggle(c.id)}>
+              <Chip
+                key={c.id}
+                aria-pressed={selected.has(c.id)}
+                disabled={disabled}
+                className="pl-1.5"
+                onClick={() => toggle(c.id)}
+              >
                 <InitialAvatar person={{ ...c, response: undefined }} size={26} />
                 {c.isMe ? "自分" : c.name}
               </Chip>
@@ -127,7 +159,13 @@ export function InvitePicker({
  * @param people 保存してある参加者
  * @param createdBy 作った人の ID
  */
-export function AttendeeList({ people, createdBy }: { people: (AvatarPerson & { isMe: boolean; response: AttendeeResponse })[]; createdBy: string | null }) {
+export function AttendeeList({
+  people,
+  createdBy,
+}: {
+  people: (AvatarPerson & { isMe: boolean; response: AttendeeResponse })[];
+  createdBy: string | null;
+}) {
   const accepted = people.filter((p) => p.response === "accepted").length;
   return (
     <section aria-labelledby="event-attendees-label" className="flex flex-col gap-1">
@@ -139,11 +177,22 @@ export function AttendeeList({ people, createdBy }: { people: (AvatarPerson & { 
       </h3>
       <ul className="flex flex-col rounded-2xl bg-field px-3.5 py-1">
         {people.map((p) => (
-          <li key={p.id} data-response={p.response} className="flex min-h-10 items-center gap-2.5 border-line text-sm not-first:border-t">
+          <li
+            key={p.id}
+            data-response={p.response}
+            className="flex min-h-10 items-center gap-2.5 border-line text-sm not-first:border-t"
+          >
             <InitialAvatar person={p} size={24} />
-            <span className={cn("min-w-0 flex-1 truncate font-medium", p.response === "declined" && "text-ink-3 line-through")}>
+            <span
+              className={cn(
+                "min-w-0 flex-1 truncate font-medium",
+                p.response === "declined" && "text-ink-3 line-through",
+              )}
+            >
               {p.isMe ? "自分" : p.name}
-              {p.id === createdBy && <span className="ml-1.5 text-[11px] font-normal text-ink-2 no-underline">作った人</span>}
+              {p.id === createdBy && (
+                <span className="ml-1.5 text-[11px] font-normal text-ink-2 no-underline">作った人</span>
+              )}
             </span>
             <span
               className={cn(

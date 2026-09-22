@@ -27,7 +27,11 @@ export function ColorSheet({
   onClose: () => void;
 }) {
   return (
-    <ResponsiveSheet title={title} description="自分の画面の中だけで変わります。ほかの人の画面は変わりません。" onClose={onClose}>
+    <ResponsiveSheet
+      title={title}
+      description="自分の画面の中だけで変わります。ほかの人の画面は変わりません。"
+      onClose={onClose}
+    >
       <ColorSwatches label={title} value={value} options={GROUP_COLORS} onChange={onPick} />
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" onClick={onReset} disabled={!isCustom}>

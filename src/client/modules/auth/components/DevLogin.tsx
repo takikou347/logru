@@ -1,7 +1,7 @@
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { type FormEvent, useState } from "react";
-import { Field } from "@/components/parts/Field";
 import { OrDivider } from "@/components/layout/AuthShell";
+import { Field } from "@/components/parts/Field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { auth } from "@/lib/firebase";

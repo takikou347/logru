@@ -21,8 +21,17 @@ const timed = (title: string, from: Date, to: Date | null) => ({
 /** 2026 年 9 月 20 日の日曜から始まる週 */
 const WEEK = d(2026, 9, 20);
 
-const brief = (r: ReturnType<typeof layoutWeek<{ title: string; allDay: boolean; startsAt: number; endsAt: number | null }>>) =>
-  r.segments.map((s) => ({ title: s.item.title, col: s.col, span: s.span, lane: s.lane, before: s.before, after: s.after }));
+const brief = (
+  r: ReturnType<typeof layoutWeek<{ title: string; allDay: boolean; startsAt: number; endsAt: number | null }>>,
+) =>
+  r.segments.map((s) => ({
+    title: s.item.title,
+    col: s.col,
+    span: s.span,
+    lane: s.lane,
+    before: s.before,
+    after: s.after,
+  }));
 
 describe("daySpan と isMultiDay", () => {
   it("終日の予定は、終わりの日の前の日までにかかる", () => {
@@ -50,17 +59,26 @@ describe("layoutWeek", () => {
 
   it("週をまたぐ予定は、週の終わりで切り、次の週の頭から続ける", () => {
     const trip = allDay("旅行", d(2026, 9, 26), d(2026, 9, 28));
-    expect(brief(layoutWeek([trip], WEEK))).toEqual([{ title: "旅行", col: 6, span: 1, lane: 0, before: false, after: true }]);
-    expect(brief(layoutWeek([trip], d(2026, 9, 27)))).toEqual([{ title: "旅行", col: 0, span: 2, lane: 0, before: true, after: false }]);
+    expect(brief(layoutWeek([trip], WEEK))).toEqual([
+      { title: "旅行", col: 6, span: 1, lane: 0, before: false, after: true },
+    ]);
+    expect(brief(layoutWeek([trip], d(2026, 9, 27)))).toEqual([
+      { title: "旅行", col: 0, span: 2, lane: 0, before: true, after: false },
+    ]);
   });
 
   it("3 週にかかる予定は、真ん中の週では 7 日ぶん伸び、両側に続く", () => {
     const long = allDay("長い休み", d(2026, 9, 17), d(2026, 10, 1));
-    expect(brief(layoutWeek([long], WEEK))).toEqual([{ title: "長い休み", col: 0, span: 7, lane: 0, before: true, after: true }]);
+    expect(brief(layoutWeek([long], WEEK))).toEqual([
+      { title: "長い休み", col: 0, span: 7, lane: 0, before: true, after: true },
+    ]);
   });
 
   it("週にかからない予定は、帯を作らない", () => {
-    const r = layoutWeek([allDay("先週", d(2026, 9, 14), d(2026, 9, 19)), allDay("来週", d(2026, 9, 27), d(2026, 9, 29))], WEEK);
+    const r = layoutWeek(
+      [allDay("先週", d(2026, 9, 14), d(2026, 9, 19)), allDay("来週", d(2026, 9, 27), d(2026, 9, 29))],
+      WEEK,
+    );
     expect(r).toEqual({ segments: [], lanes: 0 });
   });
 
@@ -91,7 +109,10 @@ describe("layoutWeek", () => {
   });
 
   it("前の週から続く帯は、その週に始まる帯より上に入る", () => {
-    const r = layoutWeek([allDay("今週から", d(2026, 9, 20), d(2026, 9, 26)), allDay("先週から", d(2026, 9, 18), d(2026, 9, 21))], WEEK);
+    const r = layoutWeek(
+      [allDay("今週から", d(2026, 9, 20), d(2026, 9, 26)), allDay("先週から", d(2026, 9, 18), d(2026, 9, 21))],
+      WEEK,
+    );
     expect(brief(r).map((s) => [s.title, s.lane])).toEqual([
       ["先週から", 0],
       ["今週から", 1],
@@ -101,14 +122,20 @@ describe("layoutWeek", () => {
   it("月をまたぐ予定も、表に並ぶ週の中で切って続ける", () => {
     // 2026 年 9 月の表の最後の週は、9 月 27 日から 10 月 3 日
     const home = allDay("帰省", d(2026, 9, 30), d(2026, 10, 5));
-    expect(brief(layoutWeek([home], d(2026, 9, 27)))).toEqual([{ title: "帰省", col: 3, span: 4, lane: 0, before: false, after: true }]);
+    expect(brief(layoutWeek([home], d(2026, 9, 27)))).toEqual([
+      { title: "帰省", col: 3, span: 4, lane: 0, before: false, after: true },
+    ]);
     // 10 月の表の 2 週目の頭から続く
-    expect(brief(layoutWeek([home], d(2026, 10, 4)))).toEqual([{ title: "帰省", col: 0, span: 2, lane: 0, before: true, after: false }]);
+    expect(brief(layoutWeek([home], d(2026, 10, 4)))).toEqual([
+      { title: "帰省", col: 0, span: 2, lane: 0, before: true, after: false },
+    ]);
   });
 
   it("日をまたぐ時刻のある予定は、かかる日だけの帯になる", () => {
     const bus = timed("夜行バス", d(2026, 9, 26, 22), d(2026, 9, 27, 6));
-    expect(brief(layoutWeek([bus], WEEK))).toEqual([{ title: "夜行バス", col: 6, span: 1, lane: 0, before: false, after: true }]);
+    expect(brief(layoutWeek([bus], WEEK))).toEqual([
+      { title: "夜行バス", col: 6, span: 1, lane: 0, before: false, after: true },
+    ]);
   });
 });
 

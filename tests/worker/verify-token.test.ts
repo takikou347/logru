@@ -1,6 +1,6 @@
-import { SignJWT, UnsecuredJWT, createLocalJWKSet, exportJWK, generateKeyPair } from "jose";
-import { beforeAll, describe, expect, it } from "vitest";
 import { InvalidTokenError, verifyFirebaseToken } from "@server/core/auth/verify-token";
+import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, UnsecuredJWT } from "jose";
+import { beforeAll, describe, expect, it } from "vitest";
 
 const PROJECT = "logru-test";
 const ISS = `https://securetoken.google.com/${PROJECT}`;
@@ -33,7 +33,12 @@ beforeAll(async () => {
       .sign(other.privateKey);
 });
 
-const google = { email: "a@example.com", email_verified: true, name: "こた", firebase: { sign_in_provider: "google.com" } };
+const google = {
+  email: "a@example.com",
+  email_verified: true,
+  name: "こた",
+  firebase: { sign_in_provider: "google.com" },
+};
 
 describe("verifyFirebaseToken", () => {
   it("正しい署名のトークンから、利用者の情報を取り出す", async () => {
@@ -76,7 +81,12 @@ describe("verifyFirebaseToken", () => {
   });
 
   it("エミュレーターでも、宛先の違うトークンは受け付けない", async () => {
-    const unsigned = new UnsecuredJWT(google).setIssuer(ISS).setAudience("x").setSubject("u").setExpirationTime("1h").encode();
+    const unsigned = new UnsecuredJWT(google)
+      .setIssuer(ISS)
+      .setAudience("x")
+      .setSubject("u")
+      .setExpirationTime("1h")
+      .encode();
     await expect(verifyFirebaseToken(unsigned, { projectId: PROJECT, emulator: true })).rejects.toBeInstanceOf(
       InvalidTokenError,
     );

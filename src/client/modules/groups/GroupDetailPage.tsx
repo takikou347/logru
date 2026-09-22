@@ -1,8 +1,9 @@
+import type { GroupMember, GroupSummary } from "@shared/api-types";
+import { GROUP_COLORS } from "@shared/colors";
 import { type FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
-import type { GroupMember, GroupSummary } from "@shared/api-types";
-import { GROUP_COLORS } from "@shared/colors";
+import { useColorPref, useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { ColorSheet } from "@/components/parts/ColorSheet";
@@ -15,9 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { groupColor, memberColor } from "@/lib/colors";
-import { useColorPref, useGroups, useMe } from "@/api/common";
 import { poolColorsOf } from "../calendar/model";
 import {
+  useCreateInvite,
   useGroupExtensions,
   useLeaveGroup,
   useRenameGroup,
@@ -25,7 +26,6 @@ import {
   useToggleGroupExtension,
   useUpdateGroupColor,
   useUpdateMemberRole,
-  useCreateInvite,
 } from "./api";
 
 type Invite = { url: string; expiresAt: number };
@@ -130,18 +130,27 @@ export function GroupDetailPage() {
   const isCustom = (t: ColorTarget) => prefs.some((p) => p.targetType === t.type && p.targetId === t.id);
 
   return (
-    <AppLayout poolColors={[shown, ...poolColorsOf(groups.data ?? [], me.data).filter((c) => c !== shown)]} poolFocus={0}>
+    <AppLayout
+      poolColors={[shown, ...poolColorsOf(groups.data ?? [], me.data).filter((c) => c !== shown)]}
+      poolFocus={0}
+    >
       <Page>
         <PageBar title={group.name} back="/groups" />
 
         {admin && <RenameForm group={group} />}
 
         <Panel title="色">
-          <RowButton onClick={() => setColorTarget({ type: "group", id: group.id, title: "自分の画面での色", fallback: group.color })}>
+          <RowButton
+            onClick={() =>
+              setColorTarget({ type: "group", id: group.id, title: "自分の画面での色", fallback: group.color })
+            }
+          >
             <Dot color={shown} className="size-3" />
             <span className="flex-1">自分の画面での色</span>
             <span className="text-xs text-ink-2">
-              {isCustom({ type: "group", id: group.id, title: "", fallback: "" }) ? "自分だけ変えた" : "グループの色のまま"}
+              {isCustom({ type: "group", id: group.id, title: "", fallback: "" })
+                ? "自分だけ変えた"
+                : "グループの色のまま"}
             </span>
           </RowButton>
           {admin && (
@@ -166,7 +175,9 @@ export function GroupDetailPage() {
                 isMe={m.id === myId}
                 color={memberColor(m.id, m.userColor, prefs)}
                 canManage={admin && !(m.role === "admin" && adminCount === 1)}
-                onColor={() => setColorTarget({ type: "user", id: m.id, title: `${m.name} の色`, fallback: m.userColor })}
+                onColor={() =>
+                  setColorTarget({ type: "user", id: m.id, title: `${m.name} の色`, fallback: m.userColor })
+                }
                 onRole={(role) =>
                   run(
                     () => updateRole.mutateAsync({ memberId: m.id, role }),
@@ -182,7 +193,9 @@ export function GroupDetailPage() {
           <Panel title="招待">
             {invite ? (
               <>
-                <FieldMessage>このリンクを開いた人は、7 日のうちならグループに入れます。招待したい相手にだけ送ってください。</FieldMessage>
+                <FieldMessage>
+                  このリンクを開いた人は、7 日のうちならグループに入れます。招待したい相手にだけ送ってください。
+                </FieldMessage>
                 <Input readOnly value={invite.url} aria-label="招待リンク" onFocus={(e) => e.target.select()} />
                 <Button className="self-start" onClick={copy}>
                   コピーする
@@ -243,7 +256,10 @@ export function GroupDetailPage() {
       {colorTarget && (
         <ColorSheet
           title={colorTarget.title}
-          value={prefs.find((p) => p.targetType === colorTarget.type && p.targetId === colorTarget.id)?.color ?? colorTarget.fallback}
+          value={
+            prefs.find((p) => p.targetType === colorTarget.type && p.targetId === colorTarget.id)?.color ??
+            colorTarget.fallback
+          }
           isCustom={isCustom(colorTarget)}
           onPick={(color) => colorPref.mutate({ type: colorTarget.type, id: colorTarget.id, color })}
           onReset={() => colorPref.mutate({ type: colorTarget.type, id: colorTarget.id, color: null })}

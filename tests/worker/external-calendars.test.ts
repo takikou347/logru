@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { decryptText, encryptText } from "@extensions/external-calendars/server/crypto";
 import { parseIcs, wallTimeToUtc } from "@extensions/external-calendars/server/ics";
 import { fetchIcs, normalizeCalendarUrl, syncWindow } from "@extensions/external-calendars/server/sync";
+import { describe, expect, it } from "vitest";
 import wrangler from "../../wrangler.jsonc?raw";
 import allDay from "./fixtures/all-day.ics?raw";
 import oldRecurring from "./fixtures/old-recurring.ics?raw";
@@ -16,7 +16,12 @@ describe("parseIcs", () => {
   it("1 回だけの予定を読み、取り消したものと期間の外のものを除く", () => {
     const events = parseIcs(single, window);
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ uid: "single-1@test", title: "Dentist", location: "Shibuya, Tokyo", allDay: false });
+    expect(events[0]).toMatchObject({
+      uid: "single-1@test",
+      title: "Dentist",
+      location: "Shibuya, Tokyo",
+      allDay: false,
+    });
     expect(iso(events[0]!.startsAt)).toBe("2026-10-15T01:00:00.000Z");
     expect(iso(events[0]!.endsAt)).toBe("2026-10-15T02:00:00.000Z");
   });
@@ -53,9 +58,17 @@ describe("parseIcs", () => {
 
   it("何年も前から続く繰り返しも、期間の中の回を正しく返す", () => {
     const events = parseIcs(oldRecurring, { from: Date.UTC(2026, 9, 1), to: Date.UTC(2026, 9, 15) });
-    const of = (uid: string) => events.filter((e) => e.uid === uid).map((e) => iso(e.startsAt)).sort();
+    const of = (uid: string) =>
+      events
+        .filter((e) => e.uid === uid)
+        .map((e) => iso(e.startsAt))
+        .sort();
     // 月曜と木曜。10 月 8 日は EXDATE で抜く
-    expect(of("old-weekly@test")).toEqual(["2026-10-01T00:00:00.000Z", "2026-10-05T00:00:00.000Z", "2026-10-12T00:00:00.000Z"]);
+    expect(of("old-weekly@test")).toEqual([
+      "2026-10-01T00:00:00.000Z",
+      "2026-10-05T00:00:00.000Z",
+      "2026-10-12T00:00:00.000Z",
+    ]);
     // 2020 年 1 月 1 日から 3 日おき
     expect(of("old-daily@test")).toEqual(
       ["2026-10-02", "2026-10-05", "2026-10-08", "2026-10-11", "2026-10-14"].map((d) => `${d}T03:00:00.000Z`),
@@ -107,7 +120,9 @@ describe("encryptText", () => {
 
 describe("normalizeCalendarUrl", () => {
   it("https と webcal を受け付け、webcal は https に直す", () => {
-    expect(normalizeCalendarUrl("https://calendar.google.com/a.ics", false).toString()).toBe("https://calendar.google.com/a.ics");
+    expect(normalizeCalendarUrl("https://calendar.google.com/a.ics", false).toString()).toBe(
+      "https://calendar.google.com/a.ics",
+    );
     expect(normalizeCalendarUrl("webcal://example.com/a.ics", false).protocol).toBe("https:");
   });
 

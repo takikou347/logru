@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { isLocalDev, resolveAppUrl } from "@server/core/app";
+import { describe, expect, it } from "vitest";
 
 const dev = { ENVIRONMENT: "development", APP_URL: "http://localhost:5173" } as never;
 const prod = { ENVIRONMENT: "production", APP_URL: "https://logru.example.com" } as never;

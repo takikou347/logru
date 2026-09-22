@@ -3,8 +3,7 @@
  *
  * 土台の機能は modules/ に、拡張は extensions/ にある。拡張の API は registry.server.ts から読んで載せる。
  */
-import { Hono } from "hono";
-import { secureHeaders } from "hono/secure-headers";
+
 import { serverExtensions } from "@extensions/server/registry";
 import { type AppEnv, HttpError, resolveAppUrl } from "@server/core/app";
 import { createDb } from "@server/core/db/client";
@@ -13,6 +12,8 @@ import { extensionRoutes } from "@server/modules/group-extensions/routes";
 import { groupRoutes } from "@server/modules/groups/routes";
 import { inviteRoutes } from "@server/modules/invites/routes";
 import { meRoutes } from "@server/modules/me/routes";
+import { Hono } from "hono";
+import { secureHeaders } from "hono/secure-headers";
 
 const app = new Hono<AppEnv>().basePath("/api");
 

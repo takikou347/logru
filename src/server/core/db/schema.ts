@@ -2,8 +2,9 @@
  * 土台の表。拡張の表は src/extensions/<名前>/server/schema.ts に置く。
  * 日時はすべてミリ秒の UTC で持つ。
  */
-import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+
 import { createdAt, now, updatedAt } from "@server/core/db/columns";
+import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /** 利用者。ID は Firebase の利用者 ID。ログインの情報そのものは Firebase にある */
 export const users = sqliteTable("users", {
@@ -20,7 +21,9 @@ export const userSettings = sqliteTable("user_settings", {
   userId: text("user_id")
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
-  themeMode: text("theme_mode", { enum: ["system", "light", "dark"] }).notNull().default("system"),
+  themeMode: text("theme_mode", { enum: ["system", "light", "dark"] })
+    .notNull()
+    .default("system"),
   accentColor: text("accent_color").notNull().default("aizumi"),
   userColor: text("user_color").notNull().default("wakatake"),
   updatedAt: updatedAt(),
@@ -92,7 +95,9 @@ export const groupMembers = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: text("role", { enum: ["admin", "member"] }).notNull().default("member"),
+    role: text("role", { enum: ["admin", "member"] })
+      .notNull()
+      .default("member"),
     joinedAt: integer("joined_at", { mode: "timestamp_ms" }).notNull().default(now),
   },
   (t) => [primaryKey({ columns: [t.groupId, t.userId] }), index("group_members_user_idx").on(t.userId)],

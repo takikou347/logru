@@ -1,6 +1,6 @@
-import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { createdAt, now, updatedAt } from "@server/core/db/columns";
 import { groups, users } from "@server/core/db/schema";
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
  * 思い出。グループと期間を持つ 1 冊。0020
@@ -70,7 +70,9 @@ export const memoryRecords = sqliteTable(
       .notNull()
       .references(() => groups.id, { onDelete: "cascade" }),
     createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
-    kind: text("kind", { enum: ["note", "koma"] }).notNull().default("note"),
+    kind: text("kind", { enum: ["note", "koma"] })
+      .notNull()
+      .default("note"),
     body: text("body"),
     occurredAt: integer("occurred_at", { mode: "timestamp_ms" }).notNull(),
     komaSlot: integer("koma_slot", { mode: "timestamp_ms" }),

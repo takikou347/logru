@@ -27,9 +27,15 @@ export function FailurePanel({
   return (
     <section
       role={mark === "!" ? "alert" : undefined}
-      className={cn("glass flex min-h-[320px] flex-col items-center justify-center gap-3.5 rounded-panel px-5.5 py-7 text-center", className)}
+      className={cn(
+        "glass flex min-h-[320px] flex-col items-center justify-center gap-3.5 rounded-panel px-5.5 py-7 text-center",
+        className,
+      )}
     >
-      <span className="grid size-[46px] place-items-center rounded-full border-2 border-dashed border-ink-3 font-bold text-ink-3" aria-hidden="true">
+      <span
+        className="grid size-[46px] place-items-center rounded-full border-2 border-dashed border-ink-3 font-bold text-ink-3"
+        aria-hidden="true"
+      >
         {mark}
       </span>
       <h2 className="text-base font-bold">{title}</h2>
@@ -44,7 +50,17 @@ export function FailurePanel({
  * @param what 何を読めなかったか。例は「9 月の予定」
  * @param error 失敗。文をそのまま出す
  */
-export function LoadFailure({ what, error, onRetry, className }: { what: string; error: Error; onRetry: () => void; className?: string }) {
+export function LoadFailure({
+  what,
+  error,
+  onRetry,
+  className,
+}: {
+  what: string;
+  error: Error;
+  onRetry: () => void;
+  className?: string;
+}) {
   return (
     <FailurePanel
       title={`${what}を読み込めませんでした`}
@@ -69,7 +85,13 @@ export function OfflineBand({ className }: { className?: string }) {
   const online = useOnline();
   if (online) return null;
   return (
-    <div role="status" className={cn("glass flex min-h-9 items-center gap-2.5 rounded-full px-4 text-[12.5px] font-medium text-ink-2", className)}>
+    <div
+      role="status"
+      className={cn(
+        "glass flex min-h-9 items-center gap-2.5 rounded-full px-4 text-[12.5px] font-medium text-ink-2",
+        className,
+      )}
+    >
       <span className="size-2.5 flex-none rounded-full border-2 border-ink-2" aria-hidden="true" />
       オフライン。前に読んだ内容を出しています
     </div>

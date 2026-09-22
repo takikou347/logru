@@ -1,7 +1,8 @@
 /** 複数の機能が使う hook。1 つの機能に閉じるものは modules/<機能>/api.ts か extensions/<名前>/client/api.ts に置く */
+
+import type { GroupSummary, Me } from "@shared/api-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { GroupSummary, Me } from "@shared/api-types";
 import { api } from "./client";
 import { keys } from "./keys";
 
@@ -38,7 +39,10 @@ export function useColorPref() {
       const prev = qc.getQueryData<Me>(keys.me);
       if (prev) {
         const rest = prev.colorPrefs.filter((p) => !(p.targetType === type && p.targetId === id));
-        qc.setQueryData<Me>(keys.me, { ...prev, colorPrefs: color ? [...rest, { targetType: type, targetId: id, color }] : rest });
+        qc.setQueryData<Me>(keys.me, {
+          ...prev,
+          colorPrefs: color ? [...rest, { targetType: type, targetId: id, color }] : rest,
+        });
       }
       return { prev };
     },

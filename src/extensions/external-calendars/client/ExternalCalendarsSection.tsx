@@ -1,7 +1,7 @@
+import { GROUP_COLORS, type GroupColor } from "@shared/colors";
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
-import { GROUP_COLORS, type GroupColor } from "@shared/colors";
 import { ColorSwatches } from "@/components/parts/ColorSwatches";
 import { Field } from "@/components/parts/Field";
 import { Dot, Empty, FieldMessage, Panel } from "@/components/parts/Panel";
@@ -9,7 +9,13 @@ import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ExternalCalendarSummary } from "../shared/schemas";
-import { EXTERNAL_CALENDARS_KEY as KEY, useAddExternalCalendar, useExternalCalendars, useRemoveExternalCalendar, useResyncExternalCalendar } from "./api";
+import {
+  EXTERNAL_CALENDARS_KEY as KEY,
+  useAddExternalCalendar,
+  useExternalCalendars,
+  useRemoveExternalCalendar,
+  useResyncExternalCalendar,
+} from "./api";
 
 /** `9月21日 14:05` の形にする */
 function formatSynced(ms: number): string {
@@ -27,14 +33,18 @@ export function ExternalCalendarsSection() {
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<ExternalCalendarSummary | null>(null);
 
-  const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: KEY }), qc.invalidateQueries({ queryKey: ["calendar"] })]);
+  const refresh = () =>
+    Promise.all([qc.invalidateQueries({ queryKey: KEY }), qc.invalidateQueries({ queryKey: ["calendar"] })]);
 
   const resync = useResyncExternalCalendar();
 
   const list = calendars.data ?? [];
   return (
     <Panel title="外部のカレンダー">
-      <FieldMessage>Google カレンダーの予定を、自分のカレンダーに出します。読むだけで、ほかの人には見えません。5 分おきに読み直します。カレンダーの画面の読み直しのボタンでも、すぐに読めます。</FieldMessage>
+      <FieldMessage>
+        Google カレンダーの予定を、自分のカレンダーに出します。読むだけで、ほかの人には見えません。5
+        分おきに読み直します。カレンダーの画面の読み直しのボタンでも、すぐに読めます。
+      </FieldMessage>
       {calendars.error && <FieldMessage error>{calendars.error.message}</FieldMessage>}
       {calendars.isSuccess && list.length === 0 && <Empty>まだ登録していません。</Empty>}
       {list.length > 0 && (
@@ -49,7 +59,9 @@ export function ExternalCalendarsSection() {
               {c.lastError ? (
                 <FieldMessage error>{c.lastError}</FieldMessage>
               ) : (
-                <FieldMessage>{c.lastSyncedAt ? `${formatSynced(c.lastSyncedAt)} に読みました` : "まだ読んでいません"}</FieldMessage>
+                <FieldMessage>
+                  {c.lastSyncedAt ? `${formatSynced(c.lastSyncedAt)} に読みました` : "まだ読んでいません"}
+                </FieldMessage>
               )}
               <div className="flex gap-2">
                 <Button
@@ -73,14 +85,24 @@ export function ExternalCalendarsSection() {
         カレンダーを登録する
       </Button>
 
-      {adding && <AddCalendarSheet used={list.map((c) => c.color)} onClose={() => setAdding(false)} onAdded={refresh} />}
+      {adding && (
+        <AddCalendarSheet used={list.map((c) => c.color)} onClose={() => setAdding(false)} onAdded={refresh} />
+      )}
       {removing && <RemoveCalendarSheet calendar={removing} onClose={() => setRemoving(null)} onRemoved={refresh} />}
     </Panel>
   );
 }
 
 /** 外部のカレンダーを登録するシート。名前、色、URL を聞く */
-function AddCalendarSheet({ used, onClose, onAdded }: { used: string[]; onClose: () => void; onAdded: () => Promise<unknown> }) {
+function AddCalendarSheet({
+  used,
+  onClose,
+  onAdded,
+}: {
+  used: string[];
+  onClose: () => void;
+  onAdded: () => Promise<unknown>;
+}) {
   const addCalendar = useAddExternalCalendar();
   const [name, setName] = useState("");
   const [color, setColor] = useState<GroupColor>(() => GROUP_COLORS.find((c) => !used.includes(c.key))?.key ?? "asagi");
@@ -106,11 +128,24 @@ function AddCalendarSheet({ used, onClose, onAdded }: { used: string[]; onClose:
     <ResponsiveSheet title="外部のカレンダーを登録する" onClose={onClose}>
       <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         <Field label="名前" hint="カレンダーの予定の横に出ます。">
-          {(p) => <Input {...p} value={name} maxLength={40} placeholder="例: プライベート" onChange={(e) => setName(e.target.value)} />}
+          {(p) => (
+            <Input
+              {...p}
+              value={name}
+              maxLength={40}
+              placeholder="例: プライベート"
+              onChange={(e) => setName(e.target.value)}
+            />
+          )}
         </Field>
         <div className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-2">色</span>
-          <ColorSwatches label="カレンダーの色" value={color} options={GROUP_COLORS} onChange={(v) => setColor(v as GroupColor)} />
+          <ColorSwatches
+            label="カレンダーの色"
+            value={color}
+            options={GROUP_COLORS}
+            onChange={(v) => setColor(v as GroupColor)}
+          />
         </div>
         <Field
           label="iCal 形式の非公開 URL"

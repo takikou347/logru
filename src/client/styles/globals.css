@@ -143,14 +143,45 @@
 @utility legal-body {
   font-size: 15px;
   line-height: 1.9;
-  & h1 { font-size: 24px; font-weight: 700; line-height: 1.4; margin-bottom: 16px; }
-  & h2 { font-size: 17px; font-weight: 700; margin: 28px 0 8px; }
-  & p, & li { margin: 6px 0; }
-  & ol { list-style: decimal; padding-left: 1.4em; }
-  & ul { list-style: disc; padding-left: 1.4em; }
-  & table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
-  & th, & td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; vertical-align: top; }
-  & a { text-decoration: underline; }
+  & h1 {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.4;
+    margin-bottom: 16px;
+  }
+  & h2 {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 28px 0 8px;
+  }
+  & p,
+  & li {
+    margin: 6px 0;
+  }
+  & ol {
+    list-style: decimal;
+    padding-left: 1.4em;
+  }
+  & ul {
+    list-style: disc;
+    padding-left: 1.4em;
+  }
+  & table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  & th,
+  & td {
+    border-bottom: 1px solid var(--line);
+    padding: 8px 6px;
+    text-align: left;
+    vertical-align: top;
+  }
+  & a {
+    text-decoration: underline;
+  }
 }
 
 /*

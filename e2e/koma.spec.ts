@@ -6,7 +6,10 @@ import { signUp } from "./helpers";
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
 
 /** 日本時間のいまの時。ひとコマは 7 時台から 22 時台だけ撮れる */
-const hourInTokyo = () => Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tokyo", hour: "2-digit", hourCycle: "h23" }).format(new Date()));
+const hourInTokyo = () =>
+  Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tokyo", hour: "2-digit", hourCycle: "h23" }).format(new Date()),
+  );
 const inKomaHours = () => hourInTokyo() >= 7 && hourInTokyo() <= 22;
 
 test("思い出が無い日でも、今日をひとコマで始め、近道の帯から撮れる。F-121、F-126、F-127", async ({ page }) => {
@@ -18,7 +21,10 @@ test("思い出が無い日でも、今日をひとコマで始め、近道の�
   // 機能のシートの「ひとコマ」から確認画面へ。今日を始める
   await page.goto("/");
   await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
-  await page.getByRole("dialog", { name: "機能" }).getByRole("link", { name: /ひとコマ/ }).click();
+  await page
+    .getByRole("dialog", { name: "機能" })
+    .getByRole("link", { name: /ひとコマ/ })
+    .click();
   await page.getByRole("button", { name: "今日のひとコマを始める" }).click();
   const start = page.getByRole("dialog", { name: "今日のひとコマを始める" });
   await expect(start.getByRole("radio", { name: "自分だけ" })).toHaveAttribute("aria-checked", "true");
@@ -64,7 +70,9 @@ test("ひとコマは思い出を消しても残り、つなぎ直せる。F-128
   await page.locator('input[type="file"][capture]').setInputFiles(PHOTO);
   await page.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText(/時のひとコマを保存しました/)).toBeVisible();
-  await expect(page.getByRole("region", { name: "ひとコマ" }).getByRole("button", { name: /のひとコマ$/ })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "ひとコマ" }).getByRole("button", { name: /のひとコマ$/ }),
+  ).toBeVisible();
 
   // 思い出を消す
   await page.getByRole("button", { name: "思い出を編集" }).click();

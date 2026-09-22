@@ -25,7 +25,9 @@ export function useExternalCalendars() {
 export async function refreshExternalCalendars(): Promise<{ failed: string[] }> {
   const known = await queryClient.fetchQuery({ queryKey: EXTERNAL_CALENDARS_KEY, queryFn: fetchExternalCalendars });
   if (known.length === 0) return { failed: [] };
-  const { calendars } = await api<{ calendars: ExternalCalendarSummary[] }>("/external-calendars/sync", { method: "POST" });
+  const { calendars } = await api<{ calendars: ExternalCalendarSummary[] }>("/external-calendars/sync", {
+    method: "POST",
+  });
   queryClient.setQueryData(EXTERNAL_CALENDARS_KEY, calendars);
   return { failed: calendars.filter((c) => c.lastError).map((c) => c.name) };
 }
@@ -37,7 +39,11 @@ export function useResyncExternalCalendar() {
     mutationFn: (id: string) => api<ExternalCalendarSummary>(`/external-calendars/${id}/sync`, { method: "POST" }),
     onSuccess: (c) => (c.lastError ? toast.error(c.lastError) : toast(`${c.name} を読み直しました`)),
     onError: (e) => toast.error((e as Error).message),
-    onSettled: () => Promise.all([qc.invalidateQueries({ queryKey: EXTERNAL_CALENDARS_KEY }), qc.invalidateQueries({ queryKey: ["calendar"] })]),
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: EXTERNAL_CALENDARS_KEY }),
+        qc.invalidateQueries({ queryKey: ["calendar"] }),
+      ]),
   });
 }
 

@@ -1,6 +1,6 @@
+import type { ExtensionShortcut } from "@extensions/client/types";
 import { ChevronRight } from "lucide-react";
 import { Link } from "react-router";
-import type { ExtensionShortcut } from "@extensions/client/types";
 import { useShortcut } from "@/lib/extensions";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,15 @@ export function ShortcutBand({ compact = false, className }: { compact?: boolean
 }
 
 /** 近道の帯の見た目。部品見本でも使う */
-export function ShortcutLink({ shortcut, compact, className }: { shortcut: ExtensionShortcut; compact?: boolean; className?: string }) {
+export function ShortcutLink({
+  shortcut,
+  compact,
+  className,
+}: {
+  shortcut: ExtensionShortcut;
+  compact?: boolean;
+  className?: string;
+}) {
   const Icon = shortcut.icon;
   return (
     <Link
@@ -30,7 +38,13 @@ export function ShortcutLink({ shortcut, compact, className }: { shortcut: Exten
         className,
       )}
     >
-      {shortcut.image && <img src={shortcut.image} alt="" className={cn("size-11 rounded-xl object-cover", compact && "size-9 rounded-[10px]")} />}
+      {shortcut.image && (
+        <img
+          src={shortcut.image}
+          alt=""
+          className={cn("size-11 rounded-xl object-cover", compact && "size-9 rounded-[10px]")}
+        />
+      )}
       <span className="flex min-w-0 flex-col">
         <b className={cn("truncate text-[15px]", compact && "text-[13px]")}>{shortcut.label}</b>
         <small className="truncate text-[11px] opacity-75">{shortcut.sub}</small>

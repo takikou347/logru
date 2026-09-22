@@ -1,5 +1,5 @@
-import { and, eq, inArray } from "drizzle-orm";
 import type { DB } from "@server/core/db/client";
+import { and, eq, inArray } from "drizzle-orm";
 import { eventAttendees, events } from "./schema";
 
 /**
@@ -8,5 +8,7 @@ import { eventAttendees, events } from "./schema";
  */
 export async function removeFromGroupEvents(db: DB, groupId: string, userId: string) {
   const inGroup = db.select({ id: events.id }).from(events).where(eq(events.groupId, groupId));
-  await db.delete(eventAttendees).where(and(eq(eventAttendees.userId, userId), inArray(eventAttendees.eventId, inGroup)));
+  await db
+    .delete(eventAttendees)
+    .where(and(eq(eventAttendees.userId, userId), inArray(eventAttendees.eventId, inGroup)));
 }

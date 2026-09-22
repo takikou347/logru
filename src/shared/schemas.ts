@@ -2,13 +2,14 @@
  * 土台の API の入力の検証。画面の入力とサーバーの検証で同じものを使う。
  * 拡張の入力は src/extensions/<名前>/shared/ に置く。
  */
+
+import { ACCENT_COLOR_KEYS, GROUP_COLOR_KEYS } from "@shared/colors";
 import { z } from "zod";
-import { ACCENT_COLOR_KEYS, GROUP_COLOR_KEYS } from "./colors";
 
 /** グループの色と、自分の色の名前 */
-export const groupColorSchema = z.enum(GROUP_COLOR_KEYS);
+const groupColorSchema = z.enum(GROUP_COLOR_KEYS);
 /** テーマカラーの名前 */
-export const accentColorSchema = z.enum(ACCENT_COLOR_KEYS);
+const accentColorSchema = z.enum(ACCENT_COLOR_KEYS);
 
 /** `PUT /api/me/settings`。F-13、F-14 */
 export const settingsInput = z.object({
@@ -61,7 +62,7 @@ export const pushSubscriptionInput = z.object({
 export const extensionToggleInput = z.object({ enabled: z.boolean() });
 
 /** カレンダーで 1 回に読める期間の上限。100 日 */
-export const MAX_RANGE_MS = 100 * 24 * 60 * 60 * 1000;
+const MAX_RANGE_MS = 100 * 24 * 60 * 60 * 1000;
 
 /** `GET /api/calendar` の問い合わせ。group はカンマで区切ったグループの ID */
 export const calendarQuery = z

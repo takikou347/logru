@@ -1,4 +1,4 @@
-import type { GroupSummary, Me } from "../../shared/api-types";
+import type { GroupSummary, Me } from "@shared/api-types";
 
 type Prefs = Me["colorPrefs"];
 

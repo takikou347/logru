@@ -1,9 +1,9 @@
 import { FirebaseError } from "firebase/app";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { type FormEvent, useState } from "react";
-import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/AuthShell";
-import { BackLink } from "@/components/BackLink";
-import { Field } from "@/components/Field";
+import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/layout/AuthShell";
+import { BackLink } from "@/components/parts/BackLink";
+import { Field } from "@/components/parts/Field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authErrorMessage } from "@/lib/auth-errors";
@@ -42,7 +42,9 @@ export function ResetPasswordPage() {
         <AuthCard aria-live="polite">
           <BackLink to="/login">ログインへ戻る</BackLink>
           <AuthTitle>メールを送りました</AuthTitle>
-          <AuthText>{email} が登録されていれば、再設定のリンクが届きます。リンクから新しいパスワードを入れてください。</AuthText>
+          <AuthText>
+            {email} が登録されていれば、再設定のリンクが届きます。リンクから新しいパスワードを入れてください。
+          </AuthText>
         </AuthCard>
       ) : (
         <AuthCard>
@@ -52,7 +54,14 @@ export function ResetPasswordPage() {
           <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
             <Field label="メールアドレス">
               {(p) => (
-                <Input {...p} type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input
+                  {...p}
+                  type="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               )}
             </Field>
             {error && <Notice error>{error}</Notice>}

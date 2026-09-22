@@ -2,8 +2,8 @@ import { sendEmailVerification } from "firebase/auth";
 import { useCallback, useEffect, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { needsEmailVerification, useAuth } from "@/app/auth";
-import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/AuthShell";
-import { useSignOut } from "@/components/AppLayout";
+import { useSignOut } from "@/components/layout/AppLayout";
+import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/layout/AuthShell";
 import { Button } from "@/components/ui/button";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { safeNext } from "@/lib/utils";
@@ -67,7 +67,8 @@ export function VerifyEmailPage() {
         {error && <Notice error>{error}</Notice>}
         <Button
           onClick={async () => {
-            if (!(await check())) setError("まだ確かめられていません。メールのリンクを開いてから、もう一度押してください。");
+            if (!(await check()))
+              setError("まだ確かめられていません。メールのリンクを開いてから、もう一度押してください。");
           }}
         >
           確かめた

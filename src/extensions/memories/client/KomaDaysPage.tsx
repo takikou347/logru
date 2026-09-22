@@ -1,21 +1,21 @@
 import { Camera, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/AppLayout";
-import { LoadFailure } from "@/components/Failure";
-import { Dot, Empty } from "@/components/Panel";
+import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { LoadFailure } from "@/components/parts/Failure";
+import { Dot, Empty } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { groupColor } from "@/lib/colors";
-import { useMe } from "@/lib/queries";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { startOfDayIn } from "../shared/days";
 import type { KomaDay, MemoryRecord } from "../shared/types";
 import { useMemoryGroups } from "./api";
-import { deviceTimeZone, useKomaDays, useKomaNow } from "./koma-api";
+import { Dock } from "./Dock";
 import { KomaLinkSheet } from "./KomaLinkSheet";
 import { KomaStrip } from "./KomaStrip";
-import { Dock } from "./Dock";
+import { deviceTimeZone, useKomaDays, useKomaNow } from "./koma-api";
 import { RecordSheet } from "./RecordSheet";
 
 /**
@@ -45,7 +45,9 @@ export function KomaDaysPage() {
         {days.error && <LoadFailure what="ひとコマ" error={days.error} onRetry={() => void days.refetch()} />}
         {!startedToday && now.data && (
           <section className="glass flex flex-col gap-3 rounded-3xl p-4">
-            <p className="text-sm leading-relaxed">思い出がない日でも、1 時間に 1 枚ずつ写真を撮って 1 日を残せます。</p>
+            <p className="text-sm leading-relaxed">
+              思い出がない日でも、1 時間に 1 枚ずつ写真を撮って 1 日を残せます。
+            </p>
             <Button onClick={() => setLinking("today")}>今日のひとコマを始める</Button>
           </section>
         )}
@@ -71,7 +73,9 @@ export function KomaDaysPage() {
                     onClick={() => setLinking(d)}
                   >
                     {group && <Dot color={groupColor(group, data.colorPrefs)} />}
-                    {d.memory ? d.memory.title : `${group?.isPersonal ? "自分だけ" : (group?.name ?? "")}・思い出を選ぶ`}
+                    {d.memory
+                      ? d.memory.title
+                      : `${group?.isPersonal ? "自分だけ" : (group?.name ?? "")}・思い出を選ぶ`}
                     <ChevronRight className="size-3.5 text-ink-3" aria-hidden="true" />
                   </button>
                   {d.memory && (
@@ -93,13 +97,19 @@ export function KomaDaysPage() {
           </Dock>
         )}
       </Page>
-      {linking === "today" && today && <KomaLinkSheet day={today} groups={groups} me={data} onClose={() => setLinking(null)} />}
+      {linking === "today" && today && (
+        <KomaLinkSheet day={today} groups={groups} me={data} onClose={() => setLinking(null)} />
+      )}
       {linking && linking !== "today" && (
         <KomaLinkSheet
           day={linking.day}
           groups={groups}
           me={data}
-          current={{ groupId: linking.groupId, memoryId: linking.memory?.id ?? null, timeZone: linking.timeZone ?? deviceTimeZone() }}
+          current={{
+            groupId: linking.groupId,
+            memoryId: linking.memory?.id ?? null,
+            timeZone: linking.timeZone ?? deviceTimeZone(),
+          }}
           onClose={() => setLinking(null)}
         />
       )}

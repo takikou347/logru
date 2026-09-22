@@ -1,5 +1,5 @@
+import type { ExtensionShortcut } from "@extensions/client/types";
 import { Camera } from "lucide-react";
-import type { ExtensionShortcut } from "../../types.client";
 import { useKomaNow } from "./koma-api";
 
 /**

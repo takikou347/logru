@@ -1,10 +1,10 @@
 import { zValidator } from "@hono/zod-validator";
+import { createRouter, HttpError, validationHook } from "@server/core/app";
+import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import type { DB } from "@server/core/db/client";
+import { groupMembers } from "@server/core/db/schema";
+import { requireMembership } from "@server/modules/groups/membership";
 import { and, eq, inArray } from "drizzle-orm";
-import { HttpError, createRouter, validationHook } from "../../../server/core/app";
-import { requireAgreement, requireUser } from "../../../server/core/auth/middleware";
-import type { DB } from "../../../server/core/db/client";
-import { groupMembers } from "../../../server/core/db/schema";
-import { requireMembership } from "../../../server/modules/groups/membership";
 import { canDeleteEvent, canEditEvent, canRespond, diffAttendees, inviteeIds } from "../shared/permissions";
 import { eventInput, eventPatchInput, responseInput } from "../shared/schemas";
 import { loadAttendees, toCalendarItem } from "./provider";
@@ -83,10 +83,12 @@ export const eventRoutes = createRouter()
         memo: input.memo || null,
       }),
       // 作った人は、いつも参加する
-      db.insert(eventAttendees).values([
-        { eventId: id, userId, response: "accepted", respondedAt: now },
-        ...invitees.map((u) => ({ eventId: id, userId: u, response: "pending" as const })),
-      ]),
+      db
+        .insert(eventAttendees)
+        .values([
+          { eventId: id, userId, response: "accepted", respondedAt: now },
+          ...invitees.map((u) => ({ eventId: id, userId: u, response: "pending" as const })),
+        ]),
     ]);
     return c.json(await reload(db, userId, id), 201);
   })
@@ -137,17 +139,23 @@ export const eventRoutes = createRouter()
         })
         .where(eq(events.id, current.id)),
       ...(remove.length
-        ? [db.delete(eventAttendees).where(and(eq(eventAttendees.eventId, current.id), inArray(eventAttendees.userId, remove)))]
+        ? [
+            db
+              .delete(eventAttendees)
+              .where(and(eq(eventAttendees.eventId, current.id), inArray(eventAttendees.userId, remove))),
+          ]
         : []),
       ...(add.length
         ? [
-            db.insert(eventAttendees).values(
-              add.map((u) =>
-                u === current.createdBy
-                  ? { eventId: current.id, userId: u, response: "accepted" as const, respondedAt: now }
-                  : { eventId: current.id, userId: u, response: "pending" as const },
+            db
+              .insert(eventAttendees)
+              .values(
+                add.map((u) =>
+                  u === current.createdBy
+                    ? { eventId: current.id, userId: u, response: "accepted" as const, respondedAt: now }
+                    : { eventId: current.id, userId: u, response: "pending" as const },
+                ),
               ),
-            ),
           ]
         : []),
     ]);

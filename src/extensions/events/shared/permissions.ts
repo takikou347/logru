@@ -1,4 +1,4 @@
-import type { Attendee } from "../../../shared/api-types";
+import type { Attendee } from "@shared/api-types";
 
 /** 予定の、誰ができるかを決めるのに要るところ */
 type EventAccess = { createdBy: string | null; attendees?: Pick<Attendee, "userId">[] };
@@ -10,7 +10,9 @@ type EventAccess = { createdBy: string | null; attendees?: Pick<Attendee, "userI
  * @param userId 直そうとする人
  */
 export function canEditEvent(event: EventAccess, userId: string): boolean {
-  return event.createdBy === null || event.createdBy === userId || (event.attendees ?? []).some((a) => a.userId === userId);
+  return (
+    event.createdBy === null || event.createdBy === userId || (event.attendees ?? []).some((a) => a.userId === userId)
+  );
 }
 
 /**

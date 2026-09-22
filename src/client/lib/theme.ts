@@ -2,7 +2,7 @@
  * 明るさとテーマカラー。html の data-theme と data-accent に当て、CSS の変数が切り替わる。
  * 選んだ設定は端末にも覚えさせ、public/theme-boot.js が描画の前に当てる。0012
  */
-import type { ThemeMode } from "../../shared/api-types";
+import type { ThemeMode } from "@shared/api-types";
 
 const KEY = "logru-theme";
 const media = () => window.matchMedia("(prefers-color-scheme: dark)");
@@ -37,7 +37,9 @@ export function applyTheme(mode: ThemeMode, accent: string): void {
   root.dataset.theme = resolved;
   root.dataset.accent = accent;
   root.dataset.themeMode = mode;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", resolved === "dark" ? "#10151c" : "#e6ece8");
+  document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute("content", resolved === "dark" ? "#10151c" : "#e6ece8");
   try {
     localStorage.setItem(KEY, JSON.stringify({ mode, accent } satisfies Stored));
   } catch {

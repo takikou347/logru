@@ -1,17 +1,12 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/AuthShell";
+import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/layout/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { api } from "@/lib/api";
-import { keys } from "@/lib/queries";
 import { safeNext } from "@/lib/utils";
+import { useAgreeToLegal } from "./api";
 
-/** 最新の規約に同意したことを送る。登録の画面で受けた同意を送るときにも使う */
-export function postAgreement(): Promise<void> {
-  return api("/me/agreements", { method: "POST", body: { agreed: true } });
-}
+export { postAgreement } from "./api";
 
 /**
  * 規約への同意の画面。F-16
@@ -20,21 +15,18 @@ export function postAgreement(): Promise<void> {
 export function AgreePage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const qc = useQueryClient();
+  const agree = useAgreeToLegal();
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const busy = agree.isPending;
 
   async function submit() {
-    setBusy(true);
     setError(null);
     try {
-      await postAgreement();
-      await qc.invalidateQueries({ queryKey: keys.me });
+      await agree.mutateAsync();
       navigate(safeNext(params.get("next")), { replace: true });
     } catch (e) {
       setError((e as Error).message);
-      setBusy(false);
     }
   }
 
@@ -44,7 +36,12 @@ export function AgreePage() {
         <AuthTitle>規約への同意</AuthTitle>
         <AuthText>Logru を使う前に、利用規約とプライバシーポリシーを読んで、同意してください。</AuthText>
         <label className="flex items-start gap-2.5 text-[13px] leading-relaxed">
-          <Checkbox className="mt-0.5 size-5" checked={agreed} onCheckedChange={(v) => setAgreed(v === true)} aria-label="利用規約とプライバシーポリシーに同意する" />
+          <Checkbox
+            className="mt-0.5 size-5"
+            checked={agreed}
+            onCheckedChange={(v) => setAgreed(v === true)}
+            aria-label="利用規約とプライバシーポリシーに同意する"
+          />
           <span>
             <Link to="/terms" target="_blank">
               利用規約

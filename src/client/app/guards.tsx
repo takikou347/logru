@@ -1,9 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation, useSearchParams } from "react-router";
-import { LoadFailure } from "@/components/Failure";
-import { ApiError } from "@/lib/api";
-import { keys, useMe } from "@/lib/queries";
+import { ApiError } from "@/api/client";
+import { useMe } from "@/api/common";
+import { keys } from "@/api/keys";
+import { LoadFailure } from "@/components/parts/Failure";
 import { applyTheme } from "@/lib/theme";
 import { safeNext } from "@/lib/utils";
 import { postAgreement } from "@/modules/auth/AgreePage";
@@ -59,7 +60,8 @@ export function RequireAuth() {
   if (me.isPending || posting) return <Loading />;
   if (me.error) {
     const code = me.error instanceof ApiError ? me.error.code : undefined;
-    if (code === "EMAIL_NOT_VERIFIED") return <Navigate to={`/verify-email?next=${encodeURIComponent(here)}`} replace />;
+    if (code === "EMAIL_NOT_VERIFIED")
+      return <Navigate to={`/verify-email?next=${encodeURIComponent(here)}`} replace />;
     return (
       <div className="mx-auto grid min-h-[60dvh] max-w-[560px] place-items-center px-4">
         <LoadFailure what="自分の情報" error={me.error} onRetry={() => void me.refetch()} className="w-full" />

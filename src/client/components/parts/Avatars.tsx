@@ -1,0 +1,91 @@
+import type { AttendeeResponse } from "@shared/api-types";
+import { cn } from "@/lib/utils";
+
+/** 頭文字の丸に出す人 */
+export type AvatarPerson = { id: string; name: string; color: string; response?: AttendeeResponse };
+
+/** 名前の頭の 1 文字。絵文字や合字を割らないよう、書記素で切る */
+function initialOf(name: string): string {
+  const seg = new Intl.Segmenter("ja", { granularity: "grapheme" }).segment(name.trim())[Symbol.iterator]().next();
+  return seg.done ? "?" : seg.value.segment.toUpperCase();
+}
+
+/**
+ * 人の頭文字の丸。色はその人の色。#28
+ * 返事待ちは塗らずに枠線だけ、参加しないは薄くする。カレンダーの予定の見た目と同じ決まり。
+ * @param size 丸の直径。px
+ */
+export function InitialAvatar({
+  person,
+  size = 22,
+  className,
+}: {
+  person: AvatarPerson;
+  size?: number;
+  className?: string;
+}) {
+  const pending = person.response === "pending";
+  return (
+    <span
+      aria-hidden="true"
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.5) }}
+      className={cn(
+        "inline-flex flex-none items-center justify-center rounded-full leading-none font-bold",
+        `c-${person.color}`,
+        pending ? "bg-(--glass-flat) text-ink shadow-[inset_0_0_0_1.5px_var(--c)]" : "bg-(--c) text-[#17202c]",
+        person.response === "declined" && "opacity-45",
+        className,
+      )}
+    >
+      {initialOf(person.name)}
+    </span>
+  );
+}
+
+/**
+ * 頭文字の丸を少しずつ重ねて並べる。入りきらない人は「+n」にまとめる。#28
+ * 丸の縁は、下の面の色で切って重なりを見せる。
+ * @param max 丸で出す人数。超えた分は「+n」
+ */
+export function AvatarStack({
+  people,
+  max = 4,
+  size = 18,
+  className,
+}: {
+  people: AvatarPerson[];
+  max?: number;
+  size?: number;
+  className?: string;
+}) {
+  const shown = people.slice(0, Math.max(0, max));
+  const rest = people.length - shown.length;
+  const ring = "shadow-[0_0_0_1.5px_var(--glass-flat)]";
+  return (
+    <span className={cn("inline-flex flex-none items-center", className)} aria-hidden="true">
+      {shown.map((p, i) => (
+        <InitialAvatar
+          key={p.id}
+          person={p}
+          size={size}
+          className={cn(
+            ring,
+            i > 0 && "-ml-1.5",
+            p.response === "pending" && "shadow-[inset_0_0_0_1.5px_var(--c),0_0_0_1.5px_var(--glass-flat)]",
+          )}
+        />
+      ))}
+      {rest > 0 && (
+        <span
+          style={{ height: size, minWidth: size, fontSize: Math.round(size * 0.5) }}
+          className={cn(
+            "-ml-1.5 inline-flex flex-none items-center justify-center rounded-full bg-field-strong px-1 leading-none font-bold text-ink-2",
+            ring,
+          )}
+        >
+          +{rest}
+        </span>
+      )}
+    </span>
+  );
+}

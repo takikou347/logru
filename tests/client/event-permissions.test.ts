@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
 import {
   canDeleteEvent,
   canEditEvent,
   canRespond,
   diffAttendees,
   inviteeIds,
-} from "../../src/extensions/events/shared/permissions";
+} from "@extensions/events/shared/permissions";
+import { describe, expect, it } from "vitest";
 
 const event = {
   createdBy: "kota",

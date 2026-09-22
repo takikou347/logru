@@ -1,13 +1,13 @@
 import { zValidator } from "@hono/zod-validator";
+import { createRouter, HttpError, isLocalDev, validationHook } from "@server/core/app";
+import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import type { DB } from "@server/core/db/client";
 import { and, asc, count, eq } from "drizzle-orm";
-import { HttpError, createRouter, isLocalDev, validationHook } from "../../../server/core/app";
-import { requireAgreement, requireUser } from "../../../server/core/auth/middleware";
-import type { DB } from "../../../server/core/db/client";
 import { type ExternalCalendarSummary, externalCalendarInput } from "../shared/schemas";
-import { MissingKeyError, decryptText, encryptText } from "./crypto";
+import { decryptText, encryptText, MissingKeyError } from "./crypto";
 import { sampleIcs } from "./sample";
 import { type ExternalCalendarRow, externalCalendars } from "./schema";
-import { SyncError, normalizeCalendarUrl, syncCalendar } from "./sync";
+import { normalizeCalendarUrl, type SyncError, syncCalendar } from "./sync";
 
 /** 1 人が登録できる数 */
 const MAX_CALENDARS = 20;
@@ -73,7 +73,10 @@ export const externalCalendarRoutes = createRouter()
     } catch (e) {
       throw new HttpError(400, (e as SyncError).message);
     }
-    const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(externalCalendars).where(eq(externalCalendars.userId, userId));
+    const [{ n } = { n: 0 }] = await db
+      .select({ n: count() })
+      .from(externalCalendars)
+      .where(eq(externalCalendars.userId, userId));
     if (n >= MAX_CALENDARS) throw new HttpError(400, `登録できるのは ${MAX_CALENDARS} 個までです。`);
     let urlEncrypted: string;
     try {

@@ -1,8 +1,8 @@
+import type { GroupSummary, Me } from "@shared/api-types";
 import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import type { GroupSummary, Me } from "../../../shared/api-types";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import type { MemoryRecord, Photo } from "../shared/types";
 import { useSaveMemory } from "./api";
@@ -53,13 +53,28 @@ export function Lightbox({
   return (
     <ResponsiveSheet title={`写真 ${index + 1} / ${entries.length}`} onClose={onClose}>
       <div className="relative">
-        <PhotoImg photo={entry.photo} size="full" className="max-h-[60dvh] min-h-[240px] rounded-[20px] [&_img]:object-contain" alt={entry.record.body ?? ""} />
+        <PhotoImg
+          photo={entry.photo}
+          size="full"
+          className="max-h-[60dvh] min-h-[240px] rounded-[20px] [&_img]:object-contain"
+          alt={entry.record.body ?? ""}
+        />
         {entries.length > 1 && (
           <>
-            <button type="button" aria-label="前の写真" onClick={prev} className="absolute top-1/2 left-2 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-white">
+            <button
+              type="button"
+              aria-label="前の写真"
+              onClick={prev}
+              className="absolute top-1/2 left-2 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-white"
+            >
               <ChevronLeft className="size-5" />
             </button>
-            <button type="button" aria-label="次の写真" onClick={next} className="absolute top-1/2 right-2 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-white">
+            <button
+              type="button"
+              aria-label="次の写真"
+              onClick={next}
+              className="absolute top-1/2 right-2 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-white"
+            >
               <ChevronRight className="size-5" />
             </button>
           </>

@@ -1,9 +1,9 @@
 import { marked } from "marked";
 import { useEffect, useMemo } from "react";
+import { BackLink } from "@/components/parts/BackLink";
+import { Pools } from "@/components/parts/Pools";
 import privacy from "../../../../legal/privacy.md?raw";
 import terms from "../../../../legal/terms.md?raw";
-import { BackLink } from "@/components/BackLink";
-import { Pools } from "@/components/Pools";
 
 const DOCS = { terms, privacy } as const;
 const TITLES = { terms: "利用規約", privacy: "プライバシーポリシー" } as const;

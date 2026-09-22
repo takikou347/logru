@@ -1,8 +1,8 @@
+import { HttpError } from "@server/core/app";
+import type { DB } from "@server/core/db/client";
+import { groupExtensions, groupMembers, groups, userSettings, users } from "@server/core/db/schema";
+import type { GroupSummary } from "@shared/api-types";
 import { and, eq, inArray } from "drizzle-orm";
-import type { GroupSummary } from "../../../shared/api-types";
-import { HttpError } from "../../core/app";
-import type { DB } from "../../core/db/client";
-import { groupExtensions, groupMembers, groups, userSettings, users } from "../../core/db/schema";
 
 /**
  * 利用者が入っているグループの ID を返す。

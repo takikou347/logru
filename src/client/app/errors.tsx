@@ -1,5 +1,5 @@
 import { isRouteErrorResponse, Link, useRouteError } from "react-router";
-import { AuthCard, AuthShell, AuthText, AuthTitle } from "@/components/AuthShell";
+import { AuthCard, AuthShell, AuthText, AuthTitle } from "@/components/layout/AuthShell";
 import { Button } from "@/components/ui/button";
 
 /**

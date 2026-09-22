@@ -44,7 +44,11 @@ export function KomaStrip({
         <h2 className="text-[13px] font-bold">{title}</h2>
         {header ?? <span className="text-[11px] text-ink-2">{shots.length} 枚</span>}
         {shots.length > 0 && (
-          <button type="button" className="ml-auto inline-flex min-h-9 items-center gap-1 text-xs font-bold" onClick={() => setPlaying(true)}>
+          <button
+            type="button"
+            className="ml-auto inline-flex min-h-9 items-center gap-1 text-xs font-bold"
+            onClick={() => setPlaying(true)}
+          >
             <Play className="size-3 fill-current" aria-hidden="true" />
             再生
           </button>
@@ -59,9 +63,22 @@ export function KomaStrip({
             const label = `${s.hour} 時`;
             return (
               <li key={s.hour} className="flex w-10 flex-none flex-col items-center gap-1">
-                <span className={cn("text-xs leading-none font-medium text-ink-2", current && "font-extrabold text-ink", later && "text-ink-3")}>{s.hour}</span>
+                <span
+                  className={cn(
+                    "text-xs leading-none font-medium text-ink-2",
+                    current && "font-extrabold text-ink",
+                    later && "text-ink-3",
+                  )}
+                >
+                  {s.hour}
+                </span>
                 {shot ? (
-                  <button type="button" className="h-[54px] w-10 overflow-hidden rounded-[10px]" aria-label={`${label} のひとコマ`} onClick={() => onOpen?.(shot)}>
+                  <button
+                    type="button"
+                    className="h-[54px] w-10 overflow-hidden rounded-[10px]"
+                    aria-label={`${label} のひとコマ`}
+                    onClick={() => onOpen?.(shot)}
+                  >
                     <PhotoImg photo={shot.photos[0]!} className="size-full" />
                   </button>
                 ) : current && nowPath ? (
@@ -75,7 +92,10 @@ export function KomaStrip({
                 ) : (
                   <span
                     aria-label={later ? `${label}、これから` : `${label}、写真なし`}
-                    className={cn("h-[54px] w-10 rounded-[10px] border-[1.5px] border-[color-mix(in_srgb,var(--ink)_16%,transparent)]", later && "border-dashed")}
+                    className={cn(
+                      "h-[54px] w-10 rounded-[10px] border-[1.5px] border-[color-mix(in_srgb,var(--ink)_16%,transparent)]",
+                      later && "border-dashed",
+                    )}
                   />
                 )}
               </li>

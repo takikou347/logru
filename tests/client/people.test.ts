@@ -1,6 +1,13 @@
+import type { GroupSummary, Me } from "@shared/api-types";
 import { describe, expect, it } from "vitest";
-import type { GroupSummary, Me } from "../../src/shared/api-types";
-import { attendeeViews, byPeople, groupPeopleOf, hiddenPeople, ownersOf, peopleOf } from "../../src/client/modules/calendar/model";
+import {
+  attendeeViews,
+  byPeople,
+  groupPeopleOf,
+  hiddenPeople,
+  ownersOf,
+  peopleOf,
+} from "../../src/client/modules/calendar/model";
 
 const me: Me = {
   user: { id: "me", name: "こた", email: "kota@example.com", image: null },
@@ -23,8 +30,15 @@ const group = (id: string, members: [string, string][], isPersonal = false): Gro
 
 const groups = [
   group("personal", [["me", "こた"]], true),
-  group("ふたり", [["me", "こた"], ["mika", "みか"]]),
-  group("実家", [["me", "こた"], ["mika", "みか"], ["haha", "はは"]]),
+  group("ふたり", [
+    ["me", "こた"],
+    ["mika", "みか"],
+  ]),
+  group("実家", [
+    ["me", "こた"],
+    ["mika", "みか"],
+    ["haha", "はは"],
+  ]),
 ];
 
 describe("peopleOf", () => {
@@ -79,9 +93,30 @@ describe("byPeople", () => {
 
   it("招待されて参加するか返事待ちの予定は、その人の予定として残す。参加しないと返した予定は外す", () => {
     const invited = [
-      { id: "accepted", createdBy: "me", attendees: [{ userId: "me", response: "accepted" as const }, { userId: "mika", response: "accepted" as const }] },
-      { id: "pending", createdBy: "me", attendees: [{ userId: "me", response: "accepted" as const }, { userId: "mika", response: "pending" as const }] },
-      { id: "declined", createdBy: "me", attendees: [{ userId: "me", response: "accepted" as const }, { userId: "mika", response: "declined" as const }] },
+      {
+        id: "accepted",
+        createdBy: "me",
+        attendees: [
+          { userId: "me", response: "accepted" as const },
+          { userId: "mika", response: "accepted" as const },
+        ],
+      },
+      {
+        id: "pending",
+        createdBy: "me",
+        attendees: [
+          { userId: "me", response: "accepted" as const },
+          { userId: "mika", response: "pending" as const },
+        ],
+      },
+      {
+        id: "declined",
+        createdBy: "me",
+        attendees: [
+          { userId: "me", response: "accepted" as const },
+          { userId: "mika", response: "declined" as const },
+        ],
+      },
       { id: "mine", createdBy: "me", attendees: [{ userId: "me", response: "accepted" as const }] },
     ];
     // みかだけを出す

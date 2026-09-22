@@ -1,15 +1,15 @@
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { AuthCard, AuthShell, GoogleButton, Notice, OrDivider } from "@/components/AuthShell";
-import { Field } from "@/components/Field";
+import { AuthCard, AuthShell, GoogleButton, Notice, OrDivider } from "@/components/layout/AuthShell";
+import { Field } from "@/components/parts/Field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { auth, usingEmulator } from "@/lib/firebase";
 import { isSessionExpired, takeSessionExpired } from "@/lib/session-expired";
 import { safeNext } from "@/lib/utils";
-import { DevLogin } from "./DevLogin";
+import { DevLogin } from "./components/DevLogin";
 import { signInWithGoogle } from "./google";
 
 /**
@@ -71,12 +71,25 @@ export function LoginPage() {
         <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
           <Field label="メールアドレス">
             {(p) => (
-              <Input {...p} type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                {...p}
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             )}
           </Field>
           <Field label="パスワード">
             {(p) => (
-              <Input {...p} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Input
+                {...p}
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             )}
           </Field>
           {error && <Notice error>{error}</Notice>}

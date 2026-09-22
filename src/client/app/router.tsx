@@ -32,21 +32,38 @@ const routes: RouteObject[] = [
   { path: "/reset-password", element: <ResetPasswordPage /> },
   { path: "/terms", lazy: () => legal("terms") },
   { path: "/privacy", lazy: () => legal("privacy") },
-  { path: "/invite/:token", lazy: async () => ({ Component: (await import("@/modules/groups/InvitePage")).InvitePage }) },
+  {
+    path: "/invite/:token",
+    lazy: async () => ({ Component: (await import("@/modules/groups/InvitePage")).InvitePage }),
+  },
   {
     element: <RequireAuth />,
     children: [
       { path: "/agree", element: <AgreePage /> },
       { path: "/", lazy: async () => ({ Component: (await import("@/modules/calendar/CalendarPage")).CalendarPage }) },
       { path: "/groups", lazy: async () => ({ Component: (await import("@/modules/groups/GroupsPage")).GroupsPage }) },
-      { path: "/groups/:id", lazy: async () => ({ Component: (await import("@/modules/groups/GroupDetailPage")).GroupDetailPage }) },
-      { path: "/settings", lazy: async () => ({ Component: (await import("@/modules/settings/SettingsPage")).SettingsPage }) },
-      { path: "/extensions", lazy: async () => ({ Component: (await import("@/modules/extensions/ExtensionsPage")).ExtensionsPage }) },
+      {
+        path: "/groups/:id",
+        lazy: async () => ({ Component: (await import("@/modules/groups/GroupDetailPage")).GroupDetailPage }),
+      },
+      {
+        path: "/settings",
+        lazy: async () => ({ Component: (await import("@/modules/settings/SettingsPage")).SettingsPage }),
+      },
+      {
+        path: "/extensions",
+        lazy: async () => ({ Component: (await import("@/modules/extensions/ExtensionsPage")).ExtensionsPage }),
+      },
       ...extensionRoutes,
     ],
   },
   ...(import.meta.env.DEV
-    ? [{ path: "/_components", lazy: async () => ({ Component: (await import("@/modules/dev/ComponentsPage")).ComponentsPage }) }]
+    ? [
+        {
+          path: "/_components",
+          lazy: async () => ({ Component: (await import("@/modules/dev/ComponentsPage")).ComponentsPage }),
+        },
+      ]
     : []),
   { path: "*", element: <NotFound /> },
 ];

@@ -1,22 +1,34 @@
+import type { DayItem, ItemEditorProps } from "@extensions/client/types";
+import type { Attendee, AttendeeResponse, CalendarItem } from "@shared/api-types";
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Notice } from "@/components/AuthShell";
-import { Chip } from "@/components/Chip";
-import { Field } from "@/components/Field";
-import { Dot, FieldMessage, PanelRow } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+// biome-ignore lint/style/noRestrictedImports: エラーの型 ApiError だけを使う。api() 本体は ./api から呼ぶ
+import { ApiError } from "@/api/client";
+import { Notice } from "@/components/layout/AuthShell";
+import { Chip } from "@/components/parts/Chip";
+import { Field } from "@/components/parts/Field";
+import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { groupColor, memberColor } from "@/lib/colors";
-import { DAY_MS, addDays, dateKey, formatTime, holidayName, parseDateKey, startOfDay, toTimeInput, withTime } from "@/lib/dates";
-import { ApiError, api } from "@/lib/api";
+import {
+  addDays,
+  DAY_MS,
+  dateKey,
+  formatTime,
+  holidayName,
+  parseDateKey,
+  startOfDay,
+  toTimeInput,
+  withTime,
+} from "@/lib/dates";
 import { useOnline } from "@/lib/online";
 import { cn } from "@/lib/utils";
-import type { Attendee, AttendeeResponse, CalendarItem } from "../../../shared/api-types";
 import { canDeleteEvent, canEditEvent, canRespond, inviteeIds } from "../shared/permissions";
-import type { DayItem, ItemEditorProps } from "../../types.client";
+import { createEvent, respondToEvent, updateEvent } from "./api";
 import { AttendeeList, InvitePicker, RsvpBar } from "./Invitees";
 
 /**
@@ -43,11 +55,17 @@ function DayItemList({ day, items, onOpen }: { day: Date; items: DayItem[]; onOp
       <ul className="flex min-w-0 flex-col">
         {items.map((i) => (
           <li key={`${i.extension}:${i.id}`} className="border-line not-first:border-t">
-            <button type="button" className="grid min-h-10 w-full grid-cols-[42px_1fr] items-center gap-1 py-0.5 text-left" onClick={() => onOpen(i)}>
+            <button
+              type="button"
+              className="grid min-h-10 w-full grid-cols-[42px_1fr] items-center gap-1 py-0.5 text-left"
+              onClick={() => onOpen(i)}
+            >
               <time className="text-[13px] font-medium text-ink-2">{i.allDay ? "終日" : formatTime(i.startsAt)}</time>
               <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
                 <Dot color={i.color} response={i.myResponse} />
-                <span className={cn("truncate", i.myResponse === "declined" && "text-ink-3 line-through")}>{i.title}</span>
+                <span className={cn("truncate", i.myResponse === "declined" && "text-ink-3 line-through")}>
+                  {i.title}
+                </span>
                 <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
               </span>
             </button>
@@ -74,7 +92,16 @@ function DayItemList({ day, items, onOpen }: { day: Date; items: DayItem[]; onOp
  * 保存に失敗しても閉じず、入れた内容を残す。通信が切れている間は、入力だけさせて保存を止める。
  * 直している間にほかの人が消していたら、閉じて知らせる。0025
  */
-export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose, onDelete, addons = [] }: ItemEditorProps) {
+export function EventSheet({
+  target,
+  dayItemsOf,
+  onOpenItem,
+  groups,
+  me,
+  onClose,
+  onDelete,
+  addons = [],
+}: ItemEditorProps) {
   const qc = useQueryClient();
   const editing = target.mode === "edit" ? target.item : null;
   const myId = me.user.id;
@@ -122,14 +149,22 @@ export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose
   // 招待。作った人はいつも参加するので、選ぶ対象にも送る値にも入れない。#28
   const [attendees, setAttendees] = useState<Attendee[]>(editing?.attendees ?? []);
   const [invited, setInvited] = useState<Set<string>>(
-    () => new Set(inviteeIds((editing?.attendees ?? []).map((a) => a.userId), creatorId)),
+    () =>
+      new Set(
+        inviteeIds(
+          (editing?.attendees ?? []).map((a) => a.userId),
+          creatorId,
+        ),
+      ),
   );
   const [response, setResponse] = useState<AttendeeResponse | undefined>(editing?.myResponse);
   const [responding, setResponding] = useState(false);
   const shared = chosen && !chosen.isPersonal ? chosen : null;
   const toPerson = (id: string) => {
     const m = chosen?.members.find((x) => x.id === id);
-    return m ? { id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs), isMe: m.id === myId } : null;
+    return m
+      ? { id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs), isMe: m.id === myId }
+      : null;
   };
   const candidates = (shared?.members ?? [])
     .filter((m) => m.id !== creatorId)
@@ -149,7 +184,7 @@ export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose
     if (!editing || next === response) return;
     setResponding(true);
     try {
-      const item = await api<CalendarItem>(`/events/${editing.id}/response`, { method: "PUT", body: { response: next } });
+      const item = await respondToEvent(editing.id, next);
       setResponse(item.myResponse);
       setAttendees(item.attendees ?? []);
       await qc.invalidateQueries({ queryKey: ["calendar"] });
@@ -213,9 +248,7 @@ export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose
     };
     setBusy(true);
     try {
-      const saved = editing
-        ? await api<CalendarItem>(`/events/${editing.id}`, { method: "PATCH", body: payload })
-        : await api<CalendarItem>("/events", { method: "POST", body: payload });
+      const saved = editing ? await updateEvent(editing.id, payload) : await createEvent(payload);
       // 足された欄の仕事は、予定の保存が済んでから行う。失敗しても予定は保存できている
       await Promise.all([...afterSaves.current].map((fn) => fn(saved.id).catch((e: Error) => toast.error(e.message))));
       await qc.invalidateQueries({ queryKey: ["calendar"] });
@@ -237,18 +270,32 @@ export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose
 
   return (
     <ResponsiveSheet title={!editing ? "新しい予定" : canEdit ? "予定を直す" : "予定"} onClose={onClose}>
-      {listDay && dayItems.length > 0 && onOpenItem && <DayItemList day={listDay} items={dayItems} onOpen={onOpenItem} />}
+      {listDay && dayItems.length > 0 && onOpenItem && (
+        <DayItemList day={listDay} items={dayItems} onOpen={onOpenItem} />
+      )}
       {showRsvp && (
-        <RsvpBar color={chosen ? groupColor(chosen, me.colorPrefs) : "nezumi"} inviter={inviter} response={response} busy={responding} onRespond={respond} />
+        <RsvpBar
+          color={chosen ? groupColor(chosen, me.colorPrefs) : "nezumi"}
+          inviter={inviter}
+          response={response}
+          busy={responding}
+          onRespond={respond}
+        />
       )}
-      {!canEdit && (
-        <Notice className="-mt-1">この予定は見るだけです。直せるのは、作った人と招待された人です。</Notice>
-      )}
+      {!canEdit && <Notice className="-mt-1">この予定は見るだけです。直せるのは、作った人と招待された人です。</Notice>}
       <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         {/* 見るだけのときは、入力をまとめて押せなくする */}
         <fieldset disabled={!canEdit} className="contents">
           <Field label="題名">
-            {(p) => <Input {...p} value={title} maxLength={100} placeholder="例: 歯医者" onChange={(e) => setTitle(e.target.value)} />}
+            {(p) => (
+              <Input
+                {...p}
+                value={title}
+                maxLength={100}
+                placeholder="例: 歯医者"
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            )}
           </Field>
           <PanelRow>
             <span>終日</span>
@@ -270,7 +317,15 @@ export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose
             </Field>
             {allDay && (
               <Field label="終わりの日">
-                {(p) => <Input {...p} type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} />}
+                {(p) => (
+                  <Input
+                    {...p}
+                    type="date"
+                    value={endDate}
+                    min={startDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                )}
               </Field>
             )}
           </div>
@@ -288,9 +343,20 @@ export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose
             <span className="text-xs font-medium text-ink-2" id="event-group-label">
               共有
             </span>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="event-group-label" aria-describedby="event-group-hint">
+            <div
+              className="flex flex-wrap gap-2"
+              role="radiogroup"
+              aria-labelledby="event-group-label"
+              aria-describedby="event-group-hint"
+            >
               {choices.map((g) => (
-                <Chip key={g.id} role="radio" aria-checked={g.id === groupId} disabled={!isCreator} onClick={() => setGroupId(g.id)}>
+                <Chip
+                  key={g.id}
+                  role="radio"
+                  aria-checked={g.id === groupId}
+                  disabled={!isCreator}
+                  onClick={() => setGroupId(g.id)}
+                >
                   <Dot color={groupColor(g, me.colorPrefs)} />
                   {g.isPersonal ? "共有しない" : g.name}
                 </Chip>
@@ -301,13 +367,30 @@ export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose
               {canEdit && !isCreator && " グループを変えられるのは、作った人だけです。"}
             </FieldMessage>
           </div>
-          {editing && shared && attendeePeople.length > 1 && <AttendeeList people={attendeePeople} createdBy={creatorId} />}
-          {shared && canEdit && <InvitePicker candidates={candidates} selected={effectiveInvited} onChange={setInvited} />}
+          {editing && shared && attendeePeople.length > 1 && (
+            <AttendeeList people={attendeePeople} createdBy={creatorId} />
+          )}
+          {shared && canEdit && (
+            <InvitePicker candidates={candidates} selected={effectiveInvited} onChange={setInvited} />
+          )}
           {addons.map((Addon, i) => (
-            <Addon key={i} draft={{ id: editing?.id ?? null, groupId, allDay, ...draftTimes() }} register={register} disabled={!canEdit} />
+            <Addon
+              key={i}
+              draft={{ id: editing?.id ?? null, groupId, allDay, ...draftTimes() }}
+              register={register}
+              disabled={!canEdit}
+            />
           ))}
           <Field label="メモ">
-            {(p) => <Textarea {...p} value={memo} maxLength={1000} placeholder={canEdit ? "お店の名前や持ち物" : undefined} onChange={(e) => setMemo(e.target.value)} />}
+            {(p) => (
+              <Textarea
+                {...p}
+                value={memo}
+                maxLength={1000}
+                placeholder={canEdit ? "お店の名前や持ち物" : undefined}
+                onChange={(e) => setMemo(e.target.value)}
+              />
+            )}
           </Field>
         </fieldset>
         {canEdit && !online && (

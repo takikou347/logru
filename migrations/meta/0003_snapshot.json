@@ -50,23 +50,15 @@
           "name": "color_prefs_user_id_users_id_fk",
           "tableFrom": "color_prefs",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "color_prefs_user_id_target_type_target_id_pk": {
-          "columns": [
-            "user_id",
-            "target_type",
-            "target_id"
-          ],
+          "columns": ["user_id", "target_type", "target_id"],
           "name": "color_prefs_user_id_target_type_target_id_pk"
         }
       },
@@ -120,12 +112,8 @@
           "name": "group_extensions_group_id_groups_id_fk",
           "tableFrom": "group_extensions",
           "tableTo": "groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["group_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -133,22 +121,15 @@
           "name": "group_extensions_updated_by_users_id_fk",
           "tableFrom": "group_extensions",
           "tableTo": "users",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "group_extensions_group_id_extension_key_pk": {
-          "columns": [
-            "group_id",
-            "extension_key"
-          ],
+          "columns": ["group_id", "extension_key"],
           "name": "group_extensions_group_id_extension_key_pk"
         }
       },
@@ -204,9 +185,7 @@
       "indexes": {
         "group_invites_token_unique": {
           "name": "group_invites_token_unique",
-          "columns": [
-            "token"
-          ],
+          "columns": ["token"],
           "isUnique": true
         }
       },
@@ -215,12 +194,8 @@
           "name": "group_invites_group_id_groups_id_fk",
           "tableFrom": "group_invites",
           "tableTo": "groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["group_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -228,12 +203,8 @@
           "name": "group_invites_created_by_users_id_fk",
           "tableFrom": "group_invites",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -279,9 +250,7 @@
       "indexes": {
         "group_members_user_idx": {
           "name": "group_members_user_idx",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         }
       },
@@ -290,12 +259,8 @@
           "name": "group_members_group_id_groups_id_fk",
           "tableFrom": "group_members",
           "tableTo": "groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["group_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -303,22 +268,15 @@
           "name": "group_members_user_id_users_id_fk",
           "tableFrom": "group_members",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "group_members_group_id_user_id_pk": {
-          "columns": [
-            "group_id",
-            "user_id"
-          ],
+          "columns": ["group_id", "user_id"],
           "name": "group_members_group_id_user_id_pk"
         }
       },
@@ -387,12 +345,8 @@
           "name": "groups_created_by_users_id_fk",
           "tableFrom": "groups",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -440,23 +394,15 @@
           "name": "legal_agreements_user_id_users_id_fk",
           "tableFrom": "legal_agreements",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "legal_agreements_user_id_document_version_pk": {
-          "columns": [
-            "user_id",
-            "document",
-            "version"
-          ],
+          "columns": ["user_id", "document", "version"],
           "name": "legal_agreements_user_id_document_version_pk"
         }
       },
@@ -503,12 +449,8 @@
           "name": "member_visibility_user_id_users_id_fk",
           "tableFrom": "member_visibility",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -516,22 +458,15 @@
           "name": "member_visibility_target_user_id_users_id_fk",
           "tableFrom": "member_visibility",
           "tableTo": "users",
-          "columnsFrom": [
-            "target_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["target_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "member_visibility_user_id_target_user_id_pk": {
-          "columns": [
-            "user_id",
-            "target_user_id"
-          ],
+          "columns": ["user_id", "target_user_id"],
           "name": "member_visibility_user_id_target_user_id_pk"
         }
       },
@@ -587,12 +522,8 @@
           "name": "user_settings_user_id_users_id_fk",
           "tableFrom": "user_settings",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -691,9 +622,7 @@
       "indexes": {
         "event_attendees_user_idx": {
           "name": "event_attendees_user_idx",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         }
       },
@@ -702,12 +631,8 @@
           "name": "event_attendees_event_id_events_id_fk",
           "tableFrom": "event_attendees",
           "tableTo": "events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -715,22 +640,15 @@
           "name": "event_attendees_user_id_users_id_fk",
           "tableFrom": "event_attendees",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "event_attendees_event_id_user_id_pk": {
-          "columns": [
-            "event_id",
-            "user_id"
-          ],
+          "columns": ["event_id", "user_id"],
           "name": "event_attendees_event_id_user_id_pk"
         }
       },
@@ -817,10 +735,7 @@
       "indexes": {
         "events_group_starts_idx": {
           "name": "events_group_starts_idx",
-          "columns": [
-            "group_id",
-            "starts_at"
-          ],
+          "columns": ["group_id", "starts_at"],
           "isUnique": false
         }
       },
@@ -829,12 +744,8 @@
           "name": "events_group_id_groups_id_fk",
           "tableFrom": "events",
           "tableTo": "groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["group_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -842,12 +753,8 @@
           "name": "events_created_by_users_id_fk",
           "tableFrom": "events",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -928,9 +835,7 @@
       "indexes": {
         "external_calendars_user_idx": {
           "name": "external_calendars_user_idx",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         }
       },
@@ -939,12 +844,8 @@
           "name": "external_calendars_user_id_users_id_fk",
           "tableFrom": "external_calendars",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1025,10 +926,7 @@
       "indexes": {
         "external_events_calendar_starts_idx": {
           "name": "external_events_calendar_starts_idx",
-          "columns": [
-            "calendar_id",
-            "starts_at"
-          ],
+          "columns": ["calendar_id", "starts_at"],
           "isUnique": false
         }
       },
@@ -1037,23 +935,15 @@
           "name": "external_events_calendar_id_external_calendars_id_fk",
           "tableFrom": "external_events",
           "tableTo": "external_calendars",
-          "columnsFrom": [
-            "calendar_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["calendar_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "external_events_calendar_id_uid_occurrence_pk": {
-          "columns": [
-            "calendar_id",
-            "uid",
-            "occurrence"
-          ],
+          "columns": ["calendar_id", "uid", "occurrence"],
           "name": "external_events_calendar_id_uid_occurrence_pk"
         }
       },

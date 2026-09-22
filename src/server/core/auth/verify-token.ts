@@ -1,4 +1,4 @@
-import { type JWTPayload, type JWTVerifyGetKey, createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
+import { createRemoteJWKSet, decodeJwt, type JWTPayload, type JWTVerifyGetKey, jwtVerify } from "jose";
 
 /** Firebase の ID トークンの中身のうち、使うもの */
 export type FirebaseClaims = {

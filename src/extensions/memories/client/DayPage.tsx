@@ -1,14 +1,14 @@
 import { Camera } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Chip } from "@/components/Chip";
-import { LoadFailure } from "@/components/Failure";
+import { Chip } from "@/components/parts/Chip";
+import { LoadFailure } from "@/components/parts/Failure";
 import { Button } from "@/components/ui/button";
-import { useCalendar } from "@/lib/queries";
+import { useCalendar } from "@/modules/calendar/api";
 import { DAY_MS, memoryDays, startOfDayIn } from "../shared/days";
+import { memoryOfEvent } from "../shared/links";
 import type { MemoryRecord } from "../shared/types";
 import { useMemoryList, useRecords } from "./api";
-import { memoryOfEvent } from "../shared/links";
 import { Dock } from "./Dock";
 import { Flow } from "./Flow";
 import { KomaStrip } from "./KomaStrip";
@@ -35,7 +35,9 @@ function Day({ detail, me, groups }: ShellProps) {
   const groupList = useMemoryList(memory.groupId);
   const groupMemories = groupList.data?.memories.filter((m) => m.groupId === memory.groupId) ?? [memory];
   const calendar = useCalendar(from, to);
-  const events = (calendar.data ?? []).filter((e) => e.extension === "events" && memoryOfEvent(e, groupMemories)?.id === memory.id);
+  const events = (calendar.data ?? []).filter(
+    (e) => e.extension === "events" && memoryOfEvent(e, groupMemories)?.id === memory.id,
+  );
   const wishes = items.filter((i) => i.kind === "wish");
   const doneToday = wishes.filter((w) => w.doneAt && w.doneAt >= from && w.doneAt < to);
   const [recording, setRecording] = useState(false);
@@ -44,28 +46,39 @@ function Day({ detail, me, groups }: ShellProps) {
   const [editing, setEditing] = useState<MemoryRecord | null>(null);
   const [photoAt, setPhotoAt] = useState<number | null>(null);
   const entries = entriesOf(records.data ?? []);
-  const weekday = (key: string) => new Intl.DateTimeFormat("ja-JP", { weekday: "short", timeZone: "UTC" }).format(Date.parse(key));
+  const weekday = (key: string) =>
+    new Intl.DateTimeFormat("ja-JP", { weekday: "short", timeZone: "UTC" }).format(Date.parse(key));
 
   return (
     <>
       {days.length > 1 && (
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="日">
           {days.map((d, i) => (
-            <Chip key={d} role="tab" aria-selected={i === index} aria-pressed={i === index} onClick={() => navigate(`/memories/${memory.id}/days/${i}`, { replace: true })}>
+            <Chip
+              key={d}
+              role="tab"
+              aria-selected={i === index}
+              aria-pressed={i === index}
+              onClick={() => navigate(`/memories/${memory.id}/days/${i}`, { replace: true })}
+            >
               <span className="font-bold">{d.slice(5).replace("-", ".")}</span>
               {weekday(d)}
             </Chip>
           ))}
         </div>
       )}
-      {records.error && <LoadFailure what="この日の記録" error={records.error} onRetry={() => void records.refetch()} />}
+      {records.error && (
+        <LoadFailure what="この日の記録" error={records.error} onRetry={() => void records.refetch()} />
+      )}
       {(memory.komaEnabled || (records.data ?? []).some((r) => r.kind === "koma")) && (
         <KomaStrip
           dayStart={from}
           timeZone={memory.timeZone}
           records={records.data ?? []}
           nowPath={Date.now() >= from && Date.now() < to ? "/memories/koma/now" : undefined}
-          onOpen={(r) => (r.createdBy === me.user.id ? setEditing(r) : setPhotoAt(entries.findIndex((e) => e.record.id === r.id)))}
+          onOpen={(r) =>
+            r.createdBy === me.user.id ? setEditing(r) : setPhotoAt(entries.findIndex((e) => e.record.id === r.id))
+          }
         />
       )}
       <Flow
@@ -96,9 +109,26 @@ function Day({ detail, me, groups }: ShellProps) {
           onClose={() => setRecording(false)}
         />
       )}
-      {editing && <RecordSheet groups={groups} me={me} record={editing} range={{ min: from, max: to - 1 }} onClose={() => setEditing(null)} />}
+      {editing && (
+        <RecordSheet
+          groups={groups}
+          me={me}
+          record={editing}
+          range={{ min: from, max: to - 1 }}
+          onClose={() => setEditing(null)}
+        />
+      )}
       {photoAt !== null && photoAt >= 0 && (
-        <Lightbox entries={entries} index={photoAt} onIndex={setPhotoAt} onClose={() => setPhotoAt(null)} groups={groups} me={me} memoryId={memory.id} timeZone={memory.timeZone} />
+        <Lightbox
+          entries={entries}
+          index={photoAt}
+          onIndex={setPhotoAt}
+          onClose={() => setPhotoAt(null)}
+          groups={groups}
+          me={me}
+          memoryId={memory.id}
+          timeZone={memory.timeZone}
+        />
       )}
     </>
   );

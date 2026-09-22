@@ -5,6 +5,7 @@ import {
   AVATAR_MAX_BYTES,
   AvatarSigner,
   avatarKey,
+  cleanUpOldAvatar,
   isJpeg,
   randomAvatarToken,
   verifyAvatarUrl,
@@ -179,7 +180,7 @@ export const meRoutes = createRouter()
       // 共有グループに残る予定などは、外部キーで作った人が空になる
       db.delete(users).where(eq(users.id, me.id)),
     ] as unknown as Parameters<typeof db.batch>[0]);
-    if (avatar?.avatarPhotoKey) await c.env.AVATAR_BUCKET.delete(avatarKey(me.id, avatar.avatarPhotoKey));
+    if (avatar?.avatarPhotoKey) await cleanUpOldAvatar(c.env.AVATAR_BUCKET, me.id, avatar.avatarPhotoKey);
     return c.body(null, 204);
   })
   // ここから下は、最新の規約に同意している人だけ
@@ -226,8 +227,8 @@ export const meRoutes = createRouter()
       .insert(userSettings)
       .values({ userId: me.id, ...values })
       .onConflictDoUpdate({ target: userSettings.userId, set: values });
-    // 置き直したときは、前の写真を消す
-    if (prev?.avatarPhotoKey) await c.env.AVATAR_BUCKET.delete(avatarKey(me.id, prev.avatarPhotoKey));
+    // 置き直したときは、前の写真を消す。新しい写真は置け、DB も書き終わっているので、ここで失敗しても投げない
+    if (prev?.avatarPhotoKey) await cleanUpOldAvatar(c.env.AVATAR_BUCKET, me.id, prev.avatarPhotoKey);
     return c.json({ avatarKind: "photo" as const, avatarUrl: await avatarSigner(c).url(me.id, token) }, 201);
   })
   // アバターを頭文字に戻す。置いていた写真は消す。#40
@@ -244,7 +245,8 @@ export const meRoutes = createRouter()
       .insert(userSettings)
       .values({ userId: me.id, ...values })
       .onConflictDoUpdate({ target: userSettings.userId, set: values });
-    if (prev?.avatarPhotoKey) await c.env.AVATAR_BUCKET.delete(avatarKey(me.id, prev.avatarPhotoKey));
+    // DB はもう頭文字に戻っているので、写真を消す失敗はここで投げない
+    if (prev?.avatarPhotoKey) await cleanUpOldAvatar(c.env.AVATAR_BUCKET, me.id, prev.avatarPhotoKey);
     return c.json({ avatarKind: "initial" as const, avatarUrl: null });
   })
   .put("/colors/:type/:id", zValidator("json", colorPrefInput, validationHook), async (c) => {

@@ -203,7 +203,7 @@ GitHub の Settings の Environments に `staging` と `production` がある。
 - 承認済みドメインにその環境のドメインが無いと、Google でのログインが断られる
 - `VAPID_PUBLIC_KEY` が `replace-me` のままだと、知らせを入れられない
 - `MEMORIES_PHOTO_KEY` を置いていないと、思い出の写真を配れない
-- `AVATAR_PHOTO_KEY` を置いていないと、アバターの写真を配れない
+- `AVATAR_PHOTO_KEY` を置いていないと、アバターの写真を配れない。置いていなくてもアプリは落ちず、頭文字に戻る
 
 ## 規約を改めるとき
 

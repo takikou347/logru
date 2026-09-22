@@ -1,4 +1,5 @@
 import type { AttendeeResponse } from "@shared/api-types";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 /** 頭文字の丸、または置いた写真に出す人。#40 */
@@ -33,7 +34,11 @@ export function InitialAvatar({
   className?: string;
 }) {
   const pending = person.response === "pending";
-  if (person.avatarUrl) {
+  // 読めなかった URL(相手が消した後の古い URL、期限切れなど)は、壊れた画像を出さず頭文字に戻す。
+  // URL が変われば(置き直しなど)、レンダー中に broken を作り直す。React の「props からきた state」の作法
+  const [broken, setBroken] = useState({ url: person.avatarUrl, isBroken: false });
+  if (broken.url !== person.avatarUrl) setBroken({ url: person.avatarUrl, isBroken: false });
+  if (person.avatarUrl && !broken.isBroken) {
     return (
       <img
         src={person.avatarUrl}
@@ -42,6 +47,7 @@ export function InitialAvatar({
         width={size}
         height={size}
         style={{ width: size, height: size }}
+        onError={() => setBroken({ url: person.avatarUrl, isBroken: true })}
         className={cn(
           "inline-block flex-none rounded-full object-cover leading-none",
           pending && "shadow-[inset_0_0_0_1.5px_var(--ink-2)]",

@@ -35,9 +35,8 @@ export function expiryFor(now: number): number {
 
 const encoder = new TextEncoder();
 
-/** 署名の鍵を読み込む。鍵が無ければ、アバターの写真を配れないので止める */
-async function importKey(secret: string | undefined): Promise<CryptoKey> {
-  if (!secret) throw new Error("AVATAR_PHOTO_KEY が置かれていません。");
+/** 署名の鍵を読み込む。呼ぶ前に secret があるかを確かめること */
+async function importKey(secret: string): Promise<CryptoKey> {
   return crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, [
     "sign",
     "verify",
@@ -62,27 +61,42 @@ function fromBase64Url(s: string): Uint8Array | null {
 
 const message = (userId: string, token: string, expires: number) => encoder.encode(`${userId}.${token}.${expires}`);
 
-/** アバターの写真の URL を作る。同じ日のうちは同じ値になる */
+/**
+ * アバターの写真の URL を作る。同じ日のうちは同じ値になる。
+ *
+ * AVATAR_PHOTO_KEY が置かれていない環境(staging の準備がまだのときなど)でも、
+ * 写真が無い人では鍵を読まず、写真がある人は署名を作れないので `null`(頭文字に戻す)を返す。
+ * アプリ全体を落とさない。#40 のレビュー
+ */
 export class AvatarSigner {
-  private key: Promise<CryptoKey>;
+  private secret: string | undefined;
   private expires: number;
 
   /**
-   * @param secret HMAC-SHA256 の鍵。Worker の AVATAR_PHOTO_KEY
+   * @param secret HMAC-SHA256 の鍵。Worker の AVATAR_PHOTO_KEY。無くてもここでは止めない
    * @param now いまの時刻
    */
   constructor(secret: string | undefined, now = Date.now()) {
-    this.key = importKey(secret);
+    this.secret = secret;
     this.expires = expiryFor(now);
   }
 
-  async url(userId: string, token: string): Promise<string> {
-    const sig = await crypto.subtle.sign("HMAC", await this.key, message(userId, token, this.expires));
+  /** 鍵が無いか、鍵の読み込みに失敗すれば null。呼び出し側は頭文字に戻す */
+  async url(userId: string, token: string): Promise<string | null> {
+    if (!this.secret) return null;
+    let key: CryptoKey;
+    try {
+      key = await importKey(this.secret);
+    } catch {
+      return null;
+    }
+    const sig = await crypto.subtle.sign("HMAC", key, message(userId, token, this.expires));
     return `/api/me/avatar/${userId}/${token}?e=${this.expires}&s=${toBase64Url(sig)}`;
   }
 
   /**
-   * その人のいまのアバターの URL。頭文字を選んでいるか、写真が無ければ null
+   * その人のいまのアバターの URL。頭文字を選んでいるか、写真が無ければ null。
+   * 写真が無い人は鍵を読まない
    * @param kind avatar_kind の値
    * @param token avatar_photo_key の値
    */
@@ -108,6 +122,7 @@ export async function verifyAvatarUrl(
   signature: string,
   now = Date.now(),
 ): Promise<boolean> {
+  if (!secret) return false;
   if (!Number.isFinite(expires) || expires < now) return false;
   const sig = fromBase64Url(signature);
   if (!sig) return false;
@@ -117,4 +132,16 @@ export async function verifyAvatarUrl(
 /** JPEG の頭のバイトか。FF D8 FF で始まる */
 export function isJpeg(bytes: Uint8Array): boolean {
   return bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+}
+
+/**
+ * R2 から前のアバターの写真を消す。呼ぶ側では、新しい写真をすでに置き、DB もすでに新しい鍵で書き終えている。
+ * 消し忘れが残っても、鍵は DB の行からしか辿れないので壊れない。失敗しても投げずに記録するだけにする。#40 のレビュー
+ */
+export async function cleanUpOldAvatar(bucket: R2Bucket, userId: string, token: string): Promise<void> {
+  try {
+    await bucket.delete(avatarKey(userId, token));
+  } catch (e) {
+    console.error(`アバターの古い写真を消せませんでした: ${userId}/${token}`, e);
+  }
 }

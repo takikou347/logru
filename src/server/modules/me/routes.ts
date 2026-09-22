@@ -6,6 +6,7 @@ import {
   colorPrefs,
   groupMembers,
   groups,
+  homeLayouts,
   legalAgreements,
   memberVisibility,
   pushSubscriptions,
@@ -14,12 +15,14 @@ import {
 } from "@server/core/db/schema";
 import { vapidKeys } from "@server/core/push/send";
 import { myGroupIds, sharesGroup } from "@server/modules/groups/membership";
-import type { Me, PushInfo } from "@shared/api-types";
+import type { HomeLayout, Me, PushInfo } from "@shared/api-types";
 import { LEGAL_VERSIONS, type LegalDocument } from "@shared/legal";
 import {
   agreementsInput,
   colorPrefInput,
   deleteAccountInput,
+  homeLayoutInput,
+  homeLayoutQuery,
   memberVisibilityInput,
   profileInput,
   pushSubscriptionInput,
@@ -103,6 +106,18 @@ export const meRoutes = createRouter()
     await c.get("db").insert(legalAgreements).values(rows).onConflictDoNothing();
     return c.body(null, 204);
   })
+  // ホームのウィジェットの並び。自分の画面だけ。F-28、0028
+  .get("/home-layout", zValidator("query", homeLayoutQuery, validationHook), async (c) => {
+    const { form } = c.req.valid("query");
+    const row = await c
+      .get("db")
+      .select({ widgets: homeLayouts.widgets })
+      .from(homeLayouts)
+      .where(and(eq(homeLayouts.userId, c.get("user").id), eq(homeLayouts.form, form)))
+      .get();
+    const body: HomeLayout = { widgets: row?.widgets ?? null };
+    return c.json(body);
+  })
   .get("/deletion", async (c) => {
     // 退会の前に、止める理由が無いかだけを確かめる。画面は Firebase のアカウントを消す前にこれを呼ぶ
     const { blocked } = await planDeletion(c.get("db"), c.get("user").id);
@@ -149,6 +164,18 @@ export const meRoutes = createRouter()
       .returning()
       .get();
     return c.json({ themeMode: row.themeMode, accentColor: row.accentColor, userColor: row.userColor });
+  })
+  .put("/home-layout", zValidator("json", homeLayoutInput, validationHook), async (c) => {
+    const { form, widgets } = c.req.valid("json");
+    const values = { widgets, updatedAt: new Date() };
+    const row = await c
+      .get("db")
+      .insert(homeLayouts)
+      .values({ userId: c.get("user").id, form, ...values })
+      .onConflictDoUpdate({ target: [homeLayouts.userId, homeLayouts.form], set: values })
+      .returning({ widgets: homeLayouts.widgets })
+      .get();
+    return c.json({ widgets: row.widgets } satisfies HomeLayout);
   })
   .put("/colors/:type/:id", zValidator("json", colorPrefInput, validationHook), async (c) => {
     const db = c.get("db");

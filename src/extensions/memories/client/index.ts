@@ -1,6 +1,7 @@
 import type { ClientExtension } from "@extensions/client/types";
 import { BookOpen, Camera, Timer } from "lucide-react";
 import { memoriesManifest } from "../manifest";
+import { MemoriesHomeWidget } from "./HomeWidget";
 import { MemoryItemSheet } from "./MemoryItemSheet";
 import { MemoryLinkField } from "./MemoryLinkField";
 import { useKomaShortcut } from "./shortcut";
@@ -20,6 +21,17 @@ export const memoriesClient: ClientExtension = {
   useShortcut: useKomaShortcut,
   notifies: "ひとコマの時間",
   itemAddons: [{ extension: "events", Component: MemoryLinkField }],
+  widgets: [
+    {
+      key: "memories.shortcut",
+      label: "思い出の近道",
+      description: "近道の帯と同じ、いま押してほしい思い出の操作。ひとコマの時間などをお知らせします。",
+      sizes: ["small", "medium"],
+      defaultSize: "small",
+      defaultPlaced: true,
+      Component: MemoriesHomeWidget,
+    },
+  ],
   pages: [
     { path: "/memories", load: async () => ({ Component: (await import("./MemoriesPage")).MemoriesPage }) },
     { path: "/memories/on/:date", load: async () => ({ Component: (await import("./OnDayPage")).OnDayPage }) },

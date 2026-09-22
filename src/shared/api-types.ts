@@ -101,3 +101,15 @@ export type PushInfo = {
   publicKey: string | null;
   devices: { id: string; endpoint: string; userAgent: string | null; createdAt: number }[];
 };
+
+/** ホームの並びを持つ形。PC とスマホで別に持つ。0028 */
+export type HomeForm = "desktop" | "mobile";
+
+/** ウィジェットの大きさ。0028 */
+export type HomeWidgetSize = "small" | "medium" | "large";
+
+/** 並びの 1 件。ウィジェットの中身は持たず、key と大きさだけ */
+export type HomeWidgetEntry = { key: string; size: HomeWidgetSize };
+
+/** `GET`、`PUT /api/me/home-layout` の応答。保存がまだ無ければ widgets は null。0028 */
+export type HomeLayout = { widgets: HomeWidgetEntry[] | null };

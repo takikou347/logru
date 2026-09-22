@@ -4,6 +4,7 @@ import { needsEmailVerification, useAuth } from "@/app/auth";
 import { Loading } from "@/app/guards";
 import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/layout/AuthShell";
 import { Button } from "@/components/ui/button";
+// biome-ignore lint/style/noRestrictedImports: エラーの型 ApiError だけを使う。api() 本体は ./api から呼ぶ
 import { ApiError } from "@/api/client";
 import { postAgreement } from "@/modules/auth/AgreePage";
 import { takeRememberedAgreement } from "@/modules/auth/pending-agreement";

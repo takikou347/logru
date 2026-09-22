@@ -9,6 +9,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
+    "lint": "biome check .",
+    "format": "biome check --write .",
     "test": "vitest run",
     "e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
@@ -42,6 +44,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.14",
     "@cloudflare/vite-plugin": "^1.56.0",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",

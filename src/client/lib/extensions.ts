@@ -36,6 +36,7 @@ export function useEnabledExtensions(): ClientExtension[] {
 export function useShortcut() {
   const enabled = useEnabledExtensions();
   const keys = new Set(enabled.map((x) => x.manifest.key));
+  // biome-ignore lint/correctness/useHookAtTopLevel: clientExtensions の並びは起動時に固定なので、呼ぶ順は毎回同じ
   const results = clientExtensions.map((x) => (x.useShortcut ? x.useShortcut(keys.has(x.manifest.key)) : null));
   return results.find((r) => r) ?? null;
 }

@@ -3,7 +3,7 @@ import * as core from "@server/core/db/schema";
 import { drizzle } from "drizzle-orm/d1";
 
 /** 土台の表と、すべての拡張の表 */
-export const schema = { ...core, ...extensionSchemas };
+const schema = { ...core, ...extensionSchemas };
 
 /**
  * D1 を Drizzle で包む。要求ごとに 1 つ作る。

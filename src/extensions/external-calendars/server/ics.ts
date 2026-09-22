@@ -10,7 +10,7 @@ import ICAL from "ical.js";
 export const DEFAULT_TIME_ZONE = "Asia/Tokyo";
 
 /** 1 つのカレンダーから持つ予定の上限 */
-export const MAX_OCCURRENCES = 3000;
+const MAX_OCCURRENCES = 3000;
 
 /** 1 つの繰り返しを開く回数の上限。期間の前から続く繰り返しも数える */
 const MAX_ITERATIONS = 5000;
@@ -107,7 +107,7 @@ export function wallTimeToUtc(
 }
 
 /** IANA の時間帯の名前として使えるか */
-export function isKnownTimeZone(tz: string | null | undefined): tz is string {
+function isKnownTimeZone(tz: string | null | undefined): tz is string {
   return !!tz && formatter(tz) !== null;
 }
 

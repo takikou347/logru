@@ -5,9 +5,9 @@
 import { dayKeyIn, hourIn } from "./days";
 
 export const KOMA_FIRST_HOUR = 7;
-export const KOMA_LAST_HOUR = 22;
+const KOMA_LAST_HOUR = 22;
 /** 枠が過ぎてから残せる時間。5 分 */
-export const KOMA_GRACE_MS = 5 * 60 * 1000;
+const KOMA_GRACE_MS = 5 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 
 /** 枠 1 つ。start は枠の始まりの時刻 */

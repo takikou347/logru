@@ -10,14 +10,14 @@ import { DEFAULT_TIME_ZONE, type ParsedEvent, parseIcs, wallTimeToUtc } from "./
 import { type ExternalCalendarRow, externalCalendars } from "./schema";
 
 /** 読む量の上限。これを超えるカレンダーは読まない */
-export const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_BYTES = 5 * 1024 * 1024;
 /** 読むのを待つ時間 */
 const FETCH_TIMEOUT_MS = 15_000;
 /**
  * 1 回の Cron で読むカレンダーの数。CPU 時間の上限があるので、古い順に少しずつ読む。
  * Cron は 5 分おきなので、登録が全部で 5 つまでなら、どれも 5 分ごとに読み直す
  */
-export const CRON_BATCH = 5;
+const CRON_BATCH = 5;
 
 /**
  * 読む期間。日本時間で、今月の 1 日の 0 時から、2 か月先の月の末まで。

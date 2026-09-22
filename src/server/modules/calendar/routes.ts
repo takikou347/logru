@@ -24,7 +24,7 @@ import { and, eq, inArray } from "drizzle-orm";
  * @param to 期間の終わり。含まない
  * @param ctx 項目を呼ぶ人。利用者ごとの拡張は、この人の項目だけを返す
  */
-export async function listCalendarItems(
+async function listCalendarItems(
   db: DB,
   groupIds: string[],
   from: number,

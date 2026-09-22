@@ -26,3 +26,5 @@ type は次のいずれか。
 | pre-push | `pnpm typecheck` と `pnpm test` |
 
 E2E は時間がかかるため手元のフックには入れていない。CI で確かめる。
+
+大きく入れ替えたら `pnpm knip` を流し、使っていない export、ファイル、依存が残っていないか確かめる。

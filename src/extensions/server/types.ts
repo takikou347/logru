@@ -21,7 +21,7 @@ export type CalendarContext = { userId: string };
  * @param to 期間の終わり。この時刻を含まない
  * @param ctx 項目を呼ぶ人
  */
-export type ListCalendarItems = (
+type ListCalendarItems = (
   db: DB,
   groupIds: string[],
   from: number,
@@ -34,7 +34,7 @@ export type ListCalendarItems = (
  * @param db D1 を包んだ Drizzle
  * @param env Worker の環境変数
  */
-export type ScheduledTask = (db: DB, env: Env) => Promise<void>;
+type ScheduledTask = (db: DB, env: Env) => Promise<void>;
 
 /**
  * 人がグループを抜けたときに呼ぶ処理。その人に結び付けた、そのグループのデータを片付ける。#28
@@ -43,7 +43,7 @@ export type ScheduledTask = (db: DB, env: Env) => Promise<void>;
  * @param groupId 抜けるグループ
  * @param userId 抜ける人
  */
-export type MemberLeaveTask = (db: DB, groupId: string, userId: string) => Promise<void>;
+type MemberLeaveTask = (db: DB, groupId: string, userId: string) => Promise<void>;
 
 /** サーバー側の拡張 */
 export type ServerExtension = {

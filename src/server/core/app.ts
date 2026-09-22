@@ -2,7 +2,7 @@ import type { DB } from "@server/core/db/client";
 import { type Context, Hono } from "hono";
 
 /** 認証を通った利用者。D1 の users 表の 1 行に当たる */
-export type SessionUser = {
+type SessionUser = {
   /** Firebase の利用者 ID。D1 でも同じ値を主キーにする */
   id: string;
   name: string;

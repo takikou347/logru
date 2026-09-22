@@ -73,7 +73,7 @@ export function authorOf(record: MemoryRecord, groups: GroupSummary[], me: Me) {
 /**
  * いいねのボタン。付けると朱にする。横に付けた人の頭文字を重ねる。F-116
  */
-export function LikeButton({ record, groups, me }: { record: MemoryRecord; groups: GroupSummary[]; me: Me }) {
+function LikeButton({ record, groups, me }: { record: MemoryRecord; groups: GroupSummary[]; me: Me }) {
   const like = useLike();
   const on = record.likes.includes(me.user.id);
   const group = groups.find((g) => g.id === record.groupId);
@@ -103,15 +103,7 @@ export function LikeButton({ record, groups, me }: { record: MemoryRecord; group
 }
 
 /** 記録の写真の並べ方。1 枚は大きく、2 枚は並べ、3 枚以上は左を大きく */
-export function PhotoGrid({
-  photos,
-  onOpen,
-  big = false,
-}: {
-  photos: Photo[];
-  onOpen?: (p: Photo) => void;
-  big?: boolean;
-}) {
+function PhotoGrid({ photos, onOpen, big = false }: { photos: Photo[]; onOpen?: (p: Photo) => void; big?: boolean }) {
   if (photos.length === 0) return null;
   const shown = photos.slice(0, 3);
   const rest = photos.length - shown.length;

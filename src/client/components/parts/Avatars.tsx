@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 export type AvatarPerson = { id: string; name: string; color: string; response?: AttendeeResponse };
 
 /** 名前の頭の 1 文字。絵文字や合字を割らないよう、書記素で切る */
-export function initialOf(name: string): string {
+function initialOf(name: string): string {
   const seg = new Intl.Segmenter("ja", { granularity: "grapheme" }).segment(name.trim())[Symbol.iterator]().next();
   return seg.done ? "?" : seg.value.segment.toUpperCase();
 }

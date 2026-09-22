@@ -10,7 +10,7 @@ export const toneText = { sun: "text-sun", sat: "text-sat" } as const;
  * 一覧の題名。招待への自分の返事で見た目を変える。#28
  * 返事待ちは、題名の横に「返事待ち」をグループの色の枠で添える。参加しないは取り消し線を引き、読み上げにも伝える。
  */
-export function ItemTitle({ item }: { item: Pick<ViewItem, "title" | "myResponse" | "color"> }) {
+function ItemTitle({ item }: { item: Pick<ViewItem, "title" | "myResponse" | "color"> }) {
   if (item.myResponse === "declined") {
     return (
       <span className="truncate line-through decoration-ink-2">
@@ -37,7 +37,7 @@ export function ItemTitle({ item }: { item: Pick<ViewItem, "title" | "myResponse
 }
 
 /** 予定ではない項目の印。例は「思い出」 */
-export function ItemTag({ tag }: { tag: string }) {
+function ItemTag({ tag }: { tag: string }) {
   return (
     <span className="flex-none rounded-[5px] bg-[color-mix(in_srgb,var(--ink)_10%,transparent)] px-1 text-[10px] leading-4 font-bold text-ink-2">
       {tag}

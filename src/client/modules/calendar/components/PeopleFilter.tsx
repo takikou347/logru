@@ -48,7 +48,7 @@ export function useOpenGroups(key: string, fallback: boolean) {
  *
  * @param rowClass 行の見た目。PC の左の列と、スマホのシートで変える
  */
-export function PersonToggles({
+function PersonToggles({
   people,
   hidden,
   onToggle,

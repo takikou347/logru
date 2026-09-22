@@ -8,7 +8,7 @@ import type { ExternalCalendarSummary } from "../shared/schemas";
 export const EXTERNAL_CALENDARS_KEY = ["external-calendars"] as const;
 
 /** 登録した外部のカレンダーを API から読む */
-export function fetchExternalCalendars(): Promise<ExternalCalendarSummary[]> {
+function fetchExternalCalendars(): Promise<ExternalCalendarSummary[]> {
   return api<{ calendars: ExternalCalendarSummary[] }>("/external-calendars").then((r) => r.calendars);
 }
 

@@ -41,7 +41,7 @@ export type ItemAddonProps = {
 };
 
 /** ほかの拡張の編集シートに足す欄 */
-export type ItemAddon = { extension: string; Component: ComponentType<ItemAddonProps> };
+type ItemAddon = { extension: string; Component: ComponentType<ItemAddonProps> };
 
 /** 編集のシートが受け取るもの */
 export type ItemEditorProps = {
@@ -65,7 +65,7 @@ export type ItemEditorProps = {
 };
 
 /** 拡張の画面。0019 */
-export type ExtensionPage = {
+type ExtensionPage = {
   /** 道順。拡張の名前で始める。例は `/memories/:id` */
   path: string;
   /** 開いたときに読む画面 */
@@ -73,10 +73,10 @@ export type ExtensionPage = {
 };
 
 /** 入口に出す画面。PC は左の列、スマホは機能のシートに並ぶ */
-export type ExtensionNav = { label: string; icon: LucideIcon; path: string; description?: string };
+type ExtensionNav = { label: string; icon: LucideIcon; path: string; description?: string };
 
 /** 機能のシートに出す、すぐする操作。押すと path へ移る。例は「記録する」 */
-export type ExtensionAction = { label: string; icon: LucideIcon; path: string; hint?: string };
+type ExtensionAction = { label: string; icon: LucideIcon; path: string; hint?: string };
 
 /**
  * いま押してほしい近道。カレンダーの上の帯に出す。F-26

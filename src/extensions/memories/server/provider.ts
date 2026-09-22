@@ -5,7 +5,7 @@ import { DAY_MS, DEFAULT_TIME_ZONE, dayKeyIn, startOfDayIn } from "../shared/day
 import { memories, memoryRecords } from "./schema";
 
 /** カレンダーの項目の ID の頭。思い出と、日ごとにまとめた記録を見分ける */
-export const ITEM_PREFIX = { memory: "m:", records: "r:" } as const;
+const ITEM_PREFIX = { memory: "m:", records: "r:" } as const;
 
 /**
  * カレンダーに渡す項目。0008

@@ -7,10 +7,13 @@ export type ThemeMode = "system" | "light" | "dark";
 /** アバターの出し方。既定は頭文字。#40 */
 export type AvatarKind = "initial" | "photo";
 
+/** 背景のテーマ。glass は奥を透かすガラス、flat は透かさず塗る。#50 */
+export type BgTheme = "glass" | "flat";
+
 /** `GET /api/me` の応答 */
 export type Me = {
   user: { id: string; name: string; email: string; image: string | null; avatarUrl: string | null };
-  settings: { themeMode: ThemeMode; accentColor: string; userColor: string; avatarKind: AvatarKind };
+  settings: { themeMode: ThemeMode; bgTheme: BgTheme; accentColor: string; userColor: string; avatarKind: AvatarKind };
   /** 同意を取り直す文書。空なら同意済み */
   needsAgreement: LegalDocument[];
   /** ログインに使った手段。`google.com` か `password` */

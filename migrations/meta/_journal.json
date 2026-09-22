@@ -64,6 +64,13 @@
       "when": 1790081653470,
       "tag": "0008_lovely_tomorrow_man",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790081709684,
+      "tag": "0009_rich_carnage",
+      "breakpoints": true
     }
   ]
 }

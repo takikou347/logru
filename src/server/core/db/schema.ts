@@ -25,6 +25,10 @@ export const userSettings = sqliteTable("user_settings", {
   themeMode: text("theme_mode", { enum: ["system", "light", "dark"] })
     .notNull()
     .default("system"),
+  /** 背景のテーマ。ガラスは奥を透かす、平らは透かさず塗る。#50 */
+  bgTheme: text("bg_theme", { enum: ["glass", "flat"] })
+    .notNull()
+    .default("glass"),
   accentColor: text("accent_color").notNull().default("aizumi"),
   userColor: text("user_color").notNull().default("wakatake"),
   /** アバターの出し方。既定は頭文字。#40 */

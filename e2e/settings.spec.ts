@@ -42,6 +42,20 @@ test("端末と同じが既定で、端末の明るさに合わせる", async ({
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 });
 
+test("背景のテーマを平らにすると、すぐ変わり、読み込み直しても残る。#50", async ({ page }) => {
+  await expect(page.getByRole("radio", { name: "ガラス" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator("html")).not.toHaveAttribute("data-bg-theme", "flat");
+  const saved = page.waitForResponse((r) => r.url().endsWith("/api/me/settings") && r.request().method() === "PUT");
+  await page.getByRole("radio", { name: "平ら" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-bg-theme", "flat");
+  expect((await saved).ok()).toBe(true);
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-bg-theme", "flat");
+  await expect(page.getByRole("radio", { name: "平ら" })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("radio", { name: "ガラス" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-bg-theme", "glass");
+});
+
 test("テーマカラーと自分の色を選べる", async ({ page }) => {
   await page.getByRole("radiogroup", { name: "テーマカラー" }).getByRole("radio", { name: "紺" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-accent", "kon");

@@ -133,6 +133,7 @@ export const meRoutes = createRouter()
       user: { id: me.id, name: me.name, email: me.email, image: me.image, avatarUrl },
       settings: {
         themeMode: settings.themeMode,
+        bgTheme: settings.bgTheme,
         accentColor: settings.accentColor,
         userColor: settings.userColor,
         avatarKind: settings.avatarKind,
@@ -218,7 +219,12 @@ export const meRoutes = createRouter()
       .onConflictDoUpdate({ target: userSettings.userId, set: values })
       .returning()
       .get();
-    return c.json({ themeMode: row.themeMode, accentColor: row.accentColor, userColor: row.userColor });
+    return c.json({
+      themeMode: row.themeMode,
+      bgTheme: row.bgTheme,
+      accentColor: row.accentColor,
+      userColor: row.userColor,
+    });
   })
   .put("/home-layout", zValidator("json", homeLayoutInput, validationHook), async (c) => {
     const { form, widgets } = c.req.valid("json");

@@ -4,6 +4,7 @@
  */
 
 import { createdAt, now, updatedAt } from "@server/core/db/columns";
+import type { HomeWidgetEntry } from "@shared/api-types";
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /** 利用者。ID は Firebase の利用者 ID。ログインの情報そのものは Firebase にある */
@@ -128,6 +129,21 @@ export const groupExtensions = sqliteTable(
     updatedAt: updatedAt(),
   },
   (t) => [primaryKey({ columns: [t.groupId, t.extensionKey] })],
+);
+
+/** ホームのウィジェットの並び。自分の画面だけの設定。PC とスマホで別の行を持つ。F-28、0029 */
+export const homeLayouts = sqliteTable(
+  "home_layouts",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    form: text("form", { enum: ["desktop", "mobile"] }).notNull(),
+    /** key と大きさの並び。ウィジェットの中身は持たない */
+    widgets: text("widgets", { mode: "json" }).$type<HomeWidgetEntry[]>().notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.form] })],
 );
 
 /** 端末に知らせを届ける送り先。端末ごとに 1 行。1 人 10 台まで。F-23、0023 */

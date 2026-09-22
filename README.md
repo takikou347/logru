@@ -225,6 +225,19 @@ GitHub の Settings の Environments に `staging` と `production` がある。
 カレンダーの「読み直す」を押したときに先にしておく仕事があれば、`ClientExtension` の `refresh` に置く。
 外部のカレンダーの拡張 `src/extensions/external-calendars/` が見本になる。
 
+### ホームのウィジェットを足すとき
+
+ホームは、拡張が `ClientExtension` の `widgets` に登録したものを並べる。0029
+
+1. `client/` にウィジェットの部品を作る。`HomeWidgetProps`(`size`、`editing`)だけを受け取り、中身は自分の hook で読む。
+   ホームは並べ方と大きさしか知らない。思い出の拡張の `src/extensions/memories/client/HomeWidget.tsx` が見本になる
+2. `ClientExtension` の `widgets` に 1 件足す。key は拡張の key を頭に付ける。例は `memories.shortcut`
+3. 選べる大きさ(`sizes`)、既定の大きさ(`defaultSize`)、初めて開いたときに置くか(`defaultPlaced`)を決める
+4. グループでその拡張を無効にすると、ウィジェットもホームから消える。有効に戻すと元の場所に戻るので、拡張の側で何もしなくてよい
+
+カレンダーの本体、選んだ日の予定、このあとは、拡張ではなくホームの土台のウィジェット。外せない・並べ替えの土台になる都合上、
+`src/client/modules/home/BaseWidgets.tsx` にあり、拡張の `widgets` とは別に扱う。
+
 ## ディレクトリ
 
 | 場所 | 中身 |

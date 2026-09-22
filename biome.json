@@ -122,7 +122,20 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["@extensions/*/client/**", "@extensions/*/server/**", "@extensions/*/shared/**"],
+                    "group": [
+                      "@extensions/*/client",
+                      "@extensions/*/client/**",
+                      "@extensions/*/server",
+                      "@extensions/*/server/**",
+                      "@extensions/*/shared",
+                      "@extensions/*/shared/**",
+                      "**/extensions/*/client",
+                      "**/extensions/*/client/**",
+                      "**/extensions/*/server",
+                      "**/extensions/*/server/**",
+                      "**/extensions/*/shared",
+                      "**/extensions/*/shared/**"
+                    ],
                     "message": "src/server/ から拡張の中身を直接読めない。@extensions/server/registry と @extensions/types だけ許す"
                   }
                 ]

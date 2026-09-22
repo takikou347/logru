@@ -2,9 +2,8 @@ import { zValidator } from "@hono/zod-validator";
 import { type AppEnv, createRouter, HttpError, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
-import { groupMembers } from "@server/core/db/schema";
-import { notify } from "@server/core/notifications/send";
-import { and, asc, count, desc, eq, inArray, max } from "drizzle-orm";
+import { groupMembers, notifications } from "@server/core/db/schema";
+import { and, asc, count, desc, eq, inArray, isNull, max, sql } from "drizzle-orm";
 import type { Context } from "hono";
 import { addDaysToKey, dayKeyIn, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
 import {
@@ -316,15 +315,40 @@ export const memoryRoutes = createRouter()
       .from(memoryLikes)
       .where(and(eq(memoryLikes.recordId, row.id), eq(memoryLikes.userId, me.id)))
       .get();
-    await db.insert(memoryLikes).values({ recordId: row.id, userId: me.id }).onConflictDoNothing();
-    // 押し直しで何度も積まないよう、新しく付いたときだけ知らせる。書いた人自身のいいねは積まない。F-116、#32
-    if (!already && row.createdBy && row.createdBy !== me.id) {
-      await notify(db, [row.createdBy], "memories.like", {
-        recordId: row.id,
-        occurredAt: row.occurredAt.getTime(),
-        byUserId: me.id,
-      });
-    }
+    // 外して付け直しても積み過ぎないよう、同じ人と記録の未読のお知らせが既にあれば足さない。F-116、#32
+    const recipient = row.createdBy;
+    const shouldNotify = !already && recipient !== null && recipient !== me.id;
+    const dupe =
+      shouldNotify && recipient
+        ? await db
+            .select({ id: notifications.id })
+            .from(notifications)
+            .where(
+              and(
+                eq(notifications.userId, recipient),
+                eq(notifications.kind, "memories.like"),
+                isNull(notifications.readAt),
+                sql`json_extract(${notifications.payload}, '$.recordId') = ${row.id}`,
+                sql`json_extract(${notifications.payload}, '$.byUserId') = ${me.id}`,
+              ),
+            )
+            .get()
+        : undefined;
+    // いいねと通知の書き込みを 1 つの batch にまとめ、通知だけが失敗して二度と知らせなくなることを防ぐ。#32
+    await db.batch([
+      db.insert(memoryLikes).values({ recordId: row.id, userId: me.id }).onConflictDoNothing(),
+      ...(shouldNotify && !dupe && recipient
+        ? [
+            db.insert(notifications).values({
+              id: crypto.randomUUID(),
+              userId: recipient,
+              kind: "memories.like",
+              payload: { recordId: row.id, occurredAt: row.occurredAt.getTime(), byUserId: me.id },
+              createdAt: new Date(),
+            }),
+          ]
+        : []),
+    ] as unknown as Parameters<typeof db.batch>[0]);
     return c.json({ likes: await likesOf(db, row.id) });
   })
   .delete("/records/:recordId/like", async (c) => {

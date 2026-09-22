@@ -4,6 +4,7 @@ import {
   canRespond,
   diffAttendees,
   inviteeIds,
+  shouldNotifyAccepted,
 } from "@extensions/events/shared/permissions";
 import { describe, expect, it } from "vitest";
 
@@ -66,5 +67,41 @@ describe("diffAttendees", () => {
 
   it("作った人の行が無ければ足す", () => {
     expect(diffAttendees([], [], "kota")).toEqual({ keep: [], add: ["kota"], remove: [] });
+  });
+});
+
+describe("shouldNotifyAccepted。#32", () => {
+  it("返事待ちから参加するに変われば知らせる", () => {
+    expect(shouldNotifyAccepted("accepted", "pending", "kota", "mika")).toBe(true);
+  });
+
+  it("参加しないから参加するに変わっても知らせる", () => {
+    expect(shouldNotifyAccepted("accepted", "declined", "kota", "mika")).toBe(true);
+  });
+
+  it("前の答えが既に参加するなら、答え直しても知らせない", () => {
+    expect(shouldNotifyAccepted("accepted", "accepted", "kota", "mika")).toBe(false);
+  });
+
+  it("参加、不参加、参加と往復しても、作った人に届くのは 1 件だけ", () => {
+    // 1 回目: pending -> accepted で知らせる
+    expect(shouldNotifyAccepted("accepted", "pending", "kota", "mika")).toBe(true);
+    // 2 回目: accepted -> declined は、そもそも知らせない
+    expect(shouldNotifyAccepted("declined", "accepted", "kota", "mika")).toBe(false);
+    // 3 回目: declined -> accepted で、また知らせる(1 回目とは別の返事の変化)
+    expect(shouldNotifyAccepted("accepted", "declined", "kota", "mika")).toBe(true);
+  });
+
+  it("参加しない、返事待ちへの変化は知らせない", () => {
+    expect(shouldNotifyAccepted("declined", "pending", "kota", "mika")).toBe(false);
+    expect(shouldNotifyAccepted("pending", "accepted", "kota", "mika")).toBe(false);
+  });
+
+  it("作った人自身の返事は知らせない", () => {
+    expect(shouldNotifyAccepted("accepted", "pending", "kota", "kota")).toBe(false);
+  });
+
+  it("作った人が分からない予定は知らせない", () => {
+    expect(shouldNotifyAccepted("accepted", "pending", null, "mika")).toBe(false);
   });
 });

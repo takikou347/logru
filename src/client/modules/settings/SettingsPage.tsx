@@ -18,8 +18,8 @@ import { Input } from "@/components/ui/input";
 import { groupColor, memberColor } from "@/lib/colors";
 import { poolColorsOf } from "../calendar/model";
 import { useUpdateName, useUpdateSettings } from "./api";
-import { DeleteAccountSheet } from "./DeleteAccountSheet";
-import { PushSection } from "./PushSection";
+import { DeleteAccountSheet } from "./components/DeleteAccountSheet";
+import { PushSection } from "./components/PushSection";
 
 const MODES = [
   { value: "system", label: "端末と同じ" },

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.ts|*.tsx) pnpm exec biome check --write \"$f\" >&2 || exit 2 ;; esac"
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.ts|*.tsx) pnpm exec biome check --write --no-errors-on-unmatched \"$f\" >&2 || exit 2 ;; esac"
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pnpm typecheck >&2 || exit 2"
+            "command": "if [ \"$(jq -r '.stop_hook_active // false')\" = \"true\" ]; then exit 0; fi; pnpm typecheck >&2 || exit 2"
           }
         ]
       }

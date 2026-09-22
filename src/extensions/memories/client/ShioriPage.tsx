@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { dayKeyIn, memoryDays } from "../shared/days";
 import type { ItemKind, MemoryDetail, MemoryItem } from "../shared/types";
 import { useItemMutations, useMemoryList } from "./api";
+import { memoryOfEvent } from "../shared/links";
 import { MemoryShell, type ShellProps } from "./MemoryShell";
 import { formatClock, formatSpan } from "./parts";
 
@@ -81,8 +82,11 @@ type ListProps = { detail: MemoryDetail; group: GroupSummary | undefined; me: Me
 function Wishes({ detail, group, me }: ListProps) {
   const { memory, items } = detail;
   const days = memoryDays(memory);
+  // この思い出に入る予定だけを並べる。外した予定と、先に始まる思い出に入った予定は出さない。0020
+  const groupList = useMemoryList(memory.groupId);
+  const groupMemories = groupList.data?.memories.filter((m) => m.groupId === memory.groupId) ?? [memory];
   const calendar = useCalendar(memory.startsAt, memory.endsAt);
-  const events = (calendar.data ?? []).filter((e) => e.groupId === memory.groupId && e.extension === "events");
+  const events = (calendar.data ?? []).filter((e) => e.extension === "events" && memoryOfEvent(e, groupMemories)?.id === memory.id);
   const wishes = items.filter((i) => i.kind === "wish");
   const loose = wishes.filter((w) => w.dayIndex === null || w.dayIndex >= days.length);
   return (

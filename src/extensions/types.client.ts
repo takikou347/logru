@@ -23,6 +23,25 @@ export type DayItem = CalendarItem & {
   groupName: string;
 };
 
+/**
+ * ほかの拡張の編集シートに足す欄が受け取るもの。0019、0020
+ * 例は、予定のシートに思い出の拡張が足す「この予定を思い出に入れる」の欄。
+ * 予定の拡張は思い出を知らず、欄を並べて、保存した後に afterSave を呼ぶだけ。
+ */
+export type ItemAddonProps = {
+  /** 編集している項目の、いまの入力。新しく作るときは id が空 */
+  draft: { id: string | null; groupId: string; startsAt: number; endsAt: number | null; allDay: boolean };
+  /**
+   * 保存した後にする仕事を登録する。項目の ID を受け取る。戻り値で登録を外す。
+   * 項目の保存が済んでから呼ぶので、新しく作った項目の ID も渡せる
+   */
+  register: (afterSave: (itemId: string) => Promise<void>) => () => void;
+  disabled?: boolean;
+};
+
+/** ほかの拡張の編集シートに足す欄 */
+export type ItemAddon = { extension: string; Component: ComponentType<ItemAddonProps> };
+
 /** 編集のシートが受け取るもの */
 export type ItemEditorProps = {
   target: EditorTarget;
@@ -40,6 +59,8 @@ export type ItemEditorProps = {
   onClose: () => void;
   /** 消すとき。消す処理はカレンダーが持ち、5 秒のあいだ元に戻せるようにする */
   onDelete: (item: CalendarItem) => void;
+  /** ほかの拡張が、このシートに足す欄。使える拡張の分だけ、カレンダーが渡す */
+  addons?: ComponentType<ItemAddonProps>[];
 };
 
 /** 拡張の画面。0019 */
@@ -91,6 +112,8 @@ export type ClientExtension = {
    * hook なので、呼ぶ順を変えないよう、拡張の一覧の順にいつも呼ぶ。使えないときは enabled が false で、読み込みを止める
    */
   useShortcut?: (enabled: boolean) => ExtensionShortcut | null;
+  /** ほかの拡張の編集シートに足す欄 */
+  itemAddons?: ItemAddon[];
   /** 端末に知らせるもの。例は「ひとコマの時刻」。知らせる拡張を使っているときだけ、設定に知らせの欄を出す。F-23 */
   notifies?: string;
 };

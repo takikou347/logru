@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight, LayoutGrid, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { clientExtension, defaultExtension } from "../../../extensions/registry.client";
+import { useEnabledExtensions } from "@/lib/extensions";
 import type { EditorTarget } from "../../../extensions/types.client";
 import type { GroupSummary } from "../../../shared/api-types";
 import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components/AppLayout";
@@ -58,6 +59,7 @@ export function CalendarPage() {
   const groups = useGroups();
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [features, setFeatures] = useState(false);
+  const enabledExtensions = useEnabledExtensions();
   const { hidden, remove } = useUndoableDelete();
 
   const view = (["month", "week", "day"].includes(params.get("view") ?? "") ? params.get("view") : "month") as View;
@@ -143,7 +145,10 @@ export function CalendarPage() {
   const open = (item: ViewItem) => setEditor({ mode: "edit", item });
   const upcoming = items.filter((i) => i.startsAt >= Date.now()).slice(0, 5);
   const showTodayButton = !sameDay(selected, today) || view !== "month";
+  const editorKey = editor?.mode === "edit" ? editor.item.extension : defaultExtension.manifest.key;
   const Editor = editor?.mode === "edit" ? (clientExtension(editor.item.extension)?.Editor ?? null) : defaultExtension.Editor;
+  // ほかの拡張が、このシートに足す欄。使える拡張の分だけ渡す。0019
+  const addons = enabledExtensions.flatMap((x) => (x.itemAddons ?? []).filter((a) => a.extension === editorKey).map((a) => a.Component));
 
   /** グループで絞る選択肢の中身。自分だけのグループは「自分だけの予定」と書く。0009 */
   const groupOption = (g: GroupSummary) => ({
@@ -304,6 +309,7 @@ export function CalendarPage() {
           me={me.data}
           onClose={() => setEditor(null)}
           onDelete={remove}
+          addons={addons}
         />
       )}
     </AppLayout>

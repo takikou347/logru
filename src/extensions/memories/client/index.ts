@@ -2,6 +2,7 @@ import { BookOpen, Camera, Timer } from "lucide-react";
 import type { ClientExtension } from "../../types.client";
 import { memoriesManifest } from "../manifest";
 import { MemoryItemSheet } from "./MemoryItemSheet";
+import { MemoryLinkField } from "./MemoryLinkField";
 import { useKomaShortcut } from "./shortcut";
 
 /**
@@ -18,6 +19,7 @@ export const memoriesClient: ClientExtension = {
   ],
   useShortcut: useKomaShortcut,
   notifies: "ひとコマの時間",
+  itemAddons: [{ extension: "events", Component: MemoryLinkField }],
   pages: [
     { path: "/memories", load: async () => ({ Component: (await import("./MemoriesPage")).MemoriesPage }) },
     { path: "/memories/on/:date", load: async () => ({ Component: (await import("./OnDayPage")).OnDayPage }) },

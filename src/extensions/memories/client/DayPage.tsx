@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useCalendar } from "@/lib/queries";
 import { DAY_MS, memoryDays, startOfDayIn } from "../shared/days";
 import type { MemoryRecord } from "../shared/types";
-import { useRecords } from "./api";
+import { useMemoryList, useRecords } from "./api";
+import { memoryOfEvent } from "../shared/links";
 import { Dock } from "./Dock";
 import { Flow } from "./Flow";
 import { KomaStrip } from "./KomaStrip";
@@ -30,8 +31,11 @@ function Day({ detail, me, groups }: ShellProps) {
   const from = startOfDayIn(day, memory.timeZone);
   const to = from + DAY_MS;
   const records = useRecords(memory.groupId, from, to);
+  // この思い出に入る予定だけを並べる。外した予定と、先に始まる思い出に入った予定は出さない。0020
+  const groupList = useMemoryList(memory.groupId);
+  const groupMemories = groupList.data?.memories.filter((m) => m.groupId === memory.groupId) ?? [memory];
   const calendar = useCalendar(from, to);
-  const events = (calendar.data ?? []).filter((e) => e.groupId === memory.groupId && e.extension === "events");
+  const events = (calendar.data ?? []).filter((e) => e.extension === "events" && memoryOfEvent(e, groupMemories)?.id === memory.id);
   const wishes = items.filter((i) => i.kind === "wish");
   const doneToday = wishes.filter((w) => w.doneAt && w.doneAt >= from && w.doneAt < to);
   const [recording, setRecording] = useState(false);

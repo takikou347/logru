@@ -10,12 +10,18 @@ import { ResponsiveSheet } from "@/components/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { formatTime } from "@/lib/dates";
+import { useCalendar } from "@/lib/queries";
+import type { CalendarItem } from "../../../shared/api-types";
+import { memoryOfEvent, overlaps } from "../shared/links";
+import { startOfDayIn } from "../shared/days";
 import { api } from "@/lib/api";
 import { groupColor } from "@/lib/colors";
 import { dateKey } from "@/lib/dates";
 import { addDaysToKey, daysBetween, dayKeyIn, MAX_MEMORY_DAYS } from "../shared/days";
 import type { Memory } from "../shared/types";
-import { useInvalidateMemories, useSaveMemory } from "./api";
+import { useInvalidateMemories, useMemoryList, useSaveMemory } from "./api";
 
 /** 端末の時間帯の名前 */
 const deviceTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Tokyo";
@@ -70,14 +76,41 @@ export function MemorySheet({
   const length = daysBetween(firstDay, lastDay) + 1;
   const canDelete = memory && memory.createdBy === me.user.id;
 
+  // 期間に重なる同じグループの予定。最初は入れておき、外したいものだけ外す。0020
+  const validRange = length >= 1 && length <= MAX_MEMORY_DAYS;
+  const range = validRange ? { startsAt: startOfDayIn(firstDay, tz), endsAt: startOfDayIn(addDaysToKey(lastDay, 1), tz) } : null;
+  const calendar = useCalendar(range?.startsAt ?? 0, range?.endsAt ?? 1);
+  const others = (useMemoryList(groupId || null).data?.memories ?? []).filter((m) => m.groupId === groupId && m.id !== memory?.id);
+  const self = { id: memory?.id ?? "new", groupId, startsAt: range?.startsAt ?? 0, endsAt: range?.endsAt ?? 0, excludedEventIds: memory?.excludedEventIds ?? [] };
+  const events: CalendarItem[] = range ? (calendar.data ?? []).filter((e) => e.extension === "events" && e.groupId === groupId && overlaps(e, self)) : [];
+  const [picked, setPicked] = useState<Map<string, boolean>>(new Map());
+  const includedByDefault = (e: CalendarItem) => memoryOfEvent(e, [...others, self])?.id === self.id;
+  const isIncluded = (e: CalendarItem) => picked.get(e.id) ?? includedByDefault(e);
+  const takenBy = (e: CalendarItem) => (includedByDefault(e) ? undefined : memoryOfEvent(e, others));
+
+  // 期間を変えたら、前は入っていて、新しい期間から外れる予定を知らせる
+  const oldRange = memory ? { startsAt: memory.startsAt, endsAt: memory.endsAt } : null;
+  const oldCalendar = useCalendar(oldRange?.startsAt ?? 0, oldRange?.endsAt ?? 1);
+  const leaving =
+    memory && range && (range.startsAt !== memory.startsAt || range.endsAt !== memory.endsAt)
+      ? (oldCalendar.data ?? []).filter(
+          (e) => e.extension === "events" && e.groupId === memory.groupId && memoryOfEvent(e, [...others, memory])?.id === memory.id && !overlaps(e, range),
+        )
+      : [];
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     if (!title.trim()) return setError("題名を入力してください。");
     if (length < 1 || length > MAX_MEMORY_DAYS) return setError(`期間は 1 日から ${MAX_MEMORY_DAYS} 日までです。終わりの日は始まりの日以降にしてください。`);
     try {
-      const body = { title: title.trim(), place: place.trim() || null, firstDay, lastDay, komaEnabled, ...(memory ? {} : { groupId, timeZone: tz }) };
+      const excludedEventIds = events.filter((e) => !isIncluded(e)).map((e) => e.id);
+      const body = { title: title.trim(), place: place.trim() || null, firstDay, lastDay, komaEnabled, excludedEventIds, ...(memory ? {} : { groupId, timeZone: tz }) };
       const saved = await save.mutateAsync({ id: memory?.id, body });
+      // ほかの思い出に入っていた予定を、ここで入れると決めたら、前の思い出から外す。予定は 1 つの思い出にだけ入る
+      const moved = events.filter((e) => picked.get(e.id) === true && takenBy(e));
+      await Promise.all(moved.map((e) => api(`/memories/${takenBy(e)!.id}/events/${e.id}`, { method: "PUT", body: { included: false } })));
+      if (moved.length) await invalidate();
       toast(memory ? "思い出を保存しました" : "思い出を作りました");
       onClose();
       if (!memory) navigate(`/memories/${saved.id}`);
@@ -162,6 +195,31 @@ export function MemorySheet({
             </span>
           </PanelRow>
         )}
+        {events.length > 0 && (
+          <fieldset className="flex flex-col gap-1">
+            <legend className="mb-1 text-xs font-medium text-ink-2">入れる予定</legend>
+            {events.map((e) => {
+              const other = takenBy(e);
+              return (
+                <label key={e.id} className="flex min-h-11 items-center gap-3 border-t border-line text-sm first-of-type:border-t-0">
+                  <Checkbox
+                    checked={isIncluded(e)}
+                    onCheckedChange={(v) => setPicked((m) => new Map(m).set(e.id, v === true))}
+                    aria-label={`「${e.title}」を入れる`}
+                  />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate font-medium">{e.title}</span>
+                    <span className="text-[11px] text-ink-2">
+                      {new Date(e.startsAt).getMonth() + 1}/{new Date(e.startsAt).getDate()} {e.allDay ? "終日" : formatTime(e.startsAt)}
+                      {other && !picked.has(e.id) && `・「${other.title}」に入っています`}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </fieldset>
+        )}
+        {leaving.length > 0 && <FieldMessage>期間から外れる予定: {leaving.map((e) => e.title).join("、")}。保存すると、この思い出には入らなくなります。</FieldMessage>}
         <PanelRow>
           <span className="py-2">
             ひとコマ

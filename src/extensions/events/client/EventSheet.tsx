@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Notice } from "@/components/AuthShell";
 import { Chip } from "@/components/Chip";
@@ -74,7 +74,7 @@ function DayItemList({ day, items, onOpen }: { day: Date; items: DayItem[]; onOp
  * 保存に失敗しても閉じず、入れた内容を残す。通信が切れている間は、入力だけさせて保存を止める。
  * 直している間にほかの人が消していたら、閉じて知らせる。0025
  */
-export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose, onDelete }: ItemEditorProps) {
+export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose, onDelete, addons = [] }: ItemEditorProps) {
   const qc = useQueryClient();
   const editing = target.mode === "edit" ? target.item : null;
   const myId = me.user.id;
@@ -109,6 +109,12 @@ export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const online = useOnline();
+  // ほかの拡張が足した欄の、保存した後の仕事。0019
+  const afterSaves = useRef(new Set<(itemId: string) => Promise<void>>());
+  const register = useCallback((fn: (itemId: string) => Promise<void>) => {
+    afterSaves.current.add(fn);
+    return () => void afterSaves.current.delete(fn);
+  }, []);
   // 新しく作るときは、選んでいる日の予定を並べる。日付を変えたら、その日の予定に切り替える
   const listDay = target.mode === "new" ? (parseDateKey(startDate) ?? target.date) : null;
   const dayItems = listDay && dayItemsOf ? dayItemsOf(listDay) : [];
@@ -176,6 +182,16 @@ export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose
     return { startsAt, endsAt };
   }
 
+  /** いまの入力の日時。足された欄に渡す。入力が途中なら、選んでいる日の終日として扱う */
+  function draftTimes(): { startsAt: number; endsAt: number | null } {
+    try {
+      return times();
+    } catch {
+      const d = parseDateKey(startDate) ?? (target.mode === "new" ? target.date : new Date());
+      return { startsAt: startOfDay(d).getTime(), endsAt: addDays(startOfDay(d), 1).getTime() };
+    }
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -197,8 +213,11 @@ export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose
     };
     setBusy(true);
     try {
-      if (editing) await api(`/events/${editing.id}`, { method: "PATCH", body: payload });
-      else await api("/events", { method: "POST", body: payload });
+      const saved = editing
+        ? await api<CalendarItem>(`/events/${editing.id}`, { method: "PATCH", body: payload })
+        : await api<CalendarItem>("/events", { method: "POST", body: payload });
+      // 足された欄の仕事は、予定の保存が済んでから行う。失敗しても予定は保存できている
+      await Promise.all([...afterSaves.current].map((fn) => fn(saved.id).catch((e: Error) => toast.error(e.message))));
       await qc.invalidateQueries({ queryKey: ["calendar"] });
       toast(editing ? "予定を保存しました" : "予定を足しました");
       onClose();
@@ -284,6 +303,9 @@ export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose
           </div>
           {editing && shared && attendeePeople.length > 1 && <AttendeeList people={attendeePeople} createdBy={creatorId} />}
           {shared && canEdit && <InvitePicker candidates={candidates} selected={effectiveInvited} onChange={setInvited} />}
+          {addons.map((Addon, i) => (
+            <Addon key={i} draft={{ id: editing?.id ?? null, groupId, allDay, ...draftTimes() }} register={register} disabled={!canEdit} />
+          ))}
           <Field label="メモ">
             {(p) => <Textarea {...p} value={memo} maxLength={1000} placeholder={canEdit ? "お店の名前や持ち物" : undefined} onChange={(e) => setMemo(e.target.value)} />}
           </Field>

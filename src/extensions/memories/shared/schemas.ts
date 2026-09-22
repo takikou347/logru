@@ -34,6 +34,8 @@ export const memoryInput = z
     lastDay: dateKey,
     timeZone,
     komaEnabled: z.boolean().default(false),
+    /** 期間に重なる予定のうち、入れない予定。0020 */
+    excludedEventIds: z.array(z.string().min(1)).max(300).default([]),
   })
   .refine(rangeOk, rangeMessage);
 
@@ -47,6 +49,8 @@ export const memoryPatchInput = z
     timeZone: timeZone.optional(),
     komaEnabled: z.boolean().optional(),
     coverPhotoId: z.string().min(1).nullable().optional(),
+    /** 送ると、外す予定をこの顔ぶれに置き換える */
+    excludedEventIds: z.array(z.string().min(1)).max(300).optional(),
   })
   .refine(rangeOk, rangeMessage);
 
@@ -124,3 +128,6 @@ export const komaInput = z.object({
   slot: z.number().int(),
   body: z.string().trim().max(40, "一言は 40 文字までです。").nullable().default(null),
 });
+
+/** `PUT /api/memories/:id/events/:eventId`。予定を思い出に入れるか。0020 */
+export const eventLinkInput = z.object({ included: z.boolean() });

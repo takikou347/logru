@@ -176,3 +176,20 @@ export const memoryKomaNotices = sqliteTable(
 );
 
 export type KomaDayRow = typeof memoryKomaDays.$inferSelect;
+
+/**
+ * 思い出から外した予定。0020
+ * 思い出には、期間に重なる同じグループの予定が自動で入る。外したい予定だけを、ここに持つ。
+ * 予定は予定の拡張の表にあるので、外部キーは張らない。予定が消えた行は、読むときに無視する。
+ */
+export const memoryEventExclusions = sqliteTable(
+  "memory_event_exclusions",
+  {
+    memoryId: text("memory_id")
+      .notNull()
+      .references(() => memories.id, { onDelete: "cascade" }),
+    eventId: text("event_id").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.memoryId, t.eventId] })],
+);

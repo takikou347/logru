@@ -44,6 +44,8 @@ export type Memory = {
   /** 表紙。選んでいなければ期間の最初の写真。写真が無ければ空 */
   cover: Photo | null;
   photoCount: number;
+  /** 思い出から外した予定の ID。期間に重なる同じグループの予定は、これ以外が入る。0020 */
+  excludedEventIds: string[];
 };
 
 /** 記録の 1 件 */

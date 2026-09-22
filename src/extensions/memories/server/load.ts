@@ -3,7 +3,7 @@ import { and, asc, count, desc, eq, gte, inArray, lt } from "drizzle-orm";
 import type { DB } from "../../../server/core/db/client";
 import type { Memory, MemoryItem, MemoryRecord } from "../shared/types";
 import type { PhotoSigner } from "./photos";
-import { type MemoryItemRow, type MemoryRow, memoryLikes, memoryPhotos, memoryRecords } from "./schema";
+import { type MemoryItemRow, type MemoryRow, memoryEventExclusions, memoryLikes, memoryPhotos, memoryRecords } from "./schema";
 
 /** D1 は 1 つの問い合わせに渡せる値の数に上限がある。ID はこの数ずつ渡す */
 const CHUNK = 90;
@@ -127,6 +127,7 @@ export async function toMemory(db: DB, signer: PhotoSigner, row: MemoryRow): Pro
     .where(inPeriod)
     .get();
   const cover = chosen ?? first?.photo;
+  const excluded = await db.select({ id: memoryEventExclusions.eventId }).from(memoryEventExclusions).where(eq(memoryEventExclusions.memoryId, row.id));
   return {
     id: row.id,
     groupId: row.groupId,
@@ -139,6 +140,7 @@ export async function toMemory(db: DB, signer: PhotoSigner, row: MemoryRow): Pro
     komaEnabled: row.komaEnabled,
     cover: cover ? await signer.photo(cover) : null,
     photoCount: total?.n ?? 0,
+    excludedEventIds: excluded.map((e) => e.id),
   };
 }
 

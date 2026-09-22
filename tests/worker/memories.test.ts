@@ -113,3 +113,27 @@ describe("ひとコマの枠。0022", () => {
     expect(slots.map((s) => s.hour)).toEqual([7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]);
   });
 });
+
+import { memoryOfEvent } from "../../src/extensions/memories/shared/links";
+
+describe("予定がどの思い出に入るか。0020", () => {
+  const day = (d: number) => Date.parse(`2026-09-${String(d).padStart(2, "0")}T00:00:00+09:00`);
+  const trip = { id: "trip", groupId: "g", startsAt: day(19), endsAt: day(21), excludedEventIds: [] as string[] };
+  const event = (id: string, start: number, end: number | null, groupId = "g") => ({ id, groupId, startsAt: start, endsAt: end });
+
+  it("期間に重なる同じグループの予定は、自動で入る", () => {
+    expect(memoryOfEvent(event("e", day(19) + 3_600_000, day(19) + 7_200_000), [trip])?.id).toBe("trip");
+  });
+
+  it("別のグループと、期間の外の予定は入らない", () => {
+    expect(memoryOfEvent(event("e", day(19), day(20), "other"), [trip])).toBeUndefined();
+    expect(memoryOfEvent(event("e", day(22), day(23)), [trip])).toBeUndefined();
+  });
+
+  it("外した予定は入らない。重なる思い出がほかにあれば、そちらに入る", () => {
+    const walk = { id: "walk", groupId: "g", startsAt: day(20), endsAt: day(21), excludedEventIds: [] };
+    const e = event("e", day(20) + 3_600_000, null);
+    expect(memoryOfEvent(e, [walk, trip])?.id).toBe("trip");
+    expect(memoryOfEvent(e, [walk, { ...trip, excludedEventIds: ["e"] }])?.id).toBe("walk");
+  });
+});

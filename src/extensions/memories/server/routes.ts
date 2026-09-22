@@ -15,6 +15,7 @@ import {
   memoryPatchInput,
   recordInput,
   recordPatchInput,
+  eventLinkInput,
   recordsQuery,
 } from "../shared/schemas";
 import type { MemoryDetail, MemoryList } from "../shared/types";
@@ -22,7 +23,7 @@ import { requireMemoriesGroup, usableGroupIds } from "./access";
 import { komaRoutes } from "./koma";
 import { loadRecord, loadRecords, recentRecords, toItem, toMemory } from "./load";
 import { PhotoSigner, type PhotoSize, isJpeg, photoKey, verifyPhotoUrl } from "./photos";
-import { memories, memoryItems, memoryLikes, memoryPhotos, memoryRecords } from "./schema";
+import { memories, memoryEventExclusions, memoryItems, memoryLikes, memoryPhotos, memoryRecords } from "./schema";
 
 const signer = (c: Context<AppEnv>) => new PhotoSigner(c.env.MEMORIES_PHOTO_KEY);
 
@@ -130,6 +131,9 @@ export const memoryRoutes = createRouter()
       komaEnabled: input.komaEnabled,
       ...periodOf(input.firstDay, input.lastDay, input.timeZone),
     });
+    if (input.excludedEventIds.length) {
+      await db.insert(memoryEventExclusions).values([...new Set(input.excludedEventIds)].map((eventId) => ({ memoryId: id, eventId })));
+    }
     return c.json(await toMemory(db, signer(c), (await db.select().from(memories).where(eq(memories.id, id)).get())!), 201);
   })
   .get("/records", zValidator("query", recordsQuery, validationHook), async (c) => {
@@ -289,7 +293,26 @@ export const memoryRoutes = createRouter()
         updatedAt: new Date(),
       })
       .where(eq(memories.id, row.id));
+    if (input.excludedEventIds) {
+      const ids = [...new Set(input.excludedEventIds)];
+      await db.batch([
+        db.delete(memoryEventExclusions).where(eq(memoryEventExclusions.memoryId, row.id)),
+        ...(ids.length ? [db.insert(memoryEventExclusions).values(ids.map((eventId) => ({ memoryId: row.id, eventId })))] : []),
+      ] as unknown as Parameters<typeof db.batch>[0]);
+    }
     return c.json(await toMemory(db, signer(c), (await db.select().from(memories).where(eq(memories.id, row.id)).get())!));
+  })
+  .put("/:id/events/:eventId", zValidator("json", eventLinkInput, validationHook), async (c) => {
+    const db = c.get("db");
+    const row = await loadMemory(db, c.get("user").id, c.req.param("id"));
+    const eventId = c.req.param("eventId");
+    // 入れるなら外した印を消し、外すなら印を置く。予定が期間とグループに合うかは、画面が決めて送る
+    if (c.req.valid("json").included) {
+      await db.delete(memoryEventExclusions).where(and(eq(memoryEventExclusions.memoryId, row.id), eq(memoryEventExclusions.eventId, eventId)));
+    } else {
+      await db.insert(memoryEventExclusions).values({ memoryId: row.id, eventId }).onConflictDoNothing();
+    }
+    return c.json(await toMemory(db, signer(c), row));
   })
   .delete("/:id", async (c) => {
     const db = c.get("db");

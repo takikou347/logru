@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useColorPref, useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { InitialAvatar } from "@/components/parts/Avatars";
 import { ColorSheet } from "@/components/parts/ColorSheet";
 import { ColorSwatches } from "@/components/parts/ColorSwatches";
 import { FailurePanel, LoadFailure } from "@/components/parts/Failure";
@@ -285,7 +286,8 @@ export function GroupDetailPage() {
 }
 
 /**
- * メンバーの 1 行。左の丸で、自分の画面でのその人の色を変える。
+ * メンバーの 1 行。頭文字か置いた写真のアバターを出す。#40
+ * 左下の小さな丸を押すと、自分の画面でのその人の色を変えられる。
  * @param canManage 役割を変えられるか。最後の管理者は外せない
  */
 function MemberRow({
@@ -305,12 +307,15 @@ function MemberRow({
 }) {
   return (
     <div className="flex min-h-12 items-center gap-3 border-b border-line text-[15px] last:border-b-0">
-      <button
-        type="button"
-        className={`grid size-11 place-items-center rounded-full before:size-6 before:rounded-full before:bg-(--c) before:content-[''] c-${color}`}
-        aria-label={`${member.name} の色を変える`}
-        onClick={onColor}
-      />
+      <span className="relative inline-flex flex-none">
+        <InitialAvatar person={{ id: member.id, name: member.name, color, avatarUrl: member.avatarUrl }} size={40} />
+        <button
+          type="button"
+          className={`absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full bg-(--c) shadow-[0_0_0_2px_var(--glass-flat)] c-${color}`}
+          aria-label={`${member.name} の色を変える`}
+          onClick={onColor}
+        />
+      </span>
       <span className="flex-1">
         {member.name}
         {isMe && "（自分）"}

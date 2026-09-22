@@ -10,8 +10,8 @@ import {
 } from "../../src/client/modules/calendar/model";
 
 const me: Me = {
-  user: { id: "me", name: "こた", email: "kota@example.com", image: null },
-  settings: { themeMode: "system", accentColor: "aizumi", userColor: "wakatake" },
+  user: { id: "me", name: "こた", email: "kota@example.com", image: null, avatarUrl: null },
+  settings: { themeMode: "system", accentColor: "aizumi", userColor: "wakatake", avatarKind: "initial" },
   needsAgreement: [],
   provider: "password",
   colorPrefs: [{ targetType: "user", targetId: "mika", color: "asagi" }],
@@ -24,7 +24,7 @@ const group = (id: string, members: [string, string][], isPersonal = false): Gro
   color: "yamabuki",
   isPersonal,
   role: "member",
-  members: members.map(([mid, name]) => ({ id: mid, name, userColor: "sango", role: "member" })),
+  members: members.map(([mid, name]) => ({ id: mid, name, userColor: "sango", role: "member", avatarUrl: null })),
   extensions: [],
 });
 
@@ -151,8 +151,8 @@ describe("attendeeViews", () => {
       me,
     );
     expect(views).toEqual([
-      { id: "me", name: "こた", color: "sango", response: "accepted", isMe: true },
-      { id: "mika", name: "みか", color: "asagi", response: "pending", isMe: false },
+      { id: "me", name: "こた", color: "sango", response: "accepted", isMe: true, avatarUrl: null },
+      { id: "mika", name: "みか", color: "asagi", response: "pending", isMe: false, avatarUrl: null },
     ]);
   });
 });

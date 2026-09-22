@@ -1,13 +1,18 @@
 import { serverExtensions, toggleableExtensions } from "@extensions/server/registry";
 import { zValidator } from "@hono/zod-validator";
-import { createRouter, HttpError, validationHook } from "@server/core/app";
+import { type AppEnv, createRouter, HttpError, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import { AvatarSigner } from "@server/core/avatar";
 import { groupExtensions, groupInvites, groupMembers, groups } from "@server/core/db/schema";
 import { listGroups, requireMembership } from "@server/modules/groups/membership";
 import type { ExtensionInfo } from "@shared/api-types";
 import { pickUnusedColor } from "@shared/colors";
 import { extensionToggleInput, groupInput, groupPatchInput, memberRoleInput } from "@shared/schemas";
 import { and, eq, isNull, ne } from "drizzle-orm";
+import type { Context } from "hono";
+
+/** アバターの写真の URL を作る。env の AVATAR_PHOTO_KEY を使う */
+const avatarSigner = (c: Context<AppEnv>) => new AvatarSigner(c.env.AVATAR_PHOTO_KEY);
 
 /** 招待リンクの有効な期間。7 日 */
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -24,19 +29,19 @@ function randomToken(): string {
 /** `/api/groups`。グループ、招待、管理者の受け渡し、拡張の切り替え */
 export const groupRoutes = createRouter()
   .use("*", requireUser, requireAgreement)
-  .get("/", async (c) => c.json({ groups: await listGroups(c.get("db"), c.get("user").id) }))
+  .get("/", async (c) => c.json({ groups: await listGroups(c.get("db"), c.get("user").id, avatarSigner(c)) }))
   .post("/", zValidator("json", groupInput, validationHook), async (c) => {
     const db = c.get("db");
     const me = c.get("user");
     const { name } = c.req.valid("json");
-    const existing = await listGroups(db, me.id);
+    const existing = await listGroups(db, me.id, avatarSigner(c));
     const id = crypto.randomUUID();
     await db.batch([
       db.insert(groups).values({ id, name, color: pickUnusedColor(existing.map((g) => g.color)), createdBy: me.id }),
       db.insert(groupMembers).values({ groupId: id, userId: me.id, role: "admin" }),
     ]);
     return c.json(
-      (await listGroups(db, me.id)).find((g) => g.id === id),
+      (await listGroups(db, me.id, avatarSigner(c))).find((g) => g.id === id),
       201,
     );
   })
@@ -52,7 +57,7 @@ export const groupRoutes = createRouter()
       .update(groups)
       .set({ ...input, updatedAt: new Date() })
       .where(eq(groups.id, id));
-    return c.json((await listGroups(db, c.get("user").id)).find((g) => g.id === id));
+    return c.json((await listGroups(db, c.get("user").id, avatarSigner(c))).find((g) => g.id === id));
   })
   .post("/:id/invites", async (c) => {
     const db = c.get("db");
@@ -98,7 +103,7 @@ export const groupRoutes = createRouter()
       .update(groupMembers)
       .set({ role })
       .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, targetId)));
-    return c.json((await listGroups(db, c.get("user").id)).find((g) => g.id === groupId));
+    return c.json((await listGroups(db, c.get("user").id, avatarSigner(c))).find((g) => g.id === groupId));
   })
   .delete("/:id/members/me", async (c) => {
     const db = c.get("db");
@@ -151,7 +156,7 @@ export const groupRoutes = createRouter()
     // 共有のグループで有効にした人は、自分でも使うとみなす。使うかどうかは自分だけのグループの切り替えで持つ。0019
     const membership = await requireMembership(db, c.get("user").id, groupId);
     if (values.enabled && !membership.isPersonal) {
-      const personal = (await listGroups(db, c.get("user").id)).find((g) => g.isPersonal);
+      const personal = (await listGroups(db, c.get("user").id, avatarSigner(c))).find((g) => g.isPersonal);
       if (personal) {
         await db
           .insert(groupExtensions)

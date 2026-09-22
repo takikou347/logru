@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
 import { useMe } from "@/api/common";
 import { signOut } from "@/app/auth";
+import { InitialAvatar } from "@/components/parts/Avatars";
 import { OfflineBand } from "@/components/parts/Failure";
 import { Button } from "@/components/ui/button";
 import {
@@ -109,24 +110,10 @@ export function SideHeading({ children }: { children: ReactNode }) {
 /** PC の左の列の 1 行の見た目。絞り込みのボタンに使う */
 export const sideItemClass = navItem;
 
-/** 利用者の頭文字の丸。色は利用者の色 */
-function UserAvatar({ name, color }: { name: string; color: string | undefined }) {
-  return (
-    <span
-      className={cn(
-        "grid size-[34px] flex-none place-items-center rounded-full bg-(--c) text-[15px] font-bold text-white",
-        `c-${color ?? "wakatake"}`,
-      )}
-      aria-hidden="true"
-    >
-      {name.slice(0, 1).toUpperCase()}
-    </span>
-  );
-}
-
 /**
  * 利用者のアイコンと、押すと開くメニュー。名前とメールアドレス、設定、ログアウトを並べる。
  * PC は左の列の下に置き、スマホは上の帯の右端に置く。
+ * アイコンは、アカウントのメニュー、PC の左の列、予定の参加者、グループのメンバーの行と同じ部品。#40
  *
  * @param wide PC の左の列の形。アイコンの横に名前を出し、メニューは上に開く
  */
@@ -135,7 +122,12 @@ export function AccountMenu({ wide = false }: { wide?: boolean }) {
   const doSignOut = useSignOut();
   const name = me.data?.user.name ?? "";
   const email = me.data?.user.email ?? "";
-  const avatar = <UserAvatar name={name} color={me.data?.settings.userColor} />;
+  const avatar = (
+    <InitialAvatar
+      person={{ id: "me", name, color: me.data?.settings.userColor ?? "wakatake", avatarUrl: me.data?.user.avatarUrl }}
+      size={34}
+    />
+  );
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

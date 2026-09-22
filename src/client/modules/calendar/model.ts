@@ -2,7 +2,14 @@ import type { Attendee, AttendeeResponse, CalendarItem, GroupSummary, Me } from 
 import { groupColor, memberColor } from "@/lib/colors";
 
 /** 項目の参加者を、名前と色を付けて画面で使う形にしたもの。#28 */
-export type ViewAttendee = { id: string; name: string; color: string; response: AttendeeResponse; isMe: boolean };
+export type ViewAttendee = {
+  id: string;
+  name: string;
+  color: string;
+  response: AttendeeResponse;
+  isMe: boolean;
+  avatarUrl: string | null;
+};
 
 /** 画面で使うための、色と名前を付けた項目 */
 export type ViewItem = CalendarItem & {
@@ -36,6 +43,7 @@ export function attendeeViews(
         color: memberColor(m.id, m.userColor, me.colorPrefs),
         response: a.response,
         isMe: m.id === me.user.id,
+        avatarUrl: m.avatarUrl,
       },
     ];
   });
@@ -70,7 +78,7 @@ export function ownersOf(item: Pick<CalendarItem, "createdBy" | "attendees">): s
 }
 
 /** 「表示する人」に並べる 1 人 */
-export type Person = { id: string; name: string; color: string; isMe: boolean };
+export type Person = { id: string; name: string; color: string; isMe: boolean; avatarUrl: string | null };
 
 /** 共有のグループと、そのメンバー。「表示する人」でグループごとに並べる */
 export type GroupPeople = { group: GroupSummary; people: Person[] };
@@ -82,6 +90,7 @@ function selfOf(me: Me): Person {
     name: me.user.name,
     color: memberColor(me.user.id, me.settings.userColor, me.colorPrefs),
     isMe: true,
+    avatarUrl: me.user.avatarUrl,
   };
 }
 
@@ -101,7 +110,13 @@ export function groupPeopleOf(groups: GroupSummary[], me: Me): GroupPeople[] {
         self,
         ...group.members
           .filter((m) => m.id !== me.user.id)
-          .map((m) => ({ id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs), isMe: false }))
+          .map((m) => ({
+            id: m.id,
+            name: m.name,
+            color: memberColor(m.id, m.userColor, me.colorPrefs),
+            isMe: false,
+            avatarUrl: m.avatarUrl,
+          }))
           .sort((x, y) => x.name.localeCompare(y.name, "ja")),
       ],
     }));

@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { groupColor, memberColor } from "@/lib/colors";
 import { poolColorsOf } from "../calendar/model";
+import { AvatarSection } from "./AvatarSection";
 import { useUpdateName, useUpdateSettings } from "./api";
 import { DeleteAccountSheet } from "./components/DeleteAccountSheet";
 import { PushSection } from "./components/PushSection";
@@ -61,6 +62,8 @@ export function SettingsPage() {
     <AppLayout poolColors={poolColorsOf(list, data)}>
       <Page>
         <PageBar title="設定" />
+
+        <AvatarSection me={data} />
 
         <Panel title="明るさ">
           <Segmented<ThemeMode>

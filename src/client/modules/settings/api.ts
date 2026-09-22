@@ -1,11 +1,76 @@
 /** 設定の画面(SettingsPage、DeleteAccountSheet、PushSection)が使う API の hook */
 
-import type { Me, PushInfo } from "@shared/api-types";
+import type { AvatarKind, Me, PushInfo } from "@shared/api-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/api/client";
 import { keys } from "@/api/keys";
+import { auth } from "@/lib/firebase";
 import { applyTheme } from "@/lib/theme";
+
+/**
+ * アバターの写真を送る。JPEG に整えた Blob を multipart/form-data で送る。#40
+ *
+ * avatarUrl は AVATAR_PHOTO_KEY が置かれていなければ null。写真は置けても、署名した URL は作れないため。頭文字に戻して見せる
+ */
+async function uploadAvatarPhoto(photo: Blob): Promise<{ avatarKind: AvatarKind; avatarUrl: string | null }> {
+  const token = await auth.currentUser?.getIdToken();
+  const form = new FormData();
+  form.set("photo", photo, "avatar.jpg");
+  const res = await fetch("/api/me/avatar", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    avatarKind?: AvatarKind;
+    avatarUrl?: string | null;
+  };
+  if (!res.ok) throw new Error(data.error ?? "写真を送れませんでした。もう一度試してください。");
+  return { avatarKind: data.avatarKind ?? "photo", avatarUrl: data.avatarUrl ?? null };
+}
+
+/** アバターに写真を置く。押した瞬間に画面に効かせる。#40 */
+export function useUploadAvatar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: uploadAvatarPhoto,
+    onSuccess: (result) => {
+      const prev = qc.getQueryData<Me>(keys.me);
+      if (prev) {
+        qc.setQueryData<Me>(keys.me, {
+          ...prev,
+          user: { ...prev.user, avatarUrl: result.avatarUrl },
+          settings: { ...prev.settings, avatarKind: result.avatarKind },
+        });
+      }
+    },
+    // 呼ぶ側(AvatarSection)が mutateAsync を try/catch していて、そこでも知らせを出す。ここでは出さない。二重に出ないように
+    // 自分のアバターは、グループのメンバーの一覧にも出る
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.groups }),
+  });
+}
+
+/** アバターを頭文字に戻す。置いていた写真は消える。#40 */
+export function useResetAvatar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<{ avatarKind: AvatarKind; avatarUrl: null }>("/me/avatar", { method: "DELETE" }),
+    onSuccess: (result) => {
+      const prev = qc.getQueryData<Me>(keys.me);
+      if (prev) {
+        qc.setQueryData<Me>(keys.me, {
+          ...prev,
+          user: { ...prev.user, avatarUrl: result.avatarUrl },
+          settings: { ...prev.settings, avatarKind: result.avatarKind },
+        });
+      }
+    },
+    // AvatarSection の try/catch が知らせを出すので、ここでは出さない
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.groups }),
+  });
+}
 
 /** このファイルの hook だけが使う読み込みキー */
 const settingsKeys = {

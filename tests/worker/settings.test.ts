@@ -1,7 +1,7 @@
 import { settingsInput } from "@shared/schemas";
 import { describe, expect, it } from "vitest";
 
-describe("設定の入力。F-13、F-14、#50", () => {
+describe("設定の入力。F-13、F-14、F-29、#50", () => {
   const base = { themeMode: "system", bgTheme: "glass", accentColor: "aizumi", userColor: "wakatake" } as const;
 
   it("明るさ、背景のテーマ、テーマカラー、自分の色がそろえば通す", () => {

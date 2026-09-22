@@ -26,7 +26,8 @@ test("明るさを選んですぐ読み込み直しても、選んだ明るさ�
   });
   await page.getByRole("radio", { name: "ダーク" }).click();
   await page.reload();
-  await page.context().unroute("**/api/me/settings");
+  // 外すと、止めていた通信はその場で流れる。遅らせていた処理が後で route.continue を呼ぶと「もう済んでいる」で落ちるので、その誤りは捨てる
+  await page.context().unrouteAll({ behavior: "ignoreErrors" });
   await expect(page.getByRole("radio", { name: "ダーク" })).toHaveAttribute("aria-checked", "true");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });

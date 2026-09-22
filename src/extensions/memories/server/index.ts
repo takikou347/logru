@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import type { DB } from "../../../server/core/db/client";
-import type { ServerExtension } from "../../types";
+import type { ServerExtension } from "../../types.server";
 import { memoriesManifest } from "../manifest";
 import { listMemoryItems } from "./provider";
 import { memoryRoutes } from "./routes";
@@ -20,11 +20,11 @@ async function leaveKomaDays(db: DB, groupId: string, userId: string) {
 export const memoriesServer: ServerExtension = {
   manifest: memoriesManifest,
   schema,
-  listCalendarItems: listMemoryItems as ServerExtension["listCalendarItems"],
-  routes: { basePath: "/memories", router: memoryRoutes as never },
-  scheduled: (async (db: never, env: never) => {
+  listCalendarItems: listMemoryItems,
+  routes: { basePath: "/memories", router: memoryRoutes },
+  scheduled: async (db, env) => {
     await notifyKoma(db, env);
     await cleanUpPhotos(db, env);
-  }) as ServerExtension["scheduled"],
-  onMemberLeave: leaveKomaDays as ServerExtension["onMemberLeave"],
+  },
+  onMemberLeave: leaveKomaDays,
 };

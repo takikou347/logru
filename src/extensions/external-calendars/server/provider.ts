@@ -2,7 +2,7 @@ import { and, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
 import type { CalendarItem } from "../../../shared/api-types";
 import type { DB } from "../../../server/core/db/client";
 import { groupMembers, groups } from "../../../server/core/db/schema";
-import type { CalendarContext } from "../../types";
+import type { CalendarContext } from "../../types.server";
 import { externalCalendars, externalEvents } from "./schema";
 
 /**

@@ -1,7 +1,7 @@
 import { and, gte, inArray, isNull, lt, or } from "drizzle-orm";
 import type { Attendee, CalendarItem } from "../../../shared/api-types";
 import type { DB } from "../../../server/core/db/client";
-import type { CalendarContext } from "../../types";
+import type { CalendarContext } from "../../types.server";
 import { type EventRow, eventAttendees, events } from "./schema";
 
 /** D1 は 1 つの問い合わせに渡せる値の数に上限がある。予定の ID はこの数ずつ渡す */

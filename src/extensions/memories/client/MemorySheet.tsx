@@ -1,27 +1,23 @@
+import type { CalendarItem, GroupSummary, Me } from "@shared/api-types";
 import { BookOpen } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import type { GroupSummary, Me } from "../../../shared/api-types";
-import { Chip } from "@/components/Chip";
-import { Field } from "@/components/Field";
-import { Dot, FieldMessage, PanelRow } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { Chip } from "@/components/parts/Chip";
+import { Field } from "@/components/parts/Field";
+import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
-import { formatTime } from "@/lib/dates";
-import { useCalendar } from "@/lib/queries";
-import type { CalendarItem } from "../../../shared/api-types";
-import { memoryOfEvent, overlaps } from "../shared/links";
-import { startOfDayIn } from "../shared/days";
-import { api } from "@/lib/api";
 import { groupColor } from "@/lib/colors";
-import { dateKey } from "@/lib/dates";
-import { addDaysToKey, daysBetween, dayKeyIn, MAX_MEMORY_DAYS } from "../shared/days";
+import { dateKey, formatTime } from "@/lib/dates";
+import { useCalendar } from "@/modules/calendar/api";
+import { addDaysToKey, dayKeyIn, daysBetween, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
+import { memoryOfEvent, overlaps } from "../shared/links";
 import type { Memory } from "../shared/types";
-import { useInvalidateMemories, useMemoryList, useSaveMemory } from "./api";
+import { useDeleteMemory, useInvalidateMemories, useLinkEventToMemory, useMemoryList, useSaveMemory } from "./api";
 
 /** 端末の時間帯の名前 */
 const deviceTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Tokyo";
@@ -58,6 +54,8 @@ export function MemorySheet({
   const navigate = useNavigate();
   const save = useSaveMemory();
   const invalidate = useInvalidateMemories();
+  const linkEvent = useLinkEventToMemory();
+  const deleteMemory = useDeleteMemory();
   const shared = groups.filter((g) => !g.isPersonal);
   const personal = groups.find((g) => g.isPersonal);
   const tz = memory?.timeZone ?? deviceTimeZone();
@@ -67,7 +65,8 @@ export function MemorySheet({
   const [firstDay, setFirstDay] = useState(start);
   const [lastDay, setLastDay] = useState(memory ? dayKeyIn(memory.endsAt - 1, tz) : start);
   const [groupId, setGroupId] = useState(
-    memory?.groupId ?? (groups.some((g) => g.id === defaultGroupId) ? defaultGroupId! : (shared[0]?.id ?? personal?.id ?? "")),
+    memory?.groupId ??
+      (groups.some((g) => g.id === defaultGroupId) ? defaultGroupId! : (shared[0]?.id ?? personal?.id ?? "")),
   );
   const [komaEnabled, setKomaEnabled] = useState(memory?.komaEnabled ?? false);
   const [error, setError] = useState<string | null>(null);
@@ -78,11 +77,23 @@ export function MemorySheet({
 
   // 期間に重なる同じグループの予定。最初は入れておき、外したいものだけ外す。0020
   const validRange = length >= 1 && length <= MAX_MEMORY_DAYS;
-  const range = validRange ? { startsAt: startOfDayIn(firstDay, tz), endsAt: startOfDayIn(addDaysToKey(lastDay, 1), tz) } : null;
+  const range = validRange
+    ? { startsAt: startOfDayIn(firstDay, tz), endsAt: startOfDayIn(addDaysToKey(lastDay, 1), tz) }
+    : null;
   const calendar = useCalendar(range?.startsAt ?? 0, range?.endsAt ?? 1);
-  const others = (useMemoryList(groupId || null).data?.memories ?? []).filter((m) => m.groupId === groupId && m.id !== memory?.id);
-  const self = { id: memory?.id ?? "new", groupId, startsAt: range?.startsAt ?? 0, endsAt: range?.endsAt ?? 0, excludedEventIds: memory?.excludedEventIds ?? [] };
-  const events: CalendarItem[] = range ? (calendar.data ?? []).filter((e) => e.extension === "events" && e.groupId === groupId && overlaps(e, self)) : [];
+  const others = (useMemoryList(groupId || null).data?.memories ?? []).filter(
+    (m) => m.groupId === groupId && m.id !== memory?.id,
+  );
+  const self = {
+    id: memory?.id ?? "new",
+    groupId,
+    startsAt: range?.startsAt ?? 0,
+    endsAt: range?.endsAt ?? 0,
+    excludedEventIds: memory?.excludedEventIds ?? [],
+  };
+  const events: CalendarItem[] = range
+    ? (calendar.data ?? []).filter((e) => e.extension === "events" && e.groupId === groupId && overlaps(e, self))
+    : [];
   const [picked, setPicked] = useState<Map<string, boolean>>(new Map());
   const includedByDefault = (e: CalendarItem) => memoryOfEvent(e, [...others, self])?.id === self.id;
   const isIncluded = (e: CalendarItem) => picked.get(e.id) ?? includedByDefault(e);
@@ -94,7 +105,11 @@ export function MemorySheet({
   const leaving =
     memory && range && (range.startsAt !== memory.startsAt || range.endsAt !== memory.endsAt)
       ? (oldCalendar.data ?? []).filter(
-          (e) => e.extension === "events" && e.groupId === memory.groupId && memoryOfEvent(e, [...others, memory])?.id === memory.id && !overlaps(e, range),
+          (e) =>
+            e.extension === "events" &&
+            e.groupId === memory.groupId &&
+            memoryOfEvent(e, [...others, memory])?.id === memory.id &&
+            !overlaps(e, range),
         )
       : [];
 
@@ -102,14 +117,25 @@ export function MemorySheet({
     e.preventDefault();
     setError(null);
     if (!title.trim()) return setError("題名を入力してください。");
-    if (length < 1 || length > MAX_MEMORY_DAYS) return setError(`期間は 1 日から ${MAX_MEMORY_DAYS} 日までです。終わりの日は始まりの日以降にしてください。`);
+    if (length < 1 || length > MAX_MEMORY_DAYS)
+      return setError(`期間は 1 日から ${MAX_MEMORY_DAYS} 日までです。終わりの日は始まりの日以降にしてください。`);
     try {
       const excludedEventIds = events.filter((e) => !isIncluded(e)).map((e) => e.id);
-      const body = { title: title.trim(), place: place.trim() || null, firstDay, lastDay, komaEnabled, excludedEventIds, ...(memory ? {} : { groupId, timeZone: tz }) };
+      const body = {
+        title: title.trim(),
+        place: place.trim() || null,
+        firstDay,
+        lastDay,
+        komaEnabled,
+        excludedEventIds,
+        ...(memory ? {} : { groupId, timeZone: tz }),
+      };
       const saved = await save.mutateAsync({ id: memory?.id, body });
       // ほかの思い出に入っていた予定を、ここで入れると決めたら、前の思い出から外す。予定は 1 つの思い出にだけ入る
       const moved = events.filter((e) => picked.get(e.id) === true && takenBy(e));
-      await Promise.all(moved.map((e) => api(`/memories/${takenBy(e)!.id}/events/${e.id}`, { method: "PUT", body: { included: false } })));
+      await Promise.all(
+        moved.map((e) => linkEvent.mutateAsync({ memoryId: takenBy(e)!.id, itemId: e.id, included: false })),
+      );
       if (moved.length) await invalidate();
       toast(memory ? "思い出を保存しました" : "思い出を作りました");
       onClose();
@@ -122,7 +148,7 @@ export function MemorySheet({
   async function remove() {
     if (!memory) return;
     try {
-      await api(`/memories/${memory.id}`, { method: "DELETE" });
+      await deleteMemory.mutateAsync(memory.id);
       await invalidate();
       toast("思い出を削除しました。記録と写真は残っています");
       onClose();
@@ -155,14 +181,39 @@ export function MemorySheet({
   return (
     <ResponsiveSheet title={memory ? "思い出を編集" : "思い出を作る"} onClose={onClose}>
       {openLink && memory && (
-        <Button type="button" variant="secondary" className="self-start" onClick={() => (onClose(), navigate(`/memories/${memory.id}`))}>
+        <Button
+          type="button"
+          variant="secondary"
+          className="self-start"
+          onClick={() => (onClose(), navigate(`/memories/${memory.id}`))}
+        >
           <BookOpen className="size-4" />
           思い出を開く
         </Button>
       )}
       <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
-        <Field label="題名">{(p) => <Input {...p} value={title} maxLength={60} placeholder="例: 箱根 1 泊" onChange={(e) => setTitle(e.target.value)} />}</Field>
-        <Field label="場所">{(p) => <Input {...p} value={place} maxLength={60} placeholder="例: 箱根" onChange={(e) => setPlace(e.target.value)} />}</Field>
+        <Field label="題名">
+          {(p) => (
+            <Input
+              {...p}
+              value={title}
+              maxLength={60}
+              placeholder="例: 箱根 1 泊"
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          )}
+        </Field>
+        <Field label="場所">
+          {(p) => (
+            <Input
+              {...p}
+              value={place}
+              maxLength={60}
+              placeholder="例: 箱根"
+              onChange={(e) => setPlace(e.target.value)}
+            />
+          )}
+        </Field>
         <div className="grid grid-cols-2 gap-2">
           <Field label="始まりの日">
             {(p) => (
@@ -179,13 +230,27 @@ export function MemorySheet({
               />
             )}
           </Field>
-          <Field label="終わりの日">{(p) => <Input {...p} type="date" value={lastDay} min={firstDay} onChange={(e) => setLastDay(e.target.value)} />}</Field>
+          <Field label="終わりの日">
+            {(p) => (
+              <Input {...p} type="date" value={lastDay} min={firstDay} onChange={(e) => setLastDay(e.target.value)} />
+            )}
+          </Field>
         </div>
-        <FieldMessage>{length >= 1 ? (length === 1 ? "日帰り" : `${length - 1} 泊 ${length} 日`) : "終わりの日は始まりの日以降にしてください。"}</FieldMessage>
+        <FieldMessage>
+          {length >= 1
+            ? length === 1
+              ? "日帰り"
+              : `${length - 1} 泊 ${length} 日`
+            : "終わりの日は始まりの日以降にしてください。"}
+        </FieldMessage>
         {!memory && (
           <PanelRow>
             <span>共有</span>
-            <span className="flex max-w-[70%] flex-wrap justify-end gap-1.5" role="radiogroup" aria-label="共有するグループ">
+            <span
+              className="flex max-w-[70%] flex-wrap justify-end gap-1.5"
+              role="radiogroup"
+              aria-label="共有するグループ"
+            >
               {groups.map((g) => (
                 <Chip key={g.id} role="radio" aria-checked={groupId === g.id} onClick={() => setGroupId(g.id)}>
                   <Dot color={groupColor(g, me.colorPrefs)} />
@@ -201,7 +266,10 @@ export function MemorySheet({
             {events.map((e) => {
               const other = takenBy(e);
               return (
-                <label key={e.id} className="flex min-h-11 items-center gap-3 border-t border-line text-sm first-of-type:border-t-0">
+                <label
+                  key={e.id}
+                  className="flex min-h-11 items-center gap-3 border-t border-line text-sm first-of-type:border-t-0"
+                >
                   <Checkbox
                     checked={isIncluded(e)}
                     onCheckedChange={(v) => setPicked((m) => new Map(m).set(e.id, v === true))}
@@ -210,7 +278,8 @@ export function MemorySheet({
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate font-medium">{e.title}</span>
                     <span className="text-[11px] text-ink-2">
-                      {new Date(e.startsAt).getMonth() + 1}/{new Date(e.startsAt).getDate()} {e.allDay ? "終日" : formatTime(e.startsAt)}
+                      {new Date(e.startsAt).getMonth() + 1}/{new Date(e.startsAt).getDate()}{" "}
+                      {e.allDay ? "終日" : formatTime(e.startsAt)}
                       {other && !picked.has(e.id) && `・「${other.title}」に入っています`}
                     </span>
                   </span>
@@ -219,7 +288,11 @@ export function MemorySheet({
             })}
           </fieldset>
         )}
-        {leaving.length > 0 && <FieldMessage>期間から外れる予定: {leaving.map((e) => e.title).join("、")}。保存すると、この思い出には入らなくなります。</FieldMessage>}
+        {leaving.length > 0 && (
+          <FieldMessage>
+            期間から外れる予定: {leaving.map((e) => e.title).join("、")}。保存すると、この思い出には入らなくなります。
+          </FieldMessage>
+        )}
         <PanelRow>
           <span className="py-2">
             ひとコマ

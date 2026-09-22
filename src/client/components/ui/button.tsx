@@ -22,7 +22,7 @@ const buttonVariants = cva(
         /** 消す操作の文字。確認の画面を開く前のボタンに使う */
         danger: "text-sun hover:bg-field",
         /** 消す操作の主ボタン */
-        destructive: "bg-destructive text-white hover:bg-destructive/90",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         link: "text-ink underline underline-offset-4",
       },
       size: {

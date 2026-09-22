@@ -2,9 +2,7 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker.tsbuildinfo",
     "target": "ES2022",
-    "lib": [
-      "ES2023"
-    ],
+    "lib": ["ES2023"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
@@ -15,15 +13,19 @@
     "noEmit": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "types": [
-      "./worker-configuration.d.ts"
-    ]
+    "types": ["./worker-configuration.d.ts"],
+    "paths": {
+      "@shared/*": ["./src/shared/*"],
+      "@server/*": ["./src/server/*"],
+      "@extensions/*": ["./src/extensions/*"]
+    }
   },
   "include": [
     "src/server",
     "src/shared",
     "src/extensions/types.ts",
-    "src/extensions/registry.server.ts",
+    "src/extensions/server/types.ts",
+    "src/extensions/server/registry.ts",
     "src/extensions/*/manifest.ts",
     "src/extensions/*/server",
     "src/extensions/*/shared",

@@ -1,8 +1,9 @@
+import { HttpError } from "@server/core/app";
+import type { AvatarSigner } from "@server/core/avatar";
+import type { DB } from "@server/core/db/client";
+import { groupExtensions, groupMembers, groups, userSettings, users } from "@server/core/db/schema";
+import type { GroupSummary } from "@shared/api-types";
 import { and, eq, inArray } from "drizzle-orm";
-import type { GroupSummary } from "../../../shared/api-types";
-import { HttpError } from "../../core/app";
-import type { DB } from "../../core/db/client";
-import { groupExtensions, groupMembers, groups, userSettings, users } from "../../core/db/schema";
 
 /**
  * 利用者が入っているグループの ID を返す。
@@ -58,8 +59,9 @@ export async function requireMembership(db: DB, userId: string, groupId: string,
  *
  * @param db D1 を包んだ Drizzle
  * @param userId 利用者の ID
+ * @param signer アバターの写真の URL に署名する。#40。メンバーのアバターは、同じグループの人にだけ渡ることになる
  */
-export async function listGroups(db: DB, userId: string): Promise<GroupSummary[]> {
+export async function listGroups(db: DB, userId: string, signer: AvatarSigner): Promise<GroupSummary[]> {
   const mine = await db
     .select({ group: groups, role: groupMembers.role })
     .from(groupMembers)
@@ -74,6 +76,8 @@ export async function listGroups(db: DB, userId: string): Promise<GroupSummary[]
       name: users.name,
       role: groupMembers.role,
       userColor: userSettings.userColor,
+      avatarKind: userSettings.avatarKind,
+      avatarPhotoKey: userSettings.avatarPhotoKey,
     })
     .from(groupMembers)
     .innerJoin(users, eq(users.id, groupMembers.userId))
@@ -97,6 +101,13 @@ export async function listGroups(db: DB, userId: string): Promise<GroupSummary[]
         eq(groupExtensions.enabled, true),
       ),
     );
+  const avatarUrls = new Map(
+    await Promise.all(
+      [...new Map(members.map((m) => [m.id, m])).values()].map(
+        async (m) => [m.id, await signer.urlOf(m.id, m.avatarKind ?? "initial", m.avatarPhotoKey ?? null)] as const,
+      ),
+    ),
+  );
 
   return mine
     .map(({ group, role }) => ({
@@ -107,7 +118,13 @@ export async function listGroups(db: DB, userId: string): Promise<GroupSummary[]
       role,
       members: members
         .filter((m) => m.groupId === group.id)
-        .map((m) => ({ id: m.id, name: m.name, role: m.role, userColor: m.userColor ?? "wakatake" })),
+        .map((m) => ({
+          id: m.id,
+          name: m.name,
+          role: m.role,
+          userColor: m.userColor ?? "wakatake",
+          avatarUrl: avatarUrls.get(m.id) ?? null,
+        })),
       extensions: enabled.filter((e) => e.groupId === group.id).map((e) => e.key),
     }))
     .sort((a, b) => Number(b.isPersonal) - Number(a.isPersonal) || a.name.localeCompare(b.name, "ja"));

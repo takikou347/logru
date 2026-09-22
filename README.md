@@ -72,69 +72,139 @@ Auth エミュレーターが動いていなければ、テストの間だけ立
 `E2E_PORT` を変えれば、別のフォルダで同時にテストを流せる。例は git worktree で作業を並べるとき。
 ただし、同時に流すと Mac が重くなり、時間切れで落ちることがある。落ちたファイルだけを 1 つずつ流し直して、通るかを確かめる。
 
+## ブランチと出し方
+
+| ブランチ | 役割 | 入ると |
+| --- | --- | --- |
+| `main` | 本番 | CI が通った後、本番の `logru-production` に出る |
+| `develop` | 本番の手前。既定のブランチ | CI が通った後、staging の `logru-staging` に出る |
+| 作業のブランチ | 1 つの変更 | 何も出ない。PR の CI だけが走る |
+| `hotfix/*` | 本番の急ぎの直し | 何も出ない。main へ直接 PR を出せる |
+
+1. `develop` からブランチを切り、`develop` へ PR を出す
+2. CI が通ったらマージする。staging に出るので、`logru-staging` で動きを確かめる
+3. 本番に出すときは、`develop` から `main` へ PR を出し、「Create a merge commit」でマージする。squash や rebase にすると、develop と main の履歴がずれる
+4. `hotfix/*` を `main` に入れたら、`main` を `develop` にもマージして戻す
+
+`main` と `develop` は保護している。直接の push はできず、PR の CI の `check` と `branch-rule` が通らないとマージできない。
+`branch-rule` は、`main` への PR が `develop` か `hotfix/*` から来ているかを見る。
+
+出す処理は `.github/workflows/ci.yml` の `deploy` にある。組み立て、移行を当て、Worker を置き換える。
+出し直すときは、Actions の CI を「Run workflow」で `main` か `develop` を選んで流す。
+
+移行は新しいコードより先に当たる。置き換わるまでの少しの間、古いコードが新しい表の上で動く。
+このため 1 つの PR の移行では、列や表を足すだけにする。消すのは、コードが使わなくなった後の別の PR で行う。
+
+戻すときは次を使う。移行は戻らない。
+
+```bash
+CLOUDFLARE_ENV=production npx wrangler rollback
+```
+
+手元から出すこともできる。普段は使わない。
+
+```bash
+pnpm deploy:staging
+pnpm deploy:production
+```
+
 ## 本番に出す
 
-最初の 1 回だけ、次を行う。
+staging と本番で、最初の 1 回だけ次を行う。コマンドは `<環境>` を `staging` か `production` に置き換えて、それぞれで流す。
+
+| | staging | 本番 |
+| --- | --- | --- |
+| Worker | `logru-staging` | `logru-production` |
+| URL | `https://logru-staging.tkkwkut-400.workers.dev` | `https://logru-production.tkkwkut-400.workers.dev` |
+| D1 | `logru-staging` | `logru` |
+| R2（思い出） | `logru-memories-staging` | `logru-memories` |
+| R2（アバター） | `logru-avatars-staging` | `logru-avatars` |
+| Firebase | 本番と同じプロジェクト | |
+
+`tkkwkut-400` は、Cloudflare のアカウントの workers.dev のサブドメイン。独自ドメインは使わない。
+URL は `wrangler.jsonc` の `APP_URL` に書いてある。
 
 ### Firebase
 
+staging と本番で 1 つのプロジェクトを使う。作るのは 1 回だけ。
+
 1. Firebase のコンソールでプロジェクトを作る。料金は無料の Spark プランのままでよい
 2. Authentication の「ログイン方法」で、「メール / パスワード」と「Google」を有効にする
-3. Authentication の「設定」の「承認済みドメイン」に、本番の URL のドメインを足す。例は `logru-production.<アカウント>.workers.dev`
+3. Authentication の「設定」の「承認済みドメイン」に、`logru-staging.tkkwkut-400.workers.dev` と `logru-production.tkkwkut-400.workers.dev` を足す
 4. Authentication の「テンプレート」で、メールの言語を日本語にする
-5. 「プロジェクトの設定」でウェブアプリを足し、出てきた値を `.env.production` に書く。これらは画面に配られる値で、秘密ではない
+5. 「プロジェクトの設定」でウェブアプリを足し、出てきた値を `.env.production` に書く。これらは画面に配られる値で、秘密ではない。staging も同じ値で組み立てる
 
 ### Cloudflare
 
 1. `npx wrangler login` で Cloudflare にログインする
-2. `npx wrangler d1 create logru` でデータベースを作り、出てきた ID を `wrangler.jsonc` の `env.production` の `database_id` に書く
-3. `wrangler.jsonc` の `env.production.vars` の `APP_URL` を本番の URL に、`FIREBASE_PROJECT_ID` を Firebase のプロジェクト ID に書き換える
-4. 外部のカレンダーの URL を暗号にする鍵を置く。32 バイトの乱数を base64 にしたもの。`wrangler.jsonc` にある開発用の値は使わない
+2. データベースを作り、出てきた ID を `wrangler.jsonc` の `env.<環境>` の `database_id` に書く
 
    ```bash
-   openssl rand -base64 32 | npx wrangler secret put EXTERNAL_CALENDAR_KEY --env production
+   npx wrangler d1 create logru-staging
+   npx wrangler d1 create logru
    ```
 
-   鍵を変えると、登録済みの URL が読めなくなる。変えたら、登録し直してもらう
-
-5. 思い出の写真の置き場を作り、URL の署名の鍵を置く
+3. `wrangler.jsonc` の `env.<環境>.vars` の `FIREBASE_PROJECT_ID` を、Firebase のプロジェクト ID に書き換える
+4. ダッシュボードで R2 を有効にする。10GB までは無料だが、支払い方法の登録を求められる
+5. 思い出とアバターの写真の置き場を作る
 
    ```bash
+   npx wrangler r2 bucket create logru-memories-staging
    npx wrangler r2 bucket create logru-memories
-   openssl rand -base64 32 | npx wrangler secret put MEMORIES_PHOTO_KEY --env production
+   npx wrangler r2 bucket create logru-avatars-staging
+   npx wrangler r2 bucket create logru-avatars
    ```
 
-   鍵を変えると、配った写真の URL がすぐ切れる。画面を読み直せば新しい URL になる
+6. 鍵を置く。どれも 32 バイトの乱数を base64 にしたもの。環境ごとに別の値にし、`wrangler.jsonc` にある開発用の値は使わない
 
-6. 端末への知らせの VAPID の鍵の組を作る。公開鍵を `wrangler.jsonc` の `env.production.vars` の `VAPID_PUBLIC_KEY` に書き、秘密鍵を secret に置く
+   ```bash
+   openssl rand -base64 32 | npx wrangler secret put EXTERNAL_CALENDAR_KEY --env <環境>
+   openssl rand -base64 32 | npx wrangler secret put MEMORIES_PHOTO_KEY --env <環境>
+   openssl rand -base64 32 | npx wrangler secret put AVATAR_PHOTO_KEY --env <環境>
+   ```
+
+   外部のカレンダーの鍵を変えると、登録済みの URL が読めなくなる。変えたら、登録し直してもらう。
+   写真の鍵を変えると、配った写真の URL がすぐ切れる。画面を読み直せば新しい URL になる。アバターの鍵も同じ
+
+7. 端末への知らせの VAPID の鍵の組を、環境ごとに作る。公開鍵を `wrangler.jsonc` の `env.<環境>.vars` の `VAPID_PUBLIC_KEY` に書き、秘密鍵を secret に置く
 
    ```bash
    node -e 'const{generateKeyPairSync:g}=require("node:crypto");const k=g("ec",{namedCurve:"prime256v1"}).privateKey.export({format:"jwk"});console.log("public",Buffer.concat([Buffer.from([4]),Buffer.from(k.x,"base64url"),Buffer.from(k.y,"base64url")]).toString("base64url"));console.log("private",k.d)'
-   npx wrangler secret put VAPID_PRIVATE_KEY --env production
+   npx wrangler secret put VAPID_PRIVATE_KEY --env <環境>
    ```
 
    鍵を変えると、登録済みの端末に届かなくなる。変えたら、設定の画面で知らせを入れ直してもらう
 
+8. 4 つの鍵が置けたかを見る
+
+   ```bash
+   npx wrangler secret list --env <環境>
+   ```
+
 ログインの鍵は要らない。Worker は Google が公開している鍵で ID トークンを確かめる。
 
 Cron Triggers は 5 分おきに、外部のカレンダーの読み直し、ひとコマの知らせ、消した写真の片付けをする。
+外部のカレンダーを 1 回に読むのは、読みに行ってから時間のたった順に 5 つまで。登録が全部で 5 つを超えると、1 つあたりの間隔は 5 分より延びる。
 
-外部のカレンダーは、Cron Triggers で 5 分おきに読み直す。`wrangler.jsonc` の `triggers.crons` にある。
-1 回に読むのは、読みに行ってから時間のたった順に 5 つまで。登録が全部で 5 つを超えると、1 つあたりの間隔は 5 分より延びる。
+### GitHub
 
-その後は、次の 1 行で出す。移行を当ててから Worker を置き換える。
+GitHub の Settings の Environments に `staging` と `production` がある。`staging` は `develop` から、`production` は `main` からだけ使える。
+それぞれに次を置くと、自動で出るようになる。置くまでは、CI の `deploy` は出さずに成功で終わる。
 
-```bash
-pnpm run deploy
-```
+| 種類 | 名前 | 値 |
+| --- | --- | --- |
+| Secret | `CLOUDFLARE_API_TOKEN` | Cloudflare の API トークン。「Edit Cloudflare Workers」の雛形に「D1 の編集」を足して作る |
+| Secret | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare のアカウント ID |
+| Variable | `APP_URL` | その環境の URL。Actions の画面にリンクとして出るだけ |
 
-### 本番に出す前に確かめること
+### 出す前に確かめること
 
 - `.env.production` に `replace-me` が残っていると、ログインできない
 - `APP_URL` が `example` のままだと、招待リンクが壊れる
-- 承認済みドメインに本番のドメインが無いと、Google でのログインが断られる
+- 承認済みドメインにその環境のドメインが無いと、Google でのログインが断られる
 - `VAPID_PUBLIC_KEY` が `replace-me` のままだと、知らせを入れられない
-- `MEMORIES_PHOTO_KEY` を置いていないと、写真を配れない
+- `MEMORIES_PHOTO_KEY` を置いていないと、思い出の写真を配れない
+- `AVATAR_PHOTO_KEY` を置いていないと、アバターの写真を配れない。置いていなくてもアプリは落ちず、頭文字に戻る
 
 ## 規約を改めるとき
 
@@ -159,6 +229,19 @@ pnpm run deploy
 設定の画面に欄が要れば `ClientExtension` の `SettingsSection` に、定期の処理が要れば `ServerExtension` の `scheduled` に置く。
 カレンダーの「読み直す」を押したときに先にしておく仕事があれば、`ClientExtension` の `refresh` に置く。
 外部のカレンダーの拡張 `src/extensions/external-calendars/` が見本になる。
+
+### ホームのウィジェットを足すとき
+
+ホームは、拡張が `ClientExtension` の `widgets` に登録したものを並べる。0029
+
+1. `client/` にウィジェットの部品を作る。`HomeWidgetProps`(`size`、`editing`)だけを受け取り、中身は自分の hook で読む。
+   ホームは並べ方と大きさしか知らない。思い出の拡張の `src/extensions/memories/client/HomeWidget.tsx` が見本になる
+2. `ClientExtension` の `widgets` に 1 件足す。key は拡張の key を頭に付ける。例は `memories.shortcut`
+3. 選べる大きさ(`sizes`)、既定の大きさ(`defaultSize`)、初めて開いたときに置くか(`defaultPlaced`)を決める
+4. グループでその拡張を無効にすると、ウィジェットもホームから消える。有効に戻すと元の場所に戻るので、拡張の側で何もしなくてよい
+
+カレンダーの本体、選んだ日の予定、このあとは、拡張ではなくホームの土台のウィジェット。外せない・並べ替えの土台になる都合上、
+`src/client/modules/home/BaseWidgets.tsx` にあり、拡張の `widgets` とは別に扱う。
 
 ## ディレクトリ
 

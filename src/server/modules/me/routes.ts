@@ -1,22 +1,47 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, eq, inArray, ne } from "drizzle-orm";
-import type { Me, PushInfo } from "../../../shared/api-types";
-import { LEGAL_VERSIONS, type LegalDocument } from "../../../shared/legal";
+import { type AppEnv, createRouter, HttpError, validationHook } from "@server/core/app";
+import { missingAgreements, requireAgreement, requireUser } from "@server/core/auth/middleware";
+import {
+  AVATAR_MAX_BYTES,
+  AvatarSigner,
+  avatarKey,
+  cleanUpOldAvatar,
+  isJpeg,
+  randomAvatarToken,
+  verifyAvatarUrl,
+} from "@server/core/avatar";
+import type { DB } from "@server/core/db/client";
+import {
+  colorPrefs,
+  groupMembers,
+  groups,
+  homeLayouts,
+  legalAgreements,
+  memberVisibility,
+  pushSubscriptions,
+  userSettings,
+  users,
+} from "@server/core/db/schema";
+import { vapidKeys } from "@server/core/push/send";
+import { myGroupIds, sharesGroup } from "@server/modules/groups/membership";
+import type { HomeLayout, Me, PushInfo } from "@shared/api-types";
+import { LEGAL_VERSIONS, type LegalDocument } from "@shared/legal";
 import {
   agreementsInput,
   colorPrefInput,
   deleteAccountInput,
+  homeLayoutInput,
+  homeLayoutQuery,
   memberVisibilityInput,
   profileInput,
   pushSubscriptionInput,
   settingsInput,
-} from "../../../shared/schemas";
-import { HttpError, createRouter, validationHook } from "../../core/app";
-import { missingAgreements, requireAgreement, requireUser } from "../../core/auth/middleware";
-import type { DB } from "../../core/db/client";
-import { colorPrefs, groupMembers, groups, legalAgreements, memberVisibility, pushSubscriptions, userSettings, users } from "../../core/db/schema";
-import { vapidKeys } from "../../core/push/send";
-import { myGroupIds, sharesGroup } from "../groups/membership";
+} from "@shared/schemas";
+import { and, eq, inArray, ne } from "drizzle-orm";
+import type { Context } from "hono";
+
+/** アバターの写真の URL を作る。env の AVATAR_PHOTO_KEY を使う */
+const avatarSigner = (c: Context<AppEnv>) => new AvatarSigner(c.env.AVATAR_PHOTO_KEY);
 
 /**
  * 退会したときに消すグループと、退会を止めるグループを調べる。
@@ -29,7 +54,12 @@ import { myGroupIds, sharesGroup } from "../groups/membership";
  */
 async function planDeletion(db: DB, userId: string) {
   const mine = await db
-    .select({ groupId: groupMembers.groupId, role: groupMembers.role, isPersonal: groups.isPersonal, name: groups.name })
+    .select({
+      groupId: groupMembers.groupId,
+      role: groupMembers.role,
+      isPersonal: groups.isPersonal,
+      name: groups.name,
+    })
     .from(groupMembers)
     .innerJoin(groups, eq(groups.id, groupMembers.groupId))
     .where(eq(groupMembers.userId, userId));
@@ -57,6 +87,35 @@ function blockedMessage(blocked: string[]): string {
 
 /** `/api/me`。自分の情報、設定、色、同意、退会 */
 export const meRoutes = createRouter()
+  // アバターの写真を返す 1 本だけは、ID トークンの代わりに URL の署名を確かめる。`img` の要求にトークンを付けられないため。0021
+  .get("/avatar/:userId/:token", async (c) => {
+    const { userId, token } = c.req.param();
+    const ok = await verifyAvatarUrl(
+      c.env.AVATAR_PHOTO_KEY,
+      userId,
+      token,
+      Number(c.req.query("e")),
+      c.req.query("s") ?? "",
+    );
+    if (!ok) throw new HttpError(403, "写真の URL の期限が切れています。画面を読み直してください。");
+    const row = await c
+      .get("db")
+      .select({ avatarPhotoKey: userSettings.avatarPhotoKey })
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId))
+      .get();
+    // 置き直したか頭文字に戻していれば、古い token の URL はもう見せない
+    if (!row || row.avatarPhotoKey !== token) throw new HttpError(404, "写真が見つかりません。");
+    const object = await c.env.AVATAR_BUCKET.get(avatarKey(userId, token));
+    if (!object) throw new HttpError(404, "写真が見つかりません。");
+    return new Response(object.body, {
+      headers: {
+        "Content-Type": "image/jpeg",
+        "Cache-Control": "private, max-age=86400, immutable",
+        ETag: object.httpEtag,
+      },
+    });
+  })
   .use("*", requireUser)
   .get("/", async (c) => {
     const db = c.get("db");
@@ -69,9 +128,16 @@ export const meRoutes = createRouter()
       .select({ id: memberVisibility.targetUserId })
       .from(memberVisibility)
       .where(and(eq(memberVisibility.userId, me.id), eq(memberVisibility.hidden, true)));
+    const avatarUrl = await avatarSigner(c).urlOf(me.id, settings.avatarKind, settings.avatarPhotoKey);
     const body: Me = {
-      user: { id: me.id, name: me.name, email: me.email, image: me.image },
-      settings: { themeMode: settings.themeMode, accentColor: settings.accentColor, userColor: settings.userColor },
+      user: { id: me.id, name: me.name, email: me.email, image: me.image, avatarUrl },
+      settings: {
+        themeMode: settings.themeMode,
+        bgTheme: settings.bgTheme,
+        accentColor: settings.accentColor,
+        userColor: settings.userColor,
+        avatarKind: settings.avatarKind,
+      },
       needsAgreement: await missingAgreements(db, me.id),
       provider: me.provider,
       colorPrefs: prefs.map((p) => ({ targetType: p.targetType, targetId: p.targetId, color: p.color })),
@@ -89,6 +155,18 @@ export const meRoutes = createRouter()
     await c.get("db").insert(legalAgreements).values(rows).onConflictDoNothing();
     return c.body(null, 204);
   })
+  // ホームのウィジェットの並び。自分の画面だけ。F-28、0029
+  .get("/home-layout", zValidator("query", homeLayoutQuery, validationHook), async (c) => {
+    const { form } = c.req.valid("query");
+    const row = await c
+      .get("db")
+      .select({ widgets: homeLayouts.widgets })
+      .from(homeLayouts)
+      .where(and(eq(homeLayouts.userId, c.get("user").id), eq(homeLayouts.form, form)))
+      .get();
+    const body: HomeLayout = { widgets: row?.widgets ?? null };
+    return c.json(body);
+  })
   .get("/deletion", async (c) => {
     // 退会の前に、止める理由が無いかだけを確かめる。画面は Firebase のアカウントを消す前にこれを呼ぶ
     const { blocked } = await planDeletion(c.get("db"), c.get("user").id);
@@ -99,24 +177,37 @@ export const meRoutes = createRouter()
     const me = c.get("user");
     const { toDelete, blocked } = await planDeletion(db, me.id);
     if (blocked.length) throw new HttpError(409, blockedMessage(blocked), "ADMIN_REQUIRED");
+    // アバターの写真を消す前に、置いているかを見ておく。行は users を消すと外部キーで消える
+    const avatar = await db
+      .select({ avatarPhotoKey: userSettings.avatarPhotoKey })
+      .from(userSettings)
+      .where(eq(userSettings.userId, me.id))
+      .get();
     await db.batch([
       ...(toDelete.length
         ? [
             db.delete(groups).where(inArray(groups.id, toDelete)),
-            db.delete(colorPrefs).where(and(eq(colorPrefs.targetType, "group"), inArray(colorPrefs.targetId, toDelete))),
+            db
+              .delete(colorPrefs)
+              .where(and(eq(colorPrefs.targetType, "group"), inArray(colorPrefs.targetId, toDelete))),
           ]
         : []),
       db.delete(colorPrefs).where(and(eq(colorPrefs.targetType, "user"), eq(colorPrefs.targetId, me.id))),
       // 共有グループに残る予定などは、外部キーで作った人が空になる
       db.delete(users).where(eq(users.id, me.id)),
     ] as unknown as Parameters<typeof db.batch>[0]);
+    if (avatar?.avatarPhotoKey) await cleanUpOldAvatar(c.env.AVATAR_BUCKET, me.id, avatar.avatarPhotoKey);
     return c.body(null, 204);
   })
   // ここから下は、最新の規約に同意している人だけ
   .use("*", requireAgreement)
   .patch("/", zValidator("json", profileInput, validationHook), async (c) => {
     const { name } = c.req.valid("json");
-    await c.get("db").update(users).set({ name, updatedAt: new Date() }).where(eq(users.id, c.get("user").id));
+    await c
+      .get("db")
+      .update(users)
+      .set({ name, updatedAt: new Date() })
+      .where(eq(users.id, c.get("user").id));
     return c.json({ name });
   })
   .put("/settings", zValidator("json", settingsInput, validationHook), async (c) => {
@@ -128,7 +219,68 @@ export const meRoutes = createRouter()
       .onConflictDoUpdate({ target: userSettings.userId, set: values })
       .returning()
       .get();
-    return c.json({ themeMode: row.themeMode, accentColor: row.accentColor, userColor: row.userColor });
+    return c.json({
+      themeMode: row.themeMode,
+      bgTheme: row.bgTheme,
+      accentColor: row.accentColor,
+      userColor: row.userColor,
+    });
+  })
+  .put("/home-layout", zValidator("json", homeLayoutInput, validationHook), async (c) => {
+    const { form, widgets } = c.req.valid("json");
+    const values = { widgets, updatedAt: new Date() };
+    const row = await c
+      .get("db")
+      .insert(homeLayouts)
+      .values({ userId: c.get("user").id, form, ...values })
+      .onConflictDoUpdate({ target: [homeLayouts.userId, homeLayouts.form], set: values })
+      .returning({ widgets: homeLayouts.widgets })
+      .get();
+    return c.json({ widgets: row.widgets } satisfies HomeLayout);
+  })
+  // アバターに写真を置く。#40
+  .post("/avatar", async (c) => {
+    const db = c.get("db");
+    const me = c.get("user");
+    const form = await c.req.formData().catch(() => null);
+    const file = form?.get("photo");
+    if (!(file instanceof File)) throw new HttpError(400, "写真を送り直してください。");
+    if (file.size > AVATAR_MAX_BYTES) return c.json({ error: "写真が大きすぎます。" }, 413);
+    const bytes = await file.arrayBuffer();
+    if (!isJpeg(new Uint8Array(bytes))) throw new HttpError(400, "JPEG の写真だけを受け付けます。");
+    const prev = await db
+      .select({ avatarPhotoKey: userSettings.avatarPhotoKey })
+      .from(userSettings)
+      .where(eq(userSettings.userId, me.id))
+      .get();
+    const token = randomAvatarToken();
+    await c.env.AVATAR_BUCKET.put(avatarKey(me.id, token), bytes, { httpMetadata: { contentType: "image/jpeg" } });
+    const values = { avatarKind: "photo" as const, avatarPhotoKey: token, updatedAt: new Date() };
+    await db
+      .insert(userSettings)
+      .values({ userId: me.id, ...values })
+      .onConflictDoUpdate({ target: userSettings.userId, set: values });
+    // 置き直したときは、前の写真を消す。新しい写真は置け、DB も書き終わっているので、ここで失敗しても投げない
+    if (prev?.avatarPhotoKey) await cleanUpOldAvatar(c.env.AVATAR_BUCKET, me.id, prev.avatarPhotoKey);
+    return c.json({ avatarKind: "photo" as const, avatarUrl: await avatarSigner(c).url(me.id, token) }, 201);
+  })
+  // アバターを頭文字に戻す。置いていた写真は消す。#40
+  .delete("/avatar", async (c) => {
+    const db = c.get("db");
+    const me = c.get("user");
+    const prev = await db
+      .select({ avatarPhotoKey: userSettings.avatarPhotoKey })
+      .from(userSettings)
+      .where(eq(userSettings.userId, me.id))
+      .get();
+    const values = { avatarKind: "initial" as const, avatarPhotoKey: null, updatedAt: new Date() };
+    await db
+      .insert(userSettings)
+      .values({ userId: me.id, ...values })
+      .onConflictDoUpdate({ target: userSettings.userId, set: values });
+    // DB はもう頭文字に戻っているので、写真を消す失敗はここで投げない
+    if (prev?.avatarPhotoKey) await cleanUpOldAvatar(c.env.AVATAR_BUCKET, me.id, prev.avatarPhotoKey);
+    return c.json({ avatarKind: "initial" as const, avatarUrl: null });
   })
   .put("/colors/:type/:id", zValidator("json", colorPrefInput, validationHook), async (c) => {
     const db = c.get("db");
@@ -174,15 +326,30 @@ export const meRoutes = createRouter()
     await c
       .get("db")
       .delete(colorPrefs)
-      .where(and(eq(colorPrefs.userId, c.get("user").id), eq(colorPrefs.targetType, type), eq(colorPrefs.targetId, c.req.param("id"))));
+      .where(
+        and(
+          eq(colorPrefs.userId, c.get("user").id),
+          eq(colorPrefs.targetType, type),
+          eq(colorPrefs.targetId, c.req.param("id")),
+        ),
+      );
     return c.body(null, 204);
   })
   // 端末への知らせの送り先。F-23、0023
   .get("/push", async (c) => {
-    const rows = await c.get("db").select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, c.get("user").id));
+    const rows = await c
+      .get("db")
+      .select()
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.userId, c.get("user").id));
     const body: PushInfo = {
       publicKey: vapidKeys(c.env)?.publicKey ?? null,
-      devices: rows.map((r) => ({ id: r.id, endpoint: r.endpoint, userAgent: r.userAgent, createdAt: r.createdAt.getTime() })),
+      devices: rows.map((r) => ({
+        id: r.id,
+        endpoint: r.endpoint,
+        userAgent: r.userAgent,
+        createdAt: r.createdAt.getTime(),
+      })),
     };
     return c.json(body);
   })
@@ -190,12 +357,21 @@ export const meRoutes = createRouter()
     const db = c.get("db");
     const me = c.get("user");
     const input = c.req.valid("json");
-    const mine = await db.select({ id: pushSubscriptions.id, endpoint: pushSubscriptions.endpoint }).from(pushSubscriptions).where(eq(pushSubscriptions.userId, me.id));
+    const mine = await db
+      .select({ id: pushSubscriptions.id, endpoint: pushSubscriptions.endpoint })
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.userId, me.id));
     if (mine.length >= MAX_DEVICES && !mine.some((m) => m.endpoint === input.endpoint)) {
       throw new HttpError(409, `知らせを受ける端末は ${MAX_DEVICES} 台までです。使わない端末を外してください。`);
     }
     // 同じ送り先なら置き換える。別の人が同じ端末で登録し直したときも、今の人のものにする
-    const values = { userId: me.id, p256dh: input.keys.p256dh, auth: input.keys.auth, userAgent: input.userAgent ?? null, failedCount: 0 };
+    const values = {
+      userId: me.id,
+      p256dh: input.keys.p256dh,
+      auth: input.keys.auth,
+      userAgent: input.userAgent ?? null,
+      failedCount: 0,
+    };
     const row = await db
       .insert(pushSubscriptions)
       .values({ id: crypto.randomUUID(), endpoint: input.endpoint, ...values })

@@ -1,8 +1,8 @@
-import { Dot, FieldMessage, PanelRow } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import type { ItemEditorProps } from "@extensions/client/types";
+import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { DAY_MS, formatDay, formatTime, sameDay } from "@/lib/dates";
-import type { ItemEditorProps } from "../../types.client";
 
 /**
  * 項目の日時を、読むための文にする。
@@ -49,7 +49,10 @@ export function ExternalEventSheet({ target, onClose }: ItemEditorProps) {
           </span>
         </PanelRow>
       </div>
-      <FieldMessage>直すときは、Google カレンダーで直してください。5 分ほどで、ここにも出ます。すぐに出したいときは、カレンダーの画面の読み直しのボタンを押してください。</FieldMessage>
+      <FieldMessage>
+        直すときは、Google カレンダーで直してください。5
+        分ほどで、ここにも出ます。すぐに出したいときは、カレンダーの画面の読み直しのボタンを押してください。
+      </FieldMessage>
       <div className="flex justify-end">
         <Button type="button" variant="secondary" onClick={onClose}>
           閉じる

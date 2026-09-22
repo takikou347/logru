@@ -1,17 +1,17 @@
+import { ACCENT_COLORS, GROUP_COLORS } from "@shared/colors";
 import { Camera, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ACCENT_COLORS, GROUP_COLORS } from "../../../shared/colors";
-import { Chip } from "@/components/Chip";
-import { ColorSwatches } from "@/components/ColorSwatches";
-import { Field } from "@/components/Field";
-import { Dot, Empty, Panel, PanelRow } from "@/components/Panel";
-import { Pools } from "@/components/Pools";
-import { Segmented } from "@/components/Segmented";
-import { ShortcutLink } from "@/components/ShortcutBand";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Chip } from "@/components/parts/Chip";
+import { ColorSwatches } from "@/components/parts/ColorSwatches";
+import { Field } from "@/components/parts/Field";
+import { Dot, Empty, Panel, PanelRow } from "@/components/parts/Panel";
+import { Pools } from "@/components/parts/Pools";
+import { Segmented } from "@/components/parts/Segmented";
+import { ShortcutLink } from "@/components/parts/ShortcutBand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 
 /** 部品見本。開発のときだけ `/_components` に出す */
@@ -89,7 +89,15 @@ export function ComponentsPage() {
             ))}
           </ul>
         </ScrollArea>
-        <ShortcutLink shortcut={{ label: "14 時のひとコマ", sub: "箱根 1 泊・15:00 まで残せる", path: "/_components", action: "撮る", icon: Camera }} />
+        <ShortcutLink
+          shortcut={{
+            label: "14 時のひとコマ",
+            sub: "箱根 1 泊・15:00 まで残せる",
+            path: "/_components",
+            action: "撮る",
+            icon: Camera,
+          }}
+        />
       </Panel>
       <Panel title="知らせと空の状態">
         <Button variant="secondary" className="self-start" onClick={() => toast("予定を保存しました")}>

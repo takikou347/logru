@@ -68,13 +68,18 @@ test("予定を足すとき、重なる思い出に入れるか選べる。0020"
   await sheet.getByRole("radio", { name: "ふたり" }).click();
   await sheet.getByRole("switch", { name: "「鎌倉 散歩」に入れる" }).click();
   await expect(sheet.getByRole("switch", { name: "「鎌倉 散歩」に入れる" })).not.toBeChecked();
-  const excluded = page.waitForResponse((r) => /\/api\/memories\/[^/]+\/events\//.test(r.url()) && r.request().method() === "PUT");
+  const excluded = page.waitForResponse(
+    (r) => /\/api\/memories\/[^/]+\/events\//.test(r.url()) && r.request().method() === "PUT",
+  );
   await sheet.getByRole("button", { name: "保存する" }).click();
   expect((await excluded).status()).toBe(200);
   await expect(page.getByText("予定を足しました")).toBeVisible();
 
   await page.goto("/memories");
-  await page.getByRole("link", { name: /鎌倉 散歩/ }).first().click();
+  await page
+    .getByRole("link", { name: /鎌倉 散歩/ })
+    .first()
+    .click();
   const flow = page.getByRole("list", { name: "1 日の流れ" });
   await expect(flow.getByText("江ノ電")).toBeVisible();
   await expect(flow.getByText("仕事の電話")).toHaveCount(0);

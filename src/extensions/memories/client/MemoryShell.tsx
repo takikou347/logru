@@ -1,15 +1,15 @@
+import type { GroupSummary, Me } from "@shared/api-types";
 import { ChevronLeft, MoreHorizontal } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
-import type { GroupSummary, Me } from "../../../shared/api-types";
+import { ApiError } from "@/api/client";
+import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout } from "@/components/AppLayout";
-import { LoadFailure } from "@/components/Failure";
-import { Empty } from "@/components/Panel";
-import { ApiError } from "@/lib/api";
-import { Segmented } from "@/components/Segmented";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { LoadFailure } from "@/components/parts/Failure";
+import { Empty } from "@/components/parts/Panel";
+import { Segmented } from "@/components/parts/Segmented";
 import { Button } from "@/components/ui/button";
-import { useMe } from "@/lib/queries";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { dayIndexOf } from "../shared/days";
 import type { MemoryDetail } from "../shared/types";
@@ -33,13 +33,7 @@ export type ShellProps = { detail: MemoryDetail; me: Me; groups: GroupSummary[];
  * @param children 面の中身
  * @param side PC の右の列に置くもの
  */
-export function MemoryShell({
-  face,
-  children,
-}: {
-  face: Face;
-  children: (p: ShellProps) => ReactNode;
-}) {
+export function MemoryShell({ face, children }: { face: Face; children: (p: ShellProps) => ReactNode }) {
   const { id = "" } = useParams();
   const me = useMe();
   const { groups, ready } = useMemoryGroups();
@@ -110,5 +104,7 @@ export function MemoryRedirect() {
   if (detail.isPending) return <Loading />;
   if (!detail.data) return <Navigate to="/memories" replace />;
   const before = Date.now() < detail.data.memory.startsAt;
-  return <Navigate to={before ? `/memories/${id}/shiori` : `/memories/${id}/days/${todayIndex(detail.data)}`} replace />;
+  return (
+    <Navigate to={before ? `/memories/${id}/shiori` : `/memories/${id}/days/${todayIndex(detail.data)}`} replace />
+  );
 }

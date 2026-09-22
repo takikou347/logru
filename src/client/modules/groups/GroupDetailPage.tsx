@@ -1,25 +1,33 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { GroupMember, GroupSummary } from "@shared/api-types";
+import { GROUP_COLORS } from "@shared/colors";
 import { type FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
-import type { ExtensionInfo, GroupMember, GroupSummary } from "../../../shared/api-types";
-import { GROUP_COLORS } from "../../../shared/colors";
+import { useColorPref, useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/AppLayout";
-import { ColorSheet } from "@/components/ColorSheet";
-import { ColorSwatches } from "@/components/ColorSwatches";
-import { FailurePanel, LoadFailure } from "@/components/Failure";
-import { Field } from "@/components/Field";
-import { Dot, Empty, FieldMessage, Panel, PanelRow, RowButton } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { InitialAvatar } from "@/components/parts/Avatars";
+import { ColorSheet } from "@/components/parts/ColorSheet";
+import { ColorSwatches } from "@/components/parts/ColorSwatches";
+import { FailurePanel, LoadFailure } from "@/components/parts/Failure";
+import { Field } from "@/components/parts/Field";
+import { Dot, Empty, FieldMessage, Panel, PanelRow, RowButton } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { api } from "@/lib/api";
 import { groupColor, memberColor } from "@/lib/colors";
-import { useColorPref } from "@/lib/mutations";
-import { keys, useGroups, useMe } from "@/lib/queries";
 import { poolColorsOf } from "../calendar/model";
+import {
+  useCreateInvite,
+  useGroupExtensions,
+  useLeaveGroup,
+  useRenameGroup,
+  useRevokeInvites,
+  useToggleGroupExtension,
+  useUpdateGroupColor,
+  useUpdateMemberRole,
+} from "./api";
 
 type Invite = { url: string; expiresAt: number };
 type ColorTarget = { type: "group" | "user"; id: string; title: string; fallback: string };
@@ -33,18 +41,19 @@ export function GroupDetailPage() {
   const { id = "" } = useParams();
   const me = useMe();
   const groups = useGroups();
-  const qc = useQueryClient();
   const navigate = useNavigate();
   const colorPref = useColorPref();
+  const updateColor = useUpdateGroupColor(id);
+  const updateRole = useUpdateMemberRole(id);
+  const leaveGroup = useLeaveGroup(id);
+  const createInvite = useCreateInvite(id);
+  const revokeInvites = useRevokeInvites(id);
+  const toggleExtension = useToggleGroupExtension(id);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [colorTarget, setColorTarget] = useState<ColorTarget | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const group = groups.data?.find((g) => g.id === id);
-  const extensions = useQuery({
-    queryKey: keys.extensions(id),
-    queryFn: () => api<{ extensions: ExtensionInfo[] }>(`/groups/${id}/extensions`).then((r) => r.extensions),
-    enabled: Boolean(group && !group.isPersonal),
-  });
+  const extensions = useGroupExtensions(id, Boolean(group && !group.isPersonal));
 
   if (groups.isPending || me.isPending) return <Loading />;
   // 自分だけのグループは、グループとして見せない。直接開いたら一覧へ戻す。0009
@@ -80,11 +89,10 @@ export function GroupDetailPage() {
   const shown = groupColor(group, prefs);
   const adminCount = group.members.filter((m) => m.role === "admin").length;
 
-  /** 変更を送り、グループを読み直す。失敗したら知らせる */
+  /** 変更を送る。成功したら知らせ、失敗したら知らせて undefined を返す */
   async function run<T>(fn: () => Promise<T>, done?: string): Promise<T | undefined> {
     try {
       const result = await fn();
-      await qc.invalidateQueries({ queryKey: keys.groups });
       if (done) toast(done);
       return result;
     } catch (e) {
@@ -94,7 +102,7 @@ export function GroupDetailPage() {
   }
 
   async function makeInvite() {
-    const r = await run(() => api<Invite>(`/groups/${id}/invites`, { method: "POST" }));
+    const r = await run(() => createInvite.mutateAsync());
     if (r) setInvite(r);
   }
 
@@ -110,13 +118,12 @@ export function GroupDetailPage() {
 
   async function leave() {
     try {
-      await api(`/groups/${id}/members/me`, { method: "DELETE" });
+      await leaveGroup.mutateAsync();
     } catch (e) {
       setConfirmLeave(false);
       toast.error((e as Error).message);
       return;
     }
-    await qc.invalidateQueries();
     toast("グループを抜けました");
     navigate("/groups", { replace: true });
   }
@@ -124,18 +131,27 @@ export function GroupDetailPage() {
   const isCustom = (t: ColorTarget) => prefs.some((p) => p.targetType === t.type && p.targetId === t.id);
 
   return (
-    <AppLayout poolColors={[shown, ...poolColorsOf(groups.data ?? [], me.data).filter((c) => c !== shown)]} poolFocus={0}>
+    <AppLayout
+      poolColors={[shown, ...poolColorsOf(groups.data ?? [], me.data).filter((c) => c !== shown)]}
+      poolFocus={0}
+    >
       <Page>
         <PageBar title={group.name} back="/groups" />
 
         {admin && <RenameForm group={group} />}
 
         <Panel title="色">
-          <RowButton onClick={() => setColorTarget({ type: "group", id: group.id, title: "自分の画面での色", fallback: group.color })}>
+          <RowButton
+            onClick={() =>
+              setColorTarget({ type: "group", id: group.id, title: "自分の画面での色", fallback: group.color })
+            }
+          >
             <Dot color={shown} className="size-3" />
             <span className="flex-1">自分の画面での色</span>
             <span className="text-xs text-ink-2">
-              {isCustom({ type: "group", id: group.id, title: "", fallback: "" }) ? "自分だけ変えた" : "グループの色のまま"}
+              {isCustom({ type: "group", id: group.id, title: "", fallback: "" })
+                ? "自分だけ変えた"
+                : "グループの色のまま"}
             </span>
           </RowButton>
           {admin && (
@@ -145,7 +161,7 @@ export function GroupDetailPage() {
                 label="グループの色"
                 value={group.color}
                 options={GROUP_COLORS}
-                onChange={(color) => run(() => api(`/groups/${id}`, { method: "PATCH", body: { color } }), "グループの色を変えました")}
+                onChange={(color) => run(() => updateColor.mutateAsync(color), "グループの色を変えました")}
               />
             </div>
           )}
@@ -160,10 +176,12 @@ export function GroupDetailPage() {
                 isMe={m.id === myId}
                 color={memberColor(m.id, m.userColor, prefs)}
                 canManage={admin && !(m.role === "admin" && adminCount === 1)}
-                onColor={() => setColorTarget({ type: "user", id: m.id, title: `${m.name} の色`, fallback: m.userColor })}
+                onColor={() =>
+                  setColorTarget({ type: "user", id: m.id, title: `${m.name} の色`, fallback: m.userColor })
+                }
                 onRole={(role) =>
                   run(
-                    () => api(`/groups/${id}/members/${m.id}`, { method: "PATCH", body: { role } }),
+                    () => updateRole.mutateAsync({ memberId: m.id, role }),
                     role === "admin" ? `${m.name} を管理者にしました` : `${m.name} をメンバーに戻しました`,
                   )
                 }
@@ -176,7 +194,9 @@ export function GroupDetailPage() {
           <Panel title="招待">
             {invite ? (
               <>
-                <FieldMessage>このリンクを開いた人は、7 日のうちならグループに入れます。招待したい相手にだけ送ってください。</FieldMessage>
+                <FieldMessage>
+                  このリンクを開いた人は、7 日のうちならグループに入れます。招待したい相手にだけ送ってください。
+                </FieldMessage>
                 <Input readOnly value={invite.url} aria-label="招待リンク" onFocus={(e) => e.target.select()} />
                 <Button className="self-start" onClick={copy}>
                   コピーする
@@ -191,7 +211,7 @@ export function GroupDetailPage() {
               variant="ghost"
               className="self-start"
               onClick={() =>
-                run(() => api(`/groups/${id}/invites`, { method: "DELETE" }), "招待リンクをすべて取り消しました").then(() => setInvite(null))
+                run(() => revokeInvites.mutateAsync(), "招待リンクをすべて取り消しました").then(() => setInvite(null))
               }
             >
               招待リンクをすべて取り消す
@@ -216,11 +236,7 @@ export function GroupDetailPage() {
                   checked={x.enabled}
                   aria-label={x.label}
                   disabled={!admin}
-                  onCheckedChange={(enabled) =>
-                    run(() => api(`/groups/${id}/extensions/${x.key}`, { method: "PUT", body: { enabled } })).then(() =>
-                      qc.invalidateQueries({ queryKey: keys.extensions(id) }),
-                    )
-                  }
+                  onCheckedChange={(enabled) => run(() => toggleExtension.mutateAsync({ key: x.key, enabled }))}
                 />
               </PanelRow>
             ))
@@ -241,7 +257,10 @@ export function GroupDetailPage() {
       {colorTarget && (
         <ColorSheet
           title={colorTarget.title}
-          value={prefs.find((p) => p.targetType === colorTarget.type && p.targetId === colorTarget.id)?.color ?? colorTarget.fallback}
+          value={
+            prefs.find((p) => p.targetType === colorTarget.type && p.targetId === colorTarget.id)?.color ??
+            colorTarget.fallback
+          }
           isCustom={isCustom(colorTarget)}
           onPick={(color) => colorPref.mutate({ type: colorTarget.type, id: colorTarget.id, color })}
           onReset={() => colorPref.mutate({ type: colorTarget.type, id: colorTarget.id, color: null })}
@@ -267,7 +286,8 @@ export function GroupDetailPage() {
 }
 
 /**
- * メンバーの 1 行。左の丸で、自分の画面でのその人の色を変える。
+ * メンバーの 1 行。頭文字か置いた写真のアバターを出す。#40
+ * 左下の小さな丸を押すと、自分の画面でのその人の色を変えられる。
  * @param canManage 役割を変えられるか。最後の管理者は外せない
  */
 function MemberRow({
@@ -287,12 +307,15 @@ function MemberRow({
 }) {
   return (
     <div className="flex min-h-12 items-center gap-3 border-b border-line text-[15px] last:border-b-0">
-      <button
-        type="button"
-        className={`grid size-11 place-items-center rounded-full before:size-6 before:rounded-full before:bg-(--c) before:content-[''] c-${color}`}
-        aria-label={`${member.name} の色を変える`}
-        onClick={onColor}
-      />
+      <span className="relative inline-flex flex-none">
+        <InitialAvatar person={{ id: member.id, name: member.name, color, avatarUrl: member.avatarUrl }} size={40} />
+        <button
+          type="button"
+          className={`absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full bg-(--c) shadow-[0_0_0_2px_var(--glass-flat)] c-${color}`}
+          aria-label={`${member.name} の色を変える`}
+          onClick={onColor}
+        />
+      </span>
       <span className="flex-1">
         {member.name}
         {isMe && "（自分）"}
@@ -309,14 +332,13 @@ function MemberRow({
 
 /** グループの名前を変える。管理者だけに出す */
 function RenameForm({ group }: { group: GroupSummary }) {
-  const qc = useQueryClient();
+  const renameGroup = useRenameGroup(group.id);
   const [name, setName] = useState(group.name);
   const [error, setError] = useState<string | null>(null);
   async function submit(e: FormEvent) {
     e.preventDefault();
     try {
-      await api(`/groups/${group.id}`, { method: "PATCH", body: { name } });
-      await qc.invalidateQueries({ queryKey: keys.groups });
+      await renameGroup.mutateAsync(name);
       setError(null);
       toast("名前を変えました");
     } catch (err) {

@@ -1,4 +1,4 @@
-import { type APIRequestContext, type Page, expect } from "@playwright/test";
+import { type APIRequestContext, expect, type Page } from "@playwright/test";
 
 /** Firebase の Auth エミュレーター。.env.test と同じ値 */
 export const EMULATOR = "http://127.0.0.1:9099";
@@ -22,7 +22,11 @@ type OobCode = { email: string; requestType: "VERIFY_EMAIL" | "PASSWORD_RESET"; 
  * エミュレーターが送ったことにしたメールから、宛先に届いた最新のものを取り出す。
  * エミュレーターは本当には送らず、ここに控えを残す。
  */
-export async function latestOob(request: APIRequestContext, email: string, type: OobCode["requestType"]): Promise<OobCode> {
+export async function latestOob(
+  request: APIRequestContext,
+  email: string,
+  type: OobCode["requestType"],
+): Promise<OobCode> {
   let found: OobCode | undefined;
   await expect
     .poll(
@@ -39,7 +43,10 @@ export async function latestOob(request: APIRequestContext, email: string, type:
 }
 
 /** 登録の画面を埋めて送る。確認メールを開く前で止まる */
-export async function submitSignUp(page: Page, opts: { name?: string; email?: string; next?: string; agree?: boolean } = {}) {
+export async function submitSignUp(
+  page: Page,
+  opts: { name?: string; email?: string; next?: string; agree?: boolean } = {},
+) {
   const email = opts.email ?? uniqueEmail();
   const name = opts.name ?? "テスト";
   await page.goto(opts.next ? `/signup?next=${encodeURIComponent(opts.next)}` : "/signup");
@@ -117,7 +124,9 @@ export async function apiUser(request: APIRequestContext, { verified = true } = 
 
 /** 再設定のメールのコードで、パスワードを変える。Firebase の画面の代わり */
 export async function resetPassword(request: APIRequestContext, oobCode: string, newPassword: string) {
-  const res = await request.post(`${IDENTITY}/accounts:resetPassword?key=${API_KEY}`, { data: { oobCode, newPassword } });
+  const res = await request.post(`${IDENTITY}/accounts:resetPassword?key=${API_KEY}`, {
+    data: { oobCode, newPassword },
+  });
   expect(res.ok()).toBe(true);
 }
 

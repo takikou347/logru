@@ -5,7 +5,7 @@ const fakeAuth: { currentUser: { getIdToken: typeof getIdToken } | null } = { cu
 
 vi.mock("../../src/client/lib/firebase", () => ({ auth: fakeAuth }));
 
-const { ApiError, api, setApiFailureHandlers } = await import("../../src/client/lib/api");
+const { ApiError, api, setApiFailureHandlers } = await import("../../src/client/api/client");
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -24,7 +24,8 @@ describe("api", () => {
     getIdToken.mockReset();
   });
 
-  const authHeader = (call: number) => (fetchMock.mock.calls[call]![1]!.headers as Record<string, string>).Authorization;
+  const authHeader = (call: number) =>
+    (fetchMock.mock.calls[call]![1]!.headers as Record<string, string>).Authorization;
 
   it("ID トークンを Bearer で付ける", async () => {
     fetchMock.mockResolvedValueOnce(json(200, { ok: true }));
@@ -76,12 +77,18 @@ describe("api", () => {
   it("端末がオンラインなのに届かなければ、サーバーにつながらないと伝える", async () => {
     vi.stubGlobal("navigator", { onLine: true });
     fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
-    await expect(api("/me")).rejects.toMatchObject({ status: 0, message: expect.stringContaining("サーバーにつながりませんでした") });
+    await expect(api("/me")).rejects.toMatchObject({
+      status: 0,
+      message: expect.stringContaining("サーバーにつながりませんでした"),
+    });
   });
 
   it("500 以上で文が無ければ、サーバーの失敗と伝える", async () => {
     fetchMock.mockResolvedValueOnce(new Response("Bad Gateway", { status: 502 }));
-    await expect(api("/me")).rejects.toMatchObject({ status: 502, message: expect.stringContaining("サーバーでうまくいきませんでした") });
+    await expect(api("/me")).rejects.toMatchObject({
+      status: 502,
+      message: expect.stringContaining("サーバーでうまくいきませんでした"),
+    });
   });
 
   describe("アプリ全体で受ける失敗", () => {

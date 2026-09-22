@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PASSWORD, latestOob, logIn, logOut, resetPassword, signUp, submitSignUp } from "./helpers";
+import { latestOob, logIn, logOut, PASSWORD, resetPassword, signUp, submitSignUp } from "./helpers";
 
 test("ログインしていなければ、ログインの画面へ回す", async ({ page }) => {
   await page.goto("/settings");
@@ -67,7 +67,9 @@ test("パスワードが短いと登録できない", async ({ page }) => {
 test("登録し、確認メールを開くと、「自分だけの予定」で絞れるカレンダーが開く", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await expect(page).toHaveURL(/\/$|\/\?/);
-  await expect(page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "自分だけの予定" })).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "自分だけの予定" }),
+  ).toBeVisible();
   // 登録の画面で同意したので、同意の画面は出ない
   await expect(page.getByRole("heading", { name: "規約への同意" })).toHaveCount(0);
 });

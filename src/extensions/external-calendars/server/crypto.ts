@@ -52,7 +52,9 @@ function importKey(base64Key: string | undefined): Promise<CryptoKey> {
 export async function encryptText(plain: string, base64Key: string | undefined): Promise<string> {
   const key = await importKey(base64Key);
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plain)));
+  const sealed = new Uint8Array(
+    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plain)),
+  );
   const out = new Uint8Array(iv.length + sealed.length);
   out.set(iv);
   out.set(sealed, iv.length);

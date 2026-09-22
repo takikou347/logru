@@ -1,6 +1,6 @@
+import type { DB } from "@server/core/db/client";
 import { and, asc, inArray, isNull, lt } from "drizzle-orm";
-import type { DB } from "../../../server/core/db/client";
-import { memoryPhotoTrash, memoryPhotos } from "./schema";
+import { memoryPhotos, memoryPhotoTrash } from "./schema";
 
 /** 1 回の定期の処理で R2 から消す鍵の数 */
 const TRASH_PER_RUN = 100;
@@ -18,7 +18,9 @@ const ORPHAN_AGE_MS = 24 * 60 * 60 * 1000;
  * @param env Worker の環境変数
  */
 export async function cleanUpPhotos(db: DB, env: Env): Promise<void> {
-  await db.delete(memoryPhotos).where(and(isNull(memoryPhotos.recordId), lt(memoryPhotos.createdAt, new Date(Date.now() - ORPHAN_AGE_MS))));
+  await db
+    .delete(memoryPhotos)
+    .where(and(isNull(memoryPhotos.recordId), lt(memoryPhotos.createdAt, new Date(Date.now() - ORPHAN_AGE_MS))));
   const trash = await db.select().from(memoryPhotoTrash).orderBy(asc(memoryPhotoTrash.deletedAt)).limit(TRASH_PER_RUN);
   if (trash.length === 0) return;
   const keys = trash.map((t) => t.key);

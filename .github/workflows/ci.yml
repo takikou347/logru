@@ -1,9 +1,12 @@
 name: CI
 
+# develop に入ると staging へ、main に入ると本番へ出す。どちらも check が通ってから
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
+  # 同じ版を出し直すとき。main か develop を選んで流す
+  workflow_dispatch:
 
 jobs:
   check:
@@ -17,6 +20,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm biome ci .
       - run: pnpm typecheck
       - run: pnpm test
       # ubuntu の実行環境には Chrome が入っている。Playwright はそれを使う
@@ -29,3 +33,59 @@ jobs:
           name: playwright-report
           path: playwright-report
           retention-days: 7
+
+  # main へ入れてよいのは develop と hotfix/ だけ。ほかの PR は develop へ向ける
+  branch-rule:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: main への PR の元を確かめる
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        env:
+          HEAD: ${{ github.head_ref }}
+        run: |
+          case "$HEAD" in
+            develop|hotfix/*) echo "ok: $HEAD" ;;
+            *) echo "::error::main へは develop か hotfix/ からだけ入れる。この PR は develop へ向ける"; exit 1 ;;
+          esac
+
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request' && (github.ref_name == 'main' || github.ref_name == 'develop')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+      url: ${{ vars.APP_URL }}
+    # 同じ環境へは 1 つずつ出す。途中で止めると移行だけ当たった形になるので、走っている方は止めない
+    concurrency:
+      group: deploy-${{ github.ref_name }}
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_ENV: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      # 環境の準備が済むまでは、出さずに通す。準備は README の「本番に出す」
+      - name: 環境の準備を確かめる
+        id: ready
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::$CLOUDFLARE_ENV の CLOUDFLARE_API_TOKEN か CLOUDFLARE_ACCOUNT_ID が無いので、出さずに終える"
+          fi
+      - if: steps.ready.outputs.ready == 'true'
+        uses: actions/checkout@v4
+      - if: steps.ready.outputs.ready == 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.ready.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - if: steps.ready.outputs.ready == 'true'
+        run: pnpm install --frozen-lockfile
+      # 組み立て、移行を当て、Worker を置き換える。移行は新しいコードより先に当たる
+      - if: steps.ready.outputs.ready == 'true'
+        run: pnpm run deploy:run

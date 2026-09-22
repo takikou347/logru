@@ -1,11 +1,12 @@
 /** 思い出の画面で使い回す部品。見た目は 0024 */
+
+import type { GroupSummary, Me } from "@shared/api-types";
 import { Heart } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import type { GroupSummary, Me } from "../../../shared/api-types";
-import { AvatarStack, InitialAvatar } from "@/components/Avatars";
-import { Chip } from "@/components/Chip";
-import { SideHeading, sideItemClass } from "@/components/AppLayout";
-import { Dot } from "@/components/Panel";
+import { SideHeading, sideItemClass } from "@/components/layout/AppLayout";
+import { AvatarStack, InitialAvatar } from "@/components/parts/Avatars";
+import { Chip } from "@/components/parts/Chip";
+import { Dot } from "@/components/parts/Panel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { groupColor, memberColor } from "@/lib/colors";
 import { cn } from "@/lib/utils";
@@ -16,10 +17,23 @@ import { useLike } from "./api";
  * 写真。読み込むまでは 32 px の写真を広げて出し、画面に入ってから本物を読む。0024
  * @param size thumb は一覧、full は大きく見る画面
  */
-export function PhotoImg({ photo, size = "thumb", className, alt = "" }: { photo: Photo; size?: "thumb" | "full"; className?: string; alt?: string }) {
+export function PhotoImg({
+  photo,
+  size = "thumb",
+  className,
+  alt = "",
+}: {
+  photo: Photo;
+  size?: "thumb" | "full";
+  className?: string;
+  alt?: string;
+}) {
   const [loaded, setLoaded] = useState(false);
   return (
-    <span className={cn("relative block overflow-hidden bg-cover bg-center", className)} style={{ backgroundImage: `url(${photo.tiny})` }}>
+    <span
+      className={cn("relative block overflow-hidden bg-cover bg-center", className)}
+      style={{ backgroundImage: `url(${photo.tiny})` }}
+    >
       <img
         src={size === "full" ? photo.fullUrl : photo.thumbUrl}
         alt={alt}
@@ -59,7 +73,7 @@ export function authorOf(record: MemoryRecord, groups: GroupSummary[], me: Me) {
 /**
  * いいねのボタン。付けると朱にする。横に付けた人の頭文字を重ねる。F-116
  */
-export function LikeButton({ record, groups, me }: { record: MemoryRecord; groups: GroupSummary[]; me: Me }) {
+function LikeButton({ record, groups, me }: { record: MemoryRecord; groups: GroupSummary[]; me: Me }) {
   const like = useLike();
   const on = record.likes.includes(me.user.id);
   const group = groups.find((g) => g.id === record.groupId);
@@ -76,7 +90,8 @@ export function LikeButton({ record, groups, me }: { record: MemoryRecord; group
         onClick={() => like.mutate({ record, on: !on, me: me.user.id })}
         className={cn(
           "inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line pr-3 pl-2.5 text-[13px] font-bold text-ink-2",
-          on && "border-[color-mix(in_srgb,var(--sun)_35%,transparent)] bg-[color-mix(in_srgb,var(--sun)_10%,transparent)] text-sun",
+          on &&
+            "border-[color-mix(in_srgb,var(--sun)_35%,transparent)] bg-[color-mix(in_srgb,var(--sun)_10%,transparent)] text-sun",
         )}
       >
         <Heart className={cn("size-4", on && "fill-current")} aria-hidden="true" />
@@ -88,24 +103,46 @@ export function LikeButton({ record, groups, me }: { record: MemoryRecord; group
 }
 
 /** 記録の写真の並べ方。1 枚は大きく、2 枚は並べ、3 枚以上は左を大きく */
-export function PhotoGrid({ photos, onOpen, big = false }: { photos: Photo[]; onOpen?: (p: Photo) => void; big?: boolean }) {
+function PhotoGrid({ photos, onOpen, big = false }: { photos: Photo[]; onOpen?: (p: Photo) => void; big?: boolean }) {
   if (photos.length === 0) return null;
   const shown = photos.slice(0, 3);
   const rest = photos.length - shown.length;
   const cell = (p: Photo, i: number, cls: string) => (
-    <button key={p.id} type="button" className={cn("relative block", cls)} onClick={() => onOpen?.(p)} aria-label={`写真 ${i + 1} を大きく見る`}>
+    <button
+      key={p.id}
+      type="button"
+      className={cn("relative block", cls)}
+      onClick={() => onOpen?.(p)}
+      aria-label={`写真 ${i + 1} を大きく見る`}
+    >
       <PhotoImg photo={p} className="size-full" />
       {rest > 0 && i === shown.length - 1 && (
-        <span className="absolute inset-0 grid place-items-center bg-black/40 text-lg font-bold text-white">+{rest}</span>
+        <span className="absolute inset-0 grid place-items-center bg-black/40 text-lg font-bold text-white">
+          +{rest}
+        </span>
       )}
     </button>
   );
-  if (shown.length === 1) return <div className="overflow-hidden rounded-[17px]">{cell(shown[0]!, 0, cn("w-full", big ? "h-[300px]" : "h-[196px]"))}</div>;
+  if (shown.length === 1)
+    return (
+      <div className="overflow-hidden rounded-[17px]">
+        {cell(shown[0]!, 0, cn("w-full", big ? "h-[300px]" : "h-[196px]"))}
+      </div>
+    );
   if (shown.length === 2) {
-    return <div className="grid grid-cols-2 gap-[3px] overflow-hidden rounded-[17px]">{shown.map((p, i) => cell(p, i, big ? "h-[180px]" : "h-[124px]"))}</div>;
+    return (
+      <div className="grid grid-cols-2 gap-[3px] overflow-hidden rounded-[17px]">
+        {shown.map((p, i) => cell(p, i, big ? "h-[180px]" : "h-[124px]"))}
+      </div>
+    );
   }
   return (
-    <div className={cn("grid grid-cols-[2fr_1fr] gap-[3px] overflow-hidden rounded-[17px]", big ? "grid-rows-[130px_130px]" : "grid-rows-[88px_88px]")}>
+    <div
+      className={cn(
+        "grid grid-cols-[2fr_1fr] gap-[3px] overflow-hidden rounded-[17px]",
+        big ? "grid-rows-[130px_130px]" : "grid-rows-[88px_88px]",
+      )}
+    >
       {cell(shown[0]!, 0, "row-span-2")}
       {cell(shown[1]!, 1, "")}
       {cell(shown[2]!, 2, "")}
@@ -140,9 +177,15 @@ export function RecordBody({
       <div className="flex items-center gap-1.5 pt-1.5 text-xs font-bold">
         <InitialAvatar person={author} size={22} />
         {author.name}
-        {record.kind === "koma" && <span className="rounded-full bg-field px-1.5 text-[10px] text-ink-2">ひとコマ</span>}
+        {record.kind === "koma" && (
+          <span className="rounded-full bg-field px-1.5 text-[10px] text-ink-2">ひとコマ</span>
+        )}
         {mine && onEdit && (
-          <button type="button" className="ml-auto min-h-8 px-2 text-xs font-medium text-ink-2" onClick={() => onEdit(record)}>
+          <button
+            type="button"
+            className="ml-auto min-h-8 px-2 text-xs font-medium text-ink-2"
+            onClick={() => onEdit(record)}
+          >
             編集
           </button>
         )}
@@ -170,7 +213,12 @@ export function GroupFilter({
 }) {
   return (
     <nav className="-mx-4 lg:hidden" aria-label="グループで絞る">
-      <ScrollArea orientation="horizontal" className="px-4" viewportClassName="pb-1.5" scrollbarClassName="left-4! right-4!">
+      <ScrollArea
+        orientation="horizontal"
+        className="px-4"
+        viewportClassName="pb-1.5"
+        scrollbarClassName="left-4! right-4!"
+      >
         <div className="flex w-max gap-2">
           <Chip aria-pressed={value === null} onClick={() => onChange(null)}>
             すべて
@@ -206,7 +254,13 @@ export function SideGroupFilter({
         すべて
       </button>
       {groups.map((g) => (
-        <button key={g.id} type="button" className={sideItemClass} aria-pressed={value === g.id} onClick={() => onChange(value === g.id ? null : g.id)}>
+        <button
+          key={g.id}
+          type="button"
+          className={sideItemClass}
+          aria-pressed={value === g.id}
+          onClick={() => onChange(value === g.id ? null : g.id)}
+        >
           <Dot color={groupColor(g, me.colorPrefs)} />
           {g.isPersonal ? "自分だけ" : g.name}
         </button>

@@ -15,5 +15,9 @@ function subscribe(onChange: () => void): () => void {
  * つながり直したときの読み直しは、TanStack Query が自分でする。
  */
 export function useOnline(): boolean {
-  return useSyncExternalStore(subscribe, () => navigator.onLine, () => true);
+  return useSyncExternalStore(
+    subscribe,
+    () => navigator.onLine,
+    () => true,
+  );
 }

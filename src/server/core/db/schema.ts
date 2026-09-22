@@ -2,8 +2,10 @@
  * 土台の表。拡張の表は src/extensions/<名前>/server/schema.ts に置く。
  * 日時はすべてミリ秒の UTC で持つ。
  */
+
+import { createdAt, now, updatedAt } from "@server/core/db/columns";
+import type { HomeWidgetEntry } from "@shared/api-types";
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { createdAt, now, updatedAt } from "./columns";
 
 /** 利用者。ID は Firebase の利用者 ID。ログインの情報そのものは Firebase にある */
 export const users = sqliteTable("users", {
@@ -20,9 +22,21 @@ export const userSettings = sqliteTable("user_settings", {
   userId: text("user_id")
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
-  themeMode: text("theme_mode", { enum: ["system", "light", "dark"] }).notNull().default("system"),
+  themeMode: text("theme_mode", { enum: ["system", "light", "dark"] })
+    .notNull()
+    .default("system"),
+  /** 背景のテーマ。ガラスは奥を透かす、平らは透かさず塗る。#50 */
+  bgTheme: text("bg_theme", { enum: ["glass", "flat"] })
+    .notNull()
+    .default("glass"),
   accentColor: text("accent_color").notNull().default("aizumi"),
   userColor: text("user_color").notNull().default("wakatake"),
+  /** アバターの出し方。既定は頭文字。#40 */
+  avatarKind: text("avatar_kind", { enum: ["initial", "photo"] })
+    .notNull()
+    .default("initial"),
+  /** いま置いている写真の R2 の鍵の乱数の部分。置き直すたびに変わる。頭文字のときは空 */
+  avatarPhotoKey: text("avatar_photo_key"),
   updatedAt: updatedAt(),
 });
 
@@ -92,7 +106,9 @@ export const groupMembers = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: text("role", { enum: ["admin", "member"] }).notNull().default("member"),
+    role: text("role", { enum: ["admin", "member"] })
+      .notNull()
+      .default("member"),
     joinedAt: integer("joined_at", { mode: "timestamp_ms" }).notNull().default(now),
   },
   (t) => [primaryKey({ columns: [t.groupId, t.userId] }), index("group_members_user_idx").on(t.userId)],
@@ -125,6 +141,21 @@ export const groupExtensions = sqliteTable(
   (t) => [primaryKey({ columns: [t.groupId, t.extensionKey] })],
 );
 
+/** ホームのウィジェットの並び。自分の画面だけの設定。PC とスマホで別の行を持つ。F-28、0029 */
+export const homeLayouts = sqliteTable(
+  "home_layouts",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    form: text("form", { enum: ["desktop", "mobile"] }).notNull(),
+    /** key と大きさの並び。ウィジェットの中身は持たない */
+    widgets: text("widgets", { mode: "json" }).$type<HomeWidgetEntry[]>().notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.form] })],
+);
+
 /** 端末に知らせを届ける送り先。端末ごとに 1 行。1 人 10 台まで。F-23、0023 */
 export const pushSubscriptions = sqliteTable(
   "push_subscriptions",
@@ -143,4 +174,26 @@ export const pushSubscriptions = sqliteTable(
     createdAt: createdAt(),
   },
   (t) => [index("push_subscriptions_user_idx").on(t.userId)],
+);
+
+/**
+ * お知らせの一覧に積む 1 件。拡張が土台の notify() で積む。押した端末に知らせる push とは別物。#32
+ * kind は `<拡張の key>.<拡張が決めた名前>` の形にする。文言と行き先は、積んだ拡張の describeNotification が決める
+ */
+export const notifications = sqliteTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    payload: text("payload", { mode: "json" }).notNull(),
+    readAt: integer("read_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("notifications_user_created_idx").on(t.userId, t.createdAt),
+    index("notifications_user_unread_idx").on(t.userId, t.readAt),
+  ],
 );

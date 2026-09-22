@@ -1,10 +1,10 @@
 import { Camera } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Chip } from "@/components/Chip";
-import { LoadFailure } from "@/components/Failure";
+import { Chip } from "@/components/parts/Chip";
+import { LoadFailure } from "@/components/parts/Failure";
 import { Button } from "@/components/ui/button";
-import { useCalendar } from "@/lib/queries";
+import { useCalendar } from "@/modules/calendar/api";
 import { DAY_MS, memoryDays, startOfDayIn } from "../shared/days";
 import type { MemoryRecord } from "../shared/types";
 import { useMemoryList, useRecords } from "./api";

@@ -4,10 +4,10 @@
  * この types.server.ts は tsconfig.worker.json だけが読む。DB、Env、Hono<AppEnv> をそのまま使ってよい。
  */
 import type { Hono } from "hono";
-import type { CalendarItem } from "../shared/api-types";
-import type { AppEnv } from "../server/core/app";
-import type { DB } from "../server/core/db/client";
-import type { ExtensionManifest } from "./types";
+import type { CalendarItem } from "@shared/api-types";
+import type { AppEnv } from "@server/core/app";
+import type { DB } from "@server/core/db/client";
+import type { ExtensionManifest } from "../types";
 
 /** 項目を呼ぶ人。利用者ごとの拡張が、本人の項目だけを返すのに使う */
 export type CalendarContext = { userId: string };

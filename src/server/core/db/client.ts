@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/d1";
-import { extensionSchemas } from "../../../extensions/registry.server";
-import * as core from "./schema";
+import { extensionSchemas } from "@extensions/server/registry";
+import * as core from "@server/core/db/schema";
 
 /** 土台の表と、すべての拡張の表 */
 export const schema = { ...core, ...extensionSchemas };

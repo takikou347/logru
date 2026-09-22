@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { ResponsiveSheet } from "./ResponsiveSheet";
 import { useEnabledExtensions } from "@/lib/extensions";
-import { useGroups } from "@/lib/queries";
+import { useGroups } from "@/api/common";
 
 /**
  * スマホの機能のシート。下の操作の「機能」で開く。0019

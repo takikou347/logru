@@ -1,7 +1,7 @@
-import { Dot } from "@/components/Panel";
+import { Dot } from "@/components/parts/Panel";
 import { WEEKDAYS, dayTone, formatTime, holidayName, onDay } from "@/lib/dates";
 import { cn } from "@/lib/utils";
-import type { ViewItem } from "./model";
+import type { ViewItem } from "../model";
 
 /** 土日と祝日の文字の色。日曜と祝日は朱、土曜は瑠璃 */
 export const toneText = { sun: "text-sun", sat: "text-sat" } as const;

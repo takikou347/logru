@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { clientExtensions } from "../../../extensions/registry.client";
+import { clientExtensions } from "@extensions/client/registry";
 import { Button } from "@/components/ui/button";
-import { keys } from "@/lib/queries";
+import { keys } from "@/api/keys";
 import { isSessionExpired } from "@/lib/session-expired";
 import { cn } from "@/lib/utils";
 

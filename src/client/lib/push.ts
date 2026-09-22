@@ -2,8 +2,8 @@
  * この端末で、知らせを受けるかを切り替える。F-23、0023
  * 許可は、押したときにだけ求める。iPhone は、ホーム画面に足したときだけ届く。
  */
-import { api } from "./api";
-import type { PushInfo } from "../../shared/api-types";
+import { api } from "../api/client";
+import type { PushInfo } from "@shared/api-types";
 
 /** この端末で知らせを受けられるか。受けられない理由も返す */
 export function pushSupport(): { ok: true } | { ok: false; reason: string } {

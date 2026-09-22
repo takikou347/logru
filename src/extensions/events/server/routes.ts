@@ -1,10 +1,10 @@
 import { zValidator } from "@hono/zod-validator";
 import { and, eq, inArray } from "drizzle-orm";
-import { HttpError, createRouter, validationHook } from "../../../server/core/app";
-import { requireAgreement, requireUser } from "../../../server/core/auth/middleware";
-import type { DB } from "../../../server/core/db/client";
-import { groupMembers } from "../../../server/core/db/schema";
-import { requireMembership } from "../../../server/modules/groups/membership";
+import { HttpError, createRouter, validationHook } from "@server/core/app";
+import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import type { DB } from "@server/core/db/client";
+import { groupMembers } from "@server/core/db/schema";
+import { requireMembership } from "@server/modules/groups/membership";
 import { canDeleteEvent, canEditEvent, canRespond, diffAttendees, inviteeIds } from "../shared/permissions";
 import { eventInput, eventPatchInput, responseInput } from "../shared/schemas";
 import { loadAttendees, toCalendarItem } from "./provider";

@@ -1,8 +1,8 @@
 import { zValidator } from "@hono/zod-validator";
 import { and, asc, count, eq } from "drizzle-orm";
-import { HttpError, createRouter, isLocalDev, validationHook } from "../../../server/core/app";
-import { requireAgreement, requireUser } from "../../../server/core/auth/middleware";
-import type { DB } from "../../../server/core/db/client";
+import { HttpError, createRouter, isLocalDev, validationHook } from "@server/core/app";
+import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import type { DB } from "@server/core/db/client";
 import { type ExternalCalendarSummary, externalCalendarInput } from "../shared/schemas";
 import { MissingKeyError, decryptText, encryptText } from "./crypto";
 import { sampleIcs } from "./sample";

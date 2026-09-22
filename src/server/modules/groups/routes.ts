@@ -1,13 +1,13 @@
 import { zValidator } from "@hono/zod-validator";
 import { and, eq, isNull, ne } from "drizzle-orm";
-import type { ExtensionInfo } from "../../../shared/api-types";
-import { pickUnusedColor } from "../../../shared/colors";
-import { extensionToggleInput, groupInput, groupPatchInput, memberRoleInput } from "../../../shared/schemas";
-import { serverExtensions, toggleableExtensions } from "../../../extensions/registry.server";
-import { HttpError, createRouter, validationHook } from "../../core/app";
-import { requireAgreement, requireUser } from "../../core/auth/middleware";
-import { groupExtensions, groupInvites, groupMembers, groups } from "../../core/db/schema";
-import { listGroups, requireMembership } from "./membership";
+import type { ExtensionInfo } from "@shared/api-types";
+import { pickUnusedColor } from "@shared/colors";
+import { extensionToggleInput, groupInput, groupPatchInput, memberRoleInput } from "@shared/schemas";
+import { serverExtensions, toggleableExtensions } from "@extensions/server/registry";
+import { HttpError, createRouter, validationHook } from "@server/core/app";
+import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import { groupExtensions, groupInvites, groupMembers, groups } from "@server/core/db/schema";
+import { listGroups, requireMembership } from "@server/modules/groups/membership";
 
 /** 招待リンクの有効な期間。7 日 */
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;

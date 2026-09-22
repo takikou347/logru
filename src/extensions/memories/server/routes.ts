@@ -1,10 +1,10 @@
 import { zValidator } from "@hono/zod-validator";
 import { and, asc, count, desc, eq, inArray, max } from "drizzle-orm";
 import type { Context } from "hono";
-import { type AppEnv, HttpError, createRouter, validationHook } from "../../../server/core/app";
-import { requireAgreement, requireUser } from "../../../server/core/auth/middleware";
-import type { DB } from "../../../server/core/db/client";
-import { groupMembers } from "../../../server/core/db/schema";
+import { type AppEnv, HttpError, createRouter, validationHook } from "@server/core/app";
+import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import type { DB } from "@server/core/db/client";
+import { groupMembers } from "@server/core/db/schema";
 import { MAX_MEMORY_DAYS, addDaysToKey, dayKeyIn, startOfDayIn } from "../shared/days";
 import {
   PHOTO_LIMITS,

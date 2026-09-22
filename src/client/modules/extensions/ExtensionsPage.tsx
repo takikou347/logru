@@ -1,19 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { Link } from "react-router";
-import { toast } from "sonner";
-import type { ExtensionOverview } from "../../../shared/api-types";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/AppLayout";
-import { LoadFailure } from "@/components/Failure";
-import { Dot, Empty, FieldMessage, Panel } from "@/components/Panel";
+import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { LoadFailure } from "@/components/parts/Failure";
+import { Dot, Empty, FieldMessage, Panel } from "@/components/parts/Panel";
 import { Switch } from "@/components/ui/switch";
-import { api } from "@/lib/api";
 import { groupColor } from "@/lib/colors";
-import { keys, useGroups, useMe } from "@/lib/queries";
+import { useGroups, useMe } from "@/api/common";
 import { poolColorsOf } from "../calendar/model";
-
-type Overview = { extensions: ExtensionOverview[]; personalGroupId: string | null };
+import { useExtensionOverview, useToggleExtension } from "./api";
 
 /**
  * 機能の一覧。拡張ごとに、自分が使うかを切り替える。F-24、0019
@@ -24,16 +19,8 @@ type Overview = { extensions: ExtensionOverview[]; personalGroupId: string | nul
 export function ExtensionsPage() {
   const me = useMe();
   const groups = useGroups();
-  const qc = useQueryClient();
-  const overview = useQuery({ queryKey: keys.extensionOverview, queryFn: () => api<Overview>("/extensions") });
-  const toggle = useMutation({
-    mutationFn: ({ key, enabled }: { key: string; enabled: boolean }) =>
-      api(`/groups/${overview.data?.personalGroupId}/extensions/${key}`, { method: "PUT", body: { enabled } }),
-    onSuccess: (_r, v) => toast(v.enabled ? "使えるようにしました" : "使わないようにしました"),
-    onError: (e) => toast.error((e as Error).message),
-    // 入口の出し分けはグループの有効な拡張で決まるので、グループも読み直す
-    onSettled: () => Promise.all([qc.invalidateQueries({ queryKey: keys.extensionOverview }), qc.invalidateQueries({ queryKey: keys.groups })]),
-  });
+  const overview = useExtensionOverview();
+  const toggle = useToggleExtension(overview.data?.personalGroupId ?? undefined);
 
   if (overview.isPending || !me.data) return <Loading />;
   const list = overview.data?.extensions ?? [];

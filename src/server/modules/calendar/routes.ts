@@ -1,14 +1,14 @@
 import { zValidator } from "@hono/zod-validator";
 import { and, eq, inArray } from "drizzle-orm";
-import type { CalendarItem } from "../../../shared/api-types";
-import { calendarQuery } from "../../../shared/schemas";
-import { serverExtensions } from "../../../extensions/registry.server";
-import type { CalendarContext } from "../../../extensions/types.server";
-import { createRouter, validationHook } from "../../core/app";
-import { requireAgreement, requireUser } from "../../core/auth/middleware";
-import type { DB } from "../../core/db/client";
-import { groupExtensions, groupMembers, groups } from "../../core/db/schema";
-import { myGroupIds } from "../groups/membership";
+import type { CalendarItem } from "@shared/api-types";
+import { calendarQuery } from "@shared/schemas";
+import { serverExtensions } from "@extensions/server/registry";
+import type { CalendarContext } from "@extensions/server/types";
+import { createRouter, validationHook } from "@server/core/app";
+import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import type { DB } from "@server/core/db/client";
+import { groupExtensions, groupMembers, groups } from "@server/core/db/schema";
+import { myGroupIds } from "@server/modules/groups/membership";
 
 /**
  * 期間とグループを受け取り、有効な拡張の項目をまとめて日時の順に返す。0008

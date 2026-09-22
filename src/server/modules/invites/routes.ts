@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
-import type { InviteInfo } from "../../../shared/api-types";
-import { HttpError, createRouter } from "../../core/app";
-import { requireAgreement, requireUser } from "../../core/auth/middleware";
-import type { DB } from "../../core/db/client";
-import { groupInvites, groupMembers, groups } from "../../core/db/schema";
+import type { InviteInfo } from "@shared/api-types";
+import { HttpError, createRouter } from "@server/core/app";
+import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import type { DB } from "@server/core/db/client";
+import { groupInvites, groupMembers, groups } from "@server/core/db/schema";
 
 /**
  * 招待リンクを探し、使えない理由があれば添えて返す。

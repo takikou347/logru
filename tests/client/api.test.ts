@@ -5,7 +5,7 @@ const fakeAuth: { currentUser: { getIdToken: typeof getIdToken } | null } = { cu
 
 vi.mock("../../src/client/lib/firebase", () => ({ auth: fakeAuth }));
 
-const { ApiError, api, setApiFailureHandlers } = await import("../../src/client/lib/api");
+const { ApiError, api, setApiFailureHandlers } = await import("../../src/client/api/client");
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });

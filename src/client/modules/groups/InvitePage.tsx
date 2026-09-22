@@ -1,15 +1,13 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import type { InviteInfo } from "../../../shared/api-types";
 import { needsEmailVerification, useAuth } from "@/app/auth";
 import { Loading } from "@/app/guards";
-import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/AuthShell";
+import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/layout/AuthShell";
 import { Button } from "@/components/ui/button";
-import { ApiError, api } from "@/lib/api";
-import { keys } from "@/lib/queries";
+import { ApiError } from "@/api/client";
 import { postAgreement } from "@/modules/auth/AgreePage";
 import { takeRememberedAgreement } from "@/modules/auth/pending-agreement";
+import { useAcceptInvite, useInviteInfo } from "./api";
 
 /**
  * 招待リンクを開いた画面。ログインしていなくても、どのグループへの招待かは見られる。F-12
@@ -18,22 +16,20 @@ import { takeRememberedAgreement } from "@/modules/auth/pending-agreement";
 export function InvitePage() {
   const { token = "" } = useParams();
   const { user, ready } = useAuth();
-  const qc = useQueryClient();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const info = useQuery({ queryKey: keys.invite(token), queryFn: () => api<InviteInfo>(`/invites/${token}`) });
+  const info = useInviteInfo(token);
+  const acceptInvite = useAcceptInvite(token);
+  const busy = acceptInvite.isPending;
   const here = encodeURIComponent(`/invite/${token}`);
   const signedIn = user !== null && !needsEmailVerification(user);
 
   async function accept() {
-    setBusy(true);
     setError(null);
     try {
       // 登録の画面で同意して、そのまま招待に戻ってきたとき。先に同意を送る
       if (takeRememberedAgreement(user?.email)) await postAgreement();
-      const { groupId } = await api<{ groupId: string }>(`/invites/${token}/accept`, { method: "POST" });
-      await qc.invalidateQueries();
+      const { groupId } = await acceptInvite.mutateAsync();
       navigate(`/?group=${groupId}`, { replace: true });
     } catch (e) {
       // 規約に同意していなければ、同意してからこの画面に戻す
@@ -42,7 +38,6 @@ export function InvitePage() {
         return;
       }
       setError((e as Error).message);
-      setBusy(false);
     }
   }
 

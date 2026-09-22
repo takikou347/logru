@@ -3,7 +3,7 @@
  * 日時はすべてミリ秒の UTC で持つ。
  */
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { createdAt, now, updatedAt } from "./columns";
+import { createdAt, now, updatedAt } from "@server/core/db/columns";
 
 /** 利用者。ID は Firebase の利用者 ID。ログインの情報そのものは Firebase にある */
 export const users = sqliteTable("users", {

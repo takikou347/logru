@@ -2,26 +2,25 @@ import { BookOpen } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import type { GroupSummary, Me } from "../../../shared/api-types";
-import { Chip } from "@/components/Chip";
-import { Field } from "@/components/Field";
-import { Dot, FieldMessage, PanelRow } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import type { GroupSummary, Me } from "@shared/api-types";
+import { Chip } from "@/components/parts/Chip";
+import { Field } from "@/components/parts/Field";
+import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatTime } from "@/lib/dates";
-import { useCalendar } from "@/lib/queries";
-import type { CalendarItem } from "../../../shared/api-types";
+import { useCalendar } from "@/modules/calendar/api";
+import type { CalendarItem } from "@shared/api-types";
 import { memoryOfEvent, overlaps } from "../shared/links";
 import { startOfDayIn } from "../shared/days";
-import { api } from "@/lib/api";
 import { groupColor } from "@/lib/colors";
 import { dateKey } from "@/lib/dates";
 import { addDaysToKey, daysBetween, dayKeyIn, MAX_MEMORY_DAYS } from "../shared/days";
 import type { Memory } from "../shared/types";
-import { useInvalidateMemories, useMemoryList, useSaveMemory } from "./api";
+import { useDeleteMemory, useInvalidateMemories, useLinkEventToMemory, useMemoryList, useSaveMemory } from "./api";
 
 /** 端末の時間帯の名前 */
 const deviceTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Tokyo";
@@ -58,6 +57,8 @@ export function MemorySheet({
   const navigate = useNavigate();
   const save = useSaveMemory();
   const invalidate = useInvalidateMemories();
+  const linkEvent = useLinkEventToMemory();
+  const deleteMemory = useDeleteMemory();
   const shared = groups.filter((g) => !g.isPersonal);
   const personal = groups.find((g) => g.isPersonal);
   const tz = memory?.timeZone ?? deviceTimeZone();
@@ -109,7 +110,7 @@ export function MemorySheet({
       const saved = await save.mutateAsync({ id: memory?.id, body });
       // ほかの思い出に入っていた予定を、ここで入れると決めたら、前の思い出から外す。予定は 1 つの思い出にだけ入る
       const moved = events.filter((e) => picked.get(e.id) === true && takenBy(e));
-      await Promise.all(moved.map((e) => api(`/memories/${takenBy(e)!.id}/events/${e.id}`, { method: "PUT", body: { included: false } })));
+      await Promise.all(moved.map((e) => linkEvent.mutateAsync({ memoryId: takenBy(e)!.id, itemId: e.id, included: false })));
       if (moved.length) await invalidate();
       toast(memory ? "思い出を保存しました" : "思い出を作りました");
       onClose();
@@ -122,7 +123,7 @@ export function MemorySheet({
   async function remove() {
     if (!memory) return;
     try {
-      await api(`/memories/${memory.id}`, { method: "DELETE" });
+      await deleteMemory.mutateAsync(memory.id);
       await invalidate();
       toast("思い出を削除しました。記録と写真は残っています");
       onClose();

@@ -1,11 +1,11 @@
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { type FormEvent, useState } from "react";
-import { Field } from "@/components/Field";
-import { OrDivider } from "@/components/AuthShell";
+import { Field } from "@/components/parts/Field";
+import { OrDivider } from "@/components/layout/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { auth } from "@/lib/firebase";
-import { forgetAgreement, rememberAgreement } from "./pending-agreement";
+import { forgetAgreement, rememberAgreement } from "../pending-agreement";
 
 const DEV_PASSWORD = "dev-password-123";
 

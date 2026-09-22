@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { decryptText, encryptText } from "../../src/extensions/external-calendars/server/crypto";
-import { parseIcs, wallTimeToUtc } from "../../src/extensions/external-calendars/server/ics";
-import { fetchIcs, normalizeCalendarUrl, syncWindow } from "../../src/extensions/external-calendars/server/sync";
+import { decryptText, encryptText } from "@extensions/external-calendars/server/crypto";
+import { parseIcs, wallTimeToUtc } from "@extensions/external-calendars/server/ics";
+import { fetchIcs, normalizeCalendarUrl, syncWindow } from "@extensions/external-calendars/server/sync";
 import wrangler from "../../wrangler.jsonc?raw";
 import allDay from "./fixtures/all-day.ics?raw";
 import oldRecurring from "./fixtures/old-recurring.ics?raw";

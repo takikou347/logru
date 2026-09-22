@@ -1,4 +1,4 @@
-import type { Attendee, AttendeeResponse, CalendarItem, GroupSummary, Me } from "../../../shared/api-types";
+import type { Attendee, AttendeeResponse, CalendarItem, GroupSummary, Me } from "@shared/api-types";
 import { groupColor, memberColor } from "@/lib/colors";
 
 /** 項目の参加者を、名前と色を付けて画面で使う形にしたもの。#28 */

@@ -2,10 +2,10 @@
  * サーバー側の拡張の一覧。拡張を足すときは、ここに 1 行足す。
  * 表の定義は db/client.ts が、API は server/index.ts が、項目は calendar モジュールがここから読む。
  */
-import { eventsServer } from "./events/server";
-import { externalCalendarsServer } from "./external-calendars/server";
-import { memoriesServer } from "./memories/server";
-import type { ServerExtension } from "./types.server";
+import { eventsServer } from "@extensions/events/server/index";
+import { externalCalendarsServer } from "@extensions/external-calendars/server/index";
+import { memoriesServer } from "@extensions/memories/server/index";
+import type { ServerExtension } from "./types";
 
 /** すべての拡張。並びはカレンダーの項目の並びに影響しない */
 export const serverExtensions: ServerExtension[] = [eventsServer, externalCalendarsServer, memoriesServer];

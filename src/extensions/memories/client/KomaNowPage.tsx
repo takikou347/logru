@@ -4,20 +4,19 @@ import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Loading } from "@/app/guards";
-import { AppLayout } from "@/components/AppLayout";
-import { InitialAvatar } from "@/components/Avatars";
-import { LoadFailure } from "@/components/Failure";
-import { FieldMessage } from "@/components/Panel";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { InitialAvatar } from "@/components/parts/Avatars";
+import { LoadFailure } from "@/components/parts/Failure";
+import { FieldMessage } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/api";
 import { memberColor } from "@/lib/colors";
 import { auth } from "@/lib/firebase";
-import { useMe } from "@/lib/queries";
+import { useMe } from "@/api/common";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { useInvalidateMemories, useMemoryGroups } from "./api";
 import { preparePhoto, uploadPhoto } from "./image";
-import { deviceTimeZone, komaKeys, useKomaNow } from "./koma-api";
+import { deviceTimeZone, komaKeys, useKomaNow, useSaveKomaDay, useSaveKomaNow } from "./koma-api";
 import { KomaLinkSheet } from "./KomaLinkSheet";
 import { Ambient, PhotoImg } from "./parts";
 
@@ -32,6 +31,8 @@ export function KomaNowPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const invalidate = useInvalidateMemories();
+  const saveKomaNow = useSaveKomaNow();
+  const saveKomaDay = useSaveKomaDay();
   const camera = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<{ url: string; file: File } | null>(null);
   const [word, setWord] = useState("");
@@ -53,7 +54,7 @@ export function KomaNowPage() {
     try {
       const prepared = await preparePhoto(preview.file);
       const photo = await uploadPhoto(data.groupId, prepared, await auth.currentUser?.getIdToken(), () => undefined);
-      await api("/memories/koma", { method: "PUT", body: { photoId: photo.id, slot: slot.start, body: word.trim() || null } });
+      await saveKomaNow.mutateAsync({ photoId: photo.id, slot: slot.start, body: word.trim() || null });
       await Promise.all([invalidate(), qc.invalidateQueries({ queryKey: komaKeys.now })]);
       toast(`${slot.hour} 時のひとコマを保存しました`);
       navigate(data.memory ? `/memories/${data.memory.id}` : "/memories/koma", { replace: true });
@@ -66,7 +67,7 @@ export function KomaNowPage() {
 
   async function mute() {
     if (!data?.groupId) return;
-    await api(`/memories/koma/days/${data.day}`, { method: "PUT", body: { groupId: data.groupId, memoryId: data.memory?.id ?? null, timeZone: deviceTimeZone(), muted: !data.muted } });
+    await saveKomaDay.mutateAsync({ day: data.day, groupId: data.groupId, memoryId: data.memory?.id ?? null, timeZone: deviceTimeZone(), muted: !data.muted });
     await qc.invalidateQueries({ queryKey: komaKeys.now });
     toast(data.muted ? "今日の通知をオンにしました" : "今日の通知をオフにしました");
   }

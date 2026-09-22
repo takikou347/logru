@@ -1,10 +1,10 @@
 /** ひとコマの API と、知らせを送る定期の処理。0022、0023 */
 import { zValidator } from "@hono/zod-validator";
 import { and, desc, eq, gt, gte, inArray, lt, lte, ne } from "drizzle-orm";
-import { HttpError, createRouter, validationHook } from "../../../server/core/app";
-import type { DB } from "../../../server/core/db/client";
-import { groupExtensions, groupMembers } from "../../../server/core/db/schema";
-import { sendPush } from "../../../server/core/push/send";
+import { HttpError, createRouter, validationHook } from "@server/core/app";
+import type { DB } from "@server/core/db/client";
+import { groupExtensions, groupMembers } from "@server/core/db/schema";
+import { sendPush } from "@server/core/push/send";
 import { memoriesManifest } from "../manifest";
 import { DAY_MS, addDaysToKey, dayIndexOf, dayKeyIn, hourIn, startOfDayIn } from "../shared/days";
 import { KOMA_FIRST_HOUR, openSlots, slotAt } from "../shared/koma";

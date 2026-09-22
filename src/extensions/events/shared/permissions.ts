@@ -1,4 +1,4 @@
-import type { Attendee } from "../../../shared/api-types";
+import type { Attendee } from "@shared/api-types";
 
 /** 予定の、誰ができるかを決めるのに要るところ */
 type EventAccess = { createdBy: string | null; attendees?: Pick<Attendee, "userId">[] };

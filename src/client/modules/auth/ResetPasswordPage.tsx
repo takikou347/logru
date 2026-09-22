@@ -1,9 +1,9 @@
 import { FirebaseError } from "firebase/app";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { type FormEvent, useState } from "react";
-import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/AuthShell";
-import { BackLink } from "@/components/BackLink";
-import { Field } from "@/components/Field";
+import { AuthCard, AuthShell, AuthText, AuthTitle, Notice } from "@/components/layout/AuthShell";
+import { BackLink } from "@/components/parts/BackLink";
+import { Field } from "@/components/parts/Field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authErrorMessage } from "@/lib/auth-errors";

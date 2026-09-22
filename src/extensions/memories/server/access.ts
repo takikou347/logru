@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { HttpError } from "../../../server/core/app";
-import type { DB } from "../../../server/core/db/client";
-import { groupExtensions, groupMembers, groups } from "../../../server/core/db/schema";
+import { HttpError } from "@server/core/app";
+import type { DB } from "@server/core/db/client";
+import { groupExtensions, groupMembers, groups } from "@server/core/db/schema";
 import { memoriesManifest } from "../manifest";
 
 /**

@@ -1,9 +1,9 @@
 import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from "firebase/auth";
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { AuthCard, AuthShell, AuthTitle, Notice } from "@/components/AuthShell";
-import { BackLink } from "@/components/BackLink";
-import { Field } from "@/components/Field";
+import { AuthCard, AuthShell, AuthTitle, Notice } from "@/components/layout/AuthShell";
+import { BackLink } from "@/components/parts/BackLink";
+import { Field } from "@/components/parts/Field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";

@@ -1,22 +1,23 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Notice } from "@/components/AuthShell";
-import { Chip } from "@/components/Chip";
-import { Field } from "@/components/Field";
-import { Dot, FieldMessage, PanelRow } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { Notice } from "@/components/layout/AuthShell";
+import { Chip } from "@/components/parts/Chip";
+import { Field } from "@/components/parts/Field";
+import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { ApiError } from "@/api/client";
 import { groupColor, memberColor } from "@/lib/colors";
 import { DAY_MS, addDays, dateKey, formatTime, holidayName, parseDateKey, startOfDay, toTimeInput, withTime } from "@/lib/dates";
-import { ApiError, api } from "@/lib/api";
 import { useOnline } from "@/lib/online";
 import { cn } from "@/lib/utils";
-import type { Attendee, AttendeeResponse, CalendarItem } from "../../../shared/api-types";
+import type { Attendee, AttendeeResponse, CalendarItem } from "@shared/api-types";
 import { canDeleteEvent, canEditEvent, canRespond, inviteeIds } from "../shared/permissions";
-import type { DayItem, ItemEditorProps } from "../../types.client";
+import type { DayItem, ItemEditorProps } from "@extensions/client/types";
+import { createEvent, respondToEvent, updateEvent } from "./api";
 import { AttendeeList, InvitePicker, RsvpBar } from "./Invitees";
 
 /**
@@ -149,7 +150,7 @@ export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose
     if (!editing || next === response) return;
     setResponding(true);
     try {
-      const item = await api<CalendarItem>(`/events/${editing.id}/response`, { method: "PUT", body: { response: next } });
+      const item = await respondToEvent(editing.id, next);
       setResponse(item.myResponse);
       setAttendees(item.attendees ?? []);
       await qc.invalidateQueries({ queryKey: ["calendar"] });
@@ -214,8 +215,8 @@ export function EventSheet({ target, dayItemsOf, onOpenItem, groups, me, onClose
     setBusy(true);
     try {
       const saved = editing
-        ? await api<CalendarItem>(`/events/${editing.id}`, { method: "PATCH", body: payload })
-        : await api<CalendarItem>("/events", { method: "POST", body: payload });
+        ? await updateEvent(editing.id, payload)
+        : await createEvent(payload);
       // 足された欄の仕事は、予定の保存が済んでから行う。失敗しても予定は保存できている
       await Promise.all([...afterSaves.current].map((fn) => fn(saved.id).catch((e: Error) => toast.error(e.message))));
       await qc.invalidateQueries({ queryKey: ["calendar"] });

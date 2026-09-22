@@ -25,6 +25,15 @@
     "paths": {
       "@/*": [
         "./src/client/*"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@server/*": [
+        "./src/server/*"
+      ],
+      "@extensions/*": [
+        "./src/extensions/*"
       ]
     }
   },
@@ -32,7 +41,7 @@
     "src/client",
     "src/shared",
     "src/extensions/types.ts",
-    "src/extensions/registry.client.ts",
+    "src/extensions/client/registry.ts",
     "src/extensions/*/manifest.ts",
     "src/extensions/*/client",
     "src/extensions/*/shared",

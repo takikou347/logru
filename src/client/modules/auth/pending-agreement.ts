@@ -6,7 +6,7 @@
  *
  * 同意はメールアドレスと組にして覚える。同じ端末で別の人が入っても、その人の同意として送らない。
  */
-import { LEGAL_VERSIONS } from "../../../shared/legal";
+import { LEGAL_VERSIONS } from "@shared/legal";
 
 const KEY = "logru-pending-agreement";
 

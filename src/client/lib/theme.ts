@@ -2,7 +2,7 @@
  * 明るさとテーマカラー。html の data-theme と data-accent に当て、CSS の変数が切り替わる。
  * 選んだ設定は端末にも覚えさせ、public/theme-boot.js が描画の前に当てる。0012
  */
-import type { ThemeMode } from "../../shared/api-types";
+import type { ThemeMode } from "@shared/api-types";
 
 const KEY = "logru-theme";
 const media = () => window.matchMedia("(prefers-color-scheme: dark)");

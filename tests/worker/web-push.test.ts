@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { b64url, encryptPayload, fromB64url, vapidAuthorization } from "../../src/server/core/push/web-push";
+import { b64url, encryptPayload, fromB64url, vapidAuthorization } from "@server/core/push/web-push";
 
 /** 端末の側で、RFC 8291 のとおりに解く。送る側の暗号が正しいかを確かめる */
 async function decrypt(body: Uint8Array, ua: CryptoKeyPair, uaPublic: Uint8Array, authSecret: Uint8Array): Promise<string> {

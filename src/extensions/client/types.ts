@@ -6,8 +6,8 @@
  */
 import type { LucideIcon } from "lucide-react";
 import type { ComponentType } from "react";
-import type { CalendarItem, GroupSummary, Me } from "../shared/api-types";
-import type { ExtensionManifest } from "./types";
+import type { CalendarItem, GroupSummary, Me } from "@shared/api-types";
+import type { ExtensionManifest } from "../types";
 
 /** 編集のシートを開くときの対象。新しく作るか、既にある項目を直すか */
 export type EditorTarget = { mode: "new"; date: Date; groupId?: string } | { mode: "edit"; item: CalendarItem };

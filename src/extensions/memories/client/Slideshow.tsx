@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { useEffect, useState } from "react";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import type { MemoryRecord } from "../shared/types";
 import { PhotoImg } from "./parts";

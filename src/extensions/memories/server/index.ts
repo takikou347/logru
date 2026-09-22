@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import type { DB } from "../../../server/core/db/client";
-import type { ServerExtension } from "../../types.server";
+import type { DB } from "@server/core/db/client";
+import type { ServerExtension } from "@extensions/server/types";
 import { memoriesManifest } from "../manifest";
 import { listMemoryItems } from "./provider";
 import { memoryRoutes } from "./routes";

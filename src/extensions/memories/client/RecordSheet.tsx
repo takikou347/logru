@@ -2,18 +2,17 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Camera, ImagePlus, RotateCw, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import type { GroupSummary, Me } from "../../../shared/api-types";
-import { Chip } from "@/components/Chip";
-import { Dot, FieldMessage, PanelRow } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import type { GroupSummary, Me } from "@shared/api-types";
+import { Chip } from "@/components/parts/Chip";
+import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
-import { api } from "@/lib/api";
 import { groupColor } from "@/lib/colors";
 import { auth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import type { MemoryItem, MemoryRecord, Photo } from "../shared/types";
-import { memoryKeys, useInvalidateMemories } from "./api";
+import { memoryKeys, useDeleteRecord, useInvalidateMemories, useSaveRecord } from "./api";
 import { preparePhoto, uploadPhoto } from "./image";
 import { PhotoImg } from "./parts";
 
@@ -63,6 +62,8 @@ export function RecordSheet({
 }) {
   const qc = useQueryClient();
   const invalidate = useInvalidateMemories();
+  const saveRecord = useSaveRecord();
+  const deleteRecord = useDeleteRecord();
   const personal = groups.find((g) => g.isPersonal);
   const [groupId, setGroupId] = useState(record?.groupId ?? (groups.some((g) => g.id === defaultGroupId) ? defaultGroupId! : (personal?.id ?? groups[0]?.id ?? "")));
   const [slots, setSlots] = useState<Slot[]>(() => (record?.photos ?? []).map((p) => ({ key: p.id, state: "done" as const, photo: p })));
@@ -125,11 +126,10 @@ export function RecordSheet({
     const occurredAt = chosen;
     try {
       if (record) {
-        await api(`/memories/records/${record.id}`, { method: "PATCH", body: { body: body.trim() || null, occurredAt, photoIds: done.map((s) => s.photo.id) } });
+        await saveRecord.mutateAsync({ id: record.id, body: { body: body.trim() || null, occurredAt, photoIds: done.map((s) => s.photo.id) } });
         toast("記録を保存しました");
       } else {
-        await api("/memories/records", {
-          method: "POST",
+        await saveRecord.mutateAsync({
           body: { groupId, body: body.trim() || null, occurredAt, photoIds: done.map((s) => s.photo.id), itemId },
         });
         toast("記録しました");
@@ -152,7 +152,7 @@ export function RecordSheet({
     const timer = window.setTimeout(async () => {
       if (undone) return;
       try {
-        await api(`/memories/records/${record.id}`, { method: "DELETE", keepalive: true });
+        await deleteRecord.mutateAsync(record.id);
       } catch (e) {
         toast.error((e as Error).message);
       }

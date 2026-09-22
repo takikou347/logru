@@ -5,7 +5,7 @@ import {
   canRespond,
   diffAttendees,
   inviteeIds,
-} from "../../src/extensions/events/shared/permissions";
+} from "@extensions/events/shared/permissions";
 
 const event = {
   createdBy: "kota",

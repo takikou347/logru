@@ -1,10 +1,10 @@
 import { and, eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
-import { LEGAL_VERSIONS, type LegalDocument } from "../../../shared/legal";
-import { ensureUser } from "../../modules/users/onboarding";
-import { type AppEnv, HttpError, isLocalDev } from "../app";
-import { legalAgreements } from "../db/schema";
-import { InvalidTokenError, verifyFirebaseToken } from "./verify-token";
+import { LEGAL_VERSIONS, type LegalDocument } from "@shared/legal";
+import { ensureUser } from "@server/modules/users/onboarding";
+import { type AppEnv, HttpError, isLocalDev } from "@server/core/app";
+import { legalAgreements } from "@server/core/db/schema";
+import { InvalidTokenError, verifyFirebaseToken } from "@server/core/auth/verify-token";
 
 /**
  * ログインしていなければ 401 を返す。通れば c.get("user") に利用者が入る。

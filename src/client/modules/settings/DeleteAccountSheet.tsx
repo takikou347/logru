@@ -1,23 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
 import { EmailAuthProvider, deleteUser, reauthenticateWithCredential, reauthenticateWithPopup } from "firebase/auth";
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { signOut } from "@/app/auth";
-import { Notice } from "@/components/AuthShell";
-import { Field } from "@/components/Field";
-import { FieldMessage } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { Notice } from "@/components/layout/AuthShell";
+import { Field } from "@/components/parts/Field";
+import { FieldMessage } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/api";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { auth, googleProvider } from "@/lib/firebase";
+import { useDeleteAccount, useDeletionCheck } from "./api";
 
 const CONFIRM_WORD = "削除する";
-
-/** `GET /api/me/deletion` の応答 */
-type DeletionCheck = { ok: boolean; blocked: string[]; message: string | null };
 
 /**
  * アカウントを消すシート。F-20
@@ -40,7 +36,8 @@ export function DeleteAccountSheet({ provider, onClose }: { provider: string; on
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const check = useQuery({ queryKey: ["me", "deletion"], queryFn: () => api<DeletionCheck>("/me/deletion"), staleTime: 0 });
+  const check = useDeletionCheck();
+  const deleteAccount = useDeleteAccount();
   const usesPassword = provider === "password";
 
   /** ログインし直す。失敗したら例外を投げる */
@@ -66,7 +63,7 @@ export function DeleteAccountSheet({ provider, onClose }: { provider: string; on
       return;
     }
     try {
-      await api("/me", { method: "DELETE", body: { confirm } });
+      await deleteAccount.mutateAsync(confirm);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);

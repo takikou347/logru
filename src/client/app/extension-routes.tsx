@@ -1,8 +1,8 @@
 import type { ComponentType } from "react";
 import { Navigate, type RouteObject } from "react-router";
-import { clientExtensions } from "../../extensions/registry.client";
+import { clientExtensions } from "@extensions/client/registry";
 import { enabledKeys } from "@/lib/extensions";
-import { useGroups } from "@/lib/queries";
+import { useGroups } from "@/api/common";
 import { Loading } from "./guards";
 
 /**

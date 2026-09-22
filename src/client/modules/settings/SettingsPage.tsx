@@ -1,28 +1,25 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Pencil, X } from "lucide-react";
 import { type FormEvent, type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
-import type { Me, ThemeMode } from "../../../shared/api-types";
-import { ACCENT_COLORS, GROUP_COLORS } from "../../../shared/colors";
-import { clientExtensions } from "../../../extensions/registry.client";
-import { profileInput } from "../../../shared/schemas";
+import type { Me, ThemeMode } from "@shared/api-types";
+import { ACCENT_COLORS, GROUP_COLORS } from "@shared/colors";
+import { clientExtensions } from "@extensions/client/registry";
+import { profileInput } from "@shared/schemas";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar, useSignOut } from "@/components/AppLayout";
-import { ColorSheet } from "@/components/ColorSheet";
-import { ColorSwatches } from "@/components/ColorSwatches";
-import { Dot, FieldMessage, Panel, PanelRow, RowButton } from "@/components/Panel";
-import { Segmented } from "@/components/Segmented";
+import { AppLayout, Page, PageBar, useSignOut } from "@/components/layout/AppLayout";
+import { ColorSheet } from "@/components/parts/ColorSheet";
+import { ColorSwatches } from "@/components/parts/ColorSwatches";
+import { Dot, FieldMessage, Panel, PanelRow, RowButton } from "@/components/parts/Panel";
+import { Segmented } from "@/components/parts/Segmented";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/api";
 import { groupColor, memberColor } from "@/lib/colors";
-import { useColorPref } from "@/lib/mutations";
-import { keys, useGroups, useMe } from "@/lib/queries";
-import { applyTheme } from "@/lib/theme";
+import { useColorPref, useGroups, useMe } from "@/api/common";
 import { poolColorsOf } from "../calendar/model";
 import { DeleteAccountSheet } from "./DeleteAccountSheet";
 import { PushSection } from "./PushSection";
+import { useUpdateName, useUpdateSettings } from "./api";
 
 const MODES = [
   { value: "system", label: "端末と同じ" },
@@ -42,31 +39,12 @@ type Target = { type: "group" | "user"; id: string; title: string; fallback: str
 export function SettingsPage() {
   const me = useMe();
   const groups = useGroups();
-  const qc = useQueryClient();
   const doSignOut = useSignOut();
   const colorPref = useColorPref();
   const [target, setTarget] = useState<Target | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const settings = useMutation({
-    // 押してすぐ読み込み直しても、保存を途中で切らせない
-    mutationFn: (next: Me["settings"]) => api<Me["settings"]>("/me/settings", { method: "PUT", body: next, keepalive: true }),
-    onMutate: async (next) => {
-      applyTheme(next.themeMode, next.accentColor);
-      const prev = qc.getQueryData<Me>(keys.me);
-      if (prev) qc.setQueryData<Me>(keys.me, { ...prev, settings: next });
-      return { prev };
-    },
-    onError: (e, _n, ctx) => {
-      if (ctx?.prev) {
-        qc.setQueryData(keys.me, ctx.prev);
-        applyTheme(ctx.prev.settings.themeMode, ctx.prev.settings.accentColor);
-      }
-      toast.error((e as Error).message);
-    },
-    // 自分の色は、自分だけのグループの色でもある
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.groups }),
-  });
+  const settings = useUpdateSettings();
 
   if (!me.data) return <Loading />;
   const data = me.data;
@@ -186,7 +164,6 @@ function otherMembers(shared: { name: string; members: { id: string; name: strin
  * 鉛筆のボタンを押すと、その行で直せる。Enter か保存のボタンで送り、Esc で元に戻す。
  */
 function NameRow({ current }: { current: string }) {
-  const qc = useQueryClient();
   const id = useId();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(current);
@@ -202,15 +179,7 @@ function NameRow({ current }: { current: string }) {
     wasEditing.current = editing;
   }, [editing]);
 
-  const save = useMutation({
-    mutationFn: (next: string) => api("/me", { method: "PATCH", body: { name: next } }),
-    onSuccess: async () => {
-      await qc.invalidateQueries();
-      toast("表示名を変えました");
-      setEditing(false);
-    },
-    onError: (e) => setError((e as Error).message),
-  });
+  const save = useUpdateName();
 
   function open() {
     setName(current);
@@ -232,7 +201,13 @@ function NameRow({ current }: { current: string }) {
       return;
     }
     if (parsed.data.name === current) return cancel();
-    save.mutate(parsed.data.name);
+    save.mutate(parsed.data.name, {
+      onSuccess: () => {
+        toast("表示名を変えました");
+        setEditing(false);
+      },
+      onError: (e) => setError((e as Error).message),
+    });
   }
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Escape") return;

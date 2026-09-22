@@ -1,6 +1,6 @@
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { createdAt, updatedAt } from "../../../server/core/db/columns";
-import { groups, users } from "../../../server/core/db/schema";
+import { createdAt, updatedAt } from "@server/core/db/columns";
+import { groups, users } from "@server/core/db/schema";
 
 /** 予定の表。拡張の約束のとおり、日付とグループを持つ。0002 */
 export const events = sqliteTable(

@@ -1,5 +1,5 @@
 import { and, asc, inArray, isNull, lt } from "drizzle-orm";
-import type { DB } from "../../../server/core/db/client";
+import type { DB } from "@server/core/db/client";
 import { memoryPhotoTrash, memoryPhotos } from "./schema";
 
 /** 1 回の定期の処理で R2 から消す鍵の数 */

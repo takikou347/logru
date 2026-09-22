@@ -2,9 +2,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { toast } from "sonner";
-import type { GroupSummary } from "../../../shared/api-types";
-import { api } from "@/lib/api";
-import { useGroups } from "@/lib/queries";
+import type { GroupSummary } from "@shared/api-types";
+import { api } from "@/api/client";
+import { useGroups } from "@/api/common";
 import { memoriesManifest } from "../manifest";
 import type { ItemKind, Memory, MemoryDetail, MemoryItem, MemoryList, MemoryRecord } from "../shared/types";
 
@@ -132,6 +132,14 @@ export function useLike() {
   });
 }
 
+/** 予定を思い出に入れる、外す。予定の保存が済んでから呼ぶ */
+export function useLinkEventToMemory() {
+  return useMutation({
+    mutationFn: ({ memoryId, itemId, included }: { memoryId: string; itemId: string; included: boolean }) =>
+      api(`/memories/${memoryId}/events/${itemId}`, { method: "PUT", body: { included } }),
+  });
+}
+
 /** 思い出を作る、直す */
 export function useSaveMemory() {
   const invalidate = useInvalidateMemories();
@@ -139,5 +147,27 @@ export function useSaveMemory() {
     mutationFn: ({ id, body }: { id?: string; body: Record<string, unknown> }) =>
       id ? api<Memory>(`/memories/${id}`, { method: "PATCH", body }) : api<Memory>("/memories", { method: "POST", body }),
     onSettled: invalidate,
+  });
+}
+
+/** 思い出を削除する。しおりは消えるが、記録と写真は残る */
+export function useDeleteMemory() {
+  return useMutation({
+    mutationFn: (id: string) => api(`/memories/${id}`, { method: "DELETE" }),
+  });
+}
+
+/** 記録を作る、直す */
+export function useSaveRecord() {
+  return useMutation({
+    mutationFn: ({ id, body }: { id?: string; body: Record<string, unknown> }) =>
+      id ? api(`/memories/records/${id}`, { method: "PATCH", body }) : api("/memories/records", { method: "POST", body }),
+  });
+}
+
+/** 記録を消す。画面を閉じた後、5 秒待ってから送るので keepalive で送り切る */
+export function useDeleteRecord() {
+  return useMutation({
+    mutationFn: (id: string) => api(`/memories/records/${id}`, { method: "DELETE", keepalive: true }),
   });
 }

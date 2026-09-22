@@ -1,11 +1,11 @@
 /** 思い出の画面で使い回す部品。見た目は 0024 */
 import { Heart } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import type { GroupSummary, Me } from "../../../shared/api-types";
-import { AvatarStack, InitialAvatar } from "@/components/Avatars";
-import { Chip } from "@/components/Chip";
-import { SideHeading, sideItemClass } from "@/components/AppLayout";
-import { Dot } from "@/components/Panel";
+import type { GroupSummary, Me } from "@shared/api-types";
+import { AvatarStack, InitialAvatar } from "@/components/parts/Avatars";
+import { Chip } from "@/components/parts/Chip";
+import { SideHeading, sideItemClass } from "@/components/layout/AppLayout";
+import { Dot } from "@/components/parts/Panel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { groupColor, memberColor } from "@/lib/colors";
 import { cn } from "@/lib/utils";

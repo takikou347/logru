@@ -3,7 +3,7 @@
  * 登録したとき、「今すぐ読み直す」やカレンダーの画面の読み直しを押したとき、Cron Triggers で 5 分おきに呼ぶ。
  */
 import { asc, eq } from "drizzle-orm";
-import type { DB } from "../../../server/core/db/client";
+import type { DB } from "@server/core/db/client";
 import { decryptText } from "./crypto";
 import { DEFAULT_TIME_ZONE, type ParsedEvent, parseIcs, wallTimeToUtc } from "./ics";
 import { type ExternalCalendarRow, externalCalendars } from "./schema";

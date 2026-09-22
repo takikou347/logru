@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { GroupSummary, Me } from "../../src/shared/api-types";
+import type { GroupSummary, Me } from "@shared/api-types";
 import { attendeeViews, byPeople, groupPeopleOf, hiddenPeople, ownersOf, peopleOf } from "../../src/client/modules/calendar/model";
 
 const me: Me = {

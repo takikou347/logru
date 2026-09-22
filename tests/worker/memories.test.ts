@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { addDaysToKey, dayIndexOf, dayKeyIn, hourIn, memoryDays, startOfDayIn } from "../../src/extensions/memories/shared/days";
-import { memoryInput, recordInput } from "../../src/extensions/memories/shared/schemas";
-import { PhotoSigner, expiryFor, isJpeg, photoKey, verifyPhotoUrl } from "../../src/extensions/memories/server/photos";
+import { addDaysToKey, dayIndexOf, dayKeyIn, hourIn, memoryDays, startOfDayIn } from "@extensions/memories/shared/days";
+import { memoryInput, recordInput } from "@extensions/memories/shared/schemas";
+import { PhotoSigner, expiryFor, isJpeg, photoKey, verifyPhotoUrl } from "@extensions/memories/server/photos";
 
 describe("思い出の日付", () => {
   it("時間帯での 0 時を UTC で返す", () => {
@@ -88,7 +88,7 @@ describe("写真の URL", () => {
   });
 });
 
-import { hourStartIn, openSlots, slotAt, slotsOfDay } from "../../src/extensions/memories/shared/koma";
+import { hourStartIn, openSlots, slotAt, slotsOfDay } from "@extensions/memories/shared/koma";
 
 describe("ひとコマの枠。0022", () => {
   const tz = "Asia/Tokyo";
@@ -114,7 +114,7 @@ describe("ひとコマの枠。0022", () => {
   });
 });
 
-import { memoryOfEvent } from "../../src/extensions/memories/shared/links";
+import { memoryOfEvent } from "@extensions/memories/shared/links";
 
 describe("予定がどの思い出に入るか。0020", () => {
   const day = (d: number) => Date.parse(`2026-09-${String(d).padStart(2, "0")}T00:00:00+09:00`);

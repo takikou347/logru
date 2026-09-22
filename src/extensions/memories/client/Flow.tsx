@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import type { CalendarItem, GroupSummary, Me } from "../../../shared/api-types";
+import type { CalendarItem, GroupSummary, Me } from "@shared/api-types";
 import { groupColor } from "@/lib/colors";
 import type { MemoryItem, MemoryRecord, Photo } from "../shared/types";
 import { formatClock, RecordBody } from "./parts";

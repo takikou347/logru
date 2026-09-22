@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { and, eq, inArray, ne } from "drizzle-orm";
-import type { Me, PushInfo } from "../../../shared/api-types";
-import { LEGAL_VERSIONS, type LegalDocument } from "../../../shared/legal";
+import type { Me, PushInfo } from "@shared/api-types";
+import { LEGAL_VERSIONS, type LegalDocument } from "@shared/legal";
 import {
   agreementsInput,
   colorPrefInput,
@@ -10,13 +10,13 @@ import {
   profileInput,
   pushSubscriptionInput,
   settingsInput,
-} from "../../../shared/schemas";
-import { HttpError, createRouter, validationHook } from "../../core/app";
-import { missingAgreements, requireAgreement, requireUser } from "../../core/auth/middleware";
-import type { DB } from "../../core/db/client";
-import { colorPrefs, groupMembers, groups, legalAgreements, memberVisibility, pushSubscriptions, userSettings, users } from "../../core/db/schema";
-import { vapidKeys } from "../../core/push/send";
-import { myGroupIds, sharesGroup } from "../groups/membership";
+} from "@shared/schemas";
+import { HttpError, createRouter, validationHook } from "@server/core/app";
+import { missingAgreements, requireAgreement, requireUser } from "@server/core/auth/middleware";
+import type { DB } from "@server/core/db/client";
+import { colorPrefs, groupMembers, groups, legalAgreements, memberVisibility, pushSubscriptions, userSettings, users } from "@server/core/db/schema";
+import { vapidKeys } from "@server/core/push/send";
+import { myGroupIds, sharesGroup } from "@server/modules/groups/membership";
 
 /**
  * 退会したときに消すグループと、退会を止めるグループを調べる。

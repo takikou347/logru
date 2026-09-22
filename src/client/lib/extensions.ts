@@ -5,10 +5,10 @@
  * 共有のグループで有効でも、本人が使わないと決めていれば、入口も画面も出さない。いつも有効な拡張は、いつも使える。
  */
 import { useMemo } from "react";
-import type { GroupSummary } from "../../shared/api-types";
-import { clientExtensions } from "../../extensions/registry.client";
-import type { ClientExtension } from "../../extensions/types.client";
-import { useGroups } from "./queries";
+import type { GroupSummary } from "@shared/api-types";
+import { clientExtensions } from "@extensions/client/registry";
+import type { ClientExtension } from "@extensions/client/types";
+import { useGroups } from "@/api/common";
 
 /**
  * 使える拡張の key を返す。

@@ -2,10 +2,10 @@
  * 画面の側の拡張の一覧。拡張を足したら、ここに 1 行足す。
  * サーバーの側の一覧は registry.server.ts にある。
  */
-import { eventsClient } from "./events/client";
-import { externalCalendarsClient } from "./external-calendars/client";
-import { memoriesClient } from "./memories/client";
-import type { ClientExtension } from "./types.client";
+import { eventsClient } from "@extensions/events/client/index";
+import { externalCalendarsClient } from "@extensions/external-calendars/client/index";
+import { memoriesClient } from "@extensions/memories/client/index";
+import type { ClientExtension } from "./types";
 
 /** 画面の側の拡張 */
 export const clientExtensions: ClientExtension[] = [eventsClient, externalCalendarsClient, memoriesClient];

@@ -1,7 +1,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { DB } from "../db/client";
-import { pushSubscriptions } from "../db/schema";
-import { type VapidKeys, sendWebPush } from "./web-push";
+import type { DB } from "@server/core/db/client";
+import { pushSubscriptions } from "@server/core/db/schema";
+import { type VapidKeys, sendWebPush } from "@server/core/push/web-push";
 
 /** 知らせの中身。Service Worker の push-sw.js が読む */
 export type PushPayload = {

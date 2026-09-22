@@ -1,9 +1,9 @@
 import { Check, X } from "lucide-react";
-import { type AvatarPerson, InitialAvatar } from "@/components/Avatars";
-import { Chip } from "@/components/Chip";
-import { FieldMessage } from "@/components/Panel";
+import { type AvatarPerson, InitialAvatar } from "@/components/parts/Avatars";
+import { Chip } from "@/components/parts/Chip";
+import { FieldMessage } from "@/components/parts/Panel";
 import { cn } from "@/lib/utils";
-import type { AttendeeResponse } from "../../../shared/api-types";
+import type { AttendeeResponse } from "@shared/api-types";
 
 /** 返事の言葉。参加者の一覧に出す */
 const RESPONSE_LABEL: Record<AttendeeResponse, string> = { accepted: "参加する", pending: "返事待ち", declined: "参加しない" };

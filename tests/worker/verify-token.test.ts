@@ -1,6 +1,6 @@
 import { SignJWT, UnsecuredJWT, createLocalJWKSet, exportJWK, generateKeyPair } from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
-import { InvalidTokenError, verifyFirebaseToken } from "../../src/server/core/auth/verify-token";
+import { InvalidTokenError, verifyFirebaseToken } from "@server/core/auth/verify-token";
 
 const PROJECT = "logru-test";
 const ISS = `https://securetoken.google.com/${PROJECT}`;

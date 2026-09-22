@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import type { DB } from "../../../server/core/db/client";
+import type { DB } from "@server/core/db/client";
 import { eventAttendees, events } from "./schema";
 
 /**

@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Link } from "react-router";
 import { cn } from "@/lib/utils";
-import { Pools } from "./Pools";
+import { Pools } from "../parts/Pools";
 
 /** ログインまわりの画面の枠。インクだまりと名前を出し、下に規約へのリンクを置く */
 export function AuthShell({ children }: { children: ReactNode }) {

@@ -1,15 +1,14 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import type { GroupSummary, Me } from "../../../shared/api-types";
-import { Chip } from "@/components/Chip";
-import { Dot, FieldMessage, PanelRow } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import type { GroupSummary, Me } from "@shared/api-types";
+import { Chip } from "@/components/parts/Chip";
+import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
 import { groupColor } from "@/lib/colors";
 import { startOfDayIn } from "../shared/days";
 import { useInvalidateMemories, useMemoryList } from "./api";
-import { deviceTimeZone } from "./koma-api";
+import { deviceTimeZone, useSaveKomaDay } from "./koma-api";
 
 /**
  * ひとコマを始める、つなぎ直すシート。グループと、その日を含む思い出を選ぶ。F-127、F-129
@@ -35,6 +34,7 @@ export function KomaLinkSheet({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const invalidate = useInvalidateMemories();
+  const saveKomaDay = useSaveKomaDay();
   const list = useMemoryList(groupId || null);
   const tz = current?.timeZone ?? deviceTimeZone();
   const dayStart = startOfDayIn(day, tz);
@@ -45,7 +45,7 @@ export function KomaLinkSheet({
     setSaving(true);
     setError(null);
     try {
-      await api(`/memories/koma/days/${day}`, { method: "PUT", body: { groupId, memoryId: choices.some((m) => m.id === memoryId) ? memoryId : null, timeZone: tz } });
+      await saveKomaDay.mutateAsync({ day, groupId, memoryId: choices.some((m) => m.id === memoryId) ? memoryId : null, timeZone: tz });
       await invalidate();
       toast(current ? "保存しました" : "今日のひとコマを始めました");
       onClose();

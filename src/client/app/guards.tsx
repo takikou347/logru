@@ -1,9 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation, useSearchParams } from "react-router";
-import { LoadFailure } from "@/components/Failure";
-import { ApiError } from "@/lib/api";
-import { keys, useMe } from "@/lib/queries";
+import { LoadFailure } from "@/components/parts/Failure";
+import { ApiError } from "@/api/client";
+import { keys } from "@/api/keys";
+import { useMe } from "@/api/common";
 import { applyTheme } from "@/lib/theme";
 import { safeNext } from "@/lib/utils";
 import { postAgreement } from "@/modules/auth/AgreePage";

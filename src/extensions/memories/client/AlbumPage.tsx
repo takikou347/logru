@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { LoadFailure } from "@/components/Failure";
-import { Empty } from "@/components/Panel";
+import { LoadFailure } from "@/components/parts/Failure";
+import { Empty } from "@/components/parts/Panel";
 import { cn } from "@/lib/utils";
 import { dayKeyIn, memoryDays } from "../shared/days";
 import { useRecords } from "./api";

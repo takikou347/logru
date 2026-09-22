@@ -1,25 +1,32 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
-import type { ExtensionInfo, GroupMember, GroupSummary } from "../../../shared/api-types";
-import { GROUP_COLORS } from "../../../shared/colors";
+import type { GroupMember, GroupSummary } from "@shared/api-types";
+import { GROUP_COLORS } from "@shared/colors";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/AppLayout";
-import { ColorSheet } from "@/components/ColorSheet";
-import { ColorSwatches } from "@/components/ColorSwatches";
-import { FailurePanel, LoadFailure } from "@/components/Failure";
-import { Field } from "@/components/Field";
-import { Dot, Empty, FieldMessage, Panel, PanelRow, RowButton } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { ColorSheet } from "@/components/parts/ColorSheet";
+import { ColorSwatches } from "@/components/parts/ColorSwatches";
+import { FailurePanel, LoadFailure } from "@/components/parts/Failure";
+import { Field } from "@/components/parts/Field";
+import { Dot, Empty, FieldMessage, Panel, PanelRow, RowButton } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { api } from "@/lib/api";
 import { groupColor, memberColor } from "@/lib/colors";
-import { useColorPref } from "@/lib/mutations";
-import { keys, useGroups, useMe } from "@/lib/queries";
+import { useColorPref, useGroups, useMe } from "@/api/common";
 import { poolColorsOf } from "../calendar/model";
+import {
+  useGroupExtensions,
+  useLeaveGroup,
+  useRenameGroup,
+  useRevokeInvites,
+  useToggleGroupExtension,
+  useUpdateGroupColor,
+  useUpdateMemberRole,
+  useCreateInvite,
+} from "./api";
 
 type Invite = { url: string; expiresAt: number };
 type ColorTarget = { type: "group" | "user"; id: string; title: string; fallback: string };
@@ -33,18 +40,19 @@ export function GroupDetailPage() {
   const { id = "" } = useParams();
   const me = useMe();
   const groups = useGroups();
-  const qc = useQueryClient();
   const navigate = useNavigate();
   const colorPref = useColorPref();
+  const updateColor = useUpdateGroupColor(id);
+  const updateRole = useUpdateMemberRole(id);
+  const leaveGroup = useLeaveGroup(id);
+  const createInvite = useCreateInvite(id);
+  const revokeInvites = useRevokeInvites(id);
+  const toggleExtension = useToggleGroupExtension(id);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [colorTarget, setColorTarget] = useState<ColorTarget | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const group = groups.data?.find((g) => g.id === id);
-  const extensions = useQuery({
-    queryKey: keys.extensions(id),
-    queryFn: () => api<{ extensions: ExtensionInfo[] }>(`/groups/${id}/extensions`).then((r) => r.extensions),
-    enabled: Boolean(group && !group.isPersonal),
-  });
+  const extensions = useGroupExtensions(id, Boolean(group && !group.isPersonal));
 
   if (groups.isPending || me.isPending) return <Loading />;
   // 自分だけのグループは、グループとして見せない。直接開いたら一覧へ戻す。0009
@@ -80,11 +88,10 @@ export function GroupDetailPage() {
   const shown = groupColor(group, prefs);
   const adminCount = group.members.filter((m) => m.role === "admin").length;
 
-  /** 変更を送り、グループを読み直す。失敗したら知らせる */
+  /** 変更を送る。成功したら知らせ、失敗したら知らせて undefined を返す */
   async function run<T>(fn: () => Promise<T>, done?: string): Promise<T | undefined> {
     try {
       const result = await fn();
-      await qc.invalidateQueries({ queryKey: keys.groups });
       if (done) toast(done);
       return result;
     } catch (e) {
@@ -94,7 +101,7 @@ export function GroupDetailPage() {
   }
 
   async function makeInvite() {
-    const r = await run(() => api<Invite>(`/groups/${id}/invites`, { method: "POST" }));
+    const r = await run(() => createInvite.mutateAsync());
     if (r) setInvite(r);
   }
 
@@ -110,13 +117,12 @@ export function GroupDetailPage() {
 
   async function leave() {
     try {
-      await api(`/groups/${id}/members/me`, { method: "DELETE" });
+      await leaveGroup.mutateAsync();
     } catch (e) {
       setConfirmLeave(false);
       toast.error((e as Error).message);
       return;
     }
-    await qc.invalidateQueries();
     toast("グループを抜けました");
     navigate("/groups", { replace: true });
   }
@@ -145,7 +151,7 @@ export function GroupDetailPage() {
                 label="グループの色"
                 value={group.color}
                 options={GROUP_COLORS}
-                onChange={(color) => run(() => api(`/groups/${id}`, { method: "PATCH", body: { color } }), "グループの色を変えました")}
+                onChange={(color) => run(() => updateColor.mutateAsync(color), "グループの色を変えました")}
               />
             </div>
           )}
@@ -163,7 +169,7 @@ export function GroupDetailPage() {
                 onColor={() => setColorTarget({ type: "user", id: m.id, title: `${m.name} の色`, fallback: m.userColor })}
                 onRole={(role) =>
                   run(
-                    () => api(`/groups/${id}/members/${m.id}`, { method: "PATCH", body: { role } }),
+                    () => updateRole.mutateAsync({ memberId: m.id, role }),
                     role === "admin" ? `${m.name} を管理者にしました` : `${m.name} をメンバーに戻しました`,
                   )
                 }
@@ -191,7 +197,7 @@ export function GroupDetailPage() {
               variant="ghost"
               className="self-start"
               onClick={() =>
-                run(() => api(`/groups/${id}/invites`, { method: "DELETE" }), "招待リンクをすべて取り消しました").then(() => setInvite(null))
+                run(() => revokeInvites.mutateAsync(), "招待リンクをすべて取り消しました").then(() => setInvite(null))
               }
             >
               招待リンクをすべて取り消す
@@ -216,11 +222,7 @@ export function GroupDetailPage() {
                   checked={x.enabled}
                   aria-label={x.label}
                   disabled={!admin}
-                  onCheckedChange={(enabled) =>
-                    run(() => api(`/groups/${id}/extensions/${x.key}`, { method: "PUT", body: { enabled } })).then(() =>
-                      qc.invalidateQueries({ queryKey: keys.extensions(id) }),
-                    )
-                  }
+                  onCheckedChange={(enabled) => run(() => toggleExtension.mutateAsync({ key: x.key, enabled }))}
                 />
               </PanelRow>
             ))
@@ -309,14 +311,13 @@ function MemberRow({
 
 /** グループの名前を変える。管理者だけに出す */
 function RenameForm({ group }: { group: GroupSummary }) {
-  const qc = useQueryClient();
+  const renameGroup = useRenameGroup(group.id);
   const [name, setName] = useState(group.name);
   const [error, setError] = useState<string | null>(null);
   async function submit(e: FormEvent) {
     e.preventDefault();
     try {
-      await api(`/groups/${group.id}`, { method: "PATCH", body: { name } });
-      await qc.invalidateQueries({ queryKey: keys.groups });
+      await renameGroup.mutateAsync(name);
       setError(null);
       toast("名前を変えました");
     } catch (err) {

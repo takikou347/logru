@@ -1,5 +1,5 @@
 /** 画面と API がやり取りする形。API の応答はここの型に合わせる */
-import type { LegalDocument } from "./legal";
+import type { LegalDocument } from "@shared/legal";
 
 /** 明るさの設定。system は端末に合わせる */
 export type ThemeMode = "system" | "light" | "dark";

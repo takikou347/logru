@@ -1,4 +1,4 @@
-import type { ServerExtension } from "../../types.server";
+import type { ServerExtension } from "@extensions/server/types";
 import { eventsManifest } from "../manifest";
 import { removeFromGroupEvents } from "./leave";
 import { listEvents } from "./provider";

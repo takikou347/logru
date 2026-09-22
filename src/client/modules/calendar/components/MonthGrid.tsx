@@ -1,10 +1,10 @@
 import { type CSSProperties, useRef } from "react";
 import { WEEKDAYS, dayTone, formatDay, formatTime, holidayName, onDay, sameDay } from "@/lib/dates";
-import { AvatarStack } from "@/components/Avatars";
+import { AvatarStack } from "@/components/parts/Avatars";
 import { cn } from "@/lib/utils";
 import { toneText } from "./DayItems";
-import { type SpanSegment, daySpan, hiddenPerDay, isMultiDay, layoutWeek } from "./lanes";
-import type { ViewItem } from "./model";
+import { type SpanSegment, daySpan, hiddenPerDay, isMultiDay, layoutWeek } from "../lanes";
+import type { ViewItem } from "../model";
 
 /** スマホのマスに出す点の数 */
 const MAX_DOTS = 3;

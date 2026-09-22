@@ -1,6 +1,6 @@
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { createdAt, now, updatedAt } from "../../../server/core/db/columns";
-import { groups, users } from "../../../server/core/db/schema";
+import { createdAt, now, updatedAt } from "@server/core/db/columns";
+import { groups, users } from "@server/core/db/schema";
 
 /**
  * 思い出。グループと期間を持つ 1 冊。0020

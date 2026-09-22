@@ -3,7 +3,7 @@
  * 拡張の入力は src/extensions/<名前>/shared/ に置く。
  */
 import { z } from "zod";
-import { ACCENT_COLOR_KEYS, GROUP_COLOR_KEYS } from "./colors";
+import { ACCENT_COLOR_KEYS, GROUP_COLOR_KEYS } from "@shared/colors";
 
 /** グループの色と、自分の色の名前 */
 export const groupColorSchema = z.enum(GROUP_COLOR_KEYS);

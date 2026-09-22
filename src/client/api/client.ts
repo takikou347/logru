@@ -1,4 +1,4 @@
-import { auth } from "./firebase";
+import { auth } from "../lib/firebase";
 
 /** API が失敗したとき。message は画面にそのまま出せる文 */
 export class ApiError extends Error {

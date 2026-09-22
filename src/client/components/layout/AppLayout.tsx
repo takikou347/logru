@@ -2,7 +2,7 @@ import { CalendarDays, ChevronLeft, SlidersHorizontal, Users } from "lucide-reac
 import type { ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
 import { signOut } from "@/app/auth";
-import { OfflineBand } from "@/components/Failure";
+import { OfflineBand } from "@/components/parts/Failure";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,11 +13,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEnabledExtensions } from "@/lib/extensions";
-import { useMe } from "@/lib/queries";
+import { useMe } from "@/api/common";
 import { cn } from "@/lib/utils";
-import { Pools } from "./Pools";
-import { ShortcutBand } from "./ShortcutBand";
-import { ScrollArea } from "./ui/scroll-area";
+import { Pools } from "../parts/Pools";
+import { ShortcutBand } from "../parts/ShortcutBand";
+import { ScrollArea } from "../ui/scroll-area";
 
 /** ログアウトして、ログインの画面へ移る関数を返す */
 export function useSignOut() {

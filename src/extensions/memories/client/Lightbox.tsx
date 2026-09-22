@@ -1,8 +1,8 @@
 import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import type { GroupSummary, Me } from "../../../shared/api-types";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import type { GroupSummary, Me } from "@shared/api-types";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import type { MemoryRecord, Photo } from "../shared/types";
 import { useSaveMemory } from "./api";

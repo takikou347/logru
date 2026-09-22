@@ -1,9 +1,9 @@
 import { and, eq, inArray } from "drizzle-orm";
-import type { ExtensionOverview } from "../../../shared/api-types";
-import { toggleableExtensions } from "../../../extensions/registry.server";
-import { createRouter } from "../../core/app";
-import { requireAgreement, requireUser } from "../../core/auth/middleware";
-import { groupExtensions, groupMembers, groups } from "../../core/db/schema";
+import type { ExtensionOverview } from "@shared/api-types";
+import { toggleableExtensions } from "@extensions/server/registry";
+import { createRouter } from "@server/core/app";
+import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import { groupExtensions, groupMembers, groups } from "@server/core/db/schema";
 
 /**
  * `/api/extensions`。機能の一覧。F-24、0019

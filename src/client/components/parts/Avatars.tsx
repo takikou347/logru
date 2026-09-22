@@ -1,4 +1,4 @@
-import type { AttendeeResponse } from "../../shared/api-types";
+import type { AttendeeResponse } from "@shared/api-types";
 import { cn } from "@/lib/utils";
 
 /** 頭文字の丸に出す人 */

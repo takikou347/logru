@@ -17,14 +17,25 @@
     "verbatimModuleSyntax": true,
     "types": [
       "./worker-configuration.d.ts"
-    ]
+    ],
+    "paths": {
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@server/*": [
+        "./src/server/*"
+      ],
+      "@extensions/*": [
+        "./src/extensions/*"
+      ]
+    }
   },
   "include": [
     "src/server",
     "src/shared",
     "src/extensions/types.ts",
-    "src/extensions/types.server.ts",
-    "src/extensions/registry.server.ts",
+    "src/extensions/server/types.ts",
+    "src/extensions/server/registry.ts",
     "src/extensions/*/manifest.ts",
     "src/extensions/*/server",
     "src/extensions/*/shared",

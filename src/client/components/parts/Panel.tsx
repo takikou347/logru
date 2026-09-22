@@ -1,5 +1,5 @@
 import { type ComponentProps, type ReactNode, useId } from "react";
-import type { AttendeeResponse } from "../../shared/api-types";
+import type { AttendeeResponse } from "@shared/api-types";
 import { cn } from "@/lib/utils";
 
 /**

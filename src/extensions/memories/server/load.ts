@@ -1,6 +1,6 @@
 /** 思い出と記録を、画面に返す形に読む */
 import { and, asc, count, desc, eq, gte, inArray, lt } from "drizzle-orm";
-import type { DB } from "../../../server/core/db/client";
+import type { DB } from "@server/core/db/client";
 import type { Memory, MemoryItem, MemoryRecord } from "../shared/types";
 import type { PhotoSigner } from "./photos";
 import { type MemoryItemRow, type MemoryRow, memoryEventExclusions, memoryLikes, memoryPhotos, memoryRecords } from "./schema";

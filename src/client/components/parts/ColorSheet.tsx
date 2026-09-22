@@ -1,4 +1,4 @@
-import { GROUP_COLORS } from "../../shared/colors";
+import { GROUP_COLORS } from "@shared/colors";
 import { Button } from "@/components/ui/button";
 import { ColorSwatches } from "./ColorSwatches";
 import { ResponsiveSheet } from "./ResponsiveSheet";

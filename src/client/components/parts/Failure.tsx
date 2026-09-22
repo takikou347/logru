@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useOnline } from "@/lib/online";
 import { cn } from "@/lib/utils";
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
 
 /**
  * 面の中で出す失敗。「見つかりません」と「読み込めませんでした」に使う。0025

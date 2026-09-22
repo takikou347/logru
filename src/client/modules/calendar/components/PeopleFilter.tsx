@@ -1,12 +1,12 @@
 import { Check, ChevronDown, Users } from "lucide-react";
 import { type ReactNode, useCallback, useState } from "react";
-import { sideItemClass } from "@/components/AppLayout";
-import { Chip } from "@/components/Chip";
-import { Dot } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { sideItemClass } from "@/components/layout/AppLayout";
+import { Chip } from "@/components/parts/Chip";
+import { Dot } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import type { GroupPeople, Person } from "./model";
+import type { GroupPeople, Person } from "../model";
 
 type Toggle = (person: Person, hidden: boolean) => void;
 

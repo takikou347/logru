@@ -1,13 +1,13 @@
 import { Plus, Trash2 } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
-import type { GroupSummary, Me } from "../../../shared/api-types";
-import { InitialAvatar } from "@/components/Avatars";
-import { Chip } from "@/components/Chip";
-import { Empty, Panel } from "@/components/Panel";
+import type { GroupSummary, Me } from "@shared/api-types";
+import { InitialAvatar } from "@/components/parts/Avatars";
+import { Chip } from "@/components/parts/Chip";
+import { Empty, Panel } from "@/components/parts/Panel";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { memberColor } from "@/lib/colors";
-import { useCalendar } from "@/lib/queries";
+import { useCalendar } from "@/modules/calendar/api";
 import { cn } from "@/lib/utils";
 import { dayKeyIn, memoryDays } from "../shared/days";
 import type { ItemKind, MemoryDetail, MemoryItem } from "../shared/types";

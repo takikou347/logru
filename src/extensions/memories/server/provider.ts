@@ -1,6 +1,6 @@
 import { and, gt, gte, inArray, lt } from "drizzle-orm";
-import type { CalendarItem } from "../../../shared/api-types";
-import type { DB } from "../../../server/core/db/client";
+import type { CalendarItem } from "@shared/api-types";
+import type { DB } from "@server/core/db/client";
 import { DAY_MS, DEFAULT_TIME_ZONE, dayKeyIn, startOfDayIn } from "../shared/days";
 import { memories, memoryRecords } from "./schema";
 

@@ -31,7 +31,12 @@ function firebaseCsp(env: Record<string, string>): Plugin {
 
 export default defineConfig(({ mode }) => ({
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./src/client", import.meta.url)) },
+    alias: {
+      "@": fileURLToPath(new URL("./src/client", import.meta.url)),
+      "@shared": fileURLToPath(new URL("./src/shared", import.meta.url)),
+      "@server": fileURLToPath(new URL("./src/server", import.meta.url)),
+      "@extensions": fileURLToPath(new URL("./src/extensions", import.meta.url)),
+    },
   },
   plugins: [
     react(),

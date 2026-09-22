@@ -1,8 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { CalendarItem } from "../../../shared/api-types";
-import { clientExtension } from "../../../extensions/registry.client";
+import type { CalendarItem } from "@shared/api-types";
+import { clientExtension } from "@extensions/client/registry";
 
 const UNDO_MS = 5000;
 

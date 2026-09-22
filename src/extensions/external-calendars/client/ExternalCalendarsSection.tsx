@@ -1,16 +1,15 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
-import { GROUP_COLORS, type GroupColor } from "../../../shared/colors";
-import { ColorSwatches } from "@/components/ColorSwatches";
-import { Field } from "@/components/Field";
-import { Dot, Empty, FieldMessage, Panel } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { GROUP_COLORS, type GroupColor } from "@shared/colors";
+import { ColorSwatches } from "@/components/parts/ColorSwatches";
+import { Field } from "@/components/parts/Field";
+import { Dot, Empty, FieldMessage, Panel } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/api";
 import type { ExternalCalendarSummary } from "../shared/schemas";
-import { EXTERNAL_CALENDARS_KEY as KEY, useExternalCalendars } from "./queries";
+import { EXTERNAL_CALENDARS_KEY as KEY, useAddExternalCalendar, useExternalCalendars, useRemoveExternalCalendar, useResyncExternalCalendar } from "./api";
 
 /** `9月21日 14:05` の形にする */
 function formatSynced(ms: number): string {
@@ -30,12 +29,7 @@ export function ExternalCalendarsSection() {
 
   const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: KEY }), qc.invalidateQueries({ queryKey: ["calendar"] })]);
 
-  const resync = useMutation({
-    mutationFn: (id: string) => api<ExternalCalendarSummary>(`/external-calendars/${id}/sync`, { method: "POST" }),
-    onSuccess: (c) => (c.lastError ? toast.error(c.lastError) : toast(`${c.name} を読み直しました`)),
-    onError: (e) => toast.error((e as Error).message),
-    onSettled: refresh,
-  });
+  const resync = useResyncExternalCalendar();
 
   const list = calendars.data ?? [];
   return (
@@ -87,25 +81,24 @@ export function ExternalCalendarsSection() {
 
 /** 外部のカレンダーを登録するシート。名前、色、URL を聞く */
 function AddCalendarSheet({ used, onClose, onAdded }: { used: string[]; onClose: () => void; onAdded: () => Promise<unknown> }) {
+  const addCalendar = useAddExternalCalendar();
   const [name, setName] = useState("");
   const [color, setColor] = useState<GroupColor>(() => GROUP_COLORS.find((c) => !used.includes(c.key))?.key ?? "asagi");
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const busy = addCalendar.isPending;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setBusy(true);
     try {
-      const saved = await api<ExternalCalendarSummary>("/external-calendars", { method: "POST", body: { name, color, url } });
+      const saved = await addCalendar.mutateAsync({ name, color, url });
       await onAdded();
       if (saved.lastError) toast.error(`登録しましたが、読めませんでした。${saved.lastError}`);
       else toast(`${saved.name} を登録しました`);
       onClose();
     } catch (err) {
       setError((err as Error).message);
-      setBusy(false);
     }
   }
 
@@ -159,17 +152,16 @@ function RemoveCalendarSheet({
   onClose: () => void;
   onRemoved: () => Promise<unknown>;
 }) {
-  const [busy, setBusy] = useState(false);
+  const removeCalendar = useRemoveExternalCalendar();
+  const busy = removeCalendar.isPending;
   async function remove() {
-    setBusy(true);
     try {
-      await api(`/external-calendars/${calendar.id}`, { method: "DELETE" });
+      await removeCalendar.mutateAsync(calendar.id);
       await onRemoved();
       toast(`${calendar.name} の登録を消しました`);
       onClose();
     } catch (err) {
       toast.error((err as Error).message);
-      setBusy(false);
     }
   }
   return (

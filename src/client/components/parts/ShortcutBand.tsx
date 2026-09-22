@@ -1,6 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import { Link } from "react-router";
-import type { ExtensionShortcut } from "../../extensions/types.client";
+import type { ExtensionShortcut } from "@extensions/client/types";
 import { useShortcut } from "@/lib/extensions";
 import { cn } from "@/lib/utils";
 

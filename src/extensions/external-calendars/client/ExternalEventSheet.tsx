@@ -1,8 +1,8 @@
-import { Dot, FieldMessage, PanelRow } from "@/components/Panel";
-import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
+import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { DAY_MS, formatDay, formatTime, sameDay } from "@/lib/dates";
-import type { ItemEditorProps } from "../../types.client";
+import type { ItemEditorProps } from "@extensions/client/types";
 
 /**
  * 項目の日時を、読むための文にする。

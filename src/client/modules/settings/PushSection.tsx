@@ -1,12 +1,10 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { PushInfo } from "../../../shared/api-types";
-import { FieldMessage, Panel, PanelRow } from "@/components/Panel";
+import { FieldMessage, Panel, PanelRow } from "@/components/parts/Panel";
 import { Switch } from "@/components/ui/switch";
-import { api } from "@/lib/api";
 import { useEnabledExtensions } from "@/lib/extensions";
 import { currentSubscription, disablePush, enablePush, pushSupport } from "@/lib/push";
+import { useInvalidatePushInfo, usePushInfo } from "./api";
 
 /**
  * 設定の「この端末の知らせ」。端末ごとに切り替える。F-23
@@ -20,8 +18,8 @@ export function PushSection() {
 
 /** 知らせの欄の中身。hook を条件の外で呼ぶため、分けて置く */
 function PushPanel({ reasons }: { reasons: string[] }) {
-  const qc = useQueryClient();
-  const info = useQuery({ queryKey: ["push"], queryFn: () => api<PushInfo>("/me/push") });
+  const info = usePushInfo();
+  const invalidatePush = useInvalidatePushInfo();
   const support = pushSupport();
   const [endpoint, setEndpoint] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,7 +40,7 @@ function PushPanel({ reasons }: { reasons: string[] }) {
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
-      await qc.invalidateQueries({ queryKey: ["push"] });
+      await invalidatePush();
       setBusy(false);
     }
   }

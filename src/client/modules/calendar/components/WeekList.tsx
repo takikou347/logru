@@ -1,7 +1,7 @@
 import { WEEKDAYS, dayTone, holidayName, onDay, sameDay } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { ItemList, toneText } from "./DayItems";
-import type { ViewItem } from "./model";
+import type { ViewItem } from "../model";
 
 /**
  * 週と日の表示。日ごとに予定を並べる。今日の日付にはテーマカラーの下線を引く。

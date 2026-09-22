@@ -2,6 +2,7 @@ import { ChevronLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
 import { signOut } from "@/app/auth";
+import { OfflineBand } from "@/components/Failure";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -67,7 +68,14 @@ export function AppLayout({
           <AccountMenu wide />
         </div>
       </aside>
-      <div className="flex min-w-0 flex-col gap-3">{children}</div>
+      {/*
+        オフラインの帯は、中身の最初にある上の帯のすぐ下に並べる。0025
+        ほかの中身は order を 0 のままにする。display: contents の孫も 0 で並ぶため
+      */}
+      <div className="flex min-w-0 flex-col gap-3 *:first:-order-2">
+        {children}
+        <OfflineBand className="-order-1" />
+      </div>
     </div>
   );
 }

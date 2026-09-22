@@ -11,7 +11,8 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { groupColor, memberColor } from "@/lib/colors";
 import { DAY_MS, addDays, dateKey, formatTime, holidayName, parseDateKey, startOfDay, toTimeInput, withTime } from "@/lib/dates";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
+import { useOnline } from "@/lib/online";
 import { cn } from "@/lib/utils";
 import type { Attendee, AttendeeResponse, CalendarItem } from "../../../shared/api-types";
 import { canDeleteEvent, canEditEvent, canRespond, inviteeIds } from "../shared/permissions";
@@ -69,6 +70,9 @@ function DayItemList({ day, items, onOpen }: { day: Date; items: DayItem[]; onOp
  * 招待された人が開くと、上に返事の欄を出す。招待された人も、作った人と同じように直せる。
  * グループを変えることと、予定を消すことは、作った人だけができる。
  * 招待されていないメンバーが開くと、見るだけのシートになる。
+ *
+ * 保存に失敗しても閉じず、入れた内容を残す。通信が切れている間は、入力だけさせて保存を止める。
+ * 直している間にほかの人が消していたら、閉じて知らせる。0025
  */
 export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, onDelete }: ItemEditorProps) {
   const qc = useQueryClient();
@@ -104,6 +108,7 @@ export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, 
   const [memo, setMemo] = useState(editing?.memo ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const online = useOnline();
 
   // 招待。作った人はいつも参加するので、選ぶ対象にも送る値にも入れない。#28
   const [attendees, setAttendees] = useState<Attendee[]>(editing?.attendees ?? []);
@@ -195,7 +200,15 @@ export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, 
       toast(editing ? "予定を保存しました" : "予定を足しました");
       onClose();
     } catch (err) {
-      setError((err as Error).message);
+      if (editing && err instanceof ApiError && err.status === 404) {
+        await qc.invalidateQueries({ queryKey: ["calendar"] });
+        toast.error("この予定は消されています");
+        onClose();
+        return;
+      }
+      // 入力の誤りでなければ、入れた内容が残っていることも伝える
+      const retryable = err instanceof ApiError && (err.status === 0 || err.status >= 500);
+      setError(retryable ? `保存できませんでした。入れた内容はそのままです。${err.message}` : (err as Error).message);
       setBusy(false);
     }
   }
@@ -274,7 +287,12 @@ export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, 
             {(p) => <Textarea {...p} value={memo} maxLength={1000} placeholder={canEdit ? "お店の名前や持ち物" : undefined} onChange={(e) => setMemo(e.target.value)} />}
           </Field>
         </fieldset>
-        {error && <Notice error>{error}</Notice>}
+        {canEdit && !online && (
+          <Notice role="status">
+            <b>オフラインです。</b>入れた内容はこのまま残ります。つながると保存できます。
+          </Notice>
+        )}
+        {error && online && <Notice error>{error}</Notice>}
         {canEdit ? (
           <div className="flex justify-between gap-2">
             {editing && canDelete ? (
@@ -293,7 +311,7 @@ export function EventSheet({ target, dayItems, onOpenItem, groups, me, onClose, 
                 やめる
               </Button>
             )}
-            <Button type="submit" disabled={busy || !title.trim() || !groupId}>
+            <Button type="submit" disabled={busy || !online || !title.trim() || !groupId}>
               {busy ? "保存しています" : "保存する"}
             </Button>
           </div>

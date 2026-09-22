@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { auth, usingEmulator } from "@/lib/firebase";
+import { isSessionExpired, takeSessionExpired } from "@/lib/session-expired";
 import { safeNext } from "@/lib/utils";
 import { DevLogin } from "./DevLogin";
 import { signInWithGoogle } from "./google";
@@ -23,7 +24,11 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const done = () => navigate(next, { replace: true });
+  const expired = isSessionExpired();
+  const done = () => {
+    takeSessionExpired();
+    navigate(next, { replace: true });
+  };
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -54,6 +59,13 @@ export function LoginPage() {
     <AuthShell>
       <AuthCard>
         <h1 className="sr-only">ログイン</h1>
+        {expired && (
+          <Notice role="status">
+            <b>ログインが切れました。</b>
+            <br />
+            入り直すと、開いていた画面に戻ります。
+          </Notice>
+        )}
         <GoogleButton onClick={google}>Google でログイン</GoogleButton>
         <OrDivider />
         <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>

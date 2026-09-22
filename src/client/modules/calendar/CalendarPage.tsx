@@ -5,7 +5,7 @@ import { clientExtension, defaultExtension } from "../../../extensions/registry.
 import type { EditorTarget } from "../../../extensions/types.client";
 import type { GroupSummary } from "../../../shared/api-types";
 import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components/AppLayout";
-import { Notice } from "@/components/AuthShell";
+import { LoadFailure } from "@/components/Failure";
 import { Chip } from "@/components/Chip";
 import { Dot } from "@/components/Panel";
 import { Segmented } from "@/components/Segmented";
@@ -241,9 +241,9 @@ export function CalendarPage() {
         {sections.length > 0 && <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />}
       </nav>
 
-      {calendar.error && <Notice error>{calendar.error.message}</Notice>}
+      {calendar.error && (!calendar.data || calendar.isPlaceholderData) && <LoadFailure what={`${selected.getMonth() + 1} 月の予定`} error={calendar.error} onRetry={() => void calendar.refetch()} />}
 
-      <div className="contents xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start xl:gap-4">
+      <div className={calendar.error && (!calendar.data || calendar.isPlaceholderData) ? "hidden" : "contents xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start xl:gap-4"}>
         {view === "month" ? (
           <MonthGrid
             days={days}

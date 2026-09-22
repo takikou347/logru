@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { clientExtensions } from "../../../extensions/registry.client";
 import { Button } from "@/components/ui/button";
 import { keys } from "@/lib/queries";
+import { isSessionExpired } from "@/lib/session-expired";
 import { cn } from "@/lib/utils";
 
 /**
@@ -32,11 +33,15 @@ export function RefreshButton() {
   const qc = useQueryClient();
   const refresh = useMutation({
     mutationFn: () => refreshAll(qc),
+    // ログインが切れたときは、ログインの画面の知らせだけにする。0025
     onSuccess: (failed) => {
+      if (isSessionExpired()) return;
       if (failed.length) toast.error(`カレンダーを読み直しました。読めなかったもの: ${failed.join("、")}`);
       else toast("カレンダーを読み直しました");
     },
-    onError: (e) => toast.error((e as Error).message),
+    onError: (e) => {
+      if (!isSessionExpired()) toast.error((e as Error).message);
+    },
   });
   return (
     <Button

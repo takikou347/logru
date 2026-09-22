@@ -39,7 +39,8 @@ export function useUpdateSettings() {
 }
 
 /**
- * 表示名を変える。useColorPref と同じ形: 押した瞬間に画面に効かせ、失敗したら元に戻して知らせる
+ * 表示名を変える。useColorPref と同じ形: 押した瞬間に画面に効かせ、失敗したら元に戻す。
+ * 失敗の知らせは呼び出し側(NameRow)が入力欄のそばに出すので、ここでは toast を出さない
  */
 export function useUpdateName() {
   const qc = useQueryClient();
@@ -51,11 +52,15 @@ export function useUpdateName() {
       if (prev) qc.setQueryData<Me>(keys.me, { ...prev, user: { ...prev.user, name } });
       return { prev };
     },
-    onError: (e, _n, ctx) => {
+    onError: (_e, _n, ctx) => {
       if (ctx?.prev) qc.setQueryData(keys.me, ctx.prev);
-      toast.error((e as Error).message);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.me }),
+    // 表示名は me だけでなく、メンバーの一覧や人の絞り込みで groups と calendar にも出る。3 つとも読み直す
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: keys.me });
+      qc.invalidateQueries({ queryKey: keys.groups });
+      qc.invalidateQueries({ queryKey: ["calendar"] });
+    },
   });
 }
 

@@ -4,7 +4,7 @@ import { useHomeWidgetVisibility } from "../layout";
 import { HOME_WIDGET_CATALOG } from "../widgets";
 
 /**
- * 「ウィジェットを足す」のシート。置いてあるものと、グループで無効な拡張のものは出さない。0028
+ * 「ウィジェットを足す」のシート。置いてあるものと、グループで無効な拡張のものは出さない。0029
  * @param present いま並びに置いてある key
  */
 export function AddWidgetSheet({

@@ -1,5 +1,5 @@
 /**
- * ホームの土台のウィジェット。カレンダーの本体、選んだ日の予定、このあと。0001、0028
+ * ホームの土台のウィジェット。カレンダーの本体、選んだ日の予定、このあと。0001、0029
  * カレンダーの本体は外せない。ホーム側(HomePage.tsx)で、この key を並びから外させない
  */
 import type { HomeWidget, HomeWidgetProps } from "@extensions/client/types";

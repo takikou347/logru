@@ -226,7 +226,7 @@ GitHub の Settings の Environments に `staging` と `production` がある。
 
 ### ホームのウィジェットを足すとき
 
-ホームは、拡張が `ClientExtension` の `widgets` に登録したものを並べる。0028
+ホームは、拡張が `ClientExtension` の `widgets` に登録したものを並べる。0029
 
 1. `client/` にウィジェットの部品を作る。`HomeWidgetProps`(`size`、`editing`)だけを受け取り、中身は自分の hook で読む。
    ホームは並べ方と大きさしか知らない。思い出の拡張の `src/extensions/memories/client/HomeWidget.tsx` が見本になる

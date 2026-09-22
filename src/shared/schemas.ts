@@ -76,10 +76,10 @@ export const calendarQuery = z
 
 export type SettingsInput = z.infer<typeof settingsInput>;
 
-/** `GET /api/me/home-layout` の問い合わせ。0028 */
+/** `GET /api/me/home-layout` の問い合わせ。0029 */
 export const homeLayoutQuery = z.object({ form: z.enum(["desktop", "mobile"]) });
 
-/** `PUT /api/me/home-layout`。並びに同じ key を 2 つ許さず、カレンダーの本体を必ず含む。0028 */
+/** `PUT /api/me/home-layout`。並びに同じ key を 2 つ許さず、カレンダーの本体を必ず含む。0029 */
 export const homeLayoutInput = z
   .object({
     form: z.enum(["desktop", "mobile"]),

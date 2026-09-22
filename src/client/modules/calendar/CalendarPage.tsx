@@ -164,15 +164,24 @@ export function CalendarPage() {
   const onSelectWeekDay = useCallback((d: Date) => update({ date: d, view: "day" }), [update]);
   const upcoming = useMemo(() => items.filter((i) => i.startsAt >= Date.now()).slice(0, 5), [items]);
 
-  // ホームのウィジェットの並び。PC とスマホで別に持つ。0028
+  // ホームのウィジェットの並び。PC とスマホで別に持つ。0029
   const form = useMediaQuery("(min-width: 1024px)") ? "desktop" : "mobile";
-  const { slots, rawSaved, loading: layoutLoading } = useVisibleHomeWidgets(form);
+  const {
+    slots,
+    rawSaved,
+    loading: layoutLoading,
+    error: layoutError,
+    refetch: refetchLayout,
+  } = useVisibleHomeWidgets(form);
   const isWidgetVisible = useHomeWidgetVisibility();
   const mergeLayout = useMergeHomeLayout();
-  const saveLayout = useSaveHomeLayout(form);
   const [editingHome, setEditingHome] = useState(false);
   const [editedEntries, setEditedEntries] = useState<HomeWidgetEntry[] | null>(null);
   const [mergeBase, setMergeBase] = useState<HomeWidgetEntry[]>([]);
+  // 編集を始めたときの「見えるか」と form。編集の途中でどちらも変わっても、保存はこれを使う
+  const [editVisible, setEditVisible] = useState<((key: string) => boolean) | null>(null);
+  const [editingForm, setEditingForm] = useState<typeof form | null>(null);
+  const saveLayout = useSaveHomeLayout(editingForm ?? form);
   const [addSheet, setAddSheet] = useState(false);
 
   // 編集の状態で出す並び。直した順と大きさをそのまま使う。ホームは並べ方と大きさだけを知る
@@ -186,24 +195,38 @@ export function CalendarPage() {
   );
 
   const startEdit = () => {
+    if (layoutLoading || layoutError) return;
+    // 「見えるか」を編集を始めたときに 1 度だけ決めて、以降はこれを使う
+    setEditVisible(() => isWidgetVisible);
+    setEditingForm(form);
     setMergeBase(rawSaved);
     setEditedEntries(slots.map((s) => s.entry));
     setEditingHome(true);
   };
+  const cancelEdit = () => {
+    setEditingHome(false);
+    setEditedEntries(null);
+    setEditVisible(null);
+    setEditingForm(null);
+  };
   const finishEdit = () => {
-    const merged = mergeLayout(mergeBase, editedEntries ?? []);
+    const visible = editVisible ?? isWidgetVisible;
+    const merged = mergeLayout(mergeBase, editedEntries ?? [], visible);
     saveLayout.mutate(merged, {
       onSuccess: () => {
         setEditingHome(false);
         setEditedEntries(null);
+        setEditVisible(null);
+        setEditingForm(null);
         toast.success("ホームを保存しました");
       },
     });
   };
   const resetToDefault = () => {
+    const visible = editVisible ?? isWidgetVisible;
     const catalogDefault = defaultHomeLayout(HOME_WIDGET_CATALOG);
     setMergeBase(catalogDefault);
-    setEditedEntries(visibleHomeLayout(catalogDefault, HOME_WIDGET_CATALOG, isWidgetVisible));
+    setEditedEntries(visibleHomeLayout(catalogDefault, HOME_WIDGET_CATALOG, visible));
   };
 
   // PC のキー。左右で移る、T で今日、N で予定を足す。0012
@@ -336,6 +359,9 @@ export function CalendarPage() {
                   最初の並びに戻す
                 </Button>
               </div>
+              <Button variant="ghost" size="sm" disabled={saveLayout.isPending} onClick={cancelEdit}>
+                取り消し
+              </Button>
               <Button size="sm" aria-busy={saveLayout.isPending} disabled={saveLayout.isPending} onClick={finishEdit}>
                 完了
               </Button>
@@ -343,7 +369,7 @@ export function CalendarPage() {
           ) : (
             <div className="ml-2 hidden gap-2.5 lg:flex">
               <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} />
-              <Button variant="secondary" onClick={startEdit}>
+              <Button variant="secondary" disabled={layoutLoading || !!layoutError} onClick={startEdit}>
                 <Pencil className="size-4" />
                 ホームを編集
               </Button>
@@ -356,7 +382,7 @@ export function CalendarPage() {
 
       {!editingHome && (
         <div className="-mb-1 lg:hidden">
-          <Button variant="secondary" className="w-full" onClick={startEdit}>
+          <Button variant="secondary" className="w-full" disabled={layoutLoading || !!layoutError} onClick={startEdit}>
             <Pencil className="size-4" />
             ホームを編集
           </Button>
@@ -372,6 +398,9 @@ export function CalendarPage() {
           <Button variant="secondary" size="sm" className="flex-1" onClick={resetToDefault}>
             <RotateCcw className="size-4" />
             最初の並びに戻す
+          </Button>
+          <Button variant="ghost" size="sm" className="flex-1" disabled={saveLayout.isPending} onClick={cancelEdit}>
+            取り消し
           </Button>
         </div>
       )}
@@ -409,13 +438,17 @@ export function CalendarPage() {
         <CalendarHomeProvider
           value={{ view, today, selected, days, items, upcoming, open, onPressDay, onSelectWeekDay }}
         >
-          {!layoutLoading && (
-            <WidgetGrid
-              form={form}
-              slots={editingHome ? editingSlots : slots}
-              editing={editingHome}
-              onChange={editingHome ? setEditedEntries : undefined}
-            />
+          {layoutError ? (
+            <LoadFailure what="ホームの並び" error={layoutError} onRetry={refetchLayout} />
+          ) : (
+            !layoutLoading && (
+              <WidgetGrid
+                form={form}
+                slots={editingHome ? editingSlots : slots}
+                editing={editingHome}
+                onChange={editingHome ? setEditedEntries : undefined}
+              />
+            )
           )}
         </CalendarHomeProvider>
       </div>

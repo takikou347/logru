@@ -3,7 +3,7 @@ import { ShortcutLink } from "@/components/parts/ShortcutBand";
 import { useKomaShortcut } from "./shortcut";
 
 /**
- * 思い出の拡張の、ホームのウィジェット。近道の帯をそのまま使う。0028
+ * 思い出の拡張の、ホームのウィジェット。近道の帯をそのまま使う。0029
  * いま押してほしい近道が無ければ、その旨を出す。
  */
 export function MemoriesHomeWidget({ size }: HomeWidgetProps) {

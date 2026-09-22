@@ -91,7 +91,7 @@ export type ExtensionShortcut = {
   icon: LucideIcon;
 };
 
-/** ホームのウィジェットの部品が受け取るもの。0028 */
+/** ホームのウィジェットの部品が受け取るもの。0029 */
 export type HomeWidgetProps = {
   /** いまの大きさ */
   size: HomeWidgetSize;
@@ -100,7 +100,7 @@ export type HomeWidgetProps = {
 };
 
 /**
- * ホームに置けるウィジェット。0028
+ * ホームに置けるウィジェット。0029
  *
  * ウィジェットは中身を自分で読む。ホームは並べ方と大きさだけを知り、部品の中を知らない。
  * 表示するデータは Component が自分の hook で読む。ホームからは渡さない
@@ -152,6 +152,6 @@ export type ClientExtension = {
   itemAddons?: ItemAddon[];
   /** 端末に知らせるもの。例は「ひとコマの時刻」。知らせる拡張を使っているときだけ、設定に知らせの欄を出す。F-23 */
   notifies?: string;
-  /** ホームに置けるウィジェット。無ければ省く。0028 */
+  /** ホームに置けるウィジェット。無ければ省く。0029 */
   widgets?: HomeWidget[];
 };

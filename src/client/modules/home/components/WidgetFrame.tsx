@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 const SIZE_LABEL: Record<HomeWidgetSize, string> = { small: "小", medium: "中", large: "大" };
 
 /**
- * 編集の状態で 1 つのウィジェットを包む枠。上へ・下へ、大きさ、外す、を並べる。0028
+ * 編集の状態で 1 つのウィジェットを包む枠。上へ・下へ、大きさ、外す、を並べる。0029
  * キーボードと読み上げでも操作できるよう、並べ替えはドラッグだけでなくボタンでもできる。
  *
  * @param removable false ならカレンダーの本体。外すボタンを出さない

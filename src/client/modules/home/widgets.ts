@@ -1,6 +1,6 @@
 /**
  * ホームに置けるウィジェットの一覧。土台のウィジェットと、拡張が widgets に登録したものをまとめる。
- * 並びは、土台が先頭、そのあと拡張の登録順(registry.ts の並び)、拡張の中では widgets 配列の順。0028
+ * 並びは、土台が先頭、そのあと拡張の登録順(registry.ts の並び)、拡張の中では widgets 配列の順。0029
  */
 import { clientExtensions } from "@extensions/client/registry";
 import type { HomeWidget } from "@extensions/client/types";

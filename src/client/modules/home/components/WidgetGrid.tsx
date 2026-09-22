@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import type { HomeWidgetSlot } from "../layout";
 import { WidgetFrame } from "./WidgetFrame";
 
-/** 大きさの、列に対する広さ。PC は 4 列、スマホは 2 列。0028 */
+/** 大きさの、列に対する広さ。PC は 4 列、スマホは 2 列。0029 */
 function spanClass(form: HomeForm, size: HomeWidgetSize): string {
   if (form === "desktop") {
     if (size === "small") return "col-span-1";
@@ -16,7 +16,7 @@ function spanClass(form: HomeForm, size: HomeWidgetSize): string {
 }
 
 /**
- * ホームのウィジェットの並び。編集の状態では、枠と上へ・下へ・大きさ・外すのボタンを添える。0028
+ * ホームのウィジェットの並び。編集の状態では、枠と上へ・下へ・大きさ・外すのボタンを添える。0029
  * ドラッグでの並べ替えにも対応するが、ボタンでも同じことができる。
  */
 export function WidgetGrid({

@@ -4,7 +4,9 @@ import { Link, Navigate, useNavigate, useParams } from "react-router";
 import type { GroupSummary, Me } from "../../../shared/api-types";
 import { Loading } from "@/app/guards";
 import { AppLayout } from "@/components/AppLayout";
+import { LoadFailure } from "@/components/Failure";
 import { Empty } from "@/components/Panel";
+import { ApiError } from "@/lib/api";
 import { Segmented } from "@/components/Segmented";
 import { Button } from "@/components/ui/button";
 import { useMe } from "@/lib/queries";
@@ -49,7 +51,14 @@ export function MemoryShell({
   const [editing, setEditing] = useState(false);
 
   if (!me.data || !ready || detail.isPending) return <Loading />;
-  if (detail.error || !detail.data) {
+  if (detail.error && !(detail.error instanceof ApiError && detail.error.status === 404)) {
+    return (
+      <AppLayout poolColors={poolColorsOf(groups, me.data)}>
+        <LoadFailure what="思い出" error={detail.error} onRetry={() => void detail.refetch()} />
+      </AppLayout>
+    );
+  }
+  if (!detail.data) {
     return (
       <AppLayout poolColors={poolColorsOf(groups, me.data)}>
         <Empty>思い出が見つかりません。消えたか、グループを抜けています。</Empty>

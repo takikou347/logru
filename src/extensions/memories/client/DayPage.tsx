@@ -2,6 +2,7 @@ import { Camera } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Chip } from "@/components/Chip";
+import { LoadFailure } from "@/components/Failure";
 import { Button } from "@/components/ui/button";
 import { useCalendar } from "@/lib/queries";
 import { DAY_MS, memoryDays, startOfDayIn } from "../shared/days";
@@ -50,6 +51,7 @@ function Day({ detail, me, groups }: ShellProps) {
           ))}
         </div>
       )}
+      {records.error && <LoadFailure what="この日の記録" error={records.error} onRetry={() => void records.refetch()} />}
       <Flow
         events={events}
         records={records.data ?? []}

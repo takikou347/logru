@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { LoadFailure } from "@/components/Failure";
 import { Empty } from "@/components/Panel";
 import { cn } from "@/lib/utils";
 import { dayKeyIn, memoryDays } from "../shared/days";
@@ -19,6 +20,7 @@ function Album({ detail, me, groups }: ShellProps) {
   const [open, setOpen] = useState<number | null>(null);
   const days = memoryDays(memory);
 
+  if (records.error) return <LoadFailure what="写真" error={records.error} onRetry={() => void records.refetch()} />;
   if (records.data && entries.length === 0) return <Empty>写真はまだありません。1 日の面の「記録する」で足せます。</Empty>;
   return (
     <>

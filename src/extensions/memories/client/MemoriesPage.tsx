@@ -4,7 +4,7 @@ import { Link, useSearchParams } from "react-router";
 import type { Me } from "../../../shared/api-types";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/AppLayout";
-import { Notice } from "@/components/AuthShell";
+import { LoadFailure } from "@/components/Failure";
 import { Empty } from "@/components/Panel";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -86,7 +86,7 @@ export function MemoriesPage() {
       <Page>
         <PageBar title="思い出" />
         <GroupFilter groups={groups} me={data} value={group} onChange={setGroup} />
-        {list.error && <Notice error>{list.error.message}</Notice>}
+        {list.error && !list.data && <LoadFailure what="思い出" error={list.error} onRetry={() => void list.refetch()} />}
         {list.isPending && <Loading />}
         {empty && (
           <Empty>

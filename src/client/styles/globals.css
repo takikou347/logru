@@ -24,6 +24,7 @@
   --muted-foreground: var(--ink-2);
   --accent-surface: var(--field-strong);
   --destructive: var(--sun);
+  --destructive-foreground: var(--on-destructive);
   --border: var(--line);
   --input: var(--line);
   --ring: var(--ink);
@@ -52,6 +53,7 @@
   --color-accent: var(--accent-surface);
   --color-accent-foreground: var(--foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -84,6 +86,14 @@
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
+    /*
+     * 日本語の折り返し
+     * 既定では「カレンダーが見つかりま／せん」のように、語の途中で切れて読みにくい。
+     * auto-phrase は文節の切れ目で折り返す。読めないブラウザはこの 1 行を飛ばし、今までと同じになる。
+     * strict は行頭に来てはいけない字（小書きの仮名、長音符）を前の行に残す。
+     */
+    word-break: auto-phrase;
+    line-break: strict;
   }
   :focus-visible {
     outline: 2px solid var(--ink);
@@ -105,9 +115,10 @@
   }
   /*
    * 奥を読み直す backdrop-filter は、面の数と広さを絞る。#3
-   * 画面に沿って流れる面は、奥がインクだまりだけなので色を濃くするだけにする。
+   * 画面に沿って流れる面は奥を読まない（--glass-filter は none）。
+   * 代わりに面の塗りを濃くして、インクだまりが文字に透けないようにする
    * ぼかすのは、中身の上に浮いて止まっている面だけ（スマホの下の操作）。
-   * シートと窓は地がほぼ塗りつぶしで、ぼかしが見えないので読まない。
+   * シートと窓は地が塗りつぶしで、ぼかしが見えないので読まない。
    * 規約のように長い面は、奥を読むと描き直しが大きいので読まない。
    * -webkit- を並べて書くと、組み立てのときに片方が消えて Chrome でぼけなくなるので、ここでは書かない。
    */

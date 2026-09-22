@@ -142,7 +142,8 @@ export function DayPanel({ day, items, onOpen }: { day: Date; items: ViewItem[];
         </span>
         <div>
           <div className="mt-2 text-sm font-bold">{WEEKDAYS[day.getDay()]}曜</div>
-          {hol && <div className="mt-0.5 text-[11px] text-ink-2">{hol}</div>}
+          {/* 祝日の名前。ガラスの光沢が乗る場所なので、薄い文字だと読めない */}
+          {hol && <div className="mt-0.5 text-[11px] text-ink">{hol}</div>}
         </div>
       </div>
       <ItemList items={mine} onOpen={onOpen} empty="予定はありません。日付を押すと、その日の予定を足せます。" />

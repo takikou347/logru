@@ -17,9 +17,19 @@ const Toaster = (props: ToasterProps) => (
       error: <OctagonXIcon className="size-4" />,
     }}
     toastOptions={{
+      /*
+       * 色は種類ごとの欄だけで決める。toast の欄に色を書くと、同じ強さの指定が 2 つ並び、
+       * どちらが勝つかは組み立てた CSS の並び順で決まる。前はここで種類の色が負けて、
+       * ダークのときに白い面に白い文字が出ていた。
+       */
       classNames: {
-        toast: "!rounded-full !border-0 !bg-primary !text-primary-foreground !shadow-lg",
-        error: "!bg-destructive !text-white",
+        toast: "!rounded-[26px] !border-0 !shadow-lg",
+        default: "!bg-primary !text-primary-foreground",
+        success: "!bg-primary !text-primary-foreground",
+        info: "!bg-primary !text-primary-foreground",
+        loading: "!bg-primary !text-primary-foreground",
+        warning: "!bg-primary !text-primary-foreground",
+        error: "!bg-destructive !text-destructive-foreground",
         actionButton: "!bg-transparent !font-bold !underline !underline-offset-3 !text-inherit",
       },
     }}

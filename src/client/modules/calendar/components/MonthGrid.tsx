@@ -159,7 +159,8 @@ export function MonthGrid({
                       className={cn(
                         "pointer-events-none relative z-[2] text-[17px] leading-none font-medium lg:pl-1 lg:text-xl",
                         tone && toneText[tone],
-                        isOut && "text-ink-3 opacity-60",
+                        // 前後の月の日。色で薄く見せる。opacity を重ねると読めなくなる
+                        isOut && "text-ink-3",
                         isToday && "pt-[3px] font-extrabold",
                       )}
                     >

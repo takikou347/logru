@@ -309,10 +309,16 @@ export function CalendarPage() {
     ...allGroups.map((g) => render(groupOption(g))),
   ];
 
-  const addButton = (
-    <Button onClick={() => addNew(selected)}>
+  /**
+   * 予定を足すボタン。
+   * @param narrow 狭い幅では言葉を隠し、＋の印だけにする。下の操作の帯を折り返さずに収めるため
+   */
+  const addButton = (narrow = false) => (
+    <Button onClick={() => addNew(selected)} aria-label="予定を足す" className={narrow ? "px-4" : undefined}>
       <Plus className="size-5" />
-      予定を足す
+      <span aria-hidden="true" className={narrow ? "hidden min-[380px]:inline" : undefined}>
+        予定を足す
+      </span>
     </Button>
   );
 
@@ -350,19 +356,24 @@ export function CalendarPage() {
         </div>
       }
     >
-      <header className="glass flex min-h-[58px] items-center justify-between gap-2 rounded-full py-1.5 pr-1.5 pl-5">
-        <h1 className="flex items-baseline gap-1" aria-live="polite">
+      {/*
+        スマホの幅では、月と年に「今日」「前」「次」「読み直す」「知らせ」「アカウント」を足すと 1 行に入らない。
+        入る月と入らない月で高さが変わると落ち着かないので、スマホではいつも月と年の下へ操作を置く。
+        9 月でも 10 月でも、「今日」が出ても出なくても、帯の形は変わらない。PC は 1 行のまま
+      */}
+      <header className="glass flex min-h-[58px] flex-wrap items-center gap-x-2 gap-y-1 rounded-panel py-1.5 pr-1.5 pl-4 lg:flex-nowrap lg:pl-5">
+        <h1 className="flex shrink-0 items-baseline gap-1" aria-live="polite">
           <span data-testid="month-number" className="text-[38px] leading-none font-bold">
             {selected.getMonth() + 1}
           </span>
           <span className="text-[17px] font-bold">月</span>
           <span className="ml-2 text-[17px] font-medium text-ink-2">{selected.getFullYear()}</span>
         </h1>
-        <div className="flex items-center gap-1">
+        <div className="flex w-full shrink-0 items-center justify-end gap-0.5 lg:ml-auto lg:w-auto lg:gap-1">
           {!editingHome && showTodayButton && (
             <button
               type="button"
-              className="min-h-10 rounded-full border border-(--glass-edge) bg-field px-3.5 text-[13px] font-bold"
+              className="min-h-10 shrink-0 rounded-full border border-(--glass-edge) bg-field px-3.5 text-[13px] font-bold whitespace-nowrap"
               onClick={() => update({ date: today })}
             >
               今日
@@ -406,7 +417,7 @@ export function CalendarPage() {
                 <Pencil className="size-4" />
                 ホームを編集
               </Button>
-              {addButton}
+              {addButton()}
             </div>
           )}
           <NotificationBell />
@@ -491,13 +502,13 @@ export function CalendarPage() {
         <div
           role="toolbar"
           aria-label="カレンダーの操作"
-          className="glass fixed inset-x-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[528px] items-center justify-between gap-1.5 rounded-full p-1.5 lg:hidden"
+          className="glass fixed inset-x-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[528px] items-center justify-between gap-1 rounded-full p-1.5 lg:hidden"
         >
           <Button variant="ghost" size="icon" aria-label="機能" onClick={() => setFeatures(true)}>
             <LayoutGrid className="size-5" />
           </Button>
           <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} compact />
-          {addButton}
+          {addButton(true)}
         </div>
       )}
 

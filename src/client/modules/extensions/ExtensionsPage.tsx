@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import type { ExtensionOverview } from "../../../shared/api-types";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/AppLayout";
+import { LoadFailure } from "@/components/Failure";
 import { Dot, Empty, FieldMessage, Panel } from "@/components/Panel";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
@@ -41,7 +42,7 @@ export function ExtensionsPage() {
     <AppLayout poolColors={poolColorsOf(groups.data ?? [], me.data)}>
       <Page>
         <PageBar title="機能" />
-        {overview.error && <Empty>{overview.error.message}</Empty>}
+        {overview.error && <LoadFailure what="機能の一覧" error={overview.error} onRetry={() => void overview.refetch()} />}
         {list.length === 0 && !overview.error && (
           <Empty>
             足せる機能はまだありません。

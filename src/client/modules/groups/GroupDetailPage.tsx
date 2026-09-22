@@ -8,6 +8,7 @@ import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/AppLayout";
 import { ColorSheet } from "@/components/ColorSheet";
 import { ColorSwatches } from "@/components/ColorSwatches";
+import { FailurePanel, LoadFailure } from "@/components/Failure";
 import { Field } from "@/components/Field";
 import { Dot, Empty, FieldMessage, Panel, PanelRow, RowButton } from "@/components/Panel";
 import { ResponsiveSheet } from "@/components/ResponsiveSheet";
@@ -53,8 +54,22 @@ export function GroupDetailPage() {
       <AppLayout poolColors={poolColorsOf(groups.data ?? [], me.data)}>
         <Page>
           <PageBar title="グループ" back="/groups" />
-          <Empty>グループが見つかりません。抜けたか、消えています。</Empty>
-          <Link to="/groups">グループの一覧へ</Link>
+          {/* 読めなかったのか、無いのかを分ける。0025 */}
+          {groups.error && !groups.data ? (
+            <LoadFailure what="グループ" error={groups.error} onRetry={() => void groups.refetch()} />
+          ) : (
+            <FailurePanel
+              mark="?"
+              title="グループが見つかりません"
+              action={
+                <Button asChild variant="secondary">
+                  <Link to="/groups">グループの一覧へ</Link>
+                </Button>
+              }
+            >
+              抜けたか、管理者が消しました。入り直すには、新しい招待リンクをもらってください。
+            </FailurePanel>
+          )}
         </Page>
       </AppLayout>
     );

@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 
 /**
  * 画面を開けなかったとき。新しい版を公開した直後に、古いファイルを読みにいくと起きる。
- * 読み込み直せば、新しい版で開き直せる。
+ * 読み込み直せば、新しい版で開き直せる。古いファイルのときは main.tsx が 1 度だけ黙って読み込み直し、
+ * それでも開けなければここに来る。0025
+ *
+ * カレンダーへは、アプリを読み込み直して移る。壊れた画面の状態を持ち越さない。
  */
 export function RouteError() {
   const error = useRouteError();
@@ -13,8 +16,11 @@ export function RouteError() {
     <AuthShell>
       <AuthCard role="alert">
         <AuthTitle>画面を開けませんでした</AuthTitle>
-        <AuthText>新しい版に切り替わったか、通信が切れた可能性があります。読み込み直してください。</AuthText>
+        <AuthText>読み込み直すと、たいていは開けます。</AuthText>
         <Button onClick={() => window.location.reload()}>読み込み直す</Button>
+        <Button asChild variant="ghost">
+          <a href="/">カレンダーへ</a>
+        </Button>
       </AuthCard>
     </AuthShell>
   );
@@ -26,7 +32,7 @@ export function NotFound() {
     <AuthShell>
       <AuthCard>
         <AuthTitle>ページが見つかりません</AuthTitle>
-        <AuthText>アドレスが間違っているか、ページが消えています。</AuthText>
+        <AuthText>アドレスが違うか、ページが消えています。</AuthText>
         <Button asChild>
           <Link to="/">カレンダーへ</Link>
         </Button>

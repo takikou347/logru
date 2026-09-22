@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation, useSearchParams } from "react-router";
-import { Button } from "@/components/ui/button";
+import { LoadFailure } from "@/components/Failure";
 import { ApiError } from "@/lib/api";
 import { keys, useMe } from "@/lib/queries";
 import { applyTheme } from "@/lib/theme";
@@ -61,13 +61,8 @@ export function RequireAuth() {
     const code = me.error instanceof ApiError ? me.error.code : undefined;
     if (code === "EMAIL_NOT_VERIFIED") return <Navigate to={`/verify-email?next=${encodeURIComponent(here)}`} replace />;
     return (
-      <div className="grid min-h-[60dvh] place-items-center px-6 text-center">
-        <div className="flex flex-col items-center gap-3">
-          <p className="text-sm">{me.error.message}</p>
-          <Button variant="secondary" onClick={() => me.refetch()}>
-            もう一度読み込む
-          </Button>
-        </div>
+      <div className="mx-auto grid min-h-[60dvh] max-w-[560px] place-items-center px-4">
+        <LoadFailure what="自分の情報" error={me.error} onRetry={() => void me.refetch()} className="w-full" />
       </div>
     );
   }

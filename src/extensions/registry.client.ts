@@ -4,10 +4,11 @@
  */
 import { eventsClient } from "./events/client";
 import { externalCalendarsClient } from "./external-calendars/client";
+import { memoriesClient } from "./memories/client";
 import type { ClientExtension } from "./types.client";
 
 /** 画面の側の拡張 */
-export const clientExtensions: ClientExtension[] = [eventsClient, externalCalendarsClient];
+export const clientExtensions: ClientExtension[] = [eventsClient, externalCalendarsClient, memoriesClient];
 
 /** 項目を作るときに使う拡張。いまは予定だけ */
 export const defaultExtension: ClientExtension = eventsClient;

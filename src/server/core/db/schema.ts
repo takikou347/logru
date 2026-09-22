@@ -131,7 +131,7 @@ export const groupExtensions = sqliteTable(
   (t) => [primaryKey({ columns: [t.groupId, t.extensionKey] })],
 );
 
-/** ホームのウィジェットの並び。自分の画面だけの設定。PC とスマホで別の行を持つ。F-28、0028 */
+/** ホームのウィジェットの並び。自分の画面だけの設定。PC とスマホで別の行を持つ。F-28、0029 */
 export const homeLayouts = sqliteTable(
   "home_layouts",
   {

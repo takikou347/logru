@@ -106,7 +106,7 @@ export const meRoutes = createRouter()
     await c.get("db").insert(legalAgreements).values(rows).onConflictDoNothing();
     return c.body(null, 204);
   })
-  // ホームのウィジェットの並び。自分の画面だけ。F-28、0028
+  // ホームのウィジェットの並び。自分の画面だけ。F-28、0029
   .get("/home-layout", zValidator("query", homeLayoutQuery, validationHook), async (c) => {
     const { form } = c.req.valid("query");
     const row = await c

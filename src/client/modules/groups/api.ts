@@ -1,6 +1,7 @@
 /** グループの画面(GroupsPage、GroupDetailPage、InvitePage)が使う API の hook */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
 import type { ExtensionInfo, GroupSummary, InviteInfo } from "@shared/api-types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
 import { keys } from "@/api/keys";
 
@@ -91,7 +92,11 @@ export function useToggleGroupExtension(groupId: string) {
   return useMutation({
     mutationFn: ({ key, enabled }: { key: string; enabled: boolean }) =>
       api(`/groups/${groupId}/extensions/${key}`, { method: "PUT", body: { enabled } }),
-    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: keys.groups }), qc.invalidateQueries({ queryKey: groupKeys.extensions(groupId) })]),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: keys.groups }),
+        qc.invalidateQueries({ queryKey: groupKeys.extensions(groupId) }),
+      ]),
   });
 }
 

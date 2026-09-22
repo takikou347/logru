@@ -7,7 +7,7 @@ import { Field } from "@/components/parts/Field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { MIN_PASSWORD_LENGTH, authErrorMessage } from "@/lib/auth-errors";
+import { authErrorMessage, MIN_PASSWORD_LENGTH } from "@/lib/auth-errors";
 import { auth } from "@/lib/firebase";
 import { safeNext } from "@/lib/utils";
 import { forgetAgreement, rememberAgreement } from "./pending-agreement";
@@ -63,20 +63,46 @@ export function SignupPage() {
         <AuthTitle>アカウントを作る</AuthTitle>
         <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
           <Field label="表示名" hint="グループのメンバーに見える名前です。">
-            {(p) => <Input {...p} autoComplete="nickname" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />}
+            {(p) => (
+              <Input
+                {...p}
+                autoComplete="nickname"
+                maxLength={40}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            )}
           </Field>
           <Field label="メールアドレス">
             {(p) => (
-              <Input {...p} type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                {...p}
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             )}
           </Field>
           <Field label="パスワード" hint={`${MIN_PASSWORD_LENGTH} 文字以上にしてください。`}>
             {(p) => (
-              <Input {...p} type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Input
+                {...p}
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             )}
           </Field>
           <label className="flex items-start gap-2.5 text-[13px] leading-relaxed">
-            <Checkbox className="mt-0.5 size-5" checked={agreed} onCheckedChange={(v) => setAgreed(v === true)} aria-label="利用規約とプライバシーポリシーに同意する" />
+            <Checkbox
+              className="mt-0.5 size-5"
+              checked={agreed}
+              onCheckedChange={(v) => setAgreed(v === true)}
+              aria-label="利用規約とプライバシーポリシーに同意する"
+            />
             <span>
               <Link to="/terms" target="_blank">
                 利用規約

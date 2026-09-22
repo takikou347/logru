@@ -4,10 +4,11 @@
  * 切り替えられる拡張は、その人が使うと決めたときだけ使える。使うかどうかは、自分だけのグループの切り替えで持つ。
  * 共有のグループで有効でも、本人が使わないと決めていれば、入口も画面も出さない。いつも有効な拡張は、いつも使える。
  */
-import { useMemo } from "react";
-import type { GroupSummary } from "@shared/api-types";
+
 import { clientExtensions } from "@extensions/client/registry";
 import type { ClientExtension } from "@extensions/client/types";
+import type { GroupSummary } from "@shared/api-types";
+import { useMemo } from "react";
 import { useGroups } from "@/api/common";
 
 /**
@@ -15,7 +16,10 @@ import { useGroups } from "@/api/common";
  * @param extensions 画面の側の拡張
  * @param groups 入っているグループ
  */
-export function enabledKeys(extensions: Pick<ClientExtension, "manifest">[], groups: Pick<GroupSummary, "extensions" | "isPersonal">[]): Set<string> {
+export function enabledKeys(
+  extensions: Pick<ClientExtension, "manifest">[],
+  groups: Pick<GroupSummary, "extensions" | "isPersonal">[],
+): Set<string> {
   const on = new Set(groups.filter((g) => g.isPersonal).flatMap((g) => g.extensions));
   return new Set(extensions.filter((x) => x.manifest.alwaysOn || on.has(x.manifest.key)).map((x) => x.manifest.key));
 }

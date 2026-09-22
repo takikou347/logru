@@ -1,8 +1,8 @@
-import { type User, onIdTokenChanged, signOut as firebaseSignOut } from "firebase/auth";
+import { signOut as firebaseSignOut, onIdTokenChanged, type User } from "firebase/auth";
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import { clearApiCache } from "@/api/client";
-import { auth } from "@/lib/firebase";
 import { queryClient } from "@/api/query-client";
+import { auth } from "@/lib/firebase";
 
 /** ログインの状態 */
 export type AuthState = {

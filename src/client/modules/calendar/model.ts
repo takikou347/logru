@@ -20,12 +20,24 @@ export type ViewItem = CalendarItem & {
  * @param group 項目のグループ
  * @param me 自分の情報
  */
-export function attendeeViews(attendees: Attendee[] | undefined, group: GroupSummary | undefined, me: Me): ViewAttendee[] {
+export function attendeeViews(
+  attendees: Attendee[] | undefined,
+  group: GroupSummary | undefined,
+  me: Me,
+): ViewAttendee[] {
   if (!attendees || !group) return [];
   return attendees.flatMap((a) => {
     const m = group.members.find((x) => x.id === a.userId);
     if (!m) return [];
-    return [{ id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs), response: a.response, isMe: m.id === me.user.id }];
+    return [
+      {
+        id: m.id,
+        name: m.name,
+        color: memberColor(m.id, m.userColor, me.colorPrefs),
+        response: a.response,
+        isMe: m.id === me.user.id,
+      },
+    ];
   });
 }
 
@@ -65,7 +77,12 @@ export type GroupPeople = { group: GroupSummary; people: Person[] };
 
 /** 自分を「表示する人」の 1 人にする */
 function selfOf(me: Me): Person {
-  return { id: me.user.id, name: me.user.name, color: memberColor(me.user.id, me.settings.userColor, me.colorPrefs), isMe: true };
+  return {
+    id: me.user.id,
+    name: me.user.name,
+    color: memberColor(me.user.id, me.settings.userColor, me.colorPrefs),
+    isMe: true,
+  };
 }
 
 /**
@@ -122,7 +139,10 @@ export function hiddenPeople(hiddenMembers: string[], people: Person[]): Set<str
  * @param items カレンダーの項目
  * @param hidden 出さない人の ID
  */
-export function byPeople<T extends Pick<CalendarItem, "createdBy" | "attendees">>(items: T[], hidden: Set<string>): T[] {
+export function byPeople<T extends Pick<CalendarItem, "createdBy" | "attendees">>(
+  items: T[],
+  hidden: Set<string>,
+): T[] {
   if (hidden.size === 0) return items;
   return items.filter((i) => {
     const owners = ownersOf(i);

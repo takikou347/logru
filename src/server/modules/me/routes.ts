@@ -1,5 +1,19 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { createRouter, HttpError, validationHook } from "@server/core/app";
+import { missingAgreements, requireAgreement, requireUser } from "@server/core/auth/middleware";
+import type { DB } from "@server/core/db/client";
+import {
+  colorPrefs,
+  groupMembers,
+  groups,
+  legalAgreements,
+  memberVisibility,
+  pushSubscriptions,
+  userSettings,
+  users,
+} from "@server/core/db/schema";
+import { vapidKeys } from "@server/core/push/send";
+import { myGroupIds, sharesGroup } from "@server/modules/groups/membership";
 import type { Me, PushInfo } from "@shared/api-types";
 import { LEGAL_VERSIONS, type LegalDocument } from "@shared/legal";
 import {
@@ -11,12 +25,7 @@ import {
   pushSubscriptionInput,
   settingsInput,
 } from "@shared/schemas";
-import { HttpError, createRouter, validationHook } from "@server/core/app";
-import { missingAgreements, requireAgreement, requireUser } from "@server/core/auth/middleware";
-import type { DB } from "@server/core/db/client";
-import { colorPrefs, groupMembers, groups, legalAgreements, memberVisibility, pushSubscriptions, userSettings, users } from "@server/core/db/schema";
-import { vapidKeys } from "@server/core/push/send";
-import { myGroupIds, sharesGroup } from "@server/modules/groups/membership";
+import { and, eq, inArray, ne } from "drizzle-orm";
 
 /**
  * 退会したときに消すグループと、退会を止めるグループを調べる。
@@ -29,7 +38,12 @@ import { myGroupIds, sharesGroup } from "@server/modules/groups/membership";
  */
 async function planDeletion(db: DB, userId: string) {
   const mine = await db
-    .select({ groupId: groupMembers.groupId, role: groupMembers.role, isPersonal: groups.isPersonal, name: groups.name })
+    .select({
+      groupId: groupMembers.groupId,
+      role: groupMembers.role,
+      isPersonal: groups.isPersonal,
+      name: groups.name,
+    })
     .from(groupMembers)
     .innerJoin(groups, eq(groups.id, groupMembers.groupId))
     .where(eq(groupMembers.userId, userId));
@@ -103,7 +117,9 @@ export const meRoutes = createRouter()
       ...(toDelete.length
         ? [
             db.delete(groups).where(inArray(groups.id, toDelete)),
-            db.delete(colorPrefs).where(and(eq(colorPrefs.targetType, "group"), inArray(colorPrefs.targetId, toDelete))),
+            db
+              .delete(colorPrefs)
+              .where(and(eq(colorPrefs.targetType, "group"), inArray(colorPrefs.targetId, toDelete))),
           ]
         : []),
       db.delete(colorPrefs).where(and(eq(colorPrefs.targetType, "user"), eq(colorPrefs.targetId, me.id))),
@@ -116,7 +132,11 @@ export const meRoutes = createRouter()
   .use("*", requireAgreement)
   .patch("/", zValidator("json", profileInput, validationHook), async (c) => {
     const { name } = c.req.valid("json");
-    await c.get("db").update(users).set({ name, updatedAt: new Date() }).where(eq(users.id, c.get("user").id));
+    await c
+      .get("db")
+      .update(users)
+      .set({ name, updatedAt: new Date() })
+      .where(eq(users.id, c.get("user").id));
     return c.json({ name });
   })
   .put("/settings", zValidator("json", settingsInput, validationHook), async (c) => {
@@ -174,15 +194,30 @@ export const meRoutes = createRouter()
     await c
       .get("db")
       .delete(colorPrefs)
-      .where(and(eq(colorPrefs.userId, c.get("user").id), eq(colorPrefs.targetType, type), eq(colorPrefs.targetId, c.req.param("id"))));
+      .where(
+        and(
+          eq(colorPrefs.userId, c.get("user").id),
+          eq(colorPrefs.targetType, type),
+          eq(colorPrefs.targetId, c.req.param("id")),
+        ),
+      );
     return c.body(null, 204);
   })
   // 端末への知らせの送り先。F-23、0023
   .get("/push", async (c) => {
-    const rows = await c.get("db").select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, c.get("user").id));
+    const rows = await c
+      .get("db")
+      .select()
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.userId, c.get("user").id));
     const body: PushInfo = {
       publicKey: vapidKeys(c.env)?.publicKey ?? null,
-      devices: rows.map((r) => ({ id: r.id, endpoint: r.endpoint, userAgent: r.userAgent, createdAt: r.createdAt.getTime() })),
+      devices: rows.map((r) => ({
+        id: r.id,
+        endpoint: r.endpoint,
+        userAgent: r.userAgent,
+        createdAt: r.createdAt.getTime(),
+      })),
     };
     return c.json(body);
   })
@@ -190,12 +225,21 @@ export const meRoutes = createRouter()
     const db = c.get("db");
     const me = c.get("user");
     const input = c.req.valid("json");
-    const mine = await db.select({ id: pushSubscriptions.id, endpoint: pushSubscriptions.endpoint }).from(pushSubscriptions).where(eq(pushSubscriptions.userId, me.id));
+    const mine = await db
+      .select({ id: pushSubscriptions.id, endpoint: pushSubscriptions.endpoint })
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.userId, me.id));
     if (mine.length >= MAX_DEVICES && !mine.some((m) => m.endpoint === input.endpoint)) {
       throw new HttpError(409, `知らせを受ける端末は ${MAX_DEVICES} 台までです。使わない端末を外してください。`);
     }
     // 同じ送り先なら置き換える。別の人が同じ端末で登録し直したときも、今の人のものにする
-    const values = { userId: me.id, p256dh: input.keys.p256dh, auth: input.keys.auth, userAgent: input.userAgent ?? null, failedCount: 0 };
+    const values = {
+      userId: me.id,
+      p256dh: input.keys.p256dh,
+      auth: input.keys.auth,
+      userAgent: input.userAgent ?? null,
+      failedCount: 0,
+    };
     const row = await db
       .insert(pushSubscriptions)
       .values({ id: crypto.randomUUID(), endpoint: input.endpoint, ...values })

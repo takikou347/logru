@@ -1,14 +1,14 @@
-import { zValidator } from "@hono/zod-validator";
-import { and, eq, inArray } from "drizzle-orm";
-import type { CalendarItem } from "@shared/api-types";
-import { calendarQuery } from "@shared/schemas";
 import { serverExtensions } from "@extensions/server/registry";
 import type { CalendarContext } from "@extensions/server/types";
+import { zValidator } from "@hono/zod-validator";
 import { createRouter, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
 import { groupExtensions, groupMembers, groups } from "@server/core/db/schema";
 import { myGroupIds } from "@server/modules/groups/membership";
+import type { CalendarItem } from "@shared/api-types";
+import { calendarQuery } from "@shared/schemas";
+import { and, eq, inArray } from "drizzle-orm";
 
 /**
  * 期間とグループを受け取り、有効な拡張の項目をまとめて日時の順に返す。0008
@@ -45,7 +45,12 @@ export async function listCalendarItems(
     ? await db
         .select()
         .from(groupExtensions)
-        .where(and(inArray(groupExtensions.groupId, personal ? [...groupIds, personal.id] : groupIds), eq(groupExtensions.enabled, true)))
+        .where(
+          and(
+            inArray(groupExtensions.groupId, personal ? [...groupIds, personal.id] : groupIds),
+            eq(groupExtensions.enabled, true),
+          ),
+        )
     : [];
   const used = new Set(enabled.filter((r) => r.groupId === personal?.id).map((r) => r.extensionKey));
 
@@ -54,7 +59,9 @@ export async function listCalendarItems(
       const ids = x.manifest.alwaysOn
         ? groupIds
         : used.has(x.manifest.key)
-          ? groupIds.filter((g) => g === personal?.id || enabled.some((r) => r.groupId === g && r.extensionKey === x.manifest.key))
+          ? groupIds.filter(
+              (g) => g === personal?.id || enabled.some((r) => r.groupId === g && r.extensionKey === x.manifest.key),
+            )
           : [];
       return ids.length ? x.listCalendarItems(db, ids, from, to, ctx) : Promise.resolve([]);
     }),

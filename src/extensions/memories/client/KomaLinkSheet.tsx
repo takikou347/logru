@@ -1,6 +1,6 @@
+import type { GroupSummary, Me } from "@shared/api-types";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { GroupSummary, Me } from "@shared/api-types";
 import { Chip } from "@/components/parts/Chip";
 import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
@@ -38,14 +38,21 @@ export function KomaLinkSheet({
   const list = useMemoryList(groupId || null);
   const tz = current?.timeZone ?? deviceTimeZone();
   const dayStart = startOfDayIn(day, tz);
-  const choices = (list.data?.memories ?? []).filter((m) => m.groupId === groupId && m.startsAt <= dayStart && m.endsAt > dayStart);
+  const choices = (list.data?.memories ?? []).filter(
+    (m) => m.groupId === groupId && m.startsAt <= dayStart && m.endsAt > dayStart,
+  );
   const changed = current && current.groupId !== groupId;
 
   async function save() {
     setSaving(true);
     setError(null);
     try {
-      await saveKomaDay.mutateAsync({ day, groupId, memoryId: choices.some((m) => m.id === memoryId) ? memoryId : null, timeZone: tz });
+      await saveKomaDay.mutateAsync({
+        day,
+        groupId,
+        memoryId: choices.some((m) => m.id === memoryId) ? memoryId : null,
+        timeZone: tz,
+      });
       await invalidate();
       toast(current ? "保存しました" : "今日のひとコマを始めました");
       onClose();
@@ -64,7 +71,11 @@ export function KomaLinkSheet({
     >
       <PanelRow>
         <span>共有</span>
-        <span className="flex max-w-[70%] flex-wrap justify-end gap-1.5" role="radiogroup" aria-label="共有するグループ">
+        <span
+          className="flex max-w-[70%] flex-wrap justify-end gap-1.5"
+          role="radiogroup"
+          aria-label="共有するグループ"
+        >
           {groups.map((g) => (
             <Chip
               key={g.id}
@@ -83,7 +94,12 @@ export function KomaLinkSheet({
       </PanelRow>
       <PanelRow>
         <label htmlFor="koma-memory">思い出</label>
-        <select id="koma-memory" value={memoryId ?? ""} onChange={(e) => setMemoryId(e.target.value || null)} className="min-h-11 max-w-[60%] bg-transparent text-right text-sm">
+        <select
+          id="koma-memory"
+          value={memoryId ?? ""}
+          onChange={(e) => setMemoryId(e.target.value || null)}
+          className="min-h-11 max-w-[60%] bg-transparent text-right text-sm"
+        >
           <option value="">選ばない</option>
           {choices.map((m) => (
             <option key={m.id} value={m.id}>

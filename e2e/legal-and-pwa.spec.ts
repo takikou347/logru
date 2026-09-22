@@ -13,7 +13,10 @@ test("奥のインクだまりは動き続けない。動き続けると、ぼ�
   await page.goto("/terms");
   await expect(page.getByRole("heading", { name: "Logru 利用規約" })).toBeVisible();
   const running = await page.evaluate(
-    () => document.getAnimations().filter((a) => a.effect instanceof KeyframeEffect && a.effect.target?.closest('[aria-hidden="true"]')).length,
+    () =>
+      document
+        .getAnimations()
+        .filter((a) => a.effect instanceof KeyframeEffect && a.effect.target?.closest('[aria-hidden="true"]')).length,
   );
   expect(running).toBe(0);
 });

@@ -36,7 +36,12 @@ export function AgreePage() {
         <AuthTitle>規約への同意</AuthTitle>
         <AuthText>Logru を使う前に、利用規約とプライバシーポリシーを読んで、同意してください。</AuthText>
         <label className="flex items-start gap-2.5 text-[13px] leading-relaxed">
-          <Checkbox className="mt-0.5 size-5" checked={agreed} onCheckedChange={(v) => setAgreed(v === true)} aria-label="利用規約とプライバシーポリシーに同意する" />
+          <Checkbox
+            className="mt-0.5 size-5"
+            checked={agreed}
+            onCheckedChange={(v) => setAgreed(v === true)}
+            aria-label="利用規約とプライバシーポリシーに同意する"
+          />
           <span>
             <Link to="/terms" target="_blank">
               利用規約

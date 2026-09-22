@@ -4,9 +4,10 @@
  * カレンダーは拡張の中身を知らない。項目を押したら、項目の extension に合う拡張の Editor を開き、
  * 消すときは同じ拡張の deleteItem を呼ぶ。
  */
+
+import type { CalendarItem, GroupSummary, Me } from "@shared/api-types";
 import type { LucideIcon } from "lucide-react";
 import type { ComponentType } from "react";
-import type { CalendarItem, GroupSummary, Me } from "@shared/api-types";
 import type { ExtensionManifest } from "../types";
 
 /** 編集のシートを開くときの対象。新しく作るか、既にある項目を直すか */
@@ -81,7 +82,14 @@ export type ExtensionAction = { label: string; icon: LucideIcon; path: string; h
  * いま押してほしい近道。カレンダーの上の帯に出す。F-26
  * 返すものが無ければ帯は出ない。
  */
-export type ExtensionShortcut = { label: string; sub: string; image?: string; path: string; action: string; icon: LucideIcon };
+export type ExtensionShortcut = {
+  label: string;
+  sub: string;
+  image?: string;
+  path: string;
+  action: string;
+  icon: LucideIcon;
+};
 
 /** 画面の側の拡張 */
 export type ClientExtension = {

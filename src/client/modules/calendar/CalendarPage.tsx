@@ -1,30 +1,49 @@
+import { clientExtension, defaultExtension } from "@extensions/client/registry";
+import type { EditorTarget } from "@extensions/client/types";
+import type { GroupSummary } from "@shared/api-types";
 import { ChevronLeft, ChevronRight, LayoutGrid, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
-import { clientExtension, defaultExtension } from "@extensions/client/registry";
-import { useEnabledExtensions } from "@/lib/extensions";
-import type { EditorTarget } from "@extensions/client/types";
-import type { GroupSummary } from "@shared/api-types";
+import { useGroups, useMe } from "@/api/common";
 import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components/layout/AppLayout";
-import { LoadFailure } from "@/components/parts/Failure";
 import { Chip } from "@/components/parts/Chip";
+import { LoadFailure } from "@/components/parts/Failure";
 import { FeatureSheet } from "@/components/parts/FeatureSheet";
 import { Dot } from "@/components/parts/Panel";
 import { Segmented } from "@/components/parts/Segmented";
 import { ShortcutBand } from "@/components/parts/ShortcutBand";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { groupColor } from "@/lib/colors";
-import { addDays, addMonths, dateKey, monthGrid, onDay, parseDateKey, sameDay, startOfDay, weekDays } from "@/lib/dates";
+import {
+  addDays,
+  addMonths,
+  dateKey,
+  monthGrid,
+  onDay,
+  parseDateKey,
+  sameDay,
+  startOfDay,
+  weekDays,
+} from "@/lib/dates";
+import { useEnabledExtensions } from "@/lib/extensions";
 import { useCalendar, useMemberVisibility } from "./api";
-import { useGroups, useMe } from "@/api/common";
 import { DayPanel, ItemList } from "./components/DayItems";
 import { MonthGrid } from "./components/MonthGrid";
-import { RefreshButton } from "./components/RefreshButton";
-import { byPeople, decorate, groupPeopleOf, hiddenPeople, peopleOf, poolColorsOf, type Person, type ViewItem } from "./model";
 import { PeopleChip, SideGroup, useOpenGroups } from "./components/PeopleFilter";
-import { itemKey, useUndoableDelete } from "./use-undoable-delete";
+import { RefreshButton } from "./components/RefreshButton";
 import { WeekList } from "./components/WeekList";
+import {
+  byPeople,
+  decorate,
+  groupPeopleOf,
+  hiddenPeople,
+  type Person,
+  peopleOf,
+  poolColorsOf,
+  type ViewItem,
+} from "./model";
+import { itemKey, useUndoableDelete } from "./use-undoable-delete";
 
 type View = "month" | "week" | "day";
 const VIEWS = [
@@ -104,7 +123,10 @@ export function CalendarPage() {
   const sideOpen = useOpenGroups("logru-side-groups", false);
   const hiddenIds = useMemo(() => hiddenPeople(me.data?.hiddenMembers ?? [], people), [me.data, people]);
   const { mutate: setVisibility } = useMemberVisibility();
-  const togglePerson = useCallback((p: Person, hide: boolean) => setVisibility({ userId: p.id, hidden: hide }), [setVisibility]);
+  const togglePerson = useCallback(
+    (p: Person, hide: boolean) => setVisibility({ userId: p.id, hidden: hide }),
+    [setVisibility],
+  );
   const items = useMemo<ViewItem[]>(() => {
     if (!calendar.data || !me.data) return [];
     return byPeople(decorate(calendar.data, allGroups, me.data), hiddenIds).filter(
@@ -146,9 +168,12 @@ export function CalendarPage() {
   const upcoming = items.filter((i) => i.startsAt >= Date.now()).slice(0, 5);
   const showTodayButton = !sameDay(selected, today) || view !== "month";
   const editorKey = editor?.mode === "edit" ? editor.item.extension : defaultExtension.manifest.key;
-  const Editor = editor?.mode === "edit" ? (clientExtension(editor.item.extension)?.Editor ?? null) : defaultExtension.Editor;
+  const Editor =
+    editor?.mode === "edit" ? (clientExtension(editor.item.extension)?.Editor ?? null) : defaultExtension.Editor;
   // ほかの拡張が、このシートに足す欄。使える拡張の分だけ渡す。0019
-  const addons = enabledExtensions.flatMap((x) => (x.itemAddons ?? []).filter((a) => a.extension === editorKey).map((a) => a.Component));
+  const addons = enabledExtensions.flatMap((x) =>
+    (x.itemAddons ?? []).filter((a) => a.extension === editorKey).map((a) => a.Component),
+  );
 
   /** グループで絞る選択肢の中身。自分だけのグループは「自分だけの予定」と書く。0009 */
   const groupOption = (g: GroupSummary) => ({
@@ -164,7 +189,9 @@ export function CalendarPage() {
   });
 
   /** 絞り込みの選択肢。スマホは丸いボタン、PC は左の列の行 */
-  const filters = (render: (p: { key: string; pressed: boolean; onClick: () => void; children: React.ReactNode }) => React.ReactNode) => [
+  const filters = (
+    render: (p: { key: string; pressed: boolean; onClick: () => void; children: React.ReactNode }) => React.ReactNode,
+  ) => [
     render({ key: "all", pressed: !groupFilter, onClick: () => update({ group: null }), children: "すべて" }),
     ...allGroups.map((g) => render(groupOption(g))),
   ];
@@ -212,7 +239,9 @@ export function CalendarPage() {
     >
       <header className="glass flex min-h-[58px] items-center justify-between gap-2 rounded-full py-1.5 pr-1.5 pl-5">
         <h1 className="flex items-baseline gap-1" aria-live="polite">
-          <span data-testid="month-number" className="text-[38px] leading-none font-bold">{selected.getMonth() + 1}</span>
+          <span data-testid="month-number" className="text-[38px] leading-none font-bold">
+            {selected.getMonth() + 1}
+          </span>
           <span className="text-[17px] font-bold">月</span>
           <span className="ml-2 text-[17px] font-medium text-ink-2">{selected.getFullYear()}</span>
         </h1>
@@ -226,7 +255,12 @@ export function CalendarPage() {
               今日
             </button>
           )}
-          <Button variant="ghost" size="icon" aria-label={view === "month" ? "前の月" : "前へ"} onClick={() => move(-1)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={view === "month" ? "前の月" : "前へ"}
+            onClick={() => move(-1)}
+          >
             <ChevronLeft className="size-5" />
           </Button>
           <Button variant="ghost" size="icon" aria-label={view === "month" ? "次の月" : "次へ"} onClick={() => move(1)}>
@@ -245,21 +279,40 @@ export function CalendarPage() {
 
       {/* グループが多いときは横に流れる。流せることが分かるよう、下にいつもバーを出す。F-25 */}
       <nav className="-mx-4 lg:hidden" aria-label="グループで絞る">
-        <ScrollArea orientation="horizontal" className="px-4" viewportClassName="pb-1.5" scrollbarClassName="left-4! right-4!">
+        <ScrollArea
+          orientation="horizontal"
+          className="px-4"
+          viewportClassName="pb-1.5"
+          scrollbarClassName="left-4! right-4!"
+        >
           <div className="flex w-max gap-2">
             {filters(({ key, pressed, onClick, children }) => (
               <Chip key={key} aria-pressed={pressed} onClick={onClick}>
                 {children}
               </Chip>
             ))}
-            {sections.length > 0 && <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />}
+            {sections.length > 0 && (
+              <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />
+            )}
           </div>
         </ScrollArea>
       </nav>
 
-      {calendar.error && (!calendar.data || calendar.isPlaceholderData) && <LoadFailure what={`${selected.getMonth() + 1} 月の予定`} error={calendar.error} onRetry={() => void calendar.refetch()} />}
+      {calendar.error && (!calendar.data || calendar.isPlaceholderData) && (
+        <LoadFailure
+          what={`${selected.getMonth() + 1} 月の予定`}
+          error={calendar.error}
+          onRetry={() => void calendar.refetch()}
+        />
+      )}
 
-      <div className={calendar.error && (!calendar.data || calendar.isPlaceholderData) ? "hidden" : "contents xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start xl:gap-4"}>
+      <div
+        className={
+          calendar.error && (!calendar.data || calendar.isPlaceholderData)
+            ? "hidden"
+            : "contents xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start xl:gap-4"
+        }
+      >
         {view === "month" ? (
           <MonthGrid
             days={days}
@@ -274,7 +327,13 @@ export function CalendarPage() {
             onOpenItem={open}
           />
         ) : (
-          <WeekList days={days} today={today} items={items} onSelect={(d) => update({ date: d, view: "day" })} onOpen={open} />
+          <WeekList
+            days={days}
+            today={today}
+            items={items}
+            onSelect={(d) => update({ date: d, view: "day" })}
+            onOpen={open}
+          />
         )}
         <aside className="contents lg:grid lg:grid-cols-[repeat(auto-fit,minmax(280px,1fr))] lg:items-start lg:gap-4 xl:sticky xl:top-4 xl:flex xl:flex-col">
           {view === "month" && <DayPanel day={selected} items={items} onOpen={open} />}
@@ -288,7 +347,8 @@ export function CalendarPage() {
       <div
         role="toolbar"
         aria-label="カレンダーの操作"
-        className="glass fixed inset-x-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[528px] items-center justify-between gap-1.5 rounded-full p-1.5 lg:hidden">
+        className="glass fixed inset-x-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[528px] items-center justify-between gap-1.5 rounded-full p-1.5 lg:hidden"
+      >
         <Button variant="ghost" size="icon" aria-label="機能" onClick={() => setFeatures(true)}>
           <LayoutGrid className="size-5" />
         </Button>

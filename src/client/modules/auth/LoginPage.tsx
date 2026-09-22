@@ -71,12 +71,25 @@ export function LoginPage() {
         <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
           <Field label="メールアドレス">
             {(p) => (
-              <Input {...p} type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                {...p}
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             )}
           </Field>
           <Field label="パスワード">
             {(p) => (
-              <Input {...p} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Input
+                {...p}
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             )}
           </Field>
           {error && <Notice error>{error}</Notice>}

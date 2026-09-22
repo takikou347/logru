@@ -37,7 +37,9 @@ export function applyTheme(mode: ThemeMode, accent: string): void {
   root.dataset.theme = resolved;
   root.dataset.accent = accent;
   root.dataset.themeMode = mode;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", resolved === "dark" ? "#10151c" : "#e6ece8");
+  document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute("content", resolved === "dark" ? "#10151c" : "#e6ece8");
   try {
     localStorage.setItem(KEY, JSON.stringify({ mode, accent } satisfies Stored));
   } catch {

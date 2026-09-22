@@ -61,7 +61,10 @@ test("思い出を作り、写真付きで記録し、いいねを付け、カ�
 
   // アルバムに写真が並び、押すと大きく出る
   await page.getByRole("radio", { name: "アルバム" }).click();
-  await page.getByRole("button", { name: /の写真を大きく見る/ }).first().click();
+  await page
+    .getByRole("button", { name: /の写真を大きく見る/ })
+    .first()
+    .click();
   await expect(page.getByRole("dialog", { name: "写真 1 / 1" })).toBeVisible();
   await page.getByRole("dialog", { name: "写真 1 / 1" }).getByRole("button", { name: "表紙にする" }).click();
   await expect(page.getByText("表紙にしました")).toBeVisible();

@@ -1,4 +1,4 @@
-import { EmailAuthProvider, deleteUser, reauthenticateWithCredential, reauthenticateWithPopup } from "firebase/auth";
+import { deleteUser, EmailAuthProvider, reauthenticateWithCredential, reauthenticateWithPopup } from "firebase/auth";
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -91,7 +91,13 @@ export function DeleteAccountSheet({ provider, onClose }: { provider: string; on
         {usesPassword ? (
           <Field label="パスワード" hint="本人か確かめるため、もう一度入れてください。">
             {(p) => (
-              <Input {...p} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Input
+                {...p}
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             )}
           </Field>
         ) : (

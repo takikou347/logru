@@ -2,8 +2,9 @@
  * 外部のカレンダーを読み、予定の表を入れ替える。
  * 登録したとき、「今すぐ読み直す」やカレンダーの画面の読み直しを押したとき、Cron Triggers で 5 分おきに呼ぶ。
  */
-import { asc, eq } from "drizzle-orm";
+
 import type { DB } from "@server/core/db/client";
+import { asc, eq } from "drizzle-orm";
 import { decryptText } from "./crypto";
 import { DEFAULT_TIME_ZONE, type ParsedEvent, parseIcs, wallTimeToUtc } from "./ics";
 import { type ExternalCalendarRow, externalCalendars } from "./schema";
@@ -76,7 +77,8 @@ export async function fetchIcs(url: URL, fetcher: typeof fetch = fetch): Promise
     throw new SyncError("カレンダーが見つかりません。URL が古くなっていないか確かめてください。");
   }
   if (!res.ok) throw new SyncError(`カレンダーが読めませんでした（${res.status}）。`);
-  if (Number(res.headers.get("content-length") ?? 0) > MAX_BYTES) throw new SyncError("カレンダーが大きすぎて読めません。");
+  if (Number(res.headers.get("content-length") ?? 0) > MAX_BYTES)
+    throw new SyncError("カレンダーが大きすぎて読めません。");
   const reader = res.body?.getReader();
   if (!reader) return "";
   const chunks: Uint8Array[] = [];
@@ -113,7 +115,9 @@ async function replaceEvents(db: DB, calendarId: string, events: ParsedEvent[], 
   const t = now.getTime();
   const statements = [d1.prepare("delete from external_events where calendar_id = ?").bind(calendarId)];
   for (let i = 0; i < events.length; i += INSERT_CHUNK) {
-    const rows = events.slice(i, i + INSERT_CHUNK).map((e) => [e.uid, e.occurrence, e.startsAt, e.endsAt, e.allDay ? 1 : 0, e.title, e.location]);
+    const rows = events
+      .slice(i, i + INSERT_CHUNK)
+      .map((e) => [e.uid, e.occurrence, e.startsAt, e.endsAt, e.allDay ? 1 : 0, e.title, e.location]);
     statements.push(
       d1
         .prepare(
@@ -126,7 +130,9 @@ async function replaceEvents(db: DB, calendarId: string, events: ParsedEvent[], 
     );
   }
   statements.push(
-    d1.prepare("update external_calendars set last_synced_at = ?1, last_error = null, updated_at = ?1 where id = ?2").bind(t, calendarId),
+    d1
+      .prepare("update external_calendars set last_synced_at = ?1, last_error = null, updated_at = ?1 where id = ?2")
+      .bind(t, calendarId),
   );
   await d1.batch(statements);
 }
@@ -159,7 +165,10 @@ export async function syncCalendar(
   } catch (e) {
     if (!(e instanceof SyncError)) console.error("external calendar sync failed", row.id, e);
     const message = e instanceof SyncError ? e.message : "読み直せませんでした。時間をおいて、もう一度試してください。";
-    await db.update(externalCalendars).set({ lastError: message, updatedAt: now }).where(eq(externalCalendars.id, row.id));
+    await db
+      .update(externalCalendars)
+      .set({ lastError: message, updatedAt: now })
+      .where(eq(externalCalendars.id, row.id));
     return message;
   }
 }

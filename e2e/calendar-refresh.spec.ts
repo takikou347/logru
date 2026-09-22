@@ -13,7 +13,9 @@ test("読み直しのボタンは誰にでも出て、押すとグループの�
   const partner = await apiUser(request);
   await request.get("/api/me", { headers: partner.headers });
   await request.post("/api/me/agreements", { headers: partner.headers, data: { agreed: true } });
-  const group = await (await request.post("/api/groups", { headers: partner.headers, data: { name: "ふたり" } })).json();
+  const group = await (
+    await request.post("/api/groups", { headers: partner.headers, data: { name: "ふたり" } })
+  ).json();
   const invite = await (await request.post(`/api/groups/${group.id}/invites`, { headers: partner.headers })).json();
 
   // 自分は画面から登録し、招待から参加する
@@ -31,7 +33,14 @@ test("読み直しのボタンは誰にでも出て、押すとグループの�
   const startsAt = tokyoNoonToday();
   const created = await request.post("/api/events", {
     headers: partner.headers,
-    data: { groupId: group.id, title: "相手の買い物", allDay: false, startsAt, endsAt: startsAt + 3_600_000, memo: null },
+    data: {
+      groupId: group.id,
+      title: "相手の買い物",
+      allDay: false,
+      startsAt,
+      endsAt: startsAt + 3_600_000,
+      memo: null,
+    },
   });
   expect(created.status()).toBe(201);
 

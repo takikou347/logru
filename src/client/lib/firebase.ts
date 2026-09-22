@@ -5,7 +5,7 @@
  * Web 用の設定は公開されてよい値で、秘密ではない。
  */
 import { initializeApp } from "firebase/app";
-import { GoogleAuthProvider, connectAuthEmulator, getAuth } from "firebase/auth";
+import { connectAuthEmulator, GoogleAuthProvider, getAuth } from "firebase/auth";
 
 const app = initializeApp({
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,

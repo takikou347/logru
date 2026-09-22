@@ -1,5 +1,5 @@
-import { type ComponentProps, type ReactNode, useId } from "react";
 import type { AttendeeResponse } from "@shared/api-types";
+import { type ComponentProps, type ReactNode, useId } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,7 +29,10 @@ export function Panel({ title, className, children, ...props }: ComponentProps<"
 export function PanelRow({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
-      className={cn("flex min-h-11 items-center justify-between gap-3 border-b border-line text-sm last:border-b-0", className)}
+      className={cn(
+        "flex min-h-11 items-center justify-between gap-3 border-b border-line text-sm last:border-b-0",
+        className,
+      )}
       {...props}
     />
   );
@@ -58,7 +61,10 @@ export function RowButton({ className, children, ...props }: ComponentProps<"but
 export function Empty({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
-      className={cn("rounded-2xl border-[1.5px] border-dashed border-line p-5 text-center text-sm leading-7 text-ink-2", className)}
+      className={cn(
+        "rounded-2xl border-[1.5px] border-dashed border-line p-5 text-center text-sm leading-7 text-ink-2",
+        className,
+      )}
       {...props}
     />
   );
@@ -68,7 +74,15 @@ export function Empty({ className, ...props }: ComponentProps<"div">) {
  * 色の点。色の名前を渡す。色だけで見分けさせないよう、近くに名前を出すこと。0012
  * @param response 招待への自分の返事。返事待ちは塗らずに輪だけ、参加しないは薄くする。#28
  */
-export function Dot({ color, className, response }: { color: string; className?: string; response?: AttendeeResponse }) {
+export function Dot({
+  color,
+  className,
+  response,
+}: {
+  color: string;
+  className?: string;
+  response?: AttendeeResponse;
+}) {
   return (
     <span
       className={cn(
@@ -86,7 +100,11 @@ export function Dot({ color, className, response }: { color: string; className?:
 /** 入力の下に出す文。error なら朱にする */
 export function FieldMessage({ id, children, error }: { id?: string; children: ReactNode; error?: boolean }) {
   return (
-    <p id={id} className={cn("text-xs leading-relaxed", error ? "text-sun" : "text-ink-2")} role={error ? "alert" : undefined}>
+    <p
+      id={id}
+      className={cn("text-xs leading-relaxed", error ? "text-sun" : "text-ink-2")}
+      role={error ? "alert" : undefined}
+    >
       {children}
     </p>
   );

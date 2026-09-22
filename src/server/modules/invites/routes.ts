@@ -1,9 +1,9 @@
-import { eq } from "drizzle-orm";
-import type { InviteInfo } from "@shared/api-types";
-import { HttpError, createRouter } from "@server/core/app";
+import { createRouter, HttpError } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
 import { groupInvites, groupMembers, groups } from "@server/core/db/schema";
+import type { InviteInfo } from "@shared/api-types";
+import { eq } from "drizzle-orm";
 
 /**
  * 招待リンクを探し、使えない理由があれば添えて返す。
@@ -31,8 +31,10 @@ export const inviteRoutes = createRouter()
   })
   .post("/:token/accept", requireUser, requireAgreement, async (c) => {
     const { invite, reason } = await findInvite(c.get("db"), c.req.param("token"));
-    if (reason === "expired") throw new HttpError(400, "招待リンクの期限が切れています。新しいリンクを頼んでください。");
-    if (reason === "revoked") throw new HttpError(400, "この招待リンクは取り消されています。新しいリンクを頼んでください。");
+    if (reason === "expired")
+      throw new HttpError(400, "招待リンクの期限が切れています。新しいリンクを頼んでください。");
+    if (reason === "revoked")
+      throw new HttpError(400, "この招待リンクは取り消されています。新しいリンクを頼んでください。");
     await c
       .get("db")
       .insert(groupMembers)

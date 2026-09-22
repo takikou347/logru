@@ -1,4 +1,4 @@
-import { type Page, expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { logIn, logOut, signUp, submitSignUp, uniqueEmail } from "./helpers";
 
 /**
@@ -28,7 +28,9 @@ test("Google で初めて入ると、規約に同意してからカレンダー�
   await page.getByRole("button", { name: "同意して始める" }).click();
   await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
   await page.goto("/settings");
-  await expect(page.getByRole("region", { name: "アカウント" }).getByText("グーグル花子", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "アカウント" }).getByText("グーグル花子", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Google", { exact: true })).toBeVisible();
 });
 
@@ -60,7 +62,9 @@ test("メールで登録したのと同じアドレスで Google から入ると
   await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
   // 表示名は D1 の値のまま。別の人として作り直していない
   await page.goto("/settings");
-  await expect(page.getByRole("region", { name: "アカウント" }).getByText("パスワード太郎", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "アカウント" }).getByText("パスワード太郎", { exact: true }),
+  ).toBeVisible();
 });
 
 test("メールを確かめる前に同じアドレスで Google から入ると、パスワードでは入れなくなる", async ({ page }) => {

@@ -1,9 +1,9 @@
+import { clientExtensions } from "@extensions/client/registry";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { clientExtensions } from "@extensions/client/registry";
-import { Button } from "@/components/ui/button";
 import { keys } from "@/api/keys";
+import { Button } from "@/components/ui/button";
 import { isSessionExpired } from "@/lib/session-expired";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +14,9 @@ import { cn } from "@/lib/utils";
  * @returns 読めなかったものの名前
  */
 async function refreshAll(qc: ReturnType<typeof useQueryClient>): Promise<string[]> {
-  const results = await Promise.allSettled(clientExtensions.map((x) => x.refresh?.() ?? Promise.resolve({ failed: [] })));
+  const results = await Promise.allSettled(
+    clientExtensions.map((x) => x.refresh?.() ?? Promise.resolve({ failed: [] })),
+  );
   await Promise.all([
     qc.invalidateQueries({ queryKey: ["calendar"] }),
     qc.invalidateQueries({ queryKey: keys.groups }),

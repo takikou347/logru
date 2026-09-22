@@ -1,7 +1,8 @@
 /** 機能の一覧の画面(ExtensionsPage)だけが使う API の hook */
+
+import type { ExtensionOverview } from "@shared/api-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { ExtensionOverview } from "@shared/api-types";
 import { api } from "@/api/client";
 import { keys } from "@/api/keys";
 
@@ -25,6 +26,10 @@ export function useToggleExtension(personalGroupId: string | undefined) {
     onSuccess: (_r, v) => toast(v.enabled ? "使えるようにしました" : "使わないようにしました"),
     onError: (e) => toast.error((e as Error).message),
     // 入口の出し分けはグループの有効な拡張で決まるので、グループも読み直す
-    onSettled: () => Promise.all([qc.invalidateQueries({ queryKey: extensionsKeys.overview }), qc.invalidateQueries({ queryKey: keys.groups })]),
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: extensionsKeys.overview }),
+        qc.invalidateQueries({ queryKey: keys.groups }),
+      ]),
   });
 }

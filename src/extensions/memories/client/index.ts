@@ -1,5 +1,5 @@
-import { BookOpen, Camera, Timer } from "lucide-react";
 import type { ClientExtension } from "@extensions/client/types";
+import { BookOpen, Camera, Timer } from "lucide-react";
 import { memoriesManifest } from "../manifest";
 import { MemoryItemSheet } from "./MemoryItemSheet";
 import { MemoryLinkField } from "./MemoryLinkField";

@@ -1,21 +1,21 @@
+import type { Me } from "@shared/api-types";
 import { Camera, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import type { Me } from "@shared/api-types";
+import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Empty } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useMe } from "@/api/common";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { DEFAULT_TIME_ZONE, dayKeyIn } from "../shared/days";
 import type { Memory, MemoryRecord } from "../shared/types";
 import { useMemoryGroups, useMemoryList } from "./api";
 import { Dock } from "./Dock";
 import { MemorySheet } from "./MemorySheet";
-import { GroupFilter, GroupLabel, PhotoImg, SideGroupFilter, formatClock, formatSpan } from "./parts";
+import { formatClock, formatSpan, GroupFilter, GroupLabel, PhotoImg, SideGroupFilter } from "./parts";
 import { RecordSheet } from "./RecordSheet";
 
 const FILTER_KEY = "logru-memories-group";
@@ -82,11 +82,16 @@ export function MemoriesPage() {
   const empty = list.data && list.data.memories.length === 0 && list.data.recent.length === 0;
 
   return (
-    <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter groups={groups} me={data} value={group} onChange={setGroup} />}>
+    <AppLayout
+      poolColors={poolColorsOf(groups, data)}
+      side={<SideGroupFilter groups={groups} me={data} value={group} onChange={setGroup} />}
+    >
       <Page>
         <PageBar title="思い出" />
         <GroupFilter groups={groups} me={data} value={group} onChange={setGroup} />
-        {list.error && !list.data && <LoadFailure what="思い出" error={list.error} onRetry={() => void list.refetch()} />}
+        {list.error && !list.data && (
+          <LoadFailure what="思い出" error={list.error} onRetry={() => void list.refetch()} />
+        )}
         {list.isPending && <Loading />}
         {empty && (
           <Empty>
@@ -97,9 +102,7 @@ export function MemoriesPage() {
         )}
         {upcoming.map((m, i) => (i === 0 ? <Upcoming key={m.id} memory={m} me={data} now={now} /> : null))}
         {list.data && list.data.recent.length > 0 && <Recent records={list.data.recent} me={data} />}
-        {upcoming.length > 1 && (
-          <Shelf title="これから" memories={upcoming.slice(1)} me={data} />
-        )}
+        {upcoming.length > 1 && <Shelf title="これから" memories={upcoming.slice(1)} me={data} />}
         {byYear.map(([year, ms]) => (
           <Shelf key={year} year={year} title="過去の思い出" memories={ms} me={data} />
         ))}
@@ -127,8 +130,16 @@ function Upcoming({ memory, me, now }: { memory: Memory; me: Me; now: number }) 
   const days = daysUntil(memory, now);
   const during = memory.startsAt <= now;
   return (
-    <Link to={`/memories/${memory.id}`} className="glass flex flex-col rounded-panel p-2 no-underline" aria-label={`${memory.title}、${during ? "期間中" : `出発まで ${days} 日`}`}>
-      {memory.cover ? <PhotoImg photo={memory.cover} className="h-[180px] rounded-[22px]" /> : <div className={`h-[120px] rounded-[22px] bg-(--c) opacity-70 c-${group?.color ?? "nezumi"}`} />}
+    <Link
+      to={`/memories/${memory.id}`}
+      className="glass flex flex-col rounded-panel p-2 no-underline"
+      aria-label={`${memory.title}、${during ? "期間中" : `出発まで ${days} 日`}`}
+    >
+      {memory.cover ? (
+        <PhotoImg photo={memory.cover} className="h-[180px] rounded-[22px]" />
+      ) : (
+        <div className={`h-[120px] rounded-[22px] bg-(--c) opacity-70 c-${group?.color ?? "nezumi"}`} />
+      )}
       <div className="grid grid-cols-[1fr_auto] items-end gap-x-3 px-2.5 pt-3 pb-1.5">
         <h2 className="text-xl font-extrabold">{memory.title}</h2>
         <div className="row-span-2 text-right leading-none">
@@ -169,7 +180,9 @@ function Recent({ records, me }: { records: MemoryRecord[]; me: Me }) {
                   {r.photos[0] ? (
                     <PhotoImg photo={r.photos[0]} className="size-[92px] rounded-[14px]" />
                   ) : (
-                    <p className="line-clamp-4 size-[92px] rounded-[14px] bg-field p-2 text-xs leading-snug">{r.body}</p>
+                    <p className="line-clamp-4 size-[92px] rounded-[14px] bg-field p-2 text-xs leading-snug">
+                      {r.body}
+                    </p>
                   )}
                   <small className="mt-1 flex items-center gap-1 text-[11px] whitespace-nowrap text-ink-2">
                     <GroupLabel group={group} me={me} />
@@ -206,7 +219,11 @@ function Shelf({ title, year, memories, me }: { title: string; year?: number; me
           return (
             <li key={m.id}>
               <Link to={`/memories/${m.id}`} className="glass flex flex-col rounded-[22px] p-1.5 no-underline">
-                {m.cover ? <PhotoImg photo={m.cover} className="h-[108px] rounded-[17px]" /> : <div className={`h-[108px] rounded-[17px] bg-(--c) opacity-60 c-${group?.color ?? "nezumi"}`} />}
+                {m.cover ? (
+                  <PhotoImg photo={m.cover} className="h-[108px] rounded-[17px]" />
+                ) : (
+                  <div className={`h-[108px] rounded-[17px] bg-(--c) opacity-60 c-${group?.color ?? "nezumi"}`} />
+                )}
                 <h3 className="px-1.5 pt-2 text-sm font-bold">{m.title}</h3>
                 <span className="px-1.5 pb-1.5">
                   <GroupLabel group={group} me={me}>

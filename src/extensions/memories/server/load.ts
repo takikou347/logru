@@ -1,9 +1,17 @@
 /** 思い出と記録を、画面に返す形に読む */
-import { and, asc, count, desc, eq, gte, inArray, lt } from "drizzle-orm";
+
 import type { DB } from "@server/core/db/client";
+import { and, asc, count, desc, eq, gte, inArray, lt } from "drizzle-orm";
 import type { Memory, MemoryItem, MemoryRecord } from "../shared/types";
 import type { PhotoSigner } from "./photos";
-import { type MemoryItemRow, type MemoryRow, memoryEventExclusions, memoryLikes, memoryPhotos, memoryRecords } from "./schema";
+import {
+  type MemoryItemRow,
+  type MemoryRow,
+  memoryEventExclusions,
+  memoryLikes,
+  memoryPhotos,
+  memoryRecords,
+} from "./schema";
 
 /** D1 は 1 つの問い合わせに渡せる値の数に上限がある。ID はこの数ずつ渡す */
 const CHUNK = 90;
@@ -14,13 +22,23 @@ const CHUNK = 90;
  * @param signer 写真の URL を作るもの
  * @param rows 記録の行
  */
-export async function withPhotos(db: DB, signer: PhotoSigner, rows: (typeof memoryRecords.$inferSelect)[]): Promise<MemoryRecord[]> {
+export async function withPhotos(
+  db: DB,
+  signer: PhotoSigner,
+  rows: (typeof memoryRecords.$inferSelect)[],
+): Promise<MemoryRecord[]> {
   const ids = rows.map((r) => r.id);
   const photos: (typeof memoryPhotos.$inferSelect)[] = [];
   const likes: { recordId: string; userId: string }[] = [];
   for (let i = 0; i < ids.length; i += CHUNK) {
     const part = ids.slice(i, i + CHUNK);
-    photos.push(...(await db.select().from(memoryPhotos).where(inArray(memoryPhotos.recordId, part)).orderBy(asc(memoryPhotos.sortOrder))));
+    photos.push(
+      ...(await db
+        .select()
+        .from(memoryPhotos)
+        .where(inArray(memoryPhotos.recordId, part))
+        .orderBy(asc(memoryPhotos.sortOrder))),
+    );
     likes.push(
       ...(await db
         .select({ recordId: memoryLikes.recordId, userId: memoryLikes.userId })
@@ -52,13 +70,23 @@ export async function withPhotos(db: DB, signer: PhotoSigner, rows: (typeof memo
  * @param from 期間の始まり
  * @param to 期間の終わり。含まない
  */
-export async function loadRecords(db: DB, signer: PhotoSigner, groupIds: string[], from: number, to: number): Promise<MemoryRecord[]> {
+export async function loadRecords(
+  db: DB,
+  signer: PhotoSigner,
+  groupIds: string[],
+  from: number,
+  to: number,
+): Promise<MemoryRecord[]> {
   if (groupIds.length === 0) return [];
   const rows = await db
     .select()
     .from(memoryRecords)
     .where(
-      and(inArray(memoryRecords.groupId, groupIds), gte(memoryRecords.occurredAt, new Date(from)), lt(memoryRecords.occurredAt, new Date(to))),
+      and(
+        inArray(memoryRecords.groupId, groupIds),
+        gte(memoryRecords.occurredAt, new Date(from)),
+        lt(memoryRecords.occurredAt, new Date(to)),
+      ),
     )
     .orderBy(asc(memoryRecords.occurredAt));
   return withPhotos(db, signer, rows);
@@ -79,7 +107,12 @@ export async function loadRecord(db: DB, signer: PhotoSigner, id: string): Promi
  * 最近の記録。思い出の外の日も含む。F-102
  * @param limit 返す数
  */
-export async function recentRecords(db: DB, signer: PhotoSigner, groupIds: string[], limit = 6): Promise<MemoryRecord[]> {
+export async function recentRecords(
+  db: DB,
+  signer: PhotoSigner,
+  groupIds: string[],
+  limit = 6,
+): Promise<MemoryRecord[]> {
   if (groupIds.length === 0) return [];
   const rows = await db
     .select()
@@ -127,7 +160,10 @@ export async function toMemory(db: DB, signer: PhotoSigner, row: MemoryRow): Pro
     .where(inPeriod)
     .get();
   const cover = chosen ?? first?.photo;
-  const excluded = await db.select({ id: memoryEventExclusions.eventId }).from(memoryEventExclusions).where(eq(memoryEventExclusions.memoryId, row.id));
+  const excluded = await db
+    .select({ id: memoryEventExclusions.eventId })
+    .from(memoryEventExclusions)
+    .where(eq(memoryEventExclusions.memoryId, row.id));
   return {
     id: row.id,
     groupId: row.groupId,

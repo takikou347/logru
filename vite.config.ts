@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { type Plugin, defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 /**
@@ -15,7 +15,9 @@ import { VitePWA } from "vite-plugin-pwa";
  */
 function firebaseCsp(env: Record<string, string>): Plugin {
   const emulator = env.VITE_FIREBASE_AUTH_EMULATOR_URL ?? "";
-  const frame = [`https://${env.VITE_FIREBASE_AUTH_DOMAIN}`, "https://apis.google.com", emulator].filter(Boolean).join(" ");
+  const frame = [`https://${env.VITE_FIREBASE_AUTH_DOMAIN}`, "https://apis.google.com", emulator]
+    .filter(Boolean)
+    .join(" ");
   return {
     name: "logru-firebase-csp",
     apply: "build",
@@ -79,9 +81,7 @@ export default defineConfig(({ mode }) => ({
           },
           {
             // 通信が切れたときに、最後に見た月を読むだけで出す。0012
-            urlPattern: ({ url, request }) =>
-              request.method === "GET" &&
-              url.pathname.startsWith("/api/"),
+            urlPattern: ({ url, request }) => request.method === "GET" && url.pathname.startsWith("/api/"),
             handler: "NetworkFirst",
             options: {
               cacheName: "api",

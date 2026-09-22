@@ -1,6 +1,6 @@
-import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createdAt, updatedAt } from "@server/core/db/columns";
 import { groups, users } from "@server/core/db/schema";
+import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /** 予定の表。拡張の約束のとおり、日付とグループを持つ。0002 */
 export const events = sqliteTable(
@@ -40,7 +40,9 @@ export const eventAttendees = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    response: text("response", { enum: ["pending", "accepted", "declined"] }).notNull().default("pending"),
+    response: text("response", { enum: ["pending", "accepted", "declined"] })
+      .notNull()
+      .default("pending"),
     /** 返事をした時刻。まだなら空 */
     respondedAt: integer("responded_at", { mode: "timestamp_ms" }),
   },

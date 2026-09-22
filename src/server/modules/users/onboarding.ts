@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import type { FirebaseClaims } from "@server/core/auth/verify-token";
 import type { DB } from "@server/core/db/client";
 import { groupMembers, groups, userSettings, users } from "@server/core/db/schema";
-import type { FirebaseClaims } from "@server/core/auth/verify-token";
+import { eq } from "drizzle-orm";
 
 /** D1 の users 表の 1 行 */
 export type UserRow = typeof users.$inferSelect;

@@ -1,7 +1,7 @@
+import type { ItemAddonProps } from "@extensions/client/types";
 import { useEffect, useRef, useState } from "react";
 import { PanelRow } from "@/components/parts/Panel";
 import { Switch } from "@/components/ui/switch";
-import type { ItemAddonProps } from "@extensions/client/types";
 import { candidatesOf, memoryOfEvent } from "../shared/links";
 import { useInvalidateMemories, useLinkEventToMemory, useMemoryGroups, useMemoryList } from "./api";
 
@@ -46,7 +46,12 @@ export function MemoryLinkField({ draft, register, disabled }: ItemAddonProps) {
         <br />
         <span className="text-xs text-ink-2">{target.title}</span>
       </span>
-      <Switch checked={included} disabled={disabled} aria-label={`「${target.title}」に入れる`} onCheckedChange={setPicked} />
+      <Switch
+        checked={included}
+        disabled={disabled}
+        aria-label={`「${target.title}」に入れる`}
+        onCheckedChange={setPicked}
+      />
     </PanelRow>
   );
 }

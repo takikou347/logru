@@ -31,10 +31,19 @@ export function ResponsiveSheet({
   if (desktop) {
     return (
       <Dialog open onOpenChange={onOpenChange}>
-        <DialogContent className={cn(body, "max-h-[calc(100dvh-48px)] overflow-y-auto rounded-panel border-(--glass-edge) bg-(--glass-flat) p-6 sm:max-w-[440px]")}>
+        <DialogContent
+          className={cn(
+            body,
+            "max-h-[calc(100dvh-48px)] overflow-y-auto rounded-panel border-(--glass-edge) bg-(--glass-flat) p-6 sm:max-w-[440px]",
+          )}
+        >
           <DialogHeader>
             <DialogTitle className="text-[17px] font-bold">{title}</DialogTitle>
-            {description ? <DialogDescription className="text-ink-2">{description}</DialogDescription> : <DialogDescription className="sr-only">{title}</DialogDescription>}
+            {description ? (
+              <DialogDescription className="text-ink-2">{description}</DialogDescription>
+            ) : (
+              <DialogDescription className="sr-only">{title}</DialogDescription>
+            )}
           </DialogHeader>
           {children}
         </DialogContent>
@@ -53,7 +62,11 @@ export function ResponsiveSheet({
         <div className="mx-auto h-[5px] w-[38px] shrink-0 rounded-full bg-line" aria-hidden="true" />
         <SheetHeader className="p-0">
           <SheetTitle className="text-[17px] font-bold text-ink">{title}</SheetTitle>
-          {description ? <SheetDescription className="text-ink-2">{description}</SheetDescription> : <SheetDescription className="sr-only">{title}</SheetDescription>}
+          {description ? (
+            <SheetDescription className="text-ink-2">{description}</SheetDescription>
+          ) : (
+            <SheetDescription className="sr-only">{title}</SheetDescription>
+          )}
         </SheetHeader>
         {children}
       </SheetContent>

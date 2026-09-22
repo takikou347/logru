@@ -1,6 +1,7 @@
 import { CalendarDays, ChevronLeft, SlidersHorizontal, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
+import { useMe } from "@/api/common";
 import { signOut } from "@/app/auth";
 import { OfflineBand } from "@/components/parts/Failure";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEnabledExtensions } from "@/lib/extensions";
-import { useMe } from "@/api/common";
 import { cn } from "@/lib/utils";
 import { Pools } from "../parts/Pools";
 import { ShortcutBand } from "../parts/ShortcutBand";
@@ -28,7 +28,8 @@ export function useSignOut() {
   };
 }
 
-const navItem = "flex min-h-[42px] w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-sm font-medium no-underline aria-[current=page]:bg-field aria-pressed:bg-field";
+const navItem =
+  "flex min-h-[42px] w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-sm font-medium no-underline aria-[current=page]:bg-field aria-pressed:bg-field";
 
 /**
  * ログインした後の枠。スマホは縦に積み、1024px 以上は左にメニューの列を置く。
@@ -57,7 +58,10 @@ export function AppLayout({
       )}
     >
       <Pools colors={poolColors} focus={poolFocus} />
-      <aside className="glass sticky top-4 hidden h-[calc(100dvh-32px)] flex-col gap-3 rounded-panel px-3.5 py-5.5 lg:flex" aria-label="メニュー">
+      <aside
+        className="glass sticky top-4 hidden h-[calc(100dvh-32px)] flex-col gap-3 rounded-panel px-3.5 py-5.5 lg:flex"
+        aria-label="メニュー"
+      >
         <div className="pl-2 text-[32px] leading-none font-extrabold tracking-[-0.03em]">Logru</div>
         <nav aria-label="画面">
           <NavLink className={navItem} to="/" end>
@@ -109,7 +113,10 @@ export const sideItemClass = navItem;
 function UserAvatar({ name, color }: { name: string; color: string | undefined }) {
   return (
     <span
-      className={cn("grid size-[34px] flex-none place-items-center rounded-full bg-(--c) text-[15px] font-bold text-white", `c-${color ?? "wakatake"}`)}
+      className={cn(
+        "grid size-[34px] flex-none place-items-center rounded-full bg-(--c) text-[15px] font-bold text-white",
+        `c-${color ?? "wakatake"}`,
+      )}
       aria-hidden="true"
     >
       {name.slice(0, 1).toUpperCase()}
@@ -143,7 +150,12 @@ export function AccountMenu({ wide = false }: { wide?: boolean }) {
           </Button>
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent side={wide ? "top" : "bottom"} align={wide ? "start" : "end"} sideOffset={8} className="w-72 max-w-[calc(100vw-32px)]">
+      <DropdownMenuContent
+        side={wide ? "top" : "bottom"}
+        align={wide ? "start" : "end"}
+        sideOffset={8}
+        className="w-72 max-w-[calc(100vw-32px)]"
+      >
         <DropdownMenuLabel className="flex items-center gap-2.5">
           {avatar}
           <span className="flex min-w-0 flex-col">

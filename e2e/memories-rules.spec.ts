@@ -92,5 +92,9 @@ test("予定を足すシートで日付を変えると、その日の予定に�
   const again = page.getByRole("dialog", { name: "新しい予定" });
   await expect(again.getByRole("region", { name: /の予定$/ })).toHaveCount(0);
   await again.getByLabel("日付").fill(key);
-  await expect(again.getByRole("region", { name: `${tomorrow.getMonth() + 1}月${tomorrow.getDate()}日の予定` }).getByText("明日の用事")).toBeVisible();
+  await expect(
+    again
+      .getByRole("region", { name: `${tomorrow.getMonth() + 1}月${tomorrow.getDate()}日の予定` })
+      .getByText("明日の用事"),
+  ).toBeVisible();
 });

@@ -1,13 +1,13 @@
-import { zValidator } from "@hono/zod-validator";
-import { and, eq, isNull, ne } from "drizzle-orm";
-import type { ExtensionInfo } from "@shared/api-types";
-import { pickUnusedColor } from "@shared/colors";
-import { extensionToggleInput, groupInput, groupPatchInput, memberRoleInput } from "@shared/schemas";
 import { serverExtensions, toggleableExtensions } from "@extensions/server/registry";
-import { HttpError, createRouter, validationHook } from "@server/core/app";
+import { zValidator } from "@hono/zod-validator";
+import { createRouter, HttpError, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import { groupExtensions, groupInvites, groupMembers, groups } from "@server/core/db/schema";
 import { listGroups, requireMembership } from "@server/modules/groups/membership";
+import type { ExtensionInfo } from "@shared/api-types";
+import { pickUnusedColor } from "@shared/colors";
+import { extensionToggleInput, groupInput, groupPatchInput, memberRoleInput } from "@shared/schemas";
+import { and, eq, isNull, ne } from "drizzle-orm";
 
 /** 招待リンクの有効な期間。7 日 */
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -15,7 +15,10 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** 推測できない招待の文字列を作る。24 バイトの乱数を URL で使える Base64 にする */
 function randomToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
-  return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
 }
 
 /** `/api/groups`。グループ、招待、管理者の受け渡し、拡張の切り替え */
@@ -32,7 +35,10 @@ export const groupRoutes = createRouter()
       db.insert(groups).values({ id, name, color: pickUnusedColor(existing.map((g) => g.color)), createdBy: me.id }),
       db.insert(groupMembers).values({ groupId: id, userId: me.id, role: "admin" }),
     ]);
-    return c.json((await listGroups(db, me.id)).find((g) => g.id === id), 201);
+    return c.json(
+      (await listGroups(db, me.id)).find((g) => g.id === id),
+      201,
+    );
   })
   .patch("/:id", zValidator("json", groupPatchInput, validationHook), async (c) => {
     const db = c.get("db");
@@ -55,7 +61,9 @@ export const groupRoutes = createRouter()
     if (membership.isPersonal) throw new HttpError(400, "自分だけのグループには招待できません。");
     const token = randomToken();
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
-    await db.insert(groupInvites).values({ id: crypto.randomUUID(), groupId: id, token, createdBy: c.get("user").id, expiresAt });
+    await db
+      .insert(groupInvites)
+      .values({ id: crypto.randomUUID(), groupId: id, token, createdBy: c.get("user").id, expiresAt });
     return c.json({ token, url: `${c.get("appUrl")}/invite/${token}`, expiresAt: expiresAt.getTime() }, 201);
   })
   .delete("/:id/invites", async (c) => {
@@ -80,8 +88,11 @@ export const groupRoutes = createRouter()
       const admins = await db
         .select({ id: groupMembers.userId })
         .from(groupMembers)
-        .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.role, "admin"), ne(groupMembers.userId, targetId)));
-      if (admins.length === 0) throw new HttpError(409, "管理者が 1 人もいなくなります。先にほかの人を管理者にしてください。");
+        .where(
+          and(eq(groupMembers.groupId, groupId), eq(groupMembers.role, "admin"), ne(groupMembers.userId, targetId)),
+        );
+      if (admins.length === 0)
+        throw new HttpError(409, "管理者が 1 人もいなくなります。先にほかの人を管理者にしてください。");
     }
     await db
       .update(groupMembers)

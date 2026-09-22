@@ -1,8 +1,8 @@
-import { and, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
-import type { CalendarItem } from "@shared/api-types";
+import type { CalendarContext } from "@extensions/server/types";
 import type { DB } from "@server/core/db/client";
 import { groupMembers, groups } from "@server/core/db/schema";
-import type { CalendarContext } from "@extensions/server/types";
+import type { CalendarItem } from "@shared/api-types";
+import { and, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
 import { externalCalendars, externalEvents } from "./schema";
 
 /**
@@ -33,7 +33,10 @@ export async function listExternalEvents(
   if (!personal) return [];
 
   const rows = await db
-    .select({ event: externalEvents, calendar: { id: externalCalendars.id, name: externalCalendars.name, color: externalCalendars.color } })
+    .select({
+      event: externalEvents,
+      calendar: { id: externalCalendars.id, name: externalCalendars.name, color: externalCalendars.color },
+    })
     .from(externalEvents)
     .innerJoin(externalCalendars, eq(externalCalendars.id, externalEvents.calendarId))
     .where(

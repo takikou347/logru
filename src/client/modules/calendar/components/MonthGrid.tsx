@@ -1,10 +1,10 @@
 import { type CSSProperties, useRef } from "react";
-import { WEEKDAYS, dayTone, formatDay, formatTime, holidayName, onDay, sameDay } from "@/lib/dates";
 import { AvatarStack } from "@/components/parts/Avatars";
+import { dayTone, formatDay, formatTime, holidayName, onDay, sameDay, WEEKDAYS } from "@/lib/dates";
 import { cn } from "@/lib/utils";
-import { toneText } from "./DayItems";
-import { type SpanSegment, daySpan, hiddenPerDay, isMultiDay, layoutWeek } from "../lanes";
+import { daySpan, hiddenPerDay, isMultiDay, layoutWeek, type SpanSegment } from "../lanes";
 import type { ViewItem } from "../model";
+import { toneText } from "./DayItems";
 
 /** スマホのマスに出す点の数 */
 const MAX_DOTS = 3;
@@ -67,7 +67,10 @@ export function MonthGrid({
   const weeks = Array.from({ length: Math.ceil(days.length / 7) }, (_, w) => days.slice(w * 7, w * 7 + 7));
 
   return (
-    <section className="glass rounded-panel px-2 pt-2.5 pb-2 lg:flex lg:min-h-[calc(100dvh-106px)] lg:flex-col lg:p-3 lg:pb-2.5" aria-label="月の表">
+    <section
+      className="glass rounded-panel px-2 pt-2.5 pb-2 lg:flex lg:min-h-[calc(100dvh-106px)] lg:flex-col lg:p-3 lg:pb-2.5"
+      aria-label="月の表"
+    >
       <div className="grid grid-cols-7" aria-hidden="true">
         {WEEKDAYS.map((w, i) => (
           <span
@@ -130,7 +133,8 @@ export function MonthGrid({
                       className={cn(
                         "absolute inset-0 z-[1] rounded-xl",
                         isSelected && !isToday && "bg-field shadow-[inset_0_0_0_1.5px_var(--line)]",
-                        isToday && "bg-field-strong shadow-[inset_0_1px_0_var(--glass-edge),0_6px_14px_-8px_rgba(0,0,0,.45)]",
+                        isToday &&
+                          "bg-field-strong shadow-[inset_0_1px_0_var(--glass-edge),0_6px_14px_-8px_rgba(0,0,0,.45)]",
                       )}
                       aria-label={label}
                       aria-pressed={isSelected}
@@ -174,7 +178,11 @@ export function MonthGrid({
                         <span
                           key={`${i.extension}:${i.id}`}
                           data-response={i.myResponse}
-                          className={cn("swatch-dot size-1.5", `c-${i.color}`, responseMark[i.myResponse ?? "accepted"])}
+                          className={cn(
+                            "swatch-dot size-1.5",
+                            `c-${i.color}`,
+                            responseMark[i.myResponse ?? "accepted"],
+                          )}
                         />
                       ))}
                       {moreDots > 0 && <span>+{moreDots}</span>}
@@ -184,7 +192,11 @@ export function MonthGrid({
                         <EventChip key={`${i.extension}:${i.id}`} item={i} onOpen={() => onOpenItem(i)} />
                       ))}
                       {moreChips > 0 && (
-                        <button type="button" className="pl-1.5 text-left text-[11px] text-ink-2" onClick={() => onPressDay(d)}>
+                        <button
+                          type="button"
+                          className="pl-1.5 text-left text-[11px] text-ink-2"
+                          onClick={() => onPressDay(d)}
+                        >
                           ほか {moreChips} 件
                         </button>
                       )}
@@ -278,7 +290,10 @@ function SpanMarks({ segment, onOpen }: { segment: SpanSegment<ViewItem>; onOpen
             : item.allDay
               ? "bg-(--c) text-[#17202c]"
               : "bg-[color-mix(in_srgb,var(--c)_18%,transparent)]",
-          !pending && !item.allDay && !before && "before:w-[3px] before:flex-none before:self-stretch before:rounded-xs before:bg-(--c) before:content-['']",
+          !pending &&
+            !item.allDay &&
+            !before &&
+            "before:w-[3px] before:flex-none before:self-stretch before:rounded-xs before:bg-(--c) before:content-['']",
           declined && "opacity-50",
           `c-${item.color}`,
         )}
@@ -286,7 +301,9 @@ function SpanMarks({ segment, onOpen }: { segment: SpanSegment<ViewItem>; onOpen
         onClick={onOpen}
       >
         {!item.allDay && !before && <time className="flex-none text-ink-2">{formatTime(item.startsAt)}</time>}
-        {item.tag && !before && <span className="flex-none rounded-[4px] bg-black/15 px-1 text-[10px] leading-4 font-bold">{item.tag}</span>}
+        {item.tag && !before && (
+          <span className="flex-none rounded-[4px] bg-black/15 px-1 text-[10px] leading-4 font-bold">{item.tag}</span>
+        )}
         <span className={cn("min-w-0 truncate", declined && "line-through")}>{item.title}</span>
         {avatars > 0 && <AvatarStack people={item.people} max={avatars} size={18} className="ml-auto" />}
       </button>
@@ -311,17 +328,23 @@ function EventChip({ item, onOpen }: { item: ViewItem; onOpen: () => void }) {
         item.secondary
           ? "text-ink-2"
           : pending
-          ? "shadow-[inset_0_0_0_1.5px_var(--c)]"
-          : "bg-[color-mix(in_srgb,var(--c)_18%,transparent)] before:w-[3px] before:flex-none before:self-stretch before:rounded-xs before:bg-(--c) before:content-['']",
+            ? "shadow-[inset_0_0_0_1.5px_var(--c)]"
+            : "bg-[color-mix(in_srgb,var(--c)_18%,transparent)] before:w-[3px] before:flex-none before:self-stretch before:rounded-xs before:bg-(--c) before:content-['']",
         declined && "opacity-50",
         `c-${item.color}`,
       )}
       onClick={onOpen}
     >
       {!item.allDay && <time className="flex-none text-ink-2 @max-[90px]:hidden">{formatTime(item.startsAt)}</time>}
-      {item.tag && !item.secondary && <span className="flex-none rounded-[4px] bg-[color-mix(in_srgb,var(--ink)_10%,transparent)] px-1 text-[10px] leading-4 font-bold text-ink-2">{item.tag}</span>}
+      {item.tag && !item.secondary && (
+        <span className="flex-none rounded-[4px] bg-[color-mix(in_srgb,var(--ink)_10%,transparent)] px-1 text-[10px] leading-4 font-bold text-ink-2">
+          {item.tag}
+        </span>
+      )}
       <span className={cn("min-w-0 truncate", declined && "line-through")}>{item.title}</span>
-      {item.myResponse && item.myResponse !== "accepted" && <span className="sr-only">{responseWord[item.myResponse]}</span>}
+      {item.myResponse && item.myResponse !== "accepted" && (
+        <span className="sr-only">{responseWord[item.myResponse]}</span>
+      )}
     </button>
   );
 }

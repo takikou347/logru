@@ -1,5 +1,5 @@
 import { Dot } from "@/components/parts/Panel";
-import { WEEKDAYS, dayTone, formatTime, holidayName, onDay } from "@/lib/dates";
+import { dayTone, formatTime, holidayName, onDay, WEEKDAYS } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import type { ViewItem } from "../model";
 
@@ -38,7 +38,11 @@ export function ItemTitle({ item }: { item: Pick<ViewItem, "title" | "myResponse
 
 /** 予定ではない項目の印。例は「思い出」 */
 export function ItemTag({ tag }: { tag: string }) {
-  return <span className="flex-none rounded-[5px] bg-[color-mix(in_srgb,var(--ink)_10%,transparent)] px-1 text-[10px] leading-4 font-bold text-ink-2">{tag}</span>;
+  return (
+    <span className="flex-none rounded-[5px] bg-[color-mix(in_srgb,var(--ink)_10%,transparent)] px-1 text-[10px] leading-4 font-bold text-ink-2">
+      {tag}
+    </span>
+  );
 }
 
 /**
@@ -46,10 +50,19 @@ export function ItemTag({ tag }: { tag: string }) {
  * 月の表だけに出す項目は、一覧に混ぜず、下に小さく並べる。例は記録の数
  * @param empty 1 件も無いときに出す文
  */
-export function ItemList({ items, onOpen, empty }: { items: ViewItem[]; onOpen: (i: ViewItem) => void; empty: string }) {
+export function ItemList({
+  items,
+  onOpen,
+  empty,
+}: {
+  items: ViewItem[];
+  onOpen: (i: ViewItem) => void;
+  empty: string;
+}) {
   const primary = items.filter((i) => !i.secondary);
   const extra = items.filter((i) => i.secondary);
-  if (primary.length === 0 && extra.length === 0) return <p className="py-2.5 text-[13px] leading-relaxed text-ink-2">{empty}</p>;
+  if (primary.length === 0 && extra.length === 0)
+    return <p className="py-2.5 text-[13px] leading-relaxed text-ink-2">{empty}</p>;
   return (
     <div className="flex min-w-0 flex-col">
       {primary.length === 0 && <p className="py-2 text-[13px] leading-relaxed text-ink-2">{empty}</p>}
@@ -60,7 +73,10 @@ export function ItemList({ items, onOpen, empty }: { items: ViewItem[]; onOpen: 
             <button
               key={`${i.extension}:${i.id}`}
               type="button"
-              className={cn("inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line px-3 text-xs font-medium text-ink-2", `c-${i.color}`)}
+              className={cn(
+                "inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line px-3 text-xs font-medium text-ink-2",
+                `c-${i.color}`,
+              )}
               onClick={() => onOpen(i)}
             >
               <Dot color={i.color} />
@@ -83,7 +99,10 @@ function PrimaryList({ items, onOpen }: { items: ViewItem[]; onOpen: (i: ViewIte
           <button
             type="button"
             data-response={i.myResponse}
-            className={cn("grid min-h-11 w-full grid-cols-[46px_1fr] items-center gap-1 py-1 text-left", i.myResponse === "declined" && "opacity-55")}
+            className={cn(
+              "grid min-h-11 w-full grid-cols-[46px_1fr] items-center gap-1 py-1 text-left",
+              i.myResponse === "declined" && "opacity-55",
+            )}
             onClick={() => onOpen(i)}
           >
             <time className="text-sm font-medium text-ink-2">{i.allDay ? "終日" : formatTime(i.startsAt)}</time>
@@ -114,8 +133,13 @@ export function DayPanel({ day, items, onOpen }: { day: Date; items: ViewItem[];
       className="glass grid grid-cols-[auto_1fr] items-start gap-4 rounded-panel px-4.5 py-4 xl:grid-cols-1"
       aria-label={`${day.getMonth() + 1}月${day.getDate()}日の予定`}
     >
-      <div data-tone={tone ?? undefined} className={cn("flex min-w-[72px] flex-col xl:flex-row xl:items-end xl:gap-3", tone && toneText[tone])}>
-        <span data-testid="big-day" className="text-[72px] leading-[0.9] font-bold tracking-[-0.04em] xl:text-[88px]">{day.getDate()}</span>
+      <div
+        data-tone={tone ?? undefined}
+        className={cn("flex min-w-[72px] flex-col xl:flex-row xl:items-end xl:gap-3", tone && toneText[tone])}
+      >
+        <span data-testid="big-day" className="text-[72px] leading-[0.9] font-bold tracking-[-0.04em] xl:text-[88px]">
+          {day.getDate()}
+        </span>
         <div>
           <div className="mt-2 text-sm font-bold">{WEEKDAYS[day.getDay()]}曜</div>
           {hol && <div className="mt-0.5 text-[11px] text-ink-2">{hol}</div>}

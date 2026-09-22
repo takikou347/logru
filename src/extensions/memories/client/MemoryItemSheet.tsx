@@ -1,8 +1,8 @@
+import type { ItemEditorProps } from "@extensions/client/types";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Loading } from "@/app/guards";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
-import type { ItemEditorProps } from "@extensions/client/types";
 import { useMemory, useMemoryGroups } from "./api";
 import { MemorySheet } from "./MemorySheet";
 

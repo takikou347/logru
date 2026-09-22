@@ -24,6 +24,7 @@ function PushPanel({ reasons }: { reasons: string[] }) {
   const [endpoint, setEndpoint] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: info.data は使わないが、読み直すたびにブラウザの購読を取り直したい
   useEffect(() => {
     void currentSubscription().then((s) => setEndpoint(s?.endpoint ?? null));
   }, [info.data]);
@@ -53,11 +54,18 @@ function PushPanel({ reasons }: { reasons: string[] }) {
           <br />
           <span className="text-xs text-ink-2">{reasons.join("、")}になったら通知します</span>
         </span>
-        <Switch checked={on} aria-label="この端末で通知を受け取る" disabled={!support.ok || busy || !info.data?.publicKey} onCheckedChange={toggle} />
+        <Switch
+          checked={on}
+          aria-label="この端末で通知を受け取る"
+          disabled={!support.ok || busy || !info.data?.publicKey}
+          onCheckedChange={toggle}
+        />
       </PanelRow>
       {!support.ok && <FieldMessage>{support.reason}</FieldMessage>}
       {support.ok && info.data && !info.data.publicKey && <FieldMessage>この環境では通知を送れません。</FieldMessage>}
-      {info.data && info.data.devices.length > 0 && <FieldMessage>通知を受け取る端末: {info.data.devices.length} 台</FieldMessage>}
+      {info.data && info.data.devices.length > 0 && (
+        <FieldMessage>通知を受け取る端末: {info.data.devices.length} 台</FieldMessage>
+      )}
     </Panel>
   );
 }

@@ -20,7 +20,12 @@ if (migrate.status !== 0) process.exit(migrate.status ?? 1);
 
 const children = [];
 if (await listening(9099)) console.log("Auth エミュレーターは既に動いています。それを使います。");
-else children.push(spawn("pnpm", ["exec", "firebase", "emulators:start", "--only", "auth", "--project", "demo-logru"], { stdio: "inherit" }));
+else
+  children.push(
+    spawn("pnpm", ["exec", "firebase", "emulators:start", "--only", "auth", "--project", "demo-logru"], {
+      stdio: "inherit",
+    }),
+  );
 children.push(spawn("pnpm", ["exec", "vite", ...process.argv.slice(2)], { stdio: "inherit" }));
 
 let stopping = false;

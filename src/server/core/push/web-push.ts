@@ -49,7 +49,9 @@ export type VapidKeys = { publicKey: string; privateKey: string; subject: string
 export async function encryptPayload(payload: string, target: PushTarget): Promise<Uint8Array> {
   const uaPublic = fromB64url(target.p256dh);
   const authSecret = fromB64url(target.auth);
-  const local = (await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"])) as CryptoKeyPair;
+  const local = (await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
+    "deriveBits",
+  ])) as CryptoKeyPair;
   const asPublic = new Uint8Array((await crypto.subtle.exportKey("raw", local.publicKey)) as ArrayBuffer);
   const uaKey = await crypto.subtle.importKey("raw", uaPublic, { name: "ECDH", namedCurve: "P-256" }, false, []);
   // 標準の名前は public。Workers の型は $public と書くので、両方を渡す
@@ -80,10 +82,21 @@ export async function encryptPayload(payload: string, target: PushTarget): Promi
  */
 export async function vapidAuthorization(endpoint: string, keys: VapidKeys, now = Date.now()): Promise<string> {
   const pub = fromB64url(keys.publicKey);
-  const jwk: JsonWebKey = { kty: "EC", crv: "P-256", x: b64url(pub.slice(1, 33)), y: b64url(pub.slice(33, 65)), d: keys.privateKey, ext: true };
+  const jwk: JsonWebKey = {
+    kty: "EC",
+    crv: "P-256",
+    x: b64url(pub.slice(1, 33)),
+    y: b64url(pub.slice(33, 65)),
+    d: keys.privateKey,
+    ext: true,
+  };
   const key = await crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
   const header = b64url(enc.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
-  const claims = b64url(enc.encode(JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(now / 1000) + 12 * 3600, sub: keys.subject })));
+  const claims = b64url(
+    enc.encode(
+      JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(now / 1000) + 12 * 3600, sub: keys.subject }),
+    ),
+  );
   const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(`${header}.${claims}`));
   return `vapid t=${header}.${claims}.${b64url(sig)}, k=${keys.publicKey}`;
 }

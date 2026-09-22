@@ -124,3 +124,23 @@ export const groupExtensions = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.groupId, t.extensionKey] })],
 );
+
+/** 端末に知らせを届ける送り先。端末ごとに 1 行。1 人 10 台まで。F-23、0023 */
+export const pushSubscriptions = sqliteTable(
+  "push_subscriptions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    /** 設定の画面で見分けるための、端末の種類 */
+    userAgent: text("user_agent"),
+    /** 続けて失敗した数。5 回続いたら消す */
+    failedCount: integer("failed_count").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index("push_subscriptions_user_idx").on(t.userId)],
+);

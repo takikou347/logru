@@ -22,6 +22,7 @@ import { keys, useGroups, useMe } from "@/lib/queries";
 import { applyTheme } from "@/lib/theme";
 import { poolColorsOf } from "../calendar/model";
 import { DeleteAccountSheet } from "./DeleteAccountSheet";
+import { PushSection } from "./PushSection";
 
 const MODES = [
   { value: "system", label: "端末と同じ" },
@@ -119,6 +120,8 @@ export function SettingsPage() {
         )}
 
         {clientExtensions.map((x) => x.SettingsSection && <x.SettingsSection key={x.manifest.key} />)}
+
+        <PushSection />
 
         <Panel title="アカウント">
           <div>

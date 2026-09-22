@@ -19,6 +19,7 @@ export const keys = {
   groups: ["groups"] as const,
   calendar: (from: number, to: number) => ["calendar", from, to] as const,
   extensions: (groupId: string) => ["extensions", groupId] as const,
+  extensionOverview: ["extension-overview"] as const,
   invite: (token: string) => ["invite", token] as const,
 };
 

@@ -42,7 +42,7 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       // CSP でインラインのスクリプトを許さないので、登録は別ファイルにする
       injectRegister: "script",
-      includeAssets: ["icon.svg", "apple-touch-icon.png", "theme-boot.js"],
+      includeAssets: ["icon.svg", "apple-touch-icon.png", "theme-boot.js", "push-sw.js"],
       manifest: {
         name: "Logru",
         short_name: "Logru",
@@ -60,6 +60,8 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
+        // 端末への知らせを受ける処理。0023
+        importScripts: ["/push-sw.js"],
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
         // 書体は数が多いので先に全部は持たず、使ったものだけ残す

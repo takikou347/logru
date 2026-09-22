@@ -36,12 +36,46 @@ export function ItemTitle({ item }: { item: Pick<ViewItem, "title" | "myResponse
   );
 }
 
+/** 予定ではない項目の印。例は「思い出」 */
+export function ItemTag({ tag }: { tag: string }) {
+  return <span className="flex-none rounded-[5px] bg-[color-mix(in_srgb,var(--ink)_10%,transparent)] px-1 text-[10px] leading-4 font-bold text-ink-2">{tag}</span>;
+}
+
 /**
  * 予定の一覧。色だけで見分けさせず、グループ名も出す。0012
+ * 月の表だけに出す項目は、一覧に混ぜず、下に小さく並べる。例は記録の数
  * @param empty 1 件も無いときに出す文
  */
 export function ItemList({ items, onOpen, empty }: { items: ViewItem[]; onOpen: (i: ViewItem) => void; empty: string }) {
-  if (items.length === 0) return <p className="py-2.5 text-[13px] leading-relaxed text-ink-2">{empty}</p>;
+  const primary = items.filter((i) => !i.secondary);
+  const extra = items.filter((i) => i.secondary);
+  if (primary.length === 0 && extra.length === 0) return <p className="py-2.5 text-[13px] leading-relaxed text-ink-2">{empty}</p>;
+  return (
+    <div className="flex min-w-0 flex-col">
+      {primary.length === 0 && <p className="py-2 text-[13px] leading-relaxed text-ink-2">{empty}</p>}
+      <PrimaryList items={primary} onOpen={onOpen} />
+      {extra.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 border-t border-line pt-2 pb-1 not-has-[*]:hidden">
+          {extra.map((i) => (
+            <button
+              key={`${i.extension}:${i.id}`}
+              type="button"
+              className={cn("inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line px-3 text-xs font-medium text-ink-2", `c-${i.color}`)}
+              onClick={() => onOpen(i)}
+            >
+              <Dot color={i.color} />
+              {i.title}
+              <span className="text-[11px]">{i.groupName}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PrimaryList({ items, onOpen }: { items: ViewItem[]; onOpen: (i: ViewItem) => void }) {
+  if (items.length === 0) return null;
   return (
     <ul className="flex min-w-0 flex-col">
       {items.map((i) => (
@@ -55,6 +89,7 @@ export function ItemList({ items, onOpen, empty }: { items: ViewItem[]; onOpen: 
             <time className="text-sm font-medium text-ink-2">{i.allDay ? "終日" : formatTime(i.startsAt)}</time>
             <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
               <Dot color={i.color} response={i.myResponse} />
+              {i.tag && <ItemTag tag={i.tag} />}
               <ItemTitle item={i} />
               <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
             </span>

@@ -7,14 +7,16 @@ import type { CalendarContext } from "../../../extensions/types";
 import { createRouter, validationHook } from "../../core/app";
 import { requireAgreement, requireUser } from "../../core/auth/middleware";
 import type { DB } from "../../core/db/client";
-import { groupExtensions } from "../../core/db/schema";
+import { groupExtensions, groupMembers, groups } from "../../core/db/schema";
 import { myGroupIds } from "../groups/membership";
 
 /**
  * 期間とグループを受け取り、有効な拡張の項目をまとめて日時の順に返す。0008
  *
  * カレンダーは拡張の中身を知らない。拡張ごとに、呼んでよいグループだけを渡して項目を借りる。
- * いつも有効な拡張には全部のグループを、そうでない拡張には有効にしたグループだけを渡す。
+ * いつも有効な拡張には全部のグループを渡す。
+ * 切り替えられる拡張は、その人が使うと決めたときだけ呼ぶ。使うかどうかは、自分だけのグループの切り替えで持つ。0019
+ * 使うなら、自分だけのグループと、その拡張を有効にした共有のグループを渡す。
  *
  * @param db D1 を包んだ Drizzle
  * @param groupIds 利用者が入っていて、絞り込みで選んだグループ
@@ -31,18 +33,29 @@ export async function listCalendarItems(
 ): Promise<CalendarItem[]> {
   if (groupIds.length === 0) return [];
   const toggles = serverExtensions.filter((x) => !x.manifest.alwaysOn);
+  const personal = toggles.length
+    ? await db
+        .select({ id: groups.id })
+        .from(groupMembers)
+        .innerJoin(groups, eq(groups.id, groupMembers.groupId))
+        .where(and(eq(groupMembers.userId, ctx.userId), eq(groups.isPersonal, true)))
+        .get()
+    : undefined;
   const enabled = toggles.length
     ? await db
         .select()
         .from(groupExtensions)
-        .where(and(inArray(groupExtensions.groupId, groupIds), eq(groupExtensions.enabled, true)))
+        .where(and(inArray(groupExtensions.groupId, personal ? [...groupIds, personal.id] : groupIds), eq(groupExtensions.enabled, true)))
     : [];
+  const used = new Set(enabled.filter((r) => r.groupId === personal?.id).map((r) => r.extensionKey));
 
   const results = await Promise.all(
     serverExtensions.map((x) => {
       const ids = x.manifest.alwaysOn
         ? groupIds
-        : enabled.filter((r) => r.extensionKey === x.manifest.key).map((r) => r.groupId);
+        : used.has(x.manifest.key)
+          ? groupIds.filter((g) => g === personal?.id || enabled.some((r) => r.groupId === g && r.extensionKey === x.manifest.key))
+          : [];
       return ids.length ? x.listCalendarItems(db as never, ids, from, to, ctx) : Promise.resolve([]);
     }),
   );

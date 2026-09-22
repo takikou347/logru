@@ -286,6 +286,7 @@ function SpanMarks({ segment, onOpen }: { segment: SpanSegment<ViewItem>; onOpen
         onClick={onOpen}
       >
         {!item.allDay && !before && <time className="flex-none text-ink-2">{formatTime(item.startsAt)}</time>}
+        {item.tag && !before && <span className="flex-none rounded-[4px] bg-black/15 px-1 text-[10px] leading-4 font-bold">{item.tag}</span>}
         <span className={cn("min-w-0 truncate", declined && "line-through")}>{item.title}</span>
         {avatars > 0 && <AvatarStack people={item.people} max={avatars} size={18} className="ml-auto" />}
       </button>
@@ -307,7 +308,9 @@ function EventChip({ item, onOpen }: { item: ViewItem; onOpen: () => void }) {
       data-response={item.myResponse}
       className={cn(
         "flex min-h-6 min-w-0 items-center gap-1.5 overflow-hidden rounded-md px-1.5 py-1 text-left text-xs leading-tight font-medium whitespace-nowrap",
-        pending
+        item.secondary
+          ? "text-ink-2"
+          : pending
           ? "shadow-[inset_0_0_0_1.5px_var(--c)]"
           : "bg-[color-mix(in_srgb,var(--c)_18%,transparent)] before:w-[3px] before:flex-none before:self-stretch before:rounded-xs before:bg-(--c) before:content-['']",
         declined && "opacity-50",
@@ -316,6 +319,7 @@ function EventChip({ item, onOpen }: { item: ViewItem; onOpen: () => void }) {
       onClick={onOpen}
     >
       {!item.allDay && <time className="flex-none text-ink-2 @max-[90px]:hidden">{formatTime(item.startsAt)}</time>}
+      {item.tag && !item.secondary && <span className="flex-none rounded-[4px] bg-[color-mix(in_srgb,var(--ink)_10%,transparent)] px-1 text-[10px] leading-4 font-bold text-ink-2">{item.tag}</span>}
       <span className={cn("min-w-0 truncate", declined && "line-through")}>{item.title}</span>
       {item.myResponse && item.myResponse !== "accepted" && <span className="sr-only">{responseWord[item.myResponse]}</span>}
     </button>

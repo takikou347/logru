@@ -31,6 +31,8 @@ export type GroupSummary = {
   /** 自分の役割 */
   role: "admin" | "member";
   members: GroupMember[];
+  /** このグループで有効にした、切り替えられる拡張の key。いつも有効な拡張は含めない。0019 */
+  extensions: string[];
 };
 
 /** カレンダーに並べる 1 件。拡張はこの形で項目を渡す。0002、0008 */
@@ -54,6 +56,10 @@ export type CalendarItem = {
   color?: string;
   /** グループの名前の代わりに出す名前。外部のカレンダーの名前など */
   sourceName?: string;
+  /** 予定ではないことを見分ける印。一覧と月の表で、題名の前に出す。例は「思い出」 */
+  tag?: string;
+  /** 月の表には出すが、予定の一覧には出さない項目。一覧の下に小さく出す。例は記録の数 */
+  secondary?: boolean;
   /**
    * 参加者と、それぞれの返事。人を招待できる拡張だけが入れる。予定の拡張では、作った人もいつも入る。#28
    * 無ければ、参加者の考えが無い項目として扱う
@@ -75,5 +81,23 @@ export type Attendee = { userId: string; response: AttendeeResponse };
 /** グループの設定に出す、切り替えられる拡張 */
 export type ExtensionInfo = { key: string; label: string; description: string; enabled: boolean };
 
+/** `GET /api/extensions` の 1 件。機能の一覧に出す。F-24 */
+export type ExtensionOverview = {
+  key: string;
+  label: string;
+  description: string;
+  /** 自分だけのグループで有効か */
+  personal: boolean;
+  /** この拡張を有効にしている、入っている共有のグループ */
+  groups: { id: string; name: string }[];
+};
+
 /** `GET /api/invites/:token` の応答 */
 export type InviteInfo = { groupName: string; expiresAt: number; valid: boolean; reason?: "expired" | "revoked" };
+
+/** `GET /api/me/push` の応答。F-23 */
+export type PushInfo = {
+  /** VAPID の公開鍵。無ければ、この環境では知らせを送れない */
+  publicKey: string | null;
+  devices: { id: string; endpoint: string; userAgent: string | null; createdAt: number }[];
+};

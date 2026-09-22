@@ -97,7 +97,27 @@ Auth エミュレーターが動いていなければ、テストの間だけ立
 
    鍵を変えると、登録済みの URL が読めなくなる。変えたら、登録し直してもらう
 
+5. 思い出の写真の置き場を作り、URL の署名の鍵を置く
+
+   ```bash
+   npx wrangler r2 bucket create logru-memories
+   openssl rand -base64 32 | npx wrangler secret put MEMORIES_PHOTO_KEY --env production
+   ```
+
+   鍵を変えると、配った写真の URL がすぐ切れる。画面を読み直せば新しい URL になる
+
+6. 端末への知らせの VAPID の鍵の組を作る。公開鍵を `wrangler.jsonc` の `env.production.vars` の `VAPID_PUBLIC_KEY` に書き、秘密鍵を secret に置く
+
+   ```bash
+   node -e 'const{generateKeyPairSync:g}=require("node:crypto");const k=g("ec",{namedCurve:"prime256v1"}).privateKey.export({format:"jwk"});console.log("public",Buffer.concat([Buffer.from([4]),Buffer.from(k.x,"base64url"),Buffer.from(k.y,"base64url")]).toString("base64url"));console.log("private",k.d)'
+   npx wrangler secret put VAPID_PRIVATE_KEY --env production
+   ```
+
+   鍵を変えると、登録済みの端末に届かなくなる。変えたら、設定の画面で知らせを入れ直してもらう
+
 ログインの鍵は要らない。Worker は Google が公開している鍵で ID トークンを確かめる。
+
+Cron Triggers は 5 分おきに、外部のカレンダーの読み直し、ひとコマの知らせ、消した写真の片付けをする。
 
 外部のカレンダーは、Cron Triggers で 5 分おきに読み直す。`wrangler.jsonc` の `triggers.crons` にある。
 1 回に読むのは、読みに行ってから時間のたった順に 5 つまで。登録が全部で 5 つを超えると、1 つあたりの間隔は 5 分より延びる。
@@ -113,6 +133,8 @@ pnpm run deploy
 - `.env.production` に `replace-me` が残っていると、ログインできない
 - `APP_URL` が `example` のままだと、招待リンクが壊れる
 - 承認済みドメインに本番のドメインが無いと、Google でのログインが断られる
+- `VAPID_PUBLIC_KEY` が `replace-me` のままだと、知らせを入れられない
+- `MEMORIES_PHOTO_KEY` を置いていないと、写真を配れない
 
 ## 規約を改めるとき
 

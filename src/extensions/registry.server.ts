@@ -4,10 +4,11 @@
  */
 import { eventsServer } from "./events/server";
 import { externalCalendarsServer } from "./external-calendars/server";
+import { memoriesServer } from "./memories/server";
 import type { ServerExtension } from "./types";
 
 /** すべての拡張。並びはカレンダーの項目の並びに影響しない */
-export const serverExtensions: ServerExtension[] = [eventsServer, externalCalendarsServer];
+export const serverExtensions: ServerExtension[] = [eventsServer, externalCalendarsServer, memoriesServer];
 
 /** すべての拡張の表の定義。db/client.ts が Drizzle に渡す */
 export const extensionSchemas = Object.assign({}, ...serverExtensions.map((x) => x.schema)) as Record<string, unknown>;

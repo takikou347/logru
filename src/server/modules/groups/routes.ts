@@ -137,5 +137,16 @@ export const groupRoutes = createRouter()
       .insert(groupExtensions)
       .values({ groupId, extensionKey: key, ...values })
       .onConflictDoUpdate({ target: [groupExtensions.groupId, groupExtensions.extensionKey], set: values });
+    // 共有のグループで有効にした人は、自分でも使うとみなす。使うかどうかは自分だけのグループの切り替えで持つ。0019
+    const membership = await requireMembership(db, c.get("user").id, groupId);
+    if (values.enabled && !membership.isPersonal) {
+      const personal = (await listGroups(db, c.get("user").id)).find((g) => g.isPersonal);
+      if (personal) {
+        await db
+          .insert(groupExtensions)
+          .values({ groupId: personal.id, extensionKey: key, ...values })
+          .onConflictDoUpdate({ target: [groupExtensions.groupId, groupExtensions.extensionKey], set: values });
+      }
+    }
     return c.json({ key, enabled: values.enabled });
   });

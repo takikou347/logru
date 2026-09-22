@@ -1,4 +1,4 @@
-import { ChevronLeft } from "lucide-react";
+import { CalendarDays, ChevronLeft, SlidersHorizontal, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
 import { signOut } from "@/app/auth";
@@ -12,9 +12,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useEnabledExtensions } from "@/lib/extensions";
 import { useMe } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { Pools } from "./Pools";
+import { ShortcutBand } from "./ShortcutBand";
+import { ScrollArea } from "./ui/scroll-area";
 
 /** ログアウトして、ログインの画面へ移る関数を返す */
 export function useSignOut() {
@@ -32,7 +35,7 @@ const navItem = "flex min-h-[42px] w-full items-center gap-2.5 rounded-xl px-2.5
  *
  * @param poolColors インクだまりの 3 色
  * @param poolFocus 膨らませる色の番号
- * @param side PC の左の列に足すもの。カレンダーはグループの絞り込みを置く
+ * @param side PC の左の列に足すもの。カレンダーはグループの絞り込みを置く。多いときは、この欄だけが流れる。F-25
  */
 export function AppLayout({
   children,
@@ -45,6 +48,7 @@ export function AppLayout({
   poolFocus?: number | null;
   side?: ReactNode;
 }) {
+  const navs = useEnabledExtensions().flatMap((x) => (x.nav ? [x.nav] : []));
   return (
     <div
       className={cn(
@@ -53,18 +57,31 @@ export function AppLayout({
       )}
     >
       <Pools colors={poolColors} focus={poolFocus} />
-      <aside className="glass sticky top-4 hidden h-[calc(100dvh-32px)] flex-col gap-4.5 rounded-panel px-3.5 py-5.5 lg:flex" aria-label="メニュー">
+      <aside className="glass sticky top-4 hidden h-[calc(100dvh-32px)] flex-col gap-3 rounded-panel px-3.5 py-5.5 lg:flex" aria-label="メニュー">
         <div className="pl-2 text-[32px] leading-none font-extrabold tracking-[-0.03em]">Logru</div>
-        <nav>
+        <nav aria-label="画面">
           <NavLink className={navItem} to="/" end>
+            <CalendarDays className="size-4" aria-hidden="true" />
             カレンダー
           </NavLink>
+          {navs.slice(0, 6).map((n) => (
+            <NavLink key={n.path} className={navItem} to={n.path}>
+              <n.icon className="size-4" aria-hidden="true" />
+              {n.label}
+            </NavLink>
+          ))}
           <NavLink className={navItem} to="/groups">
+            <Users className="size-4" aria-hidden="true" />
             グループ
           </NavLink>
+          <NavLink className={cn(navItem, "min-h-9 text-xs text-ink-2")} to="/extensions">
+            <SlidersHorizontal className="size-4" aria-hidden="true" />
+            機能を足す、外す
+          </NavLink>
         </nav>
-        {side}
-        <div className="mt-auto">
+        <ShortcutBand compact />
+        {side ? <ScrollArea className="min-h-0 flex-1 -mr-1.5">{side}</ScrollArea> : <div className="flex-1" />}
+        <div className="border-t border-line pt-2">
           <AccountMenu wide />
         </div>
       </aside>

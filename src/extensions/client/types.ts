@@ -43,6 +43,9 @@ export type ItemAddonProps = {
 /** ほかの拡張の編集シートに足す欄 */
 type ItemAddon = { extension: string; Component: ComponentType<ItemAddonProps> };
 
+/** お知らせの一覧に出す文言と、押したときの行き先。#32 */
+export type NotificationDescriptor = { text: string; path: string };
+
 /** 編集のシートが受け取るもの */
 export type ItemEditorProps = {
   target: EditorTarget;
@@ -124,4 +127,14 @@ export type ClientExtension = {
   itemAddons?: ItemAddon[];
   /** 端末に知らせるもの。例は「ひとコマの時刻」。知らせる拡張を使っているときだけ、設定に知らせの欄を出す。F-23 */
   notifies?: string;
+  /**
+   * 拡張が土台の notify() で積んだお知らせの kind を、一覧に出す文言と行き先に変える。#32
+   * kind が自分の拡張のものでなければ null を返す。無ければ、この拡張はお知らせを一覧に出さない
+   */
+  describeNotification?: (kind: string, payload: Record<string, unknown>) => NotificationDescriptor | null;
+  /**
+   * お知らせを押したときに、項目を 1 件読み込む。カレンダーが編集のシートを開くのに使う。
+   * 無ければ、この拡張のお知らせを押しても項目は開かない
+   */
+  loadItem?: (id: string) => Promise<CalendarItem>;
 };

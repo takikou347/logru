@@ -3,6 +3,7 @@ import { type AppEnv, createRouter, HttpError, validationHook } from "@server/co
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
 import { groupMembers } from "@server/core/db/schema";
+import { notify } from "@server/core/notifications/send";
 import { and, asc, count, desc, eq, inArray, max } from "drizzle-orm";
 import type { Context } from "hono";
 import { addDaysToKey, dayKeyIn, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
@@ -310,7 +311,20 @@ export const memoryRoutes = createRouter()
     const db = c.get("db");
     const me = c.get("user");
     const row = await loadRecordRow(db, me.id, c.req.param("recordId"));
+    const already = await db
+      .select({ userId: memoryLikes.userId })
+      .from(memoryLikes)
+      .where(and(eq(memoryLikes.recordId, row.id), eq(memoryLikes.userId, me.id)))
+      .get();
     await db.insert(memoryLikes).values({ recordId: row.id, userId: me.id }).onConflictDoNothing();
+    // 押し直しで何度も積まないよう、新しく付いたときだけ知らせる。書いた人自身のいいねは積まない。F-116、#32
+    if (!already && row.createdBy && row.createdBy !== me.id) {
+      await notify(db, [row.createdBy], "memories.like", {
+        recordId: row.id,
+        occurredAt: row.occurredAt.getTime(),
+        byUserId: me.id,
+      });
+    }
     return c.json({ likes: await likesOf(db, row.id) });
   })
   .delete("/records/:recordId/like", async (c) => {

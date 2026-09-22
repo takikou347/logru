@@ -3,6 +3,7 @@ import { createRouter, HttpError, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
 import { groupMembers } from "@server/core/db/schema";
+import { notify } from "@server/core/notifications/send";
 import { requireMembership } from "@server/modules/groups/membership";
 import { and, eq, inArray } from "drizzle-orm";
 import { canDeleteEvent, canEditEvent, canRespond, diffAttendees, inviteeIds } from "../shared/permissions";
@@ -168,10 +169,19 @@ export const eventRoutes = createRouter()
     if (!canRespond({ createdBy: row.createdBy, attendees }, userId)) {
       throw new HttpError(403, "返事ができるのは、この予定に招待された人だけです。");
     }
+    const response = c.req.valid("json").response;
     await db
       .update(eventAttendees)
-      .set({ response: c.req.valid("json").response, respondedAt: new Date() })
+      .set({ response, respondedAt: new Date() })
       .where(and(eq(eventAttendees.eventId, row.id), eq(eventAttendees.userId, userId)));
+    // 招待した人に「参加する」が返ったときだけ知らせる。作った人自身の返事や「参加しない」は積まない。0017、#32
+    if (response === "accepted" && row.createdBy && row.createdBy !== userId) {
+      await notify(db, [row.createdBy], "events.invite_accepted", {
+        eventId: row.id,
+        title: row.title,
+        byUserId: userId,
+      });
+    }
     return c.json(await reload(db, userId, row.id));
   })
   .delete("/:id", async (c) => {

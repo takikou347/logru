@@ -48,7 +48,8 @@ export function SettingsPage() {
   const [deleting, setDeleting] = useState(false);
 
   const settings = useMutation({
-    mutationFn: (next: Me["settings"]) => api<Me["settings"]>("/me/settings", { method: "PUT", body: next }),
+    // 押してすぐ読み込み直しても、保存を途中で切らせない
+    mutationFn: (next: Me["settings"]) => api<Me["settings"]>("/me/settings", { method: "PUT", body: next, keepalive: true }),
     onMutate: async (next) => {
       applyTheme(next.themeMode, next.accentColor);
       const prev = qc.getQueryData<Me>(keys.me);

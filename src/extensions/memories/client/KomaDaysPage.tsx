@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/AppLayout";
-import { Notice } from "@/components/AuthShell";
+import { LoadFailure } from "@/components/Failure";
 import { Dot, Empty } from "@/components/Panel";
 import { Button } from "@/components/ui/button";
 import { groupColor } from "@/lib/colors";
@@ -42,7 +42,7 @@ export function KomaDaysPage() {
     <AppLayout poolColors={poolColorsOf(groups, data)}>
       <Page>
         <PageBar title="ひとコマ" back="/memories" />
-        {days.error && <Notice error>{days.error.message}</Notice>}
+        {days.error && <LoadFailure what="ひとコマ" error={days.error} onRetry={() => void days.refetch()} />}
         {!startedToday && now.data && (
           <section className="glass flex flex-col gap-3 rounded-3xl p-4">
             <p className="text-sm leading-relaxed">思い出が無い日も、始めた日だけ、1 時間に 1 枚の写真で 1 日を残せます。</p>

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Loading } from "@/app/guards";
 import { AppLayout } from "@/components/AppLayout";
 import { InitialAvatar } from "@/components/Avatars";
-import { Notice } from "@/components/AuthShell";
+import { LoadFailure } from "@/components/Failure";
 import { FieldMessage } from "@/components/Panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,7 +89,7 @@ export function KomaNowPage() {
             </Button>
           )}
         </header>
-        {now.error && <Notice error>{now.error.message}</Notice>}
+        {now.error && !now.data && <LoadFailure what="今日のひとコマ" error={now.error} onRetry={() => void now.refetch()} />}
 
         {!data?.started && (
           <section className="glass flex flex-col gap-3 rounded-panel p-5">

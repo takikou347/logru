@@ -210,17 +210,21 @@ export function CalendarPage() {
         </div>
       }
     >
-      <header className="glass flex min-h-[58px] items-center justify-between gap-2 rounded-full py-1.5 pr-1.5 pl-5">
-        <h1 className="flex items-baseline gap-1" aria-live="polite">
+      {/*
+        スマホの幅では、月と年に「今日」「前」「次」「読み直す」「アカウント」を足すと 1 行に入らない。
+        入らないときだけ、操作のまとまりを次の行へ送る。縮めて文字を 2 行にしたり、画面の外へ押し出したりしない
+      */}
+      <header className="glass flex min-h-[58px] flex-wrap items-center gap-x-2 gap-y-1 rounded-panel py-1.5 pr-1.5 pl-4 lg:flex-nowrap lg:pl-5">
+        <h1 className="flex shrink-0 items-baseline gap-1" aria-live="polite">
           <span data-testid="month-number" className="text-[38px] leading-none font-bold">{selected.getMonth() + 1}</span>
           <span className="text-[17px] font-bold">月</span>
           <span className="ml-2 text-[17px] font-medium text-ink-2">{selected.getFullYear()}</span>
         </h1>
-        <div className="flex items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 lg:gap-1">
           {showTodayButton && (
             <button
               type="button"
-              className="min-h-10 rounded-full border border-(--glass-edge) bg-field px-3.5 text-[13px] font-bold"
+              className="min-h-10 shrink-0 rounded-full border border-(--glass-edge) bg-field px-3.5 text-[13px] font-bold whitespace-nowrap"
               onClick={() => update({ date: today })}
             >
               今日
@@ -288,7 +292,7 @@ export function CalendarPage() {
       <div
         role="toolbar"
         aria-label="カレンダーの操作"
-        className="glass fixed inset-x-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[528px] items-center justify-between gap-1.5 rounded-full p-1.5 lg:hidden">
+        className="glass fixed inset-x-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[528px] flex-wrap items-center justify-between gap-1.5 rounded-panel p-1.5 lg:hidden">
         <Button variant="ghost" size="icon" aria-label="機能" onClick={() => setFeatures(true)}>
           <LayoutGrid className="size-5" />
         </Button>

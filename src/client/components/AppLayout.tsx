@@ -109,7 +109,8 @@ export const sideItemClass = navItem;
 function UserAvatar({ name, color }: { name: string; color: string | undefined }) {
   return (
     <span
-      className={cn("grid size-[34px] flex-none place-items-center rounded-full bg-(--c) text-[15px] font-bold text-white", `c-${color ?? "wakatake"}`)}
+      // 色の丸は明るいので、白い文字だと読めない。AvatarStack と同じ濃い文字にする
+      className={cn("grid size-[34px] flex-none place-items-center rounded-full bg-(--c) text-[15px] font-bold text-[#17202c]", `c-${color ?? "wakatake"}`)}
       aria-hidden="true"
     >
       {name.slice(0, 1).toUpperCase()}

@@ -23,14 +23,26 @@ test("規約の長い面は奥を読み直さない。ガラスの色は、組�
   await expect(page.getByRole("heading", { name: "Logru 利用規約" })).toBeVisible();
   const article = await page.locator("article").evaluate((el) => getComputedStyle(el).backdropFilter);
   expect(article).toBe("none");
-  // 同じ glass を付けた、長くない面なら色を濃くする。-webkit- だけが残ると Chrome では none になる
-  const panel = await page.evaluate(() => {
+  // 画面に沿って流れる面も奥を読まない。塗りを濃くして、インクだまりが文字に透けないようにしている
+  const glassFilter = await page.evaluate(() => {
     const el = document.createElement("section");
     el.className = "glass";
     document.body.append(el);
-    return getComputedStyle(el).backdropFilter;
+    const value = getComputedStyle(el).backdropFilter;
+    el.remove();
+    return value;
   });
-  expect(panel).toContain("saturate");
+  expect(glassFilter).toBe("none");
+  // 浮いて止まる面だけがぼかす。-webkit- だけが残ると Chrome では none になる
+  const floating = await page.evaluate(() => {
+    const el = document.createElement("section");
+    el.className = "glass fixed";
+    document.body.append(el);
+    const value = getComputedStyle(el).backdropFilter;
+    el.remove();
+    return value;
+  });
+  expect(floating).toContain("blur");
 });
 
 test("見つからない画面は、そう伝える", async ({ page }) => {

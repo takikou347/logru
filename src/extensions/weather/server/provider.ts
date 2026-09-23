@@ -13,7 +13,7 @@ import type { DB } from "@server/core/db/client";
 import { groupMembers, groups } from "@server/core/db/schema";
 import type { CalendarItem } from "@shared/api-types";
 import { and, eq, inArray } from "drizzle-orm";
-import { formatWeatherTitle } from "../shared/codes";
+import { formatWeatherTitle, weatherIconOf } from "../shared/codes";
 import { DAY_MS, dateKeyOfJst, forecastDateKeys, startOfDateJst } from "../shared/dates";
 import { getCachedDaily, placeKeyOf, upsertDaily } from "./cache";
 import { type DailyWeather, fetchArchiveDay } from "./open-meteo";
@@ -54,7 +54,9 @@ function toCalendarItem(
     allDay: true,
     title: formatWeatherTitle(code, tempMax, tempMin),
     place,
-    tag: "天気",
+    // 見分けの印は #129(0056)の kind と icon を使う。天気の種類ごとにアイコンを変える
+    kind: "record",
+    icon: weatherIconOf(code),
     secondary: true,
   };
 }

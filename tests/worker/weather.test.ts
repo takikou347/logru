@@ -1,6 +1,6 @@
 import { missingDates, placeKeyOf } from "@extensions/weather/server/cache";
 import { parseDailyResponse, parseGeocodeResponse, WeatherFetchError } from "@extensions/weather/server/open-meteo";
-import { formatWeatherTitle, weatherCategory, weatherLabel } from "@extensions/weather/shared/codes";
+import { formatWeatherTitle, weatherCategory, weatherIconOf, weatherLabel } from "@extensions/weather/shared/codes";
 import {
   addDays,
   DAY_MS,
@@ -72,6 +72,15 @@ describe("WMO の天気コード", () => {
   it("カレンダーの日のマスに出す題名を、天気と最高最低気温をまとめて作る", () => {
     expect(formatWeatherTitle(0, 24.4, 18.6)).toBe("快晴 24°/19°");
     expect(formatWeatherTitle(61, 22, 18)).toBe("雨 22°/18°");
+  });
+
+  it("見た目の分類から、CalendarItem.icon に入れる名前を返す。#129、0056", () => {
+    expect(weatherIconOf(0)).toBe("sun");
+    expect(weatherIconOf(61)).toBe("rain");
+    expect(weatherIconOf(71)).toBe("snow");
+    expect(weatherIconOf(95)).toBe("storm");
+    expect(weatherIconOf(45)).toBe("fog");
+    expect(weatherIconOf(3)).toBe("cloud");
   });
 });
 

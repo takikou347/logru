@@ -47,6 +47,21 @@ export function weatherCategory(code: number): WeatherCategory {
   return CODE_TABLE[code]?.category ?? "cloudy";
 }
 
+/** 見た目の分類から、CalendarItem.icon に入れる名前。kind-icon.ts の ITEM_ICONS にある名前だけを使う。0055 */
+const CATEGORY_ICON: Record<WeatherCategory, string> = {
+  clear: "sun",
+  cloudy: "cloud",
+  fog: "fog",
+  rain: "rain",
+  snow: "snow",
+  thunder: "storm",
+};
+
+/** コードから、カレンダーの項目に入れるアイコンの名前を返す */
+export function weatherIconOf(code: number): string {
+  return CATEGORY_ICON[weatherCategory(code)];
+}
+
 /**
  * カレンダーの日のマスに出す題名。`晴れ 24°/18°` の形。
  * @param code WMO のコード

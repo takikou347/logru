@@ -12,6 +12,7 @@ import { Dot } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDay, formatTime } from "@/lib/dates";
 import { extensionLabel } from "@/lib/extension-visuals";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useSearch } from "@/modules/search/api";
@@ -20,12 +21,6 @@ import { decorate, kindOf, type ViewItem } from "../model";
 
 /** 探す文字を止めてから API を呼ぶまでの間。連打のたびに探させない */
 const DEBOUNCE_MS = 300;
-
-/** `2026年9月23日` の形。年をまたいだ結果も見分けられるよう、月日だけの表記にしない */
-function formatResultDate(ms: number): string {
-  const d = new Date(ms);
-  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
-}
 
 function ResultRow({ item, onOpen }: { item: ViewItem; onOpen: (item: ViewItem) => void }) {
   const kind = kindOf(item);
@@ -44,7 +39,9 @@ function ResultRow({ item, onOpen }: { item: ViewItem; onOpen: (item: ViewItem) 
           <span className="truncate">{item.title}</span>
         </span>
         <span className="truncate text-xs text-ink-2">
-          {formatResultDate(item.startsAt)}
+          {/* 年をまたいだ結果も見分けられるよう、年を付ける。日付の書き方は決定 0059 */}
+          {formatDay(new Date(item.startsAt), { year: true })}
+          {kind === "event" && !item.allDay && ` ・ ${formatTime(item.startsAt)}`}
           {item.place && ` ・ ${item.place}`}
           {" ・ "}
           {item.groupName}
@@ -80,7 +77,7 @@ function SearchDialog({
   const items = decorate(results.data ?? [], groups, me).sort((a, b) => b.startsAt - a.startsAt);
 
   return (
-    <ResponsiveSheet title="探す" onClose={onClose}>
+    <ResponsiveSheet title="探す" onClose={onClose} fullScreen>
       <Input
         ref={inputRef}
         value={text}
@@ -107,7 +104,7 @@ function SearchDialog({
           見つかりませんでした。
         </EmptyState>
       ) : (
-        <ul className="flex max-h-[50vh] flex-col gap-0.5 overflow-y-auto">
+        <ul className="flex flex-col gap-0.5">
           {items.map((item) => (
             <ResultRow
               key={`${item.extension}:${item.id}`}

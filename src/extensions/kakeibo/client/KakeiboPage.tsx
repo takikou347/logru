@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, Coins } from "lucide-react";
+import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
@@ -6,16 +7,21 @@ import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { Dock } from "@/components/parts/Dock";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
+import { FeatureSheet } from "@/components/parts/FeatureSheet";
 import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import { Panel, PanelRow } from "@/components/parts/Panel";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
+import { formatShortDate } from "@/lib/dates";
+import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
 import { formatYen } from "../shared/format";
-import { useKakeiboGroups, useKakeiboSummary } from "./api";
+import { sumAmount, summarizeByCategory } from "../shared/totals";
+import type { KakeiboExpense } from "./api";
+import { useDeleteExpense, useKakeiboGroups, useKakeiboSummary } from "./api";
 import { ExpenseSheet } from "./ExpenseSheet";
 import { addMonthsToKey, formatMonthLabel, monthKeyOf } from "./parts";
 
@@ -30,6 +36,9 @@ export function KakeiboPage() {
   const me = useMe();
   const { groups, ready } = useKakeiboGroups();
   const [params, setParams] = useSearchParams();
+  const deleteExpense = useDeleteExpense();
+  const { pending, remove: removeRecord } = useUndoableDelete("記録を消しました");
+  const [features, setFeatures] = useState(false);
 
   const groupParam = params.get("group");
   const group = groups.some((g) => g.id === groupParam) ? groupParam : null;
@@ -49,8 +58,14 @@ export function KakeiboPage() {
 
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
-  const records = summary.data?.records ?? [];
+  // 消す途中(元に戻せる 5 秒の間)の記録は、合計からもすぐ外して見せる。実際に消す API は後から呼ばれる。issue #12
+  const records = (summary.data?.records ?? []).filter((r) => !pending.has(r.id));
+  const total = sumAmount(records);
+  const byCategory = summarizeByCategory(records);
   const filterOptions = groupFilterOptions({ groups, me: data, value: group, onChange: setGroup });
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
+  const handleDeleteExpense = (expense: KakeiboExpense) =>
+    removeRecord(expense.id, ({ keepalive }) => deleteExpense.mutateAsync({ id: expense.id, keepalive }));
   // 足せるものは支出だけ。「+」を押すと直接シートが開く。issue #150
   const addables: Addable[] = [
     {
@@ -64,7 +79,8 @@ export function KakeiboPage() {
   return (
     <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
       <Page>
-        <PageBar title="家計簿" />
+        {/* 見出しを押すと機能のシートが開き、ほかの拡張の画面へ近道できる。issue #26 */}
+        <PageBar title="家計簿" onTitleClick={() => setFeatures(true)} />
         <GroupFilterBand options={filterOptions} />
 
         <div className="glass flex items-center justify-between rounded-full px-2 py-1.5">
@@ -97,10 +113,10 @@ export function KakeiboPage() {
         {summary.data && (
           <Panel title="この月の合計">
             <p className="text-3xl font-extrabold" data-testid="kakeibo-total">
-              {formatYen(summary.data.total)}
+              {formatYen(total)}
             </p>
             <div className="flex flex-col">
-              {summary.data.byCategory.map((c) => (
+              {byCategory.map((c) => (
                 <PanelRow key={c.category}>
                   <span data-testid={`kakeibo-category-${c.category}`}>{kakeiboCategoryLabel(c.category)}</span>
                   <span className="font-bold">{formatYen(c.total)}</span>
@@ -116,7 +132,7 @@ export function KakeiboPage() {
               pose="coin"
               bordered={false}
               action={{
-                label: "この月の記録をする",
+                label: "支出を記録する",
                 onClick: () => setParams((p) => (p.set("record", "1"), p), { replace: true }),
               }}
             >
@@ -124,32 +140,45 @@ export function KakeiboPage() {
             </EmptyState>
           ) : (
             <ul className="flex flex-col">
-              {records.map((r) => (
-                <li key={r.id} className="border-line not-first:border-t">
-                  <button
-                    type="button"
-                    className="grid w-full grid-cols-[52px_1fr_auto] items-center gap-2 py-2 text-left"
-                    onClick={() => setParams((p) => (p.set("edit", r.id), p), { replace: true })}
-                  >
-                    <time className="text-xs text-ink-2">{r.date.slice(5).replace("-", ".")}</time>
-                    <span className="flex min-w-0 flex-col">
-                      <span className="text-sm font-medium">{kakeiboCategoryLabel(r.category)}</span>
-                      {r.memo && <span className="truncate text-xs text-ink-2">{r.memo}</span>}
-                    </span>
-                    <span className="font-bold">{formatYen(r.amount)}</span>
-                  </button>
-                </li>
-              ))}
+              {records.map((r) => {
+                const recordGroup = groups.find((g) => g.id === r.groupId);
+                const groupLabel = recordGroup ? (recordGroup.isPersonal ? "自分だけ" : recordGroup.name) : "";
+                return (
+                  <li key={r.id} className="border-line not-first:border-t">
+                    <button
+                      type="button"
+                      className="grid min-h-11 w-full grid-cols-[46px_1fr] items-center gap-1 py-1 text-left"
+                      onClick={() => setParams((p) => (p.set("edit", r.id), p), { replace: true })}
+                    >
+                      <time className="text-sm font-medium text-ink-2">{formatShortDate(r.date)}</time>
+                      <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                        <span className="min-w-0 truncate">{kakeiboCategoryLabel(r.category)}</span>
+                        {r.memo && <span className="min-w-0 truncate text-xs font-normal text-ink-2">{r.memo}</span>}
+                        <span className="ml-auto flex flex-none items-baseline gap-1.5">
+                          <span className="text-[11px] font-normal text-ink-2">{groupLabel}</span>
+                          <span className="font-bold text-ink tabular-nums">{formatYen(r.amount)}</span>
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Panel>
+
+        {/* 空の月は中身が短く、浮いた「+」が中身に重なるので、下の帯と同じ高さの余白を足す。issue #24 */}
+        <div className="h-[var(--dock-clearance)] lg:hidden" aria-hidden="true" />
 
         <Dock label="家計簿の操作">
           <PrimaryAddButton label="支出を記録する" addables={addables} />
         </Dock>
       </Page>
       {recording && <ExpenseSheet groups={groups} me={data} defaultGroupId={group} onClose={closeRecord} />}
-      {editing && <ExpenseSheet groups={groups} me={data} expense={editing} onClose={closeEdit} />}
+      {editing && (
+        <ExpenseSheet groups={groups} me={data} expense={editing} onClose={closeEdit} onDelete={handleDeleteExpense} />
+      )}
+      {features && <FeatureSheet onClose={() => setFeatures(false)} />}
     </AppLayout>
   );
 }

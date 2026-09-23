@@ -4,7 +4,7 @@ import { formatYen } from "../shared/format";
 import { useKakeiboSummary } from "./api";
 import { monthKeyOf } from "./parts";
 
-/** 「記録する」。押すと記録のシートが開く。F-305 */
+/** 「支出を記録する」。押すと記録のシートが開く。F-305 */
 export function RecordHomeWidget() {
   return (
     <Link
@@ -16,7 +16,7 @@ export function RecordHomeWidget() {
         <Wallet className="size-5" aria-hidden="true" />
       </span>
       <span className="flex min-w-0 flex-col">
-        <b className="truncate text-[15px]">記録する</b>
+        <b className="truncate text-[15px]">支出を記録する</b>
         <small className="truncate text-xs text-ink-2">金額とカテゴリ</small>
       </span>
       <ChevronRight className="size-5 text-ink-2" aria-hidden="true" />

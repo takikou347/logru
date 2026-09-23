@@ -4,10 +4,7 @@ import type { GroupSummary, Me } from "@shared/api-types";
 import { Dot } from "@/components/parts/Panel";
 import { groupColor } from "@/lib/colors";
 
-/** `2026-09-22` を `9.22` の形にする */
-export function formatShortDate(date: string): string {
-  return date.slice(5).replace("-", ".");
-}
+export { formatShortDate } from "@/lib/dates";
 
 /**
  * グループの名前と色の点。自分だけのグループは「自分だけ」。思い出のカードと同じ形。#164

@@ -6,7 +6,9 @@ import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { Dock } from "@/components/parts/Dock";
 import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
-import { Button } from "@/components/ui/button";
+import type { Addable } from "@/components/parts/PrimaryAddButton";
+import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
+import { formatDay, parseDateKey } from "@/lib/dates";
 import { useCalendar } from "@/modules/calendar/api";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { DAY_MS, DEFAULT_TIME_ZONE, startOfDayIn } from "../shared/days";
@@ -44,17 +46,20 @@ export function OnDayPage() {
   const events = (calendar.data ?? []).filter((e) => e.extension === "events" && usable.has(e.groupId));
   const memory = (list.data?.memories ?? []).find((m) => m.startsAt < to && m.endsAt > from);
   const entries = entriesOf(records.data ?? []);
-  const title = valid
-    ? new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "short", timeZone: "UTC" }).format(
-        Date.parse(date),
-      )
-    : "その日";
+  // 日付の書き方は決定 0059。parseDateKey は端末の時間帯で Date を作るので、UTC のずれを気にせず使える
+  const parsedDate = valid ? parseDateKey(date) : null;
+  const title = parsedDate ? formatDay(parsedDate) : "その日";
   const filterOptions = groupFilterOptions({
     groups,
     me: data,
     value: group,
     onChange: (v) => setParams(v ? { group: v } : {}, { replace: true }),
   });
+  const upcoming = from > Date.now();
+  // 足せるものは記録だけ。「+」を押すと直接シートが開く。0062、0067
+  const addables: Addable[] = [
+    { key: "record", label: "写真を記録する", icon: Camera, onClick: () => setRecording(true) },
+  ];
 
   return (
     <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
@@ -90,10 +95,12 @@ export function OnDayPage() {
           onEditRecord={setEditing}
         />
         <Dock label="その日の操作">
-          <Button onClick={() => setRecording(true)} disabled={from > Date.now()}>
-            <Camera className="size-5" />
-            {from > Date.now() ? "この日になったら記録できます" : "記録する"}
-          </Button>
+          <PrimaryAddButton
+            label="写真を記録する"
+            addables={addables}
+            disabled={upcoming}
+            disabledLabel="この日になったら記録できます"
+          />
         </Dock>
       </Page>
       {recording && (

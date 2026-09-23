@@ -118,8 +118,9 @@ export function RepeatFields({ value, onChange }: { value: RepeatDraft; onChange
       )}
       {value.freq !== "none" && (
         <div className="flex flex-col gap-1.5">
+          {/* 予定自身の「終わり」(始まり・終わりの時刻)と同じシートに並ぶので、こちらは「繰り返しの終わり」と見せる。issue #19 */}
           <span className="text-xs font-medium text-ink-2" id="event-repeat-end-label">
-            終わり
+            繰り返しの終わり
           </span>
           <Segmented
             label="繰り返しの終わり"

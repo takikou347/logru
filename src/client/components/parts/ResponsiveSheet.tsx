@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
  * @param description 見出しの下の説明。省ける
  * @param bar 見出しの上に並べる行。進み具合と「飛ばす」など。渡すと、右上の閉じるボタンは出さない
  * @param onClose 閉じるとき。外側を押したときと Esc のときも呼ぶ
+ * @param fullScreen スマホでは画面いっぱいに広げる。文字盤が出ても入力欄と結果が隠れにくい。探すのシートで使う。issue #23
  */
 export function ResponsiveSheet({
   title,
@@ -24,12 +25,14 @@ export function ResponsiveSheet({
   bar,
   onClose,
   children,
+  fullScreen,
 }: {
   title: string;
   description?: ReactNode;
   bar?: ReactNode;
   onClose: () => void;
   children: ReactNode;
+  fullScreen?: boolean;
 }) {
   const desktop = useMediaQuery("(min-width: 1024px)");
   const onOpenChange = (open: boolean) => !open && onClose();
@@ -69,10 +72,13 @@ export function ResponsiveSheet({
         showCloseButton={!bar}
         className={cn(
           body,
-          "inset-x-2 bottom-[calc(8px+env(safe-area-inset-bottom))] max-h-[calc(100dvh-var(--safe-top)-12px)] overflow-hidden rounded-[34px] border border-(--glass-edge) bg-(--glass-flat) px-5 pt-2.5 pb-5.5",
+          "overflow-hidden",
+          fullScreen
+            ? "inset-0 h-[100dvh] max-h-[100dvh] rounded-none border-0 px-5 pt-[max(16px,env(safe-area-inset-top))] pb-[max(16px,env(safe-area-inset-bottom))]"
+            : "inset-x-2 bottom-[calc(8px+env(safe-area-inset-bottom))] max-h-[calc(100dvh-var(--safe-top)-12px)] rounded-[34px] border border-(--glass-edge) bg-(--glass-flat) px-5 pt-2.5 pb-5.5",
         )}
       >
-        <div className="mx-auto h-[5px] w-[38px] shrink-0 rounded-full bg-line" aria-hidden="true" />
+        {!fullScreen && <div className="mx-auto h-[5px] w-[38px] shrink-0 rounded-full bg-line" aria-hidden="true" />}
         {top}
         <SheetHeader className="p-0">
           <SheetTitle className="text-[17px] font-bold text-ink">{title}</SheetTitle>

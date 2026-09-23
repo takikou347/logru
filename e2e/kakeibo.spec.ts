@@ -70,7 +70,8 @@ test("記録を直す、消すのは書いた人の家計簿の画面から。F-
   await enableKakeibo(page);
   await page.goto("/kakeibo");
 
-  await page.getByRole("button", { name: "支出を記録する" }).click();
+  // 空の月は、下の帯の主なボタンと空の表示のボタンが同じ「支出を記録する」を名乗るので、帯の方を選ぶ
+  await page.getByRole("toolbar", { name: "家計簿の操作" }).getByRole("button", { name: "支出を記録する" }).click();
   const create = page.getByRole("dialog", { name: "記録する" });
   await create.getByLabel("金額").fill("500");
   await create.getByRole("radio", { name: "日用品" }).click();
@@ -90,4 +91,24 @@ test("記録を直す、消すのは書いた人の家計簿の画面から。F-
   await page.getByRole("dialog", { name: "記録を直す" }).getByRole("button", { name: "消す" }).click();
   await expect(page.getByTestId("kakeibo-total")).toHaveText("¥0");
   await expect(page.getByText("この月の記録はまだありません。")).toBeVisible();
+});
+
+test("記録を消すと 5 秒だけ元に戻せる。issue #12", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+  await page.goto("/kakeibo");
+
+  // 空の月は、下の帯の主なボタンと空の表示のボタンが同じ「支出を記録する」を名乗るので、帯の方を選ぶ
+  await page.getByRole("toolbar", { name: "家計簿の操作" }).getByRole("button", { name: "支出を記録する" }).click();
+  const create = page.getByRole("dialog", { name: "記録する" });
+  await create.getByLabel("金額").fill("500");
+  await create.getByRole("radio", { name: "日用品" }).click();
+  await create.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥500");
+
+  await page.getByRole("button", { name: /日用品/ }).click();
+  await page.getByRole("dialog", { name: "記録を直す" }).getByRole("button", { name: "消す" }).click();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥0");
+  await page.getByRole("button", { name: "元に戻す" }).click();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥500");
 });

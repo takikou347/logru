@@ -11,6 +11,25 @@ test("下の操作の「機能」で機能のシートが開き、「+」で機�
   await expect(page.getByRole("heading", { name: "機能を足す" })).toBeVisible();
 });
 
+test("拡張の画面の見出しを押すと機能のシートが開き、ほかの拡張へ近道できる。issue #26", async ({ page }) => {
+  await signUp(page);
+  await addExtension(page, "家計簿");
+  await addExtension(page, "リスト");
+  await page.goto("/kakeibo");
+  await page.getByRole("heading", { name: "家計簿", level: 1 }).getByRole("button").click();
+  const sheet = page.getByRole("dialog", { name: "機能" });
+  await expect(sheet.getByRole("link", { name: /リストに足す/ })).toBeVisible();
+  await sheet.getByTestId("extension-tile-lists").click();
+  await expect(page).toHaveURL(/\/lists$/);
+});
+
+test("機能のタイルは、長い名前の代わりに短い名前を出す。issue #21", async ({ page }) => {
+  await signUp(page);
+  await page.goto("/settings/extensions");
+  await expect(page.getByTestId("extension-tile-external").getByText("外部カレンダー")).toBeVisible();
+  await expect(page.getByTestId("extension-tile-external").getByText("外部のカレンダー")).toHaveCount(0);
+});
+
 test("「予定を足す」は予定のシートだけを開く", async ({ page }) => {
   await signUp(page);
   await page.getByRole("button", { name: "予定を足す" }).last().click();
@@ -21,7 +40,8 @@ test("外すと確認のシートに「記録は消えません」と出る。�
   await signUp(page);
   await addExtension(page, "家計簿");
   await page.goto("/kakeibo");
-  await page.getByRole("button", { name: "支出を記録する" }).click();
+  // 空の月は、下の帯の主なボタンと空の表示のボタンが同じ「支出を記録する」を名乗るので、帯の方を選ぶ
+  await page.getByRole("toolbar", { name: "家計簿の操作" }).getByRole("button", { name: "支出を記録する" }).click();
   const create = page.getByRole("dialog", { name: "記録する" });
   await create.getByLabel("金額").fill("1200");
   await create.getByRole("radio", { name: "食費" }).click();

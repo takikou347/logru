@@ -16,12 +16,12 @@ export const kakeiboClient: ClientExtension = {
   Editor: KakeiboItemSheet,
   icon: BadgeJapaneseYen,
   nav: { label: "家計簿", icon: Wallet, path: "/kakeibo", description: "支出の記録と合計" },
-  actions: [{ label: "記録する", icon: Wallet, path: "/kakeibo?record=1", hint: "金額とカテゴリ" }],
+  actions: [{ label: "支出を記録する", icon: Wallet, path: "/kakeibo?record=1", hint: "金額とカテゴリ" }],
   useTileHint: useMonthTotalHint,
   widgets: [
     {
       key: "kakeibo.record",
-      label: "記録する",
+      label: "支出を記録する",
       description: "支出を記録するシートを開きます。",
       defaultPlaced: true,
       Component: RecordHomeWidget,

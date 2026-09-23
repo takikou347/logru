@@ -54,7 +54,8 @@ test("いつもの共有先が、その拡張を足していないグループ�
   await setUsualShare(page, "ふたり");
 
   await page.goto("/kakeibo");
-  await page.getByRole("button", { name: "記録する" }).click();
+  // 空の月は、下の帯の主なボタンと空の表示のボタンが同じ「支出を記録する」を名乗るので、帯の方を選ぶ
+  await page.getByRole("toolbar", { name: "家計簿の操作" }).getByRole("button", { name: "支出を記録する" }).click();
   const sheet = page.getByRole("dialog", { name: "記録する" });
   await expect(sheet.getByRole("button", { name: /^共有/ })).toContainText("自分だけ");
 });

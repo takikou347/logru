@@ -62,6 +62,15 @@ async function enableMemoriesForSelf(page: Page) {
   await addExtension(page, "思い出");
 }
 
+test("お知らせが 0 件のときは、EmptyState だけで「すべて既読にする」は出さない。issue #18", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await bellButton(page).click();
+  const list = page.getByRole("dialog", { name: "お知らせ" });
+  await expect(list.getByText("お知らせはまだありません。")).toBeVisible();
+  await expect(list.getByRole("button", { name: "すべて既読にする" })).toHaveCount(0);
+  await expect(list.getByRole("button", { name: "グループを見る" })).toBeVisible();
+});
+
 test("招待に参加すると招待した人にお知らせが出る。押すと予定が開き、既読になる。#32", async ({ page, browser }) => {
   test.setTimeout(120_000);
   const [mika] = await shareGroup(page, browser, ["みか"]);

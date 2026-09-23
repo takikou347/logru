@@ -113,7 +113,7 @@ export function ComponentsPage() {
       </Panel>
       <Panel title="マスコット">
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-          {(["calendar", "camera", "coin", "compass", "bell", "search"] as MascotPose[]).map((pose) => (
+          {(["calendar", "camera", "coin", "compass", "bell", "search", "list"] as MascotPose[]).map((pose) => (
             <EmptyState key={pose} pose={pose} action={{ label: "試す", onClick: () => toast(pose) }}>
               {pose}
             </EmptyState>

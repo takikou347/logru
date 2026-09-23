@@ -82,9 +82,22 @@ export function formatTime(ms: number): string {
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-/** `9月21日 月曜` の形にする */
-export function formatDay(d: Date): string {
-  return `${d.getMonth() + 1}月${d.getDate()}日 ${WEEKDAYS[d.getDay()]}曜`;
+/**
+ * `9月21日 月曜` の形にする。文中で使う、いちばん詳しい書き方。決定 0059
+ * @param opts.year true なら `2026年9月21日 月曜` にする。年をまたぐ一覧など、年も要る場所で使う
+ */
+export function formatDay(d: Date, opts?: { year?: boolean }): string {
+  const year = opts?.year ? `${d.getFullYear()}年` : "";
+  return `${year}${d.getMonth() + 1}月${d.getDate()}日 ${WEEKDAYS[d.getDay()]}曜`;
+}
+
+/**
+ * `9.21` の形にする。一覧の行など、狭い場所で日付だけを添える書き方。決定 0059
+ * @param dateKey `2026-09-21` の形。形が違えばそのまま返す
+ */
+export function formatShortDate(dateKey: string): string {
+  const d = parseDateKey(dateKey);
+  return d ? `${d.getMonth() + 1}.${d.getDate()}` : dateKey;
 }
 
 /** `<input type="time">` に入れる `09:00` の形にする */

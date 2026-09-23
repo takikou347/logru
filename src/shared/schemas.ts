@@ -99,3 +99,14 @@ export const homeLayoutInput = z
       .max(60),
   })
   .refine((v) => isValidHomeLayout(v.widgets), { message: "並びが正しくありません。" });
+
+/**
+ * `POST /api/client-errors`。画面で起きた誤りの短い報告。ログイン前にも送るので、ログインは求めない。
+ * 予定の中身や名前は送らない。本文の大きさは hono/body-limit で別に絞る。0040
+ */
+export const clientErrorInput = z.object({
+  path: z.string().min(1).max(300),
+  message: z.string().min(1).max(1000),
+  stack: z.string().max(4000).optional(),
+  buildVersion: z.string().min(1).max(100),
+});

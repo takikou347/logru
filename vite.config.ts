@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,6 +7,15 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+
+/** 組み立ての版。画面の誤りの報告に載せる。git が無い環境では "dev" にする。0040 */
+function buildVersion(): string {
+  try {
+    return execSync("git rev-parse --short HEAD").toString().trim();
+  } catch {
+    return "dev";
+  }
+}
 
 /**
  * public/_headers の CSP に、Firebase の行き先を入れる。
@@ -32,6 +42,7 @@ function firebaseCsp(env: Record<string, string>): Plugin {
 }
 
 export default defineConfig(({ mode }) => ({
+  define: { __APP_VERSION__: JSON.stringify(buildVersion()) },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src/client", import.meta.url)),

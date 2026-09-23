@@ -10,6 +10,7 @@ import { isFirebaseAuthPath, proxyFirebaseAuth } from "@server/core/auth/firebas
 import { createDb } from "@server/core/db/client";
 import { cleanupOldNotifications } from "@server/core/notifications/send";
 import { calendarRoutes } from "@server/modules/calendar/routes";
+import { clientErrorRoutes } from "@server/modules/client-errors/routes";
 import { extensionRoutes } from "@server/modules/group-extensions/routes";
 import { groupRoutes } from "@server/modules/groups/routes";
 import { inviteRoutes } from "@server/modules/invites/routes";
@@ -28,6 +29,7 @@ app.use("*", async (c, next) => {
 });
 
 app.get("/health", (c) => c.json({ ok: true }));
+app.route("/client-errors", clientErrorRoutes);
 app.route("/me", meRoutes);
 app.route("/groups", groupRoutes);
 app.route("/invites", inviteRoutes);

@@ -25,6 +25,7 @@ import {
 } from "@server/core/db/schema";
 import { vapidKeys } from "@server/core/push/send";
 import { enforceRateLimit } from "@server/core/rate-limit";
+import { assertStorageBudget } from "@server/core/storage-budget";
 import { myGroupIds, sharesGroup } from "@server/modules/groups/membership";
 import type { HomeLayout, Me, PushInfo } from "@shared/api-types";
 import { toHomeWidgetEntry } from "@shared/home";
@@ -321,6 +322,8 @@ export const meRoutes = createRouter()
       if (file.size > AVATAR_MAX_BYTES) return c.json({ error: "写真が大きすぎます。" }, 413);
       const bytes = await file.arrayBuffer();
       if (!isJpeg(new Uint8Array(bytes))) throw new HttpError(400, "JPEG の写真だけを受け付けます。");
+      // 写真とアバターの合計が上限に近ければ断る。0066、#162
+      await assertStorageBudget(db, bytes.byteLength);
       const prev = await db
         .select({ avatarPhotoKey: userSettings.avatarPhotoKey })
         .from(userSettings)

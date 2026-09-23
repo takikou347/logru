@@ -4,6 +4,7 @@ import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
 import { groupMembers, notifications } from "@server/core/db/schema";
 import { enforceRateLimit } from "@server/core/rate-limit";
+import { assertStorageBudget } from "@server/core/storage-budget";
 import { and, asc, count, desc, eq, gte, inArray, isNull, max, sql } from "drizzle-orm";
 import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -226,6 +227,8 @@ export const memoryRoutes = createRouter()
       if ((todayCount?.n ?? 0) >= PHOTO_LIMITS.perDay) {
         throw new HttpError(409, `1 日に送れる写真は ${PHOTO_LIMITS.perDay} 枚までです。時間をおいて送ってください。`);
       }
+      // 写真とアバターの合計が上限に近ければ断る。0066、#162
+      await assertStorageBudget(db, fullBytes.byteLength + thumbBytes.byteLength);
       const id = crypto.randomUUID();
       await Promise.all([
         c.env.MEMORIES_BUCKET.put(photoKey(id, "full"), fullBytes, { httpMetadata: { contentType: "image/jpeg" } }),

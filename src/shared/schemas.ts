@@ -4,7 +4,8 @@
  */
 
 import { ACCENT_COLOR_KEYS, GROUP_COLOR_KEYS } from "@shared/colors";
-import { HOME_WIDGET_SIZES, isValidHomeLayout } from "@shared/home";
+import { isValidHomeLayout } from "@shared/home";
+import { TOUR_ID_PATTERN } from "@shared/tours";
 import { z } from "zod";
 
 /** グループの色と、自分の色の名前 */
@@ -64,6 +65,9 @@ export const pushSubscriptionInput = z.object({
   userAgent: z.string().max(200).optional(),
 });
 
+/** `PUT /api/me/tours/:id` の id。案内を見た画面。F-33 */
+export const tourIdParam = z.object({ id: z.string().max(60).regex(TOUR_ID_PATTERN) });
+
 /** `PUT /api/groups/:id/extensions/:key` */
 export const extensionToggleInput = z.object({ enabled: z.boolean() });
 
@@ -89,7 +93,8 @@ export const homeLayoutInput = z
   .object({
     form: z.enum(["desktop", "mobile"]),
     widgets: z
-      .array(z.object({ key: z.string().min(1).max(80), size: z.enum(HOME_WIDGET_SIZES) }))
+      // 前の画面が送ってくる size は、z.object が捨てる。0037
+      .array(z.object({ key: z.string().min(1).max(80) }))
       .min(1)
       .max(60),
   })

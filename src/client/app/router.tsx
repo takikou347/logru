@@ -8,8 +8,8 @@ import { NotFound, RouteError } from "./errors";
 import { extensionRoutes } from "./extension-routes";
 import { GuestOnly, RequireAuth } from "./guards";
 
-/** 規約の画面は Markdown の変換を使うので、開いたときに読む */
-async function legal(doc: "terms" | "privacy") {
+/** 規約とよくある質問の画面は Markdown の変換を使うので、開いたときに読む */
+async function legal(doc: "terms" | "privacy" | "help") {
   const { LegalPage } = await import("@/modules/legal/LegalPage");
   return { element: <LegalPage doc={doc} /> };
 }
@@ -32,6 +32,7 @@ const routes: RouteObject[] = [
   { path: "/reset-password", element: <ResetPasswordPage /> },
   { path: "/terms", lazy: () => legal("terms") },
   { path: "/privacy", lazy: () => legal("privacy") },
+  { path: "/help", lazy: () => legal("help") },
   {
     path: "/invite/:token",
     lazy: async () => ({ Component: (await import("@/modules/groups/InvitePage")).InvitePage }),

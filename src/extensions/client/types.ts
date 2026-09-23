@@ -5,7 +5,7 @@
  * 消すときは同じ拡張の deleteItem を呼ぶ。
  */
 
-import type { CalendarItem, GroupSummary, HomeWidgetSize, Me } from "@shared/api-types";
+import type { CalendarItem, GroupSummary, Me } from "@shared/api-types";
 import type { LucideIcon } from "lucide-react";
 import type { ComponentType } from "react";
 import type { ExtensionManifest } from "../types";
@@ -96,8 +96,6 @@ export type ExtensionShortcut = {
 
 /** ホームのウィジェットの部品が受け取るもの。0029 */
 export type HomeWidgetProps = {
-  /** いまの大きさ */
-  size: HomeWidgetSize;
   /** 「ホームを編集」の状態か。編集の状態でだけボタンなどを出したい部品が使う。無くても動く見た目にする */
   editing: boolean;
 };
@@ -105,18 +103,14 @@ export type HomeWidgetProps = {
 /**
  * ホームに置けるウィジェット。0029
  *
- * ウィジェットは中身を自分で読む。ホームは並べ方と大きさだけを知り、部品の中を知らない。
+ * ウィジェットは中身を自分で読む。ホームは並べ方だけを知り、部品の中を知らない。大きさは持たない。0037
  * 表示するデータは Component が自分の hook で読む。ホームからは渡さない
  */
 export type HomeWidget = {
-  /** 見分ける key。拡張の key を頭に付ける。例は `memories.shortcut`。group_extensions.extension_key とは別の名前空間 */
+  /** 見分ける key。拡張の key を頭に付ける。例は `memories.koma`。group_extensions.extension_key とは別の名前空間 */
   key: string;
   label: string;
   description: string;
-  /** 選べる大きさ。1 つだけなら、その大きさに固定という意味になる */
-  sizes: HomeWidgetSize[];
-  /** sizes に無い大きさは選べない。sizes の最初の値を既定にする */
-  defaultSize: HomeWidgetSize;
   /** 初めてホームを開いたとき、既定で置くか */
   defaultPlaced: boolean;
   Component: ComponentType<HomeWidgetProps>;

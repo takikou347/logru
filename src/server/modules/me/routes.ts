@@ -25,6 +25,7 @@ import {
 import { vapidKeys } from "@server/core/push/send";
 import { myGroupIds, sharesGroup } from "@server/modules/groups/membership";
 import type { HomeLayout, Me, PushInfo } from "@shared/api-types";
+import { toHomeWidgetEntry } from "@shared/home";
 import { LEGAL_VERSIONS, type LegalDocument } from "@shared/legal";
 import {
   agreementsInput,
@@ -36,7 +37,9 @@ import {
   profileInput,
   pushSubscriptionInput,
   settingsInput,
+  tourIdParam,
 } from "@shared/schemas";
+import { addTourSeen } from "@shared/tours";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import type { Context } from "hono";
 
@@ -137,11 +140,13 @@ export const meRoutes = createRouter()
         accentColor: settings.accentColor,
         userColor: settings.userColor,
         avatarKind: settings.avatarKind,
+        toursSeen: settings.toursSeen,
       },
       needsAgreement: await missingAgreements(db, me.id),
       provider: me.provider,
       colorPrefs: prefs.map((p) => ({ targetType: p.targetType, targetId: p.targetId, color: p.color })),
       hiddenMembers: hidden.map((h) => h.id),
+      onboardedAt: settings.onboardedAt?.getTime() ?? null,
     };
     return c.json(body);
   })
@@ -164,7 +169,8 @@ export const meRoutes = createRouter()
       .from(homeLayouts)
       .where(and(eq(homeLayouts.userId, c.get("user").id), eq(homeLayouts.form, form)))
       .get();
-    const body: HomeLayout = { widgets: row?.widgets ?? null };
+    // 前に保存した並びは大きさも持つが、key だけを返す。0037
+    const body: HomeLayout = { widgets: row?.widgets.map(toHomeWidgetEntry) ?? null };
     return c.json(body);
   })
   .get("/deletion", async (c) => {
@@ -225,6 +231,42 @@ export const meRoutes = createRouter()
       accentColor: row.accentColor,
       userColor: row.userColor,
     });
+  })
+  // はじめての案内を見終えたか飛ばした。別の端末でも、もう出さない。F-32、0035
+  .put("/onboarding", async (c) => {
+    const values = { onboardedAt: new Date(), updatedAt: new Date() };
+    await c
+      .get("db")
+      .insert(userSettings)
+      .values({ userId: c.get("user").id, ...values })
+      .onConflictDoUpdate({ target: userSettings.userId, set: values });
+    return c.json({ onboardedAt: values.onboardedAt.getTime() });
+  })
+  // 画面の案内を見たことを残す。F-33
+  .put("/tours/:id", zValidator("param", tourIdParam, validationHook), async (c) => {
+    const db = c.get("db");
+    const userId = c.get("user").id;
+    const row = await db
+      .select({ toursSeen: userSettings.toursSeen })
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId))
+      .get();
+    const values = { toursSeen: addTourSeen(row?.toursSeen ?? [], c.req.valid("param").id), updatedAt: new Date() };
+    await db
+      .insert(userSettings)
+      .values({ userId, ...values })
+      .onConflictDoUpdate({ target: userSettings.userId, set: values });
+    return c.json({ toursSeen: values.toursSeen });
+  })
+  // 画面の案内をもう一度出す。見た画面の一覧を空にする。F-33
+  .delete("/tours", async (c) => {
+    const values = { toursSeen: [] as string[], updatedAt: new Date() };
+    await c
+      .get("db")
+      .insert(userSettings)
+      .values({ userId: c.get("user").id, ...values })
+      .onConflictDoUpdate({ target: userSettings.userId, set: values });
+    return c.json({ toursSeen: values.toursSeen });
   })
   .put("/home-layout", zValidator("json", homeLayoutInput, validationHook), async (c) => {
     const { form, widgets } = c.req.valid("json");

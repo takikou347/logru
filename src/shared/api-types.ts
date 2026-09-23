@@ -13,7 +13,15 @@ export type BgTheme = "glass" | "flat";
 /** `GET /api/me` の応答 */
 export type Me = {
   user: { id: string; name: string; email: string; image: string | null; avatarUrl: string | null };
-  settings: { themeMode: ThemeMode; bgTheme: BgTheme; accentColor: string; userColor: string; avatarKind: AvatarKind };
+  settings: {
+    themeMode: ThemeMode;
+    bgTheme: BgTheme;
+    accentColor: string;
+    userColor: string;
+    avatarKind: AvatarKind;
+    /** 案内を見た画面の ID。F-33 */
+    toursSeen: string[];
+  };
   /** 同意を取り直す文書。空なら同意済み */
   needsAgreement: LegalDocument[];
   /** ログインに使った手段。`google.com` か `password` */
@@ -22,6 +30,8 @@ export type Me = {
   colorPrefs: { targetType: "group" | "user"; targetId: string; color: string }[];
   /** カレンダーに出さない人の ID。自分の画面だけの設定。F-20 */
   hiddenMembers: string[];
+  /** はじめての案内を見終えたか飛ばした日時。null ならカレンダーで案内を出す。F-32 */
+  onboardedAt: number | null;
 };
 
 /** グループのメンバー */
@@ -118,11 +128,8 @@ export type PushInfo = {
 /** ホームの並びを持つ形。PC とスマホで別に持つ。0029 */
 export type HomeForm = "desktop" | "mobile";
 
-/** ウィジェットの大きさ。0029 */
-export type HomeWidgetSize = "small" | "medium" | "large";
-
-/** 並びの 1 件。ウィジェットの中身は持たず、key と大きさだけ */
-export type HomeWidgetEntry = { key: string; size: HomeWidgetSize };
+/** 並びの 1 件。ウィジェットの中身は持たず、key だけ。大きさは持たない。0037 */
+export type HomeWidgetEntry = { key: string };
 
 /** `GET`、`PUT /api/me/home-layout` の応答。保存がまだ無ければ widgets は null。0029 */
 export type HomeLayout = { widgets: HomeWidgetEntry[] | null };

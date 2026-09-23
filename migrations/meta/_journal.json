@@ -78,6 +78,34 @@
       "when": 1790081746847,
       "tag": "0010_clean_vengeance",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1790130534118,
+      "tag": "0011_user_onboarded_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790132355562,
+      "tag": "0012_user_settings_tours_seen",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1790132356002,
+      "tag": "0013_memories_home_widgets",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1790133940927,
+      "tag": "0014_home_widgets_drop_size",
+      "breakpoints": true
     }
   ]
 }

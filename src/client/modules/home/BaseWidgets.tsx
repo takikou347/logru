@@ -10,11 +10,11 @@ import { MonthGrid } from "../calendar/components/MonthGrid";
 import { WeekList } from "../calendar/components/WeekList";
 import { useCalendarHome } from "./CalendarContext";
 
-/** カレンダー本体。月の表か週の一覧を、大きさに合わせた幅で出す */
-function CalendarBodyWidget({ size }: HomeWidgetProps) {
+/** カレンダー本体。月の表か週の一覧を出す */
+function CalendarBodyWidget() {
   const { view, days, today, selected, items, onPressDay, onSelectWeekDay, open } = useCalendarHome();
   return (
-    <div data-testid="widget-calendar" className={size === "small" ? "max-w-[420px]" : undefined}>
+    <div data-testid="widget-calendar">
       {view === "month" ? (
         <MonthGrid
           days={days}
@@ -68,9 +68,7 @@ export const baseHomeWidgets: HomeWidget[] = [
   {
     key: HOME_CALENDAR_WIDGET_KEY,
     label: "カレンダー",
-    description: "月・週・日の表。カレンダーの土台なので、外せず大きさだけ変えられます。",
-    sizes: ["small", "medium", "large"],
-    defaultSize: "large",
+    description: "月・週・日の表。カレンダーの土台なので、外せません。",
     defaultPlaced: true,
     Component: CalendarBodyWidget,
   },
@@ -78,8 +76,6 @@ export const baseHomeWidgets: HomeWidget[] = [
     key: "home.day-panel",
     label: "選んだ日の予定",
     description: "選んでいる日の予定を、大きな日付と一緒に出します。",
-    sizes: ["small", "medium", "large"],
-    defaultSize: "medium",
     defaultPlaced: true,
     Component: DayPanelWidget,
   },
@@ -87,8 +83,6 @@ export const baseHomeWidgets: HomeWidget[] = [
     key: "home.upcoming",
     label: "このあと",
     description: "このあとに近い予定を、5 件まで出します。",
-    sizes: ["small", "medium", "large"],
-    defaultSize: "medium",
     defaultPlaced: true,
     Component: UpcomingWidget,
   },

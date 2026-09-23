@@ -214,28 +214,26 @@ export function MemorySheet({
             />
           )}
         </Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="始まりの日">
-            {(p) => (
-              <Input
-                {...p}
-                type="date"
-                value={firstDay}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  // 始まりの日を動かしたら、日数を保って終わりの日も動かす
-                  if (next) setLastDay(addDaysToKey(next, Math.max(0, length - 1)));
-                  setFirstDay(next);
-                }}
-              />
-            )}
-          </Field>
-          <Field label="終わりの日">
-            {(p) => (
-              <Input {...p} type="date" value={lastDay} min={firstDay} onChange={(e) => setLastDay(e.target.value)} />
-            )}
-          </Field>
-        </div>
+        <Field label="始まりの日">
+          {(p) => (
+            <Input
+              {...p}
+              type="date"
+              value={firstDay}
+              onChange={(e) => {
+                const next = e.target.value;
+                // 始まりの日を動かしたら、日数を保って終わりの日も動かす
+                if (next) setLastDay(addDaysToKey(next, Math.max(0, length - 1)));
+                setFirstDay(next);
+              }}
+            />
+          )}
+        </Field>
+        <Field label="終わりの日">
+          {(p) => (
+            <Input {...p} type="date" value={lastDay} min={firstDay} onChange={(e) => setLastDay(e.target.value)} />
+          )}
+        </Field>
         <FieldMessage>
           {length >= 1
             ? length === 1

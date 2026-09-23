@@ -1,11 +1,12 @@
 /**
- * Worker の入口。`/api` の下だけをここで受ける。画面のファイルは静的アセットとして配る。
+ * Worker の入口。`/api` の下と、Firebase の認証の通り道だけをここで受ける。画面のファイルは静的アセットとして配る。
  *
  * 土台の機能は modules/ に、拡張は extensions/ にある。拡張の API は registry.server.ts から読んで載せる。
  */
 
 import { serverExtensions } from "@extensions/server/registry";
 import { type AppEnv, HttpError, resolveAppUrl } from "@server/core/app";
+import { isFirebaseAuthPath, proxyFirebaseAuth } from "@server/core/auth/firebase-proxy";
 import { createDb } from "@server/core/db/client";
 import { cleanupOldNotifications } from "@server/core/notifications/send";
 import { calendarRoutes } from "@server/modules/calendar/routes";
@@ -45,7 +46,11 @@ app.onError((err, c) => {
 });
 
 export default {
-  fetch: app.fetch,
+  fetch(request, env, ctx) {
+    const { pathname } = new URL(request.url);
+    if (isFirebaseAuthPath(pathname)) return proxyFirebaseAuth(request, env.FIREBASE_PROJECT_ID);
+    return app.fetch(request, env, ctx);
+  },
   /** Cron Triggers。wrangler.jsonc の triggers.crons で 5 分おきに呼ぶ。拡張の定期の処理を順に動かす */
   async scheduled(_controller, env, ctx) {
     const db = createDb(env.DB);

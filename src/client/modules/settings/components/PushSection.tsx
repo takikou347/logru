@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { InstallGuideSheet } from "@/components/parts/InstallGuideSheet";
 import { FieldMessage, Panel, PanelRow } from "@/components/parts/Panel";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useEnabledExtensions } from "@/lib/extensions";
 import { currentSubscription, disablePush, enablePush, pushSupport } from "@/lib/push";
+import { currentPlatform, currentStandalone, needsInstallForPush } from "@/lib/pwa";
 import { useInvalidatePushInfo, usePushInfo } from "../api";
 
 /**
@@ -23,6 +26,8 @@ function PushPanel({ reasons }: { reasons: string[] }) {
   const support = pushSupport();
   const [endpoint, setEndpoint] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [guide, setGuide] = useState(false);
+  const needsInstall = needsInstallForPush(currentPlatform(), currentStandalone());
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: info.data は使わないが、読み直すたびにブラウザの購読を取り直したい
   useEffect(() => {
@@ -57,15 +62,28 @@ function PushPanel({ reasons }: { reasons: string[] }) {
         <Switch
           checked={on}
           aria-label="この端末で通知を受け取る"
-          disabled={!support.ok || busy || !info.data?.publicKey}
+          disabled={!support.ok || needsInstall || busy || !info.data?.publicKey}
           onCheckedChange={toggle}
         />
       </PanelRow>
-      {!support.ok && <FieldMessage>{support.reason}</FieldMessage>}
+      {needsInstall ? (
+        // iPhone はホーム画面から開いたときだけ知らせを受けられる。先に追加してもらう。F-34、0023
+        <>
+          <FieldMessage>
+            先にホーム画面に追加してください。追加したホーム画面の Logru から開くと、通知を受け取れます。
+          </FieldMessage>
+          <Button variant="secondary" size="sm" className="self-start" onClick={() => setGuide(true)}>
+            ホーム画面に追加する方法
+          </Button>
+        </>
+      ) : (
+        !support.ok && <FieldMessage>{support.reason}</FieldMessage>
+      )}
       {support.ok && info.data && !info.data.publicKey && <FieldMessage>この環境では通知を送れません。</FieldMessage>}
       {info.data && info.data.devices.length > 0 && (
         <FieldMessage>通知を受け取る端末: {info.data.devices.length} 台</FieldMessage>
       )}
+      {guide && <InstallGuideSheet onClose={() => setGuide(false)} />}
     </Panel>
   );
 }

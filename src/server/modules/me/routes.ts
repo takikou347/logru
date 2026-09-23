@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { type AppEnv, createRouter, HttpError, validationHook } from "@server/core/app";
+import { type AppEnv, createRouter, HttpError, showLab, validationHook } from "@server/core/app";
 import { missingAgreements, requireAgreement, requireUser } from "@server/core/auth/middleware";
 import {
   AVATAR_MAX_BYTES,
@@ -147,6 +147,7 @@ export const meRoutes = createRouter()
       colorPrefs: prefs.map((p) => ({ targetType: p.targetType, targetId: p.targetId, color: p.color })),
       hiddenMembers: hidden.map((h) => h.id),
       onboardedAt: settings.onboardedAt?.getTime() ?? null,
+      showLab: showLab(c.env.ENVIRONMENT),
     };
     return c.json(body);
   })

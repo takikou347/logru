@@ -22,6 +22,7 @@ import { useUpdateName, useUpdateSettings } from "./api";
 import { DeleteAccountSheet } from "./components/DeleteAccountSheet";
 import { HelpSection } from "./components/HelpSection";
 import { InstallGuideButton } from "./components/InstallGuideButton";
+import { LabSection } from "./components/LabSection";
 import { PushSection } from "./components/PushSection";
 import { ResetToursButton } from "./components/ResetToursButton";
 
@@ -150,6 +151,8 @@ export function SettingsPage() {
         {clientExtensions.map((x) => x.SettingsSection && <x.SettingsSection key={x.manifest.key} />)}
 
         <PushSection />
+
+        <LabSection />
 
         <HelpSection>
           <ResetToursButton />

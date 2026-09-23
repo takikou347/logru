@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEnabledExtensions } from "@/lib/extensions";
+import { useApplyLabExperiments } from "@/lib/lab";
 import { cn } from "@/lib/utils";
 import { Pools } from "../parts/Pools";
 import { ShortcutBand } from "../parts/ShortcutBand";
@@ -51,6 +52,9 @@ export function AppLayout({
   side?: ReactNode;
 }) {
   const navs = useEnabledExtensions().flatMap((x) => (x.nav ? [x.nav] : []));
+  // ログインした画面はすべてこの枠を通るので、ここで 1 か所、ラボの入り切りを掛け直す。0039、F-35
+  const me = useMe();
+  useApplyLabExperiments(me.data?.showLab);
   return (
     <div
       className={cn(

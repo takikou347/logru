@@ -32,6 +32,8 @@ export type Me = {
   hiddenMembers: string[];
   /** はじめての案内を見終えたか飛ばした日時。null ならカレンダーで案内を出す。F-32 */
   onboardedAt: number | null;
+  /** 設定に「ラボ」の欄を出すか。本番はいつも false。0038、0039、F-35 */
+  showLab: boolean;
 };
 
 /** グループのメンバー */

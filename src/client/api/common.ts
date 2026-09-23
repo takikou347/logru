@@ -107,6 +107,38 @@ export function useSetExtensionOrder() {
   });
 }
 
+/**
+ * いつもの共有先を決める。null は「共有しない」を選ぶ。押した瞬間に画面に効かせ、失敗したら元に戻す。0063、F-40
+ * 設定の「いつもの共有先」の行と、1 回だけ聞く帯(UsualShareOfferBanner)の両方が使う
+ */
+export function useSetUsualShare() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (groupId: string | null) =>
+      api<{ usualShareGroupId: string | null; usualShareAskedAt: number }>("/me/usual-share", {
+        method: "PUT",
+        body: { groupId },
+      }),
+    onMutate: async (groupId) => {
+      await qc.cancelQueries({ queryKey: keys.me });
+      const prev = qc.getQueryData<Me>(keys.me);
+      if (prev) {
+        qc.setQueryData<Me>(keys.me, {
+          ...prev,
+          settings: { ...prev.settings, usualShareGroupId: groupId },
+          usualShareAskedAt: Date.now(),
+        });
+      }
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(keys.me, ctx.prev);
+      toast.error((e as Error).message);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.me }),
+  });
+}
+
 /** 画面の案内をもう一度出す。見た画面の一覧を空にする。F-33 */
 export function useResetTours() {
   const qc = useQueryClient();

@@ -9,6 +9,7 @@ import { SharePickerRow } from "@/components/parts/SharePicker";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { auth } from "@/lib/firebase";
+import { defaultShareGroupId } from "@/lib/share-default";
 import { cn } from "@/lib/utils";
 import type { MemoryItem, MemoryRecord, Photo } from "../shared/types";
 import { memoryKeys, useDeleteRecord, useInvalidateMemories, useSaveRecord } from "./api";
@@ -63,11 +64,16 @@ export function RecordSheet({
   const invalidate = useInvalidateMemories();
   const saveRecord = useSaveRecord();
   const deleteRecord = useDeleteRecord();
-  const personal = groups.find((g) => g.isPersonal);
   const [groupId, setGroupId] = useState(
     record?.groupId ??
-      (groups.some((g) => g.id === defaultGroupId) ? defaultGroupId! : (personal?.id ?? groups[0]?.id ?? "")),
+      defaultShareGroupId(groups, defaultGroupId, {
+        groupId: me.settings.usualShareGroupId,
+        extensionKey: "memories",
+        alwaysOn: false,
+      }),
   );
+  // 新しく残すときだけ、いつもの共有先から選ばれたことが分かる印を出す。0063、F-40
+  const usualDefault = !record && groupId === me.settings.usualShareGroupId;
   const [slots, setSlots] = useState<Slot[]>(() =>
     (record?.photos ?? []).map((p) => ({ key: p.id, state: "done" as const, photo: p })),
   );
@@ -288,6 +294,7 @@ export function RecordSheet({
             onChange={setGroupId}
             disabled={slots.length > 0}
             disabledReason="写真を追加した後は、共有先を変えられません。"
+            usualDefault={usualDefault}
           />
         )}
         <PanelRow>

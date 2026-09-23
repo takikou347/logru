@@ -27,6 +27,7 @@ import {
 } from "@/lib/dates";
 import { vibrateShort } from "@/lib/haptics";
 import { useOnline } from "@/lib/online";
+import { defaultShareGroupId } from "@/lib/share-default";
 import { cn } from "@/lib/utils";
 import { markJustAdded } from "@/modules/calendar/recent-items";
 import { itemKey } from "@/modules/calendar/use-undoable-delete";
@@ -114,7 +115,6 @@ export function EventSheet({
   const isCreator = creatorId === myId;
   const canEdit = !editing || canEditEvent(editing, myId);
   const canDelete = editing ? canDeleteEvent(editing, myId) : false;
-  const personal = groups.find((g) => g.isPersonal);
 
   const initialStart = editing ? editing.startsAt : defaultStart(target.mode === "new" ? target.date : new Date());
   const initialEnd = editing ? editing.endsAt : initialStart + 60 * 60 * 1000;
@@ -133,8 +133,16 @@ export function EventSheet({
   const [pickedGroupId, setGroupId] = useState(
     editing?.groupId ?? (target.mode === "new" ? target.groupId : undefined) ?? "",
   );
-  const groupId = pickedGroupId || personal?.id || groups[0]?.id || "";
+  const groupId =
+    pickedGroupId ||
+    defaultShareGroupId(groups, null, {
+      groupId: me.settings.usualShareGroupId,
+      extensionKey: "events",
+      alwaysOn: true,
+    });
   const chosen = groups.find((g) => g.id === groupId);
+  // 新しく足すときだけ、いつもの共有先から選ばれたことが分かる印を出す。0063、F-40
+  const usualDefault = !editing && groupId === me.settings.usualShareGroupId;
   const [memo, setMemo] = useState(editing?.memo ?? "");
   const [repeat, setRepeat] = useState(() => repeatDraftFromRule(editing?.repeat, new Date(initialStart)));
   // 繰り返す予定を開いたときだけ、直す・消すときに範囲を挟む。0043
@@ -386,7 +394,14 @@ export function EventSheet({
           )}
           <RepeatFields value={repeat} onChange={setRepeat} />
           <div className="flex flex-col gap-1.5">
-            <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} disabled={!isCreator} />
+            <SharePickerRow
+              groups={groups}
+              me={me}
+              value={groupId}
+              onChange={setGroupId}
+              disabled={!isCreator}
+              usualDefault={usualDefault}
+            />
             <FieldMessage>
               {shared ? `「${shared.name}」のメンバー全員に見えます。` : "自分だけに見えます。"}
               {canEdit && !isCreator && " グループを変えられるのは、作った人だけです。"}

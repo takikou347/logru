@@ -23,6 +23,11 @@ export type Me = {
     toursSeen: string[];
     /** 足した機能のタイルの並び。key の配列。0058 */
     extensionOrder: string[];
+    /**
+     * いつもの共有先のグループ。予定・思い出・記録・家計簿・共有リストを足すときの既定に使う。
+     * 空なら決めていない。0063、F-40
+     */
+    usualShareGroupId: string | null;
   };
   /** 同意を取り直す文書。空なら同意済み */
   needsAgreement: LegalDocument[];
@@ -36,6 +41,11 @@ export type Me = {
   onboardedAt: number | null;
   /** 設定に「ラボ」の欄を出すか。本番はいつも false。0038、0039、F-35 */
   showLab: boolean;
+  /**
+   * いつもの共有先にするか 1 回だけ聞いた日時。null ならまだ聞いていない。
+   * 聞いたあとは、断っていても二度と聞かない。0063、F-40
+   */
+  usualShareAskedAt: number | null;
 };
 
 /** グループのメンバー */

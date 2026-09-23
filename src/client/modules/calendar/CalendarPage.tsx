@@ -16,6 +16,7 @@ import { NotificationBell } from "@/components/parts/NotificationBell";
 import { ScreenTour } from "@/components/parts/ScreenTour";
 import { Segmented } from "@/components/parts/Segmented";
 import { ShortcutBand } from "@/components/parts/ShortcutBand";
+import { UsualShareOfferBanner } from "@/components/parts/UsualShareBanner";
 import { Button } from "@/components/ui/button";
 import {
   addDays,
@@ -469,6 +470,9 @@ export function CalendarPage() {
 
       {/* ホーム画面に追加する案内。上の帯のすぐ下に並べる。F-34 */}
       {!editingHome && <InstallBanner className="-order-1" />}
+
+      {/* いつもの共有先にするかの案内。1 回だけ聞く。0063、F-40 */}
+      {!editingHome && me.data && <UsualShareOfferBanner me={me.data} groups={allGroups} className="-order-1" />}
 
       {/* 近道の帯。スマホは上の帯のすぐ下、PC は左の列。F-26、0037 */}
       {!editingHome && <ShortcutBand className="lg:hidden" />}

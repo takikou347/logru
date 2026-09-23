@@ -4,9 +4,10 @@ import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { Dock } from "@/components/parts/Dock";
+import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
 import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
-import { Empty, Panel } from "@/components/parts/Panel";
+import { Panel } from "@/components/parts/Panel";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { poolColorsOf } from "@/modules/calendar/model";
@@ -59,7 +60,16 @@ export function ListsPage() {
 
         <Panel>
           {rows.length === 0 ? (
-            <Empty>リストを作ると、ここに並びます。</Empty>
+            <EmptyState
+              pose="list"
+              bordered={false}
+              action={{
+                label: "リストを作る",
+                onClick: () => setParams((p) => (p.set("create", "1"), p), { replace: true }),
+              }}
+            >
+              リストを作ると、ここに並びます。
+            </EmptyState>
           ) : (
             <ul className="flex flex-col">
               {rows.map((l) => (

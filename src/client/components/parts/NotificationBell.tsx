@@ -72,13 +72,15 @@ function NotificationList({ onClose }: { onClose: () => void }) {
 
   return (
     <ResponsiveSheet title="お知らせ" onClose={onClose}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-ink-2">{items.length > 0 ? `${items.length} 件` : ""}</span>
-        <Button variant="ghost" size="sm" onClick={() => markAll.mutate()} disabled={markAll.isPending}>
-          <Check className="size-4" />
-          すべて既読にする
-        </Button>
-      </div>
+      {items.length > 0 && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-ink-2">{items.length} 件</span>
+          <Button variant="ghost" size="sm" onClick={() => markAll.mutate()} disabled={markAll.isPending}>
+            <Check className="size-4" />
+            すべて既読にする
+          </Button>
+        </div>
+      )}
       {list.isLoading ? (
         <p className="py-6 text-center text-sm text-ink-2">読み込んでいます…</p>
       ) : items.length === 0 ? (

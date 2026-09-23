@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 
-export type MascotPose = "calendar" | "camera" | "coin" | "compass" | "bell" | "search";
+export type MascotPose = "calendar" | "camera" | "coin" | "compass" | "bell" | "search" | "list";
 
 /** まばたきを待つ間。決まった値ではなく、この幅でゆらす。0044 は動きそのものの速さにだけ使う */
 const BLINK_WAIT_MIN_MS = 2600;
@@ -86,6 +86,21 @@ function Prop({ pose }: { pose: MascotPose }) {
         <g transform="translate(43,40)" fill="none" stroke="var(--ink)" strokeWidth="1.8" strokeLinecap="round">
           <circle cx="6" cy="6" r="5.5" strokeWidth="2" />
           <path d="M10 10 L14 14" strokeWidth="2.4" />
+        </g>
+      );
+    case "list":
+      return (
+        <g
+          transform="translate(43,38)"
+          fill="none"
+          stroke="var(--ink)"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="0" y="0" width="14" height="16" rx="2.5" strokeWidth="2" />
+          <path d="M3.5 5.5 L6 8 L10.5 3" strokeWidth="1.6" />
+          <path d="M3.5 12 L10.5 12" strokeWidth="1.4" />
         </g>
       );
   }

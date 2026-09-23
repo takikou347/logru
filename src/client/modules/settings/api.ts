@@ -1,4 +1,4 @@
-/** 設定の画面(SettingsPage、DeleteAccountSheet、PushSection)が使う API の hook */
+/** 設定の各節の画面(AppearanceSettingsPage、AccountSettingsPage、DeleteAccountSheet、PushSection)が使う API の hook */
 
 import type { AvatarKind, Me, PushInfo } from "@shared/api-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

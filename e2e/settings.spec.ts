@@ -3,10 +3,27 @@ import { logIn, PASSWORD, signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
+});
+
+test("スマホは設定の目次から各節へ移り、戻るボタンで目次へ戻る。issue #102", async ({ page }) => {
   await page.goto("/settings");
+  const toc = page.getByRole("list", { name: "設定の目次" });
+  await expect(toc.getByRole("link", { name: /見た目/ })).toBeVisible();
+  await toc.getByRole("link", { name: /見た目/ }).click();
+  await expect(page).toHaveURL(/\/settings\/appearance$/);
+  await expect(page.getByRole("heading", { name: "見た目" })).toBeVisible();
+  await page.getByRole("link", { name: "戻る" }).click();
+  await expect(page).toHaveURL(/\/settings$/);
+});
+
+test("古い /extensions は設定の「機能」へ移る", async ({ page }) => {
+  await page.goto("/extensions");
+  await expect(page).toHaveURL(/\/settings\/extensions$/);
+  await expect(page.getByRole("heading", { name: "機能" })).toBeVisible();
 });
 
 test("明るさを選ぶと、すぐ変わり、読み込み直しても残る", async ({ page }) => {
+  await page.goto("/settings/appearance");
   // 保存が届いたのを確かめてから読み込み直す。届く前に読み込み直すと、古い明るさが返ってくる
   const saved = page.waitForResponse((r) => r.url().endsWith("/api/me/settings") && r.request().method() === "PUT");
   await page.getByRole("radio", { name: "ダーク" }).click();
@@ -19,6 +36,7 @@ test("明るさを選ぶと、すぐ変わり、読み込み直しても残る",
 });
 
 test("明るさを選んですぐ読み込み直しても、選んだ明るさが残る", async ({ page }) => {
+  await page.goto("/settings/appearance");
   // 通信が遅いときを作る。保存が届く前に読み込み直しても、保存を途中で切らせない
   await page.context().route("**/api/me/settings", async (route) => {
     await new Promise((r) => setTimeout(r, 1_500));
@@ -33,6 +51,7 @@ test("明るさを選んですぐ読み込み直しても、選んだ明るさ�
 });
 
 test("端末と同じが既定で、端末の明るさに合わせる", async ({ page }) => {
+  await page.goto("/settings/appearance");
   await expect(page.getByRole("radio", { name: "端末と同じ" })).toHaveAttribute("aria-checked", "true");
   await page.emulateMedia({ colorScheme: "dark" });
   await page.reload();
@@ -43,6 +62,7 @@ test("端末と同じが既定で、端末の明るさに合わせる", async ({
 });
 
 test("背景のテーマを平らにすると、すぐ変わり、読み込み直しても残る。#50", async ({ page }) => {
+  await page.goto("/settings/appearance");
   await expect(page.getByRole("radio", { name: "ガラス" })).toHaveAttribute("aria-checked", "true");
   await expect(page.locator("html")).not.toHaveAttribute("data-bg-theme", "flat");
   const saved = page.waitForResponse((r) => r.url().endsWith("/api/me/settings") && r.request().method() === "PUT");
@@ -57,6 +77,7 @@ test("背景のテーマを平らにすると、すぐ変わり、読み込み�
 });
 
 test("テーマカラーと自分の色を選べる", async ({ page }) => {
+  await page.goto("/settings/appearance");
   await page.getByRole("radiogroup", { name: "テーマカラー" }).getByRole("radio", { name: "紺" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-accent", "kon");
   await page.getByRole("radiogroup", { name: "自分の色" }).getByRole("radio", { name: "藤" }).click();
@@ -78,7 +99,7 @@ test("グループの色を、自分の画面の中だけで変え、元に戻�
   await page.goto("/groups");
   await page.getByLabel("グループの名前").fill("ふたり");
   await page.getByRole("button", { name: "作る" }).click();
-  await page.goto("/settings");
+  await page.goto("/settings/appearance");
   await page.getByRole("button", { name: /ふたり/ }).click();
   const sheet = page.getByRole("dialog", { name: "ふたり の色" });
   await sheet.getByRole("radio", { name: "柿" }).click();
@@ -91,6 +112,7 @@ test("グループの色を、自分の画面の中だけで変え、元に戻�
 });
 
 test("表示名を変えられる", async ({ page }) => {
+  await page.goto("/settings/account");
   const account = page.getByRole("region", { name: "アカウント" });
   await expect(account.getByText("テスト", { exact: true })).toBeVisible();
   await account.getByRole("button", { name: "表示名を変える" }).click();
@@ -113,6 +135,7 @@ test("表示名を変えられる", async ({ page }) => {
 });
 
 test("表示名を直している途中で Esc を押すと、元の名前に戻る", async ({ page }) => {
+  await page.goto("/settings/account");
   const account = page.getByRole("region", { name: "アカウント" });
   await account.getByRole("button", { name: "表示名を変える" }).click();
   await account.getByLabel("表示名", { exact: true }).fill("べつの名前");
@@ -126,6 +149,7 @@ test("表示名を直している途中で Esc を押すと、元の名前に戻
 });
 
 test("アカウントを消すと、ログインできなくなる", async ({ page }) => {
+  await page.goto("/settings/account");
   const email = await page
     .getByRole("region", { name: "アカウント" })
     .getByText(/@example\.com/)

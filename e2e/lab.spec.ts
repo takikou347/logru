@@ -10,7 +10,7 @@ import { signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
-  await page.goto("/settings");
+  await page.goto("/settings/appearance");
 });
 
 test("staging と同じ組み立てでは、ラボの欄が出て、見本を入り切りできる", async ({ page }) => {

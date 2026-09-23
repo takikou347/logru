@@ -9,6 +9,7 @@ import { Chip } from "@/components/parts/Chip";
 import { Dot } from "@/components/parts/Panel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { groupColor, memberColor } from "@/lib/colors";
+import { vibrateShort } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 import type { MemoryRecord, Photo } from "../shared/types";
 import { useLike } from "./api";
@@ -72,10 +73,12 @@ export function authorOf(record: MemoryRecord, groups: GroupSummary[], me: Me) {
 
 /**
  * いいねのボタン。付けると朱にする。横に付けた人の頭文字を重ねる。F-116
+ * 付けた瞬間だけ、ハートが一度はねて、端末が短く震える。動かすのは transform と opacity だけ。0044、0048、#98、#112
  */
 function LikeButton({ record, groups, me }: { record: MemoryRecord; groups: GroupSummary[]; me: Me }) {
   const like = useLike();
   const on = record.likes.includes(me.user.id);
+  const [bounce, setBounce] = useState(false);
   const group = groups.find((g) => g.id === record.groupId);
   const people = record.likes.flatMap((id) => {
     const m = group?.members.find((x) => x.id === id);
@@ -87,14 +90,25 @@ function LikeButton({ record, groups, me }: { record: MemoryRecord; groups: Grou
         type="button"
         aria-pressed={on}
         aria-label={on ? `いいねを外す。いま ${record.likes.length}` : `いいねを付ける。いま ${record.likes.length}`}
-        onClick={() => like.mutate({ record, on: !on, me: me.user.id })}
+        onClick={() => {
+          const next = !on;
+          like.mutate({ record, on: next, me: me.user.id });
+          if (next) {
+            setBounce(true);
+            vibrateShort();
+          }
+        }}
         className={cn(
           "inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line pr-3 pl-2.5 text-[13px] font-bold text-ink-2",
           on &&
             "border-[color-mix(in_srgb,var(--sun)_35%,transparent)] bg-[color-mix(in_srgb,var(--sun)_10%,transparent)] text-sun",
         )}
       >
-        <Heart className={cn("size-4", on && "fill-current")} aria-hidden="true" />
+        <Heart
+          className={cn("size-4", on && "fill-current", bounce && "heart-bounce")}
+          onAnimationEnd={() => setBounce(false)}
+          aria-hidden="true"
+        />
         {record.likes.length}
       </button>
       {people.length > 0 && <AvatarStack people={people} size={20} />}

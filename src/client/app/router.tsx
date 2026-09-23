@@ -7,6 +7,7 @@ import { VerifyEmailPage } from "@/modules/auth/VerifyEmailPage";
 import { NotFound, RouteError } from "./errors";
 import { extensionRoutes } from "./extension-routes";
 import { GuestOnly, RequireAuth } from "./guards";
+import { LegacyRedirect } from "./legacy-redirect";
 
 /** 規約とよくある質問の画面は Markdown の変換を使うので、開いたときに読む */
 async function legal(doc: "terms" | "privacy" | "help") {
@@ -51,14 +52,43 @@ const routes: RouteObject[] = [
         path: "/groups/:id",
         lazy: async () => ({ Component: (await import("@/modules/groups/GroupDetailPage")).GroupDetailPage }),
       },
+      // 設定は目次と、見た目・通知・機能・使い方・アカウントの 5 節。issue #102
       {
         path: "/settings",
-        lazy: async () => ({ Component: (await import("@/modules/settings/SettingsPage")).SettingsPage }),
+        lazy: async () => ({ Component: (await import("@/modules/settings/SettingsIndexPage")).SettingsIndexPage }),
       },
       {
-        path: "/extensions",
-        lazy: async () => ({ Component: (await import("@/modules/extensions/ExtensionsPage")).ExtensionsPage }),
+        path: "/settings/appearance",
+        lazy: async () => ({
+          Component: (await import("@/modules/settings/AppearanceSettingsPage")).AppearanceSettingsPage,
+        }),
       },
+      {
+        path: "/settings/notifications",
+        lazy: async () => ({
+          Component: (await import("@/modules/settings/NotificationsSettingsPage")).NotificationsSettingsPage,
+        }),
+      },
+      {
+        path: "/settings/extensions",
+        lazy: async () => ({
+          Component: (await import("@/modules/settings/ExtensionsSettingsPage")).ExtensionsSettingsPage,
+        }),
+      },
+      {
+        path: "/settings/extensions/:key",
+        lazy: async () => ({ Component: (await import("@/modules/settings/ExtensionDetailPage")).ExtensionDetailPage }),
+      },
+      {
+        path: "/settings/usage",
+        lazy: async () => ({ Component: (await import("@/modules/settings/UsageSettingsPage")).UsageSettingsPage }),
+      },
+      {
+        path: "/settings/account",
+        lazy: async () => ({ Component: (await import("@/modules/settings/AccountSettingsPage")).AccountSettingsPage }),
+      },
+      // 古い URL。機能の一覧は設定の「機能」へ移した。issue #102
+      { path: "/extensions", element: <LegacyRedirect to="/settings/extensions" /> },
       ...extensionRoutes,
     ],
   },

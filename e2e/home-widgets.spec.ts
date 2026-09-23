@@ -110,7 +110,10 @@ test("思い出を使うと、ホームに「ひとコマ」と「記録する�
   await expect(frames).toHaveCount(5);
   await expect(frames.nth(3)).toHaveAttribute("data-widget-key", "memories.koma");
   await expect(frames.nth(4)).toHaveAttribute("data-widget-key", "memories.record");
-  await grid.locator('[data-widget-key="memories.record"]').getByRole("button", { name: "記録するを上へ" }).click();
+  await grid
+    .locator('[data-widget-key="memories.record"]')
+    .getByRole("button", { name: "写真を記録するを上へ" })
+    .click();
   await expect(frames.nth(3)).toHaveAttribute("data-widget-key", "memories.record");
   await grid.locator('[data-widget-key="memories.koma"]').getByRole("button", { name: "ひとコマを外す" }).click();
   await expect(frames).toHaveCount(4);

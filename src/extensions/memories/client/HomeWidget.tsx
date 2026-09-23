@@ -42,9 +42,15 @@ export function KomaHomeWidget() {
   return <ActionWidget to="/memories/koma" icon={Timer} label="ひとコマ" hint="1 時間に 1 枚" testId="widget-koma" />;
 }
 
-/** 「記録する」。押すと記録のシートが開く。F-112 */
+/** 「写真を記録する」。押すと記録のシートが開く。F-112 */
 export function RecordHomeWidget() {
   return (
-    <ActionWidget to="/memories?record=1" icon={Camera} label="記録する" hint="写真と一言" testId="widget-record" />
+    <ActionWidget
+      to="/memories?record=1"
+      icon={Camera}
+      label="写真を記録する"
+      hint="写真と一言"
+      testId="widget-record"
+    />
   );
 }

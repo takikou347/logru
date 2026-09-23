@@ -34,8 +34,9 @@ import {
 import { useEnabledExtensions } from "@/lib/extensions";
 import { BASE_TOURS } from "@/lib/tours";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { withViewTransition } from "@/lib/view-transition";
 import { useSaveHomeLayout } from "../home/api";
-import { CalendarHomeProvider, type CalendarView } from "../home/CalendarContext";
+import { CalendarHomeProvider, type CalendarView, type MonthNav } from "../home/CalendarContext";
 import { AddWidgetSheet } from "../home/components/AddWidgetSheet";
 import { HomeEditBar } from "../home/components/HomeEditBar";
 import { WidgetGrid } from "../home/components/WidgetGrid";
@@ -46,16 +47,7 @@ import { useCalendar, useMemberVisibility } from "./api";
 import { PeopleChip, SideGroup, useOpenGroups } from "./components/PeopleFilter";
 import { RefreshButton } from "./components/RefreshButton";
 import { SearchButton } from "./components/SearchButton";
-import {
-  byPeople,
-  decorate,
-  groupPeopleOf,
-  hiddenPeople,
-  type Person,
-  peopleOf,
-  poolColorsOf,
-  type ViewItem,
-} from "./model";
+import { groupPeopleOf, hiddenPeople, type Person, peopleOf, poolColorsOf, type ViewItem, viewItemsOf } from "./model";
 import { itemKey, useUndoableDelete } from "./use-undoable-delete";
 
 const VIEWS = [
@@ -141,19 +133,33 @@ export function CalendarPage() {
     (p: Person, hide: boolean) => setVisibility({ userId: p.id, hidden: hide }),
     [setVisibility],
   );
-  const items = useMemo<ViewItem[]>(() => {
-    if (!calendar.data || !me.data) return [];
-    return byPeople(decorate(calendar.data, allGroups, me.data), hiddenIds).filter(
-      (i) => !hidden.has(itemKey(i)) && (!groupFilter || i.groupId === groupFilter),
-    );
-  }, [calendar.data, allGroups, me.data, hidden, groupFilter, hiddenIds]);
+  const items = useMemo<ViewItem[]>(
+    () => viewItemsOf(calendar.data, allGroups, me.data, hiddenIds, hidden, groupFilter),
+    [calendar.data, allGroups, me.data, hidden, groupFilter, hiddenIds],
+  );
+
+  // 動きを減らす設定。日めくりの追従や View Transitions を止め、切り替えるだけにする。0049、#99、#100
+  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+
+  // PC の矢印ボタンとキーで月を送るときの合図。id が変わるたびに MonthFlipDeck が 1 回だけめくる。#99
+  const [flipRequest, setFlipRequest] = useState<{ dir: 1 | -1; id: number } | null>(null);
+  const onChangeMonth = useCallback((dir: 1 | -1) => update({ date: addMonths(selected, dir) }), [update, selected]);
 
   const move = useCallback(
     (dir: -1 | 1) => {
-      if (view === "month") update({ date: addMonths(selected, dir) });
-      else update({ date: addDays(selected, dir * (view === "week" ? 7 : 1)) });
+      if (view === "month") {
+        if (reducedMotion) onChangeMonth(dir);
+        else setFlipRequest({ dir, id: Date.now() + Math.random() });
+      } else {
+        update({ date: addDays(selected, dir * (view === "week" ? 7 : 1)) });
+      }
     },
-    [view, selected, update],
+    [view, selected, update, reducedMotion, onChangeMonth],
+  );
+
+  const monthNav = useMemo<MonthNav>(
+    () => ({ groupFilter, hiddenIds, deletedKeys: hidden, flipRequest, onChangeMonth, reducedMotion }),
+    [groupFilter, hiddenIds, hidden, flipRequest, onChangeMonth, reducedMotion],
   );
 
   const addNew = useCallback(
@@ -177,7 +183,16 @@ export function CalendarPage() {
     },
     [update, addNew],
   );
-  const onSelectWeekDay = useCallback((d: Date) => update({ date: d, view: "day" }), [update]);
+  // 週の一覧で日を選んだとき。View Transitions で、選んだ行が日の見出しへ伸びて移る。0049、#100
+  const onSelectWeekDay = useCallback(
+    (d: Date) => withViewTransition(reducedMotion, () => update({ date: d, view: "day" })),
+    [update, reducedMotion],
+  );
+  // 月・週・日の切り替え。同じく View Transitions で、選んでいる日をつなげる。0049、#100
+  const changeView = useCallback(
+    (v: CalendarView) => withViewTransition(reducedMotion, () => update({ view: v })),
+    [update, reducedMotion],
+  );
   const upcoming = useMemo(() => items.filter((i) => i.startsAt >= Date.now()).slice(0, 5), [items]);
 
   // ホームのウィジェットの並び。PC とスマホで別に持つ。0029
@@ -427,7 +442,7 @@ export function CalendarPage() {
             </Button>
             <RefreshButton />
             <div className="ml-2 hidden gap-2.5 lg:flex">
-              <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} />
+              <Segmented label="表示の単位" value={view} options={VIEWS} onChange={changeView} />
               <Button
                 variant="secondary"
                 disabled={layoutLoading || !!layoutError}
@@ -512,7 +527,7 @@ export function CalendarPage() {
 
       <div className={calendar.error && (!calendar.data || calendar.isPlaceholderData) ? "hidden" : "contents"}>
         <CalendarHomeProvider
-          value={{ view, today, selected, days, items, upcoming, leaving, open, onPressDay, onSelectWeekDay }}
+          value={{ view, today, selected, days, items, upcoming, leaving, open, onPressDay, onSelectWeekDay, monthNav }}
         >
           {layoutError ? (
             <LoadFailure what="ホームの並び" error={layoutError} onRetry={refetchLayout} />
@@ -538,7 +553,7 @@ export function CalendarPage() {
           <Button variant="ghost" size="icon" aria-label="機能" onClick={() => setFeatures(true)}>
             <LayoutGrid className="size-5" />
           </Button>
-          <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} compact />
+          <Segmented label="表示の単位" value={view} options={VIEWS} onChange={changeView} compact />
           {addButton(true)}
         </div>
       )}

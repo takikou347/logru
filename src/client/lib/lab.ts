@@ -29,8 +29,21 @@ const SAMPLE_EXPERIMENT: LabExperiment = {
   },
 };
 
+/**
+ * 月送りを、日めくりの 3D の代わりに、横に滑るだけの動きにする。既定は 3D の日めくり。#99、0049
+ * MonthFlipDeck は、めくり始めるたびにこの属性の有無を読み直す
+ */
+const MONTH_SLIDE_EXPERIMENT: LabExperiment = {
+  key: "month-slide",
+  label: "月送り: 横に滑るだけ",
+  description: "月を送るとき、3D の日めくりの代わりに、横に滑るだけの動きにします。",
+  apply: (enabled) => {
+    document.documentElement.toggleAttribute("data-lab-month-slide", enabled);
+  },
+};
+
 /** 試している見た目。足すのはここへ 1 件 */
-export const LAB_EXPERIMENTS: LabExperiment[] = [SAMPLE_EXPERIMENT];
+export const LAB_EXPERIMENTS: LabExperiment[] = [SAMPLE_EXPERIMENT, MONTH_SLIDE_EXPERIMENT];
 
 const PREFIX = "logru:lab:";
 

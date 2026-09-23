@@ -1,5 +1,7 @@
 import { ChevronRight } from "lucide-react";
-import { Link } from "react-router";
+import { useEffect } from "react";
+import { Link, useSearchParams } from "react-router";
+import { toast } from "sonner";
 import { useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
@@ -23,6 +25,22 @@ export function ExtensionsPage() {
   const groups = useGroups();
   const overview = useExtensionOverview();
   const toggle = useToggleExtension(overview.data?.personalGroupId ?? undefined);
+  const [params, setParams] = useSearchParams();
+
+  // 近道などから、使っていない拡張の画面を開こうとして、ここへ来たとき。#110
+  const off = params.get("off");
+  useEffect(() => {
+    if (!off) return;
+    toast(`${off}は使っていません。ここから使うに切り替えられます`);
+    setParams(
+      (p) => {
+        const q = new URLSearchParams(p);
+        q.delete("off");
+        return q;
+      },
+      { replace: true },
+    );
+  }, [off, setParams]);
 
   if (overview.isPending || !me.data) return <Loading />;
   const list = overview.data?.extensions ?? [];

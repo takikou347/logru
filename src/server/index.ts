@@ -18,6 +18,7 @@ import { groupRoutes } from "@server/modules/groups/routes";
 import { inviteRoutes } from "@server/modules/invites/routes";
 import { meRoutes } from "@server/modules/me/routes";
 import { notificationRoutes } from "@server/modules/notifications/routes";
+import { searchRoutes } from "@server/modules/search/routes";
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 
@@ -38,6 +39,7 @@ app.route("/invites", inviteRoutes);
 app.route("/calendar", calendarRoutes);
 app.route("/extensions", extensionRoutes);
 app.route("/notifications", notificationRoutes);
+app.route("/search", searchRoutes);
 for (const x of serverExtensions) {
   if (x.routes) app.route(x.routes.basePath, x.routes.router);
 }

@@ -30,6 +30,15 @@ type ListCalendarItems = (
 ) => Promise<CalendarItem[]>;
 
 /**
+ * 題名と場所を探す口。カレンダーは拡張の中身を知らず、これを呼ぶだけ。0046
+ * @param db D1 を包んだ Drizzle
+ * @param groupIds 呼んでよいグループ。利用者が入っていて、この拡張が有効なものだけ
+ * @param query 探す文字列。前後の空白を除いた 1 文字以上
+ * @param ctx 探す人
+ */
+type SearchItems = (db: DB, groupIds: string[], query: string, ctx: CalendarContext) => Promise<CalendarItem[]>;
+
+/**
  * Cron Triggers で定期的に呼ぶ処理。
  * @param db D1 を包んだ Drizzle
  * @param env Worker の環境変数
@@ -51,6 +60,7 @@ export type ServerExtension = {
   /** Drizzle の表の定義。db/client.ts がまとめて読み込む */
   schema: Record<string, unknown>;
   listCalendarItems: ListCalendarItems;
+  search: SearchItems;
   /** `/api/<basePath>` に載せる API。無ければ省く */
   routes?: { basePath: string; router: Hono<AppEnv> };
   /** 定期的に呼ぶ処理。無ければ省く */

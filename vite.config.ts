@@ -76,6 +76,19 @@ export default defineConfig(({ mode }) => ({
           { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
           { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
+        // ホーム画面のアイコンを長押ししたときの近道。開いたら URL の印を消す。#110
+        shortcuts: [
+          {
+            name: "予定を足す",
+            url: "/?new=1",
+            icons: [{ src: "/icon-shortcut-new-96.png", sizes: "96x96", type: "image/png" }],
+          },
+          {
+            name: "ひとコマ",
+            url: "/memories/koma/now",
+            icons: [{ src: "/icon-shortcut-koma-96.png", sizes: "96x96", type: "image/png" }],
+          },
+        ],
       },
       workbox: {
         // 端末への知らせを受ける処理。0023

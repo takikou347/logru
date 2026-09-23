@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addEvent, signUp } from "./helpers";
+import { addEvent, signUp, tokyoDateParts } from "./helpers";
 
 // ヘッドレスの Chrome は端末によって WebGL の有無が変わる。E2E はいつも平らな年の表の道筋を通す。0051
 test.beforeEach(async ({ page }) => {
@@ -17,10 +17,10 @@ test("月の表の年を押すと、その年をらせんで見る画面が開�
 
 test("予定の色の点がその日に出て、押すとその日のカレンダーへ移る。F-39", async ({ page }) => {
   await addEvent(page, "歯医者");
-  const today = new Date();
-  const label = `${today.getMonth() + 1} 月 ${today.getDate()} 日`;
+  const today = tokyoDateParts();
+  const label = `${today.month} 月 ${today.day} 日`;
 
-  await page.goto(`/spiral/${today.getFullYear()}`);
+  await page.goto(`/spiral/${today.year}`);
   const day = page.getByRole("link", { name: label, exact: true });
   await expect(day.locator(".swatch-dot")).toBeVisible();
 

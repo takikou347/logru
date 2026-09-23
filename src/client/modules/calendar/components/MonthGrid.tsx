@@ -186,7 +186,7 @@ export function MonthGridBody({
                   <button
                     type="button"
                     className="absolute top-1 right-1 z-[4] hidden size-6 items-center justify-center rounded-full border border-(--glass-edge) bg-field text-ink-2 opacity-0 transition-opacity duration-fast ease-out group-hover:opacity-100 hover:bg-field-strong focus-visible:opacity-100 lg:flex"
-                    aria-label={`${d.getMonth() + 1}月${d.getDate()}日に予定を足す`}
+                    aria-label={`${d.getMonth() + 1}月${d.getDate()}日に足す`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onAddNewDay(d);

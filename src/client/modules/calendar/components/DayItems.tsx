@@ -197,7 +197,7 @@ function MoneyRow({
  * 右上に「+」を常に出し、押すとこの日に予定を足すシートが開く。空のときは、マスコットの
  * 空の表示にも同じ操作の「この日の予定を作る」ボタンを出す。#148、0061
  * @param leaving 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98
- * @param onAddNew この日に予定を足す
+ * @param onAddNew この日に足す
  */
 export function DayPanel({
   day,
@@ -249,7 +249,7 @@ export function DayPanel({
         <button
           type="button"
           className="mt-3 grid size-11 flex-none place-items-center self-start rounded-full border border-(--glass-edge) bg-field text-ink-2 hover:bg-field-strong xl:mt-0"
-          aria-label="この日に予定を足す"
+          aria-label="この日に足す"
           onClick={onAddNew}
         >
           <Plus className="size-5" aria-hidden="true" />

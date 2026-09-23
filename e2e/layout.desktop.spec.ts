@@ -124,7 +124,7 @@ test("PC は、マスに乗せると出る小さな「+」で、その日に直�
   await page.goto("/?date=2026-09-01");
   const cell = page.getByRole("region", { name: "月の表" }).locator('[data-date="15"]:not([data-out])').first();
   await cell.hover();
-  await cell.getByRole("button", { name: "9月15日に予定を足す" }).click();
+  await cell.getByRole("button", { name: "9月15日に足す" }).click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByLabel("日付")).toHaveValue("2026-09-15");

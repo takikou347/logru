@@ -129,7 +129,7 @@ test("日のカードの「+」か、下の帯の「+」を押すと、選んで
   const grid = page.getByRole("region", { name: "月の表" });
   await grid.locator('[data-date="15"]:not([data-out]) button').first().click();
 
-  await dayPanel(page).getByRole("button", { name: "この日に予定を足す" }).click();
+  await dayPanel(page).getByRole("button", { name: "この日に足す" }).click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByLabel("日付")).toHaveValue(/-15$/);

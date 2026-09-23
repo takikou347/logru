@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addEvent, dayPanel, signUp } from "./helpers";
+import { addEvent, dayPanel, pickShare, signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
@@ -22,12 +22,12 @@ test("予定は「共有しない」が既定で、「自分だけの予定」�
   // シートは「共有しない」を選んだ状態で開く
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
-  const share = sheet.getByRole("radiogroup", { name: "共有" });
-  await expect(share.getByRole("radio", { name: "共有しない" })).toHaveAttribute("aria-checked", "true");
+  const shareRow = sheet.getByRole("button", { name: /^共有/ });
+  await expect(shareRow).toContainText("共有しない");
   await expect(sheet.getByText("自分だけに見えます。")).toBeVisible();
-  await share.getByRole("radio", { name: "ふたり" }).click();
+  await pickShare(page, sheet, "ふたり");
   await expect(sheet.getByText("「ふたり」のメンバー全員に見えます。")).toBeVisible();
-  await share.getByRole("radio", { name: "共有しない" }).click();
+  await pickShare(page, sheet, "共有しない");
   await sheet.getByLabel("題名").fill("ひとりの用事");
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("予定を足しました")).toBeVisible();
@@ -42,9 +42,8 @@ test("予定は「共有しない」が既定で、「自分だけの予定」�
   await filter.getByRole("button", { name: "ふたり" }).click();
   await expect(dayPanel(page).getByRole("button", { name: /ひとりの用事/ })).toHaveCount(0);
   await page.getByRole("button", { name: "予定を足す" }).last().click();
-  await expect(page.getByRole("dialog", { name: "新しい予定" }).getByRole("radio", { name: "ふたり" })).toHaveAttribute(
-    "aria-checked",
-    "true",
+  await expect(page.getByRole("dialog", { name: "新しい予定" }).getByRole("button", { name: /^共有/ })).toContainText(
+    "ふたり",
   );
 });
 

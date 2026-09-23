@@ -5,6 +5,7 @@ import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
+import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import { Panel, PanelRow } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { poolColorsOf } from "@/modules/calendar/model";
@@ -13,7 +14,7 @@ import { isMonthKey } from "../shared/dates";
 import { formatYen } from "../shared/format";
 import { useKakeiboGroups, useKakeiboSummary } from "./api";
 import { ExpenseSheet } from "./ExpenseSheet";
-import { addMonthsToKey, formatMonthLabel, GroupFilter, monthKeyOf, SideGroupFilter } from "./parts";
+import { addMonthsToKey, formatMonthLabel, monthKeyOf } from "./parts";
 
 /**
  * 家計簿の画面。F-303
@@ -46,15 +47,13 @@ export function KakeiboPage() {
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
   const records = summary.data?.records ?? [];
+  const filterOptions = groupFilterOptions({ groups, me: data, value: group, onChange: setGroup });
 
   return (
-    <AppLayout
-      poolColors={poolColorsOf(groups, data)}
-      side={<SideGroupFilter groups={groups} me={data} value={group} onChange={setGroup} />}
-    >
+    <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
       <Page>
         <PageBar title="家計簿" />
-        <GroupFilter groups={groups} me={data} value={group} onChange={setGroup} />
+        <GroupFilterBand options={filterOptions} />
 
         <div className="glass flex items-center justify-between rounded-full px-2 py-1.5">
           <Button

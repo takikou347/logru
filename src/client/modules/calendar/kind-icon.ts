@@ -5,9 +5,8 @@
  * 拡張はこの中から選ぶ。item.icon が無ければ、項目を出した拡張が登録したアイコンを使う。
  * カレンダー本体はどの拡張がどの名前を使うかを知らない。0001、0002
  */
-import { BadgeJapaneseYen, BookOpen, CalendarDays, Camera, type LucideIcon, Timer } from "lucide-react";
+import { Camera, type LucideIcon, Timer } from "lucide-react";
 import { extensionIcon } from "@/lib/extension-visuals";
-import type { ItemKind } from "./model";
 
 /** item.icon に使える名前と、対応するアイコン */
 const ITEM_ICONS: Record<string, LucideIcon> = { camera: Camera, timer: Timer };
@@ -20,10 +19,3 @@ export function kindIconOf(item: { extension: string; icon?: string }): LucideIc
   if (item.icon && ITEM_ICONS[item.icon]) return ITEM_ICONS[item.icon]!;
   return extensionIcon(item.extension);
 }
-
-/** 絞り込みの帯に出す、種類そのものを表すアイコン。拡張の登録とは別に、種類ごとに 1 つ決めておく */
-export const KIND_ICONS: Record<ItemKind, LucideIcon> = {
-  event: CalendarDays,
-  record: BookOpen,
-  expense: BadgeJapaneseYen,
-};

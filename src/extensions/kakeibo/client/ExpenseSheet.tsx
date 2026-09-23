@@ -3,11 +3,11 @@ import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { Chip } from "@/components/parts/Chip";
 import { Field } from "@/components/parts/Field";
-import { Dot, FieldMessage } from "@/components/parts/Panel";
+import { FieldMessage } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
+import { SharePickerRow } from "@/components/parts/SharePicker";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
-import { groupColor } from "@/lib/colors";
 import { dateKey } from "@/lib/dates";
 import { KAKEIBO_CATEGORIES, type KakeiboCategory } from "../shared/categories";
 import type { KakeiboExpense } from "./api";
@@ -40,8 +40,6 @@ export function ExpenseSheet({
   const deleteExpense = useDeleteExpense();
   const canEdit = !expense || expense.createdBy === me.user.id;
   const personal = groups.find((g) => g.isPersonal);
-  // 「自分だけ」は自分だけのグループに置く。0009
-  const choices = personal ? [personal, ...groups.filter((g) => g !== personal)] : groups;
 
   const [groupId, setGroupId] = useState(
     expense?.groupId ??
@@ -138,25 +136,14 @@ export function ExpenseSheet({
           <Field label="日付">
             {(p) => <Input {...p} type="date" value={date} onChange={(e) => setDate(e.target.value)} />}
           </Field>
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-ink-2" id="kakeibo-group-label">
-              共有
-            </span>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="kakeibo-group-label">
-              {choices.map((g) => (
-                <Chip
-                  key={g.id}
-                  role="radio"
-                  aria-checked={g.id === groupId}
-                  disabled={!canEdit}
-                  onClick={() => setGroupId(g.id)}
-                >
-                  <Dot color={groupColor(g, me.colorPrefs)} />
-                  {g.isPersonal ? "自分だけ" : g.name}
-                </Chip>
-              ))}
-            </div>
-          </div>
+          <SharePickerRow
+            groups={groups}
+            me={me}
+            value={groupId}
+            onChange={setGroupId}
+            disabled={!canEdit}
+            noneLabel="自分だけ"
+          />
           <Field label="メモ">
             {(p) => (
               <Textarea

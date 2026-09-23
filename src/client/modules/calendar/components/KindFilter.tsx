@@ -1,38 +1,41 @@
 /**
- * 絞り込みの帯の「種類」。予定、思い出、家計簿を入り切りする。0056
+ * 絞り込みの帯の「種類」。項目を出した拡張ごとに入り切りする。0056
  *
- * グループとは違い、種類はどの拡張が何を出しているかによらない、カレンダー本体だけの分け方なので、
- * 出し入れはこの端末の localStorage に持つ。グループの絞り込み(F-20)のように、ほかの端末とは揃えない。
+ * 種類は拡張ごとに分ける。名前とアイコンは、拡張の登録(manifest の名前と、画面の側の icon か nav.icon)から取る。
+ * カレンダー本体はどの拡張がどんな項目を出すかを知らないまま、key で入り切りするだけで済む。0001、0002
+ * どの拡張が出しているかによらず、出し入れはこの端末の localStorage に持つ。
+ * グループの絞り込み(F-20)のように、ほかの端末とは揃えない。
  */
 import { Check, SlidersHorizontal } from "lucide-react";
 import { useCallback, useState } from "react";
 import { sideItemClass } from "@/components/layout/AppLayout";
 import { Chip } from "@/components/parts/Chip";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
+import { extensionGroups } from "@/lib/extension-visuals";
 import { cn } from "@/lib/utils";
-import { KIND_ICONS } from "../kind-icon";
-import { type ItemKind, KIND_LABEL, KIND_ORDER } from "../model";
 
 const STORAGE_KEY = "logru-hidden-kinds";
 
-function readHidden(): Set<ItemKind> {
+/** 出さない拡張の key。登録に無い key(古い値も含む)は読まずに捨てる */
+function readHidden(): Set<string> {
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]") as unknown;
     if (!Array.isArray(raw)) return new Set();
-    return new Set(raw.filter((k): k is ItemKind => KIND_ORDER.includes(k as ItemKind)));
+    const valid = new Set(extensionGroups().map((g) => g.key));
+    return new Set(raw.filter((k): k is string => typeof k === "string" && valid.has(k)));
   } catch {
     return new Set();
   }
 }
 
-/** 出さない種類を、この端末に覚えさせる */
+/** 出さない拡張の項目を、この端末に覚えさせる */
 export function useHiddenKinds() {
-  const [hidden, setHidden] = useState<Set<ItemKind>>(readHidden);
-  const toggle = useCallback((kind: ItemKind) => {
+  const [hidden, setHidden] = useState<Set<string>>(readHidden);
+  const toggle = useCallback((key: string) => {
     setHidden((prev) => {
       const next = new Set(prev);
-      if (next.has(kind)) next.delete(kind);
-      else next.add(kind);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
       } catch {
@@ -44,23 +47,22 @@ export function useHiddenKinds() {
   return { hidden, toggle };
 }
 
-/** 種類ごとの入り切りの行。押すたびに、その種類をカレンダーに出すか出さないかが入れ替わる */
+/** 拡張ごとの入り切りの行。押すたびに、その拡張の項目をカレンダーに出すか出さないかが入れ替わる */
 function KindToggles({
   hidden,
   onToggle,
   rowClass,
 }: {
-  hidden: Set<ItemKind>;
-  onToggle: (kind: ItemKind) => void;
+  hidden: Set<string>;
+  onToggle: (key: string) => void;
   rowClass: string;
 }) {
-  return KIND_ORDER.map((kind) => {
-    const shown = !hidden.has(kind);
-    const Icon = KIND_ICONS[kind];
+  return extensionGroups().map(({ key, label, icon: Icon }) => {
+    const shown = !hidden.has(key);
     return (
-      <button key={kind} type="button" className={rowClass} aria-pressed={shown} onClick={() => onToggle(kind)}>
+      <button key={key} type="button" className={rowClass} aria-pressed={shown} onClick={() => onToggle(key)}>
         <Icon className={cn("size-4 flex-none", !shown && "text-ink-3")} aria-hidden="true" />
-        <span className={cn("min-w-0 flex-1 truncate", !shown && "text-ink-2")}>{KIND_LABEL[kind]}</span>
+        <span className={cn("min-w-0 flex-1 truncate", !shown && "text-ink-2")}>{label}</span>
         <span
           className={cn(
             "grid size-[18px] flex-none place-items-center rounded-[5px] border-[1.5px]",
@@ -76,7 +78,7 @@ function KindToggles({
 }
 
 /** PC の左の列に置く、種類の入り切り。グループの絞り込みの下に並べる */
-export function SideKinds({ hidden, onToggle }: { hidden: Set<ItemKind>; onToggle: (kind: ItemKind) => void }) {
+export function SideKinds({ hidden, onToggle }: { hidden: Set<string>; onToggle: (key: string) => void }) {
   return (
     <div role="group" aria-label="表示する種類" className="pr-2">
       <KindToggles hidden={hidden} onToggle={onToggle} rowClass={cn(sideItemClass, "aria-pressed:bg-transparent")} />
@@ -85,8 +87,9 @@ export function SideKinds({ hidden, onToggle }: { hidden: Set<ItemKind>; onToggl
 }
 
 /** スマホの絞り込みの並びに置く「種類」のボタンと、押すと開くシート */
-export function KindChip({ hidden, onToggle }: { hidden: Set<ItemKind>; onToggle: (kind: ItemKind) => void }) {
+export function KindChip({ hidden, onToggle }: { hidden: Set<string>; onToggle: (key: string) => void }) {
   const [open, setOpen] = useState(false);
+  const total = extensionGroups().length;
   const filtering = hidden.size > 0;
   return (
     <>
@@ -95,7 +98,7 @@ export function KindChip({ hidden, onToggle }: { hidden: Set<ItemKind>; onToggle
         種類
         {filtering && (
           <span className="text-[12px] tabular-nums">
-            {KIND_ORDER.length - hidden.size}/{KIND_ORDER.length}
+            {total - hidden.size}/{total}
           </span>
         )}
       </Chip>

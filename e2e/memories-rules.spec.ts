@@ -38,9 +38,14 @@ test("記録はいつでも「共有しない」を選べる", async ({ page }) 
   await groupWithMemories(page, "ふたり");
   await page.goto("/memories?record=1");
   const sheet = page.getByRole("dialog", { name: "記録する" });
-  const group = sheet.getByRole("radiogroup", { name: "共有するグループ" });
-  await expect(group.getByRole("radio", { name: "共有しない" })).toHaveAttribute("aria-checked", "true");
-  await expect(group.getByRole("radio", { name: "ふたり" })).toBeVisible();
+  const shareRow = sheet.getByRole("button", { name: /^共有/ });
+  await expect(shareRow).toContainText("共有しない");
+  await shareRow.click();
+  const picker = page.getByRole("dialog", { name: "共有する相手" });
+  await expect(picker.getByRole("radio", { name: "共有しない" })).toHaveAttribute("aria-checked", "true");
+  await expect(picker.getByRole("radio", { name: "ふたり" })).toBeVisible();
+  // 選んでいる行をもう一度押して、値を変えずに閉じる
+  await picker.getByRole("radio", { name: "共有しない" }).click();
   await sheet.getByLabel("文章").fill("ひとりのメモ");
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("記録しました")).toBeVisible();

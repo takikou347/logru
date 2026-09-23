@@ -4,6 +4,7 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import { Button } from "@/components/ui/button";
 import { useCalendar } from "@/modules/calendar/api";
 import { poolColorsOf } from "@/modules/calendar/model";
@@ -13,7 +14,7 @@ import { useMemoryGroups, useMemoryList, useRecords } from "./api";
 import { Dock } from "./Dock";
 import { Flow } from "./Flow";
 import { entriesOf, Lightbox } from "./Lightbox";
-import { Ambient, formatSpan, GroupFilter, PhotoImg, SideGroupFilter } from "./parts";
+import { Ambient, formatSpan, PhotoImg } from "./parts";
 import { RecordSheet } from "./RecordSheet";
 
 /**
@@ -48,28 +49,19 @@ export function OnDayPage() {
         Date.parse(date),
       )
     : "その日";
+  const filterOptions = groupFilterOptions({
+    groups,
+    me: data,
+    value: group,
+    onChange: (v) => setParams(v ? { group: v } : {}, { replace: true }),
+  });
 
   return (
-    <AppLayout
-      poolColors={poolColorsOf(groups, data)}
-      side={
-        <SideGroupFilter
-          groups={groups}
-          me={data}
-          value={group}
-          onChange={(v) => setParams(v ? { group: v } : {}, { replace: true })}
-        />
-      }
-    >
+    <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
       <Ambient photo={memory?.cover ?? null} />
       <Page>
         <PageBar title={title} back="/memories" />
-        <GroupFilter
-          groups={groups}
-          me={data}
-          value={group}
-          onChange={(v) => setParams(v ? { group: v } : {}, { replace: true })}
-        />
+        <GroupFilterBand options={filterOptions} />
         {memory && (
           <Link
             to={`/memories/${memory.id}`}

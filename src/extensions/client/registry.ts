@@ -5,6 +5,7 @@
 import { eventsClient } from "@extensions/events/client/index";
 import { externalCalendarsClient } from "@extensions/external-calendars/client/index";
 import { kakeiboClient } from "@extensions/kakeibo/client/index";
+import { listsClient } from "@extensions/lists/client/index";
 import { memoriesClient } from "@extensions/memories/client/index";
 import type { ClientExtension } from "./types";
 
@@ -14,6 +15,7 @@ export const clientExtensions: ClientExtension[] = [
   externalCalendarsClient,
   memoriesClient,
   kakeiboClient,
+  listsClient,
 ];
 
 /** 項目を作るときに使う拡張。いまは予定だけ */

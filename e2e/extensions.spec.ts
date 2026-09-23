@@ -21,7 +21,7 @@ test("外すと確認のシートに「記録は消えません」と出る。�
   await signUp(page);
   await addExtension(page, "家計簿");
   await page.goto("/kakeibo");
-  await page.getByRole("button", { name: "記録する" }).click();
+  await page.getByRole("button", { name: "支出を記録する" }).click();
   const create = page.getByRole("dialog", { name: "記録する" });
   await create.getByLabel("金額").fill("1200");
   await create.getByRole("radio", { name: "食費" }).click();

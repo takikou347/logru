@@ -267,6 +267,21 @@ export function CalendarPage() {
     };
   }, [openExt, openId, setParams]);
 
+  // ホーム画面のアイコンの近道「予定を足す」から開いたとき。開いたら消す。#110
+  const shortcutNew = params.get("new");
+  useEffect(() => {
+    if (!shortcutNew) return;
+    addNew(today);
+    setParams(
+      (p) => {
+        const q = new URLSearchParams(p);
+        q.delete("new");
+        return q;
+      },
+      { replace: true },
+    );
+  }, [shortcutNew, today, addNew, setParams]);
+
   // PC のキー。左右で移る、T で今日、N で予定を足す。0012
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

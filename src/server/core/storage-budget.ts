@@ -23,7 +23,7 @@ async function totalAvatarBytes(db: DB): Promise<number> {
 }
 
 /** いま置いている写真とアバターの合計バイト数 */
-export async function totalStorageBytes(db: DB): Promise<number> {
+async function totalStorageBytes(db: DB): Promise<number> {
   const [avatarBytes, extensionBytes] = await Promise.all([totalAvatarBytes(db), totalExtensionStorageBytes(db)]);
   return avatarBytes + extensionBytes;
 }

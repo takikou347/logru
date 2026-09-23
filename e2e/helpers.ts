@@ -238,9 +238,13 @@ export async function addEvent(page: Page, title: string, group?: string) {
 }
 
 /**
- * 思い出の画面の「+」を押し、開いた選ぶシートから「記録する」か「思い出を作る」を選ぶ。issue #150
+ * 思い出の画面で、記録するか思い出を作るを始める。記録するは下の「+」を直に押し、
+ * 思い出を作るは見出しの右のボタンを押す。#164
  */
 export async function addMemories(page: Page, option: "記録する" | "思い出を作る") {
-  await page.getByRole("button", { name: "思い出を足す" }).click();
-  await page.getByRole("dialog", { name: "思い出を足す" }).getByRole("button", { name: option }).click();
+  if (option === "記録する") {
+    await page.getByRole("toolbar", { name: "思い出の操作" }).getByRole("button", { name: "記録する" }).click();
+  } else {
+    await page.getByRole("button", { name: "思い出を作る" }).click();
+  }
 }

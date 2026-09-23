@@ -48,7 +48,7 @@ function Album({ detail, me, groups }: ShellProps) {
                     aria-label={`${formatClock(e.record.occurredAt, memory.timeZone)} の写真を大きく見る`}
                     onClick={() => setOpen(e.i)}
                   >
-                    <PhotoImg photo={e.photo} className="size-full" />
+                    <PhotoImg photo={e.photo} size="large" className="size-full" />
                     {e.record.kind === "koma" && e.record.komaSlot && (
                       <span className="absolute bottom-1.5 left-1.5 rounded-full bg-white/88 px-2 text-[11px] leading-5 font-bold text-[#17202c]">
                         {new Intl.DateTimeFormat("ja-JP", { hour: "numeric", timeZone: memory.timeZone }).format(

@@ -19,11 +19,11 @@ test("予定は「共有しない」が既定で、「自分だけの予定」�
   await expect(page.getByRole("heading", { name: "ふたり" })).toBeVisible();
   await page.goto("/");
 
-  // シートは「共有しない」を選んだ状態で開く
+  // シートは「共有しない」を選んだ状態で開く。行では「自分だけ」と出す。0059、#164
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   const shareRow = sheet.getByRole("button", { name: /^共有/ });
-  await expect(shareRow).toContainText("共有しない");
+  await expect(shareRow).toContainText("自分だけ");
   await expect(sheet.getByText("自分だけに見えます。")).toBeVisible();
   await pickShare(page, sheet, "ふたり");
   await expect(sheet.getByText("「ふたり」のメンバー全員に見えます。")).toBeVisible();

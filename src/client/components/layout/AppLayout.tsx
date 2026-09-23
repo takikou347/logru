@@ -174,17 +174,29 @@ export function AccountMenu({ wide = false }: { wide?: boolean }) {
  * 設定やグループの画面の上の帯。左に戻るボタンを置く。
  * @param back 戻る先。渡すと PC でも戻るボタンを出す。一覧の下の画面で使う。渡さなければスマホだけに出し、カレンダーへ戻る
  * @param backMobileOnly back を渡しつつ、PC では隠す。PC に別の道順(設定の目次など)が既にある画面で使う
+ * @param action 見出しの右に置く、その画面だけの操作。1 つだけ。下の帯の「+」とは別の、頻度の低い操作に使う。issue #150
  */
-export function PageBar({ title, back, backMobileOnly }: { title: string; back?: string; backMobileOnly?: boolean }) {
+export function PageBar({
+  title,
+  back,
+  backMobileOnly,
+  action,
+}: {
+  title: string;
+  back?: string;
+  backMobileOnly?: boolean;
+  action?: ReactNode;
+}) {
   const hideOnDesktop = !back || backMobileOnly;
   return (
-    <header className="glass flex min-h-[58px] items-center gap-1 rounded-full py-1.5 pr-4.5 pl-1.5">
+    <header className="glass flex min-h-[58px] items-center gap-1 rounded-full py-1.5 pr-2.5 pl-1.5">
       <Button asChild variant="ghost" size="icon" className={cn(hideOnDesktop && "lg:hidden")}>
         <Link to={back ?? "/"} aria-label="戻る">
           <ChevronLeft className="size-5" />
         </Link>
       </Button>
-      <h1 className={cn("pl-2 text-[17px] font-bold", hideOnDesktop && "lg:pl-3")}>{title}</h1>
+      <h1 className={cn("min-w-0 flex-1 truncate pl-2 text-[17px] font-bold", hideOnDesktop && "lg:pl-3")}>{title}</h1>
+      {action}
     </header>
   );
 }

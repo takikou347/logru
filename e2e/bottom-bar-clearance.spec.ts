@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addExtension, signUp } from "./helpers";
+import { addExtension, addMemories, signUp } from "./helpers";
 
 /**
  * 下に浮かぶ帯(Dock、カレンダーの下の操作)に、中身のいちばん下が隠れないことを確かめる。
@@ -49,8 +49,7 @@ test("思い出: 棚がいくつあっても、下の帯より上に見える", 
   await addExtension(page, "思い出");
   await page.goto("/memories");
   for (let i = 0; i < 4; i++) {
-    await page.getByRole("button", { name: "思い出を足す" }).click();
-    await page.getByRole("dialog", { name: "思い出を足す" }).getByRole("button", { name: "思い出を作る" }).click();
+    await addMemories(page, "思い出を作る");
     const create = page.getByRole("dialog", { name: "思い出を作る" });
     await create.getByLabel("題名").fill(`旅行 ${i}`);
     const start = new Date(Date.now() - (i + 2) * 30 * 86_400_000);

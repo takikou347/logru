@@ -40,7 +40,7 @@ test("記録はいつでも「共有しない」を選べる", async ({ page }) 
   await page.goto("/memories?record=1");
   const sheet = page.getByRole("dialog", { name: "記録する" });
   const shareRow = sheet.getByRole("button", { name: /^共有/ });
-  await expect(shareRow).toContainText("共有しない");
+  await expect(shareRow).toContainText("自分だけ");
   await shareRow.click();
   const picker = page.getByRole("dialog", { name: "共有する相手" });
   await expect(picker.getByRole("radio", { name: "共有しない" })).toHaveAttribute("aria-checked", "true");
@@ -58,7 +58,7 @@ test("写真を足した後も共有先を変えられる。保存すると選�
   await page.goto("/memories?record=1");
   const sheet = page.getByRole("dialog", { name: "記録する" });
   const shareRow = sheet.getByRole("button", { name: /^共有/ });
-  await expect(shareRow).toContainText("共有しない");
+  await expect(shareRow).toContainText("自分だけ");
 
   await sheet.locator('input[type="file"][multiple]').setInputFiles(PHOTO);
   await expect(sheet.getByRole("button", { name: "保存する" })).toBeEnabled({ timeout: 15_000 });

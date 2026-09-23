@@ -58,9 +58,35 @@ export const groupPatchInput = z.object({
 /** `PATCH /api/groups/:id/members/:userId`。管理者の受け渡し */
 export const memberRoleInput = z.object({ role: z.enum(["admin", "member"]) });
 
+/** ブラウザーの会社が持つ、Web Push の送り先として知られたホスト。0065、#161 */
+const KNOWN_PUSH_HOSTS = new Set([
+  "fcm.googleapis.com", // Chrome、Edge、Android
+  "android.googleapis.com", // 古い Chrome
+  "updates.push.services.mozilla.com", // Firefox
+  "web.push.apple.com", // Safari
+]);
+
+/**
+ * その送り先が、知られた Web Push のホストか。任意の https の送り先を登録させないため。0065、#161
+ * Microsoft は wns2-xxx.notify.windows.com のように、ホストの頭が変わる
+ */
+export function isKnownPushHost(value: string): boolean {
+  try {
+    const { hostname } = new URL(value);
+    return KNOWN_PUSH_HOSTS.has(hostname) || hostname.endsWith(".notify.windows.com");
+  } catch {
+    return false;
+  }
+}
+
 /** `POST /api/me/push`。ブラウザーの PushSubscription の中身。F-23 */
 export const pushSubscriptionInput = z.object({
-  endpoint: z.string().url().startsWith("https://", "送り先が正しくありません。").max(1000),
+  endpoint: z
+    .string()
+    .url()
+    .startsWith("https://", "送り先が正しくありません。")
+    .max(1000)
+    .refine(isKnownPushHost, "対応していない送り先です。"),
   keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
   userAgent: z.string().max(200).optional(),
 });

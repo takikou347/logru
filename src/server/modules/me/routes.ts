@@ -429,7 +429,8 @@ export const meRoutes = createRouter()
     if (mine.length >= MAX_DEVICES && !mine.some((m) => m.endpoint === input.endpoint)) {
       throw new HttpError(409, `知らせを受ける端末は ${MAX_DEVICES} 台までです。使わない端末を外してください。`);
     }
-    // 同じ送り先なら置き換える。別の人が同じ端末で登録し直したときも、今の人のものにする
+    // 同じ送り先の行は、誰のものでも消してから作り直す。UPDATE で書き換えると、ほかの人が登録した
+    // 送り先を自分のものにできてしまう。削除して挿し直せば、行の持ち主は必ず自分になる。0065、#161
     const values = {
       userId: me.id,
       p256dh: input.keys.p256dh,
@@ -437,10 +438,10 @@ export const meRoutes = createRouter()
       userAgent: input.userAgent ?? null,
       failedCount: 0,
     };
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, input.endpoint));
     const row = await db
       .insert(pushSubscriptions)
       .values({ id: crypto.randomUUID(), endpoint: input.endpoint, ...values })
-      .onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: values })
       .returning()
       .get();
     return c.json({ id: row.id }, 201);

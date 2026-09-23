@@ -60,6 +60,13 @@ test("ほかの人の思い出と記録には届かない。F-124", async ({ req
   expect((await upload(request, b.headers, a.groupId)).status()).toBe(404);
 });
 
+test("本文が大きすぎる写真は、全部読む前に 413 で断る。0065、#161", async ({ request }) => {
+  const a = await memoriesUser(request);
+  const big = Buffer.alloc(4 * 1024 * 1024, 1);
+  const res = await upload(request, a.headers, a.groupId, big);
+  expect(res.status()).toBe(413);
+});
+
 test("写真の URL は署名が合うときだけ返し、JPEG でないものは受け付けない。0021", async ({ request }) => {
   const a = await memoriesUser(request);
   const res = await upload(request, a.headers, a.groupId);

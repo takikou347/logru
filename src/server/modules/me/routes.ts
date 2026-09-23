@@ -45,6 +45,7 @@ import {
 import { addTourSeen } from "@shared/tours";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import type { Context } from "hono";
+import { bodyLimit } from "hono/body-limit";
 
 /** アバターの写真の URL を作る。env の AVATAR_PHOTO_KEY を使う */
 const avatarSigner = (c: Context<AppEnv>) => new AvatarSigner(c.env.AVATAR_PHOTO_KEY);
@@ -303,32 +304,45 @@ export const meRoutes = createRouter()
     return c.json({ widgets: row.widgets } satisfies HomeLayout);
   })
   // アバターに写真を置く。#40
-  .post("/avatar", async (c) => {
-    const db = c.get("db");
-    const me = c.get("user");
-    await enforceRateLimit(c.env.PHOTO_RATE_LIMIT, me.id);
-    const form = await c.req.formData().catch(() => null);
-    const file = form?.get("photo");
-    if (!(file instanceof File)) throw new HttpError(400, "写真を送り直してください。");
-    if (file.size > AVATAR_MAX_BYTES) return c.json({ error: "写真が大きすぎます。" }, 413);
-    const bytes = await file.arrayBuffer();
-    if (!isJpeg(new Uint8Array(bytes))) throw new HttpError(400, "JPEG の写真だけを受け付けます。");
-    const prev = await db
-      .select({ avatarPhotoKey: userSettings.avatarPhotoKey })
-      .from(userSettings)
-      .where(eq(userSettings.userId, me.id))
-      .get();
-    const token = randomAvatarToken();
-    await c.env.AVATAR_BUCKET.put(avatarKey(me.id, token), bytes, { httpMetadata: { contentType: "image/jpeg" } });
-    const values = { avatarKind: "photo" as const, avatarPhotoKey: token, updatedAt: new Date() };
-    await db
-      .insert(userSettings)
-      .values({ userId: me.id, ...values })
-      .onConflictDoUpdate({ target: userSettings.userId, set: values });
-    // 置き直したときは、前の写真を消す。新しい写真は置け、DB も書き終わっているので、ここで失敗しても投げない
-    if (prev?.avatarPhotoKey) await cleanUpOldAvatar(c.env.AVATAR_BUCKET, me.id, prev.avatarPhotoKey);
-    return c.json({ avatarKind: "photo" as const, avatarUrl: await avatarSigner(c).url(me.id, token) }, 201);
-  })
+  .post(
+    "/avatar",
+    // 大きさは formData() で読み切る前に断る。multipart の余白として 64 KB を足す。0065、#161
+    bodyLimit({
+      maxSize: AVATAR_MAX_BYTES + 64 * 1024,
+      onError: (c) => c.json({ error: "写真が大きすぎます。" }, 413),
+    }),
+    async (c) => {
+      const db = c.get("db");
+      const me = c.get("user");
+      await enforceRateLimit(c.env.PHOTO_RATE_LIMIT, me.id);
+      const form = await c.req.formData().catch(() => null);
+      const file = form?.get("photo");
+      if (!(file instanceof File)) throw new HttpError(400, "写真を送り直してください。");
+      if (file.size > AVATAR_MAX_BYTES) return c.json({ error: "写真が大きすぎます。" }, 413);
+      const bytes = await file.arrayBuffer();
+      if (!isJpeg(new Uint8Array(bytes))) throw new HttpError(400, "JPEG の写真だけを受け付けます。");
+      const prev = await db
+        .select({ avatarPhotoKey: userSettings.avatarPhotoKey })
+        .from(userSettings)
+        .where(eq(userSettings.userId, me.id))
+        .get();
+      const token = randomAvatarToken();
+      await c.env.AVATAR_BUCKET.put(avatarKey(me.id, token), bytes, { httpMetadata: { contentType: "image/jpeg" } });
+      const values = {
+        avatarKind: "photo" as const,
+        avatarPhotoKey: token,
+        avatarBytes: bytes.byteLength,
+        updatedAt: new Date(),
+      };
+      await db
+        .insert(userSettings)
+        .values({ userId: me.id, ...values })
+        .onConflictDoUpdate({ target: userSettings.userId, set: values });
+      // 置き直したときは、前の写真を消す。新しい写真は置け、DB も書き終わっているので、ここで失敗しても投げない
+      if (prev?.avatarPhotoKey) await cleanUpOldAvatar(c.env.AVATAR_BUCKET, me.id, prev.avatarPhotoKey);
+      return c.json({ avatarKind: "photo" as const, avatarUrl: await avatarSigner(c).url(me.id, token) }, 201);
+    },
+  )
   // アバターを頭文字に戻す。置いていた写真は消す。#40
   .delete("/avatar", async (c) => {
     const db = c.get("db");
@@ -338,7 +352,7 @@ export const meRoutes = createRouter()
       .from(userSettings)
       .where(eq(userSettings.userId, me.id))
       .get();
-    const values = { avatarKind: "initial" as const, avatarPhotoKey: null, updatedAt: new Date() };
+    const values = { avatarKind: "initial" as const, avatarPhotoKey: null, avatarBytes: 0, updatedAt: new Date() };
     await db
       .insert(userSettings)
       .values({ userId: me.id, ...values })

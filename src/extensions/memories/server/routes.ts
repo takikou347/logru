@@ -4,9 +4,10 @@ import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
 import { groupMembers, notifications } from "@server/core/db/schema";
 import { enforceRateLimit } from "@server/core/rate-limit";
-import { and, asc, count, desc, eq, inArray, isNull, max, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, max, sql } from "drizzle-orm";
 import type { Context } from "hono";
-import { addDaysToKey, dayKeyIn, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
+import { bodyLimit } from "hono/body-limit";
+import { addDaysToKey, DEFAULT_TIME_ZONE, dayKeyIn, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
 import {
   eventLinkInput,
   itemCopyInput,
@@ -18,6 +19,7 @@ import {
   recordInput,
   recordPatchInput,
   recordsQuery,
+  TINY_DATA_URL_PATTERN,
 } from "../shared/schemas";
 import type { MemoryDetail, MemoryList } from "../shared/types";
 import { requireMemoriesGroup, usableGroupIds } from "./access";
@@ -27,6 +29,12 @@ import { isJpeg, PhotoSigner, type PhotoSize, photoKey, verifyPhotoUrl } from ".
 import { memories, memoryEventExclusions, memoryItems, memoryLikes, memoryPhotos, memoryRecords } from "./schema";
 
 const signer = (c: Context<AppEnv>) => new PhotoSigner(c.env.MEMORIES_PHOTO_KEY);
+
+/**
+ * multipart の本文の大きさの上限。full と thumb と tiny の上限の合計に、multipart の境界や
+ * ほかの項目の分の余白を足す。formData() で全部読み込む前に断り、大きすぎる本文を読ませない。0065、#161
+ */
+const PHOTO_BODY_MAX_BYTES = PHOTO_LIMITS.fullBytes + PHOTO_LIMITS.thumbBytes + PHOTO_LIMITS.tinyChars + 64 * 1024;
 
 /** 思い出を読み、そのグループで使えるかを確かめる。違えば 404 */
 async function loadMemory(db: DB, userId: string, id: string) {
@@ -170,59 +178,73 @@ export const memoryRoutes = createRouter()
     const groupIds = await usableGroupIds(db, c.get("user").id, group?.split(",").filter(Boolean));
     return c.json({ records: await loadRecords(db, signer(c), groupIds, from, to) });
   })
-  .post("/photos", async (c) => {
-    const db = c.get("db");
-    const me = c.get("user");
-    await enforceRateLimit(c.env.PHOTO_RATE_LIMIT, me.id);
-    const form = await c.req.formData().catch(() => null);
-    if (!form) throw new HttpError(400, "写真を送り直してください。");
-    const groupId = String(form.get("groupId") ?? "");
-    await requireMemoriesGroup(db, me.id, groupId);
-    const full = form.get("full");
-    const thumb = form.get("thumb");
-    const tiny = String(form.get("tiny") ?? "");
-    const width = Number(form.get("width"));
-    const height = Number(form.get("height"));
-    const takenAtRaw = Number(form.get("takenAt"));
-    if (!(full instanceof File) || !(thumb instanceof File)) throw new HttpError(400, "写真を送り直してください。");
-    if (
-      full.size > PHOTO_LIMITS.fullBytes ||
-      thumb.size > PHOTO_LIMITS.thumbBytes ||
-      tiny.length > PHOTO_LIMITS.tinyChars
-    ) {
-      return c.json({ error: "写真が大きすぎます。" }, 413);
-    }
-    if (!tiny.startsWith("data:image/jpeg;base64,")) throw new HttpError(400, "写真を送り直してください。");
-    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1)
-      throw new HttpError(400, "写真を送り直してください。");
-    const [fullBytes, thumbBytes] = await Promise.all([full.arrayBuffer(), thumb.arrayBuffer()]);
-    if (!isJpeg(new Uint8Array(fullBytes)) || !isJpeg(new Uint8Array(thumbBytes)))
-      throw new HttpError(400, "JPEG の写真だけを受け付けます。");
-    const total = await db.select({ n: count() }).from(memoryPhotos).where(eq(memoryPhotos.groupId, groupId)).get();
-    if ((total?.n ?? 0) >= PHOTO_LIMITS.perGroup) {
-      throw new HttpError(
-        409,
-        `このグループの写真は ${PHOTO_LIMITS.perGroup} 枚までです。古い記録を消してから足してください。`,
-      );
-    }
-    const id = crypto.randomUUID();
-    await Promise.all([
-      c.env.MEMORIES_BUCKET.put(photoKey(id, "full"), fullBytes, { httpMetadata: { contentType: "image/jpeg" } }),
-      c.env.MEMORIES_BUCKET.put(photoKey(id, "thumb"), thumbBytes, { httpMetadata: { contentType: "image/jpeg" } }),
-    ]);
-    await db.insert(memoryPhotos).values({
-      id,
-      groupId,
-      createdBy: me.id,
-      width,
-      height,
-      bytes: fullBytes.byteLength + thumbBytes.byteLength,
-      takenAt: Number.isFinite(takenAtRaw) && takenAtRaw > 0 ? new Date(takenAtRaw) : null,
-      tiny,
-    });
-    const row = (await db.select().from(memoryPhotos).where(eq(memoryPhotos.id, id)).get())!;
-    return c.json(await signer(c).photo(row), 201);
-  })
+  .post(
+    "/photos",
+    bodyLimit({ maxSize: PHOTO_BODY_MAX_BYTES, onError: (c) => c.json({ error: "写真が大きすぎます。" }, 413) }),
+    async (c) => {
+      const db = c.get("db");
+      const me = c.get("user");
+      await enforceRateLimit(c.env.PHOTO_RATE_LIMIT, me.id);
+      const form = await c.req.formData().catch(() => null);
+      if (!form) throw new HttpError(400, "写真を送り直してください。");
+      const groupId = String(form.get("groupId") ?? "");
+      await requireMemoriesGroup(db, me.id, groupId);
+      const full = form.get("full");
+      const thumb = form.get("thumb");
+      const tiny = String(form.get("tiny") ?? "");
+      const width = Number(form.get("width"));
+      const height = Number(form.get("height"));
+      const takenAtRaw = Number(form.get("takenAt"));
+      if (!(full instanceof File) || !(thumb instanceof File)) throw new HttpError(400, "写真を送り直してください。");
+      if (
+        full.size > PHOTO_LIMITS.fullBytes ||
+        thumb.size > PHOTO_LIMITS.thumbBytes ||
+        tiny.length > PHOTO_LIMITS.tinyChars
+      ) {
+        return c.json({ error: "写真が大きすぎます。" }, 413);
+      }
+      if (!TINY_DATA_URL_PATTERN.test(tiny)) throw new HttpError(400, "写真を送り直してください。");
+      if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1)
+        throw new HttpError(400, "写真を送り直してください。");
+      const [fullBytes, thumbBytes] = await Promise.all([full.arrayBuffer(), thumb.arrayBuffer()]);
+      if (!isJpeg(new Uint8Array(fullBytes)) || !isJpeg(new Uint8Array(thumbBytes)))
+        throw new HttpError(400, "JPEG の写真だけを受け付けます。");
+      const total = await db.select({ n: count() }).from(memoryPhotos).where(eq(memoryPhotos.groupId, groupId)).get();
+      if ((total?.n ?? 0) >= PHOTO_LIMITS.perGroup) {
+        throw new HttpError(
+          409,
+          `このグループの写真は ${PHOTO_LIMITS.perGroup} 枚までです。古い記録を消してから足してください。`,
+        );
+      }
+      // 1 人が 1 日に送れる枚数。日本時間の 0 時で区切る。0065、#161
+      const todayStart = new Date(startOfDayIn(dayKeyIn(Date.now(), DEFAULT_TIME_ZONE), DEFAULT_TIME_ZONE));
+      const todayCount = await db
+        .select({ n: count() })
+        .from(memoryPhotos)
+        .where(and(eq(memoryPhotos.createdBy, me.id), gte(memoryPhotos.createdAt, todayStart)))
+        .get();
+      if ((todayCount?.n ?? 0) >= PHOTO_LIMITS.perDay) {
+        throw new HttpError(409, `1 日に送れる写真は ${PHOTO_LIMITS.perDay} 枚までです。時間をおいて送ってください。`);
+      }
+      const id = crypto.randomUUID();
+      await Promise.all([
+        c.env.MEMORIES_BUCKET.put(photoKey(id, "full"), fullBytes, { httpMetadata: { contentType: "image/jpeg" } }),
+        c.env.MEMORIES_BUCKET.put(photoKey(id, "thumb"), thumbBytes, { httpMetadata: { contentType: "image/jpeg" } }),
+      ]);
+      await db.insert(memoryPhotos).values({
+        id,
+        groupId,
+        createdBy: me.id,
+        width,
+        height,
+        bytes: fullBytes.byteLength + thumbBytes.byteLength,
+        takenAt: Number.isFinite(takenAtRaw) && takenAtRaw > 0 ? new Date(takenAtRaw) : null,
+        tiny,
+      });
+      const row = (await db.select().from(memoryPhotos).where(eq(memoryPhotos.id, id)).get())!;
+      return c.json(await signer(c).photo(row), 201);
+    },
+  )
   .post("/records", zValidator("json", recordInput, validationHook), async (c) => {
     const db = c.get("db");
     const me = c.get("user");

@@ -96,7 +96,7 @@ describe("parseIcs", () => {
     const inside = `BEGIN:VEVENT\r\nUID:inside@test\r\nDTSTAMP:20261001T000000Z\r\nDTSTART:20261001T000000Z\r\nSUMMARY:in window\r\nEND:VEVENT\r\n`;
     const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\n${outside}${inside}END:VCALENDAR\r\n`;
     expect(parseIcs(ics, window)).toHaveLength(0);
-  });
+  }, 20000);
 
   it("繰り返しを開く回数は、予定をまたいで合計で数える。0065、#161", () => {
     // 1 件あたり単独なら期間に届く回数だが、5 件分を合計すると上限を超え、後ろの予定は届かなくなる

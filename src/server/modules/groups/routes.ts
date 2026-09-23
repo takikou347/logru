@@ -4,6 +4,7 @@ import { type AppEnv, createRouter, HttpError, validationHook } from "@server/co
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import { AvatarSigner } from "@server/core/avatar";
 import { groupExtensions, groupInvites, groupMembers, groups } from "@server/core/db/schema";
+import { enforceRateLimit } from "@server/core/rate-limit";
 import { listGroups, requireMembership } from "@server/modules/groups/membership";
 import type { ExtensionInfo } from "@shared/api-types";
 import { pickUnusedColor } from "@shared/colors";
@@ -62,6 +63,7 @@ export const groupRoutes = createRouter()
   .post("/:id/invites", async (c) => {
     const db = c.get("db");
     const id = c.req.param("id");
+    await enforceRateLimit(c.env.INVITE_RATE_LIMIT, c.get("user").id);
     const membership = await requireMembership(db, c.get("user").id, id, true);
     if (membership.isPersonal) throw new HttpError(400, "自分だけのグループには招待できません。");
     const token = randomToken();

@@ -76,7 +76,7 @@ export class HttpError extends Error {
    * @param code 画面が分岐に使う印。省略できる
    */
   constructor(
-    readonly status: 400 | 401 | 403 | 404 | 409,
+    readonly status: 400 | 401 | 403 | 404 | 409 | 429,
     message: string,
     readonly code?: string,
   ) {

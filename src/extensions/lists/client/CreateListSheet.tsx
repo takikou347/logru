@@ -80,8 +80,8 @@ export function CreateListSheet({
           me={me}
           value={groupId}
           onChange={setGroupId}
-          noneLabel="自分だけ"
           usualDefault={usualDefault}
+          extensionLabel="リスト"
         />
         <Field label="日付" hint="付けると、その日のカレンダーに出ます。省けます">
           {(p) => <Input {...p} type="date" value={date} onChange={(e) => setDate(e.target.value)} />}

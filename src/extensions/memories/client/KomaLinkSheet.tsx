@@ -76,7 +76,7 @@ export function KomaLinkSheet({
           setGroupId(id);
           setMemoryId(null);
         }}
-        noneLabel="自分だけ"
+        extensionLabel="思い出"
       />
       <PanelRow>
         <label htmlFor="koma-memory">思い出</label>

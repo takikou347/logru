@@ -11,6 +11,13 @@ test("下の操作の「機能」で機能のシートが開き、「+」で機�
   await expect(page.getByRole("heading", { name: "機能を足す" })).toBeVisible();
 });
 
+test("機能のタイルは、長い名前の代わりに短い名前を出す。issue #21", async ({ page }) => {
+  await signUp(page);
+  await page.goto("/settings/extensions");
+  await expect(page.getByTestId("extension-tile-external").getByText("外部カレンダー")).toBeVisible();
+  await expect(page.getByTestId("extension-tile-external").getByText("外部のカレンダー")).toHaveCount(0);
+});
+
 test("「予定を足す」は予定のシートだけを開く", async ({ page }) => {
   await signUp(page);
   await page.getByRole("button", { name: "予定を足す" }).last().click();

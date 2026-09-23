@@ -20,9 +20,9 @@ function tileTo(ext: ClientExtension): string {
   return ext.nav?.path ?? `/settings/extensions/${ext.manifest.key}`;
 }
 
-/** タイルの名前。nav の名前、無ければ manifest の名前 */
+/** タイルの名前。拡張が短い名前(tileLabel)を渡していればそれ、無ければ nav の名前、それも無ければ manifest の名前。issue #21 */
 function tileLabel(ext: ClientExtension): string {
-  return ext.nav?.label ?? ext.manifest.label;
+  return ext.tileLabel ?? ext.nav?.label ?? ext.manifest.label;
 }
 
 /**

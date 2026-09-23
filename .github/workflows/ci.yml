@@ -34,7 +34,7 @@ jobs:
           path: playwright-report
           retention-days: 7
 
-  # main へ入れてよいのは develop と hotfix/ だけ。ほかの PR は develop へ向ける
+  # main へ入れてよいのは develop、hotfix/、release/ だけ。ほかの PR は develop へ向ける
   branch-rule:
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -45,8 +45,8 @@ jobs:
           HEAD: ${{ github.head_ref }}
         run: |
           case "$HEAD" in
-            develop|hotfix/*) echo "ok: $HEAD" ;;
-            *) echo "::error::main へは develop か hotfix/ からだけ入れる。この PR は develop へ向ける"; exit 1 ;;
+            develop|hotfix/*|release/*) echo "ok: $HEAD" ;;
+            *) echo "::error::main へは develop、hotfix/、release/ からだけ入れる。この PR は develop へ向ける"; exit 1 ;;
           esac
 
   deploy:

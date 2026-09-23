@@ -110,3 +110,30 @@ test("しおりにやること、持ち物を足して済みにできる。思�
   await expect(page).toHaveURL(/\/memories$/);
   await expect(page.getByRole("region", { name: "最近の記録" }).getByText("出発")).toBeVisible();
 });
+
+test("同じ写真を2回選んでも1回しか送らない。外すとすぐ消す要求を送る。#158", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableMemories(page);
+  await page.goto("/memories");
+  await addMemories(page, "思い出を作る");
+  const create = page.getByRole("dialog", { name: "思い出を作る" });
+  await create.getByLabel("題名").fill("テスト旅行");
+  await create.getByRole("button", { name: "作る" }).click();
+  await expect(page).toHaveURL(/\/days\/0$/);
+
+  await page.getByRole("toolbar", { name: "1 日の操作" }).getByRole("button", { name: "記録する" }).click();
+  const record = page.getByRole("dialog", { name: "記録する" });
+  // 1 回の選択で同じ写真を 2 枚指定しても、送るのは 1 枚だけ。F-117、#158
+  await record.locator('input[type="file"][multiple]').setInputFiles([PHOTO, PHOTO]);
+  await expect(page.getByText("同じ写真は 1 回だけ選べます。")).toBeVisible();
+  await expect(record.getByRole("listitem")).toHaveCount(1);
+  await expect(record.getByRole("button", { name: "保存する" })).toBeEnabled({ timeout: 15_000 });
+
+  // 送った写真を外すと、まだ記録に付いていないので、その場で消す要求を送る。#158
+  const discard = page.waitForRequest(
+    (req) => req.method() === "DELETE" && /\/api\/memories\/photos\/[^/]+$/.test(req.url()),
+  );
+  await record.getByRole("button", { name: /写真 1 を外す/ }).click();
+  await discard;
+  await expect(record.getByRole("listitem")).toHaveCount(0);
+});

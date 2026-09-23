@@ -6,6 +6,7 @@ import { apiUser } from "./helpers";
 
 const PHOTO = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg"));
 const TINY = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==";
+const SMALL = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA==";
 
 /** 規約に同意し、自分だけのグループで思い出を使えるようにした利用者 */
 async function memoriesUser(request: APIRequestContext) {
@@ -29,8 +30,8 @@ async function upload(request: APIRequestContext, headers: Record<string, string
       width: "640",
       height: "427",
       tiny: TINY,
+      small: SMALL,
       full: { name: "full.jpg", mimeType: "image/jpeg", buffer: body },
-      thumb: { name: "thumb.jpg", mimeType: "image/jpeg", buffer: body },
     },
   });
 }
@@ -65,18 +66,109 @@ test("写真の URL は署名が合うときだけ返し、JPEG でないもの�
   const res = await upload(request, a.headers, a.groupId);
   expect(res.status()).toBe(201);
   const photo = await res.json();
+  // R2 には full だけを置く。この形に変えた後の写真は小さな画像を D1 の small に持ち、thumbUrl は持たない。0021、#158
+  expect(photo.small).toBe(SMALL);
+  expect(photo.thumbUrl).toBeNull();
 
-  const ok = await request.get(photo.thumbUrl);
+  const ok = await request.get(photo.fullUrl);
   expect(ok.status()).toBe(200);
   expect(ok.headers()["content-type"]).toBe("image/jpeg");
 
-  const tampered = photo.thumbUrl.replace(/s=[^&]+/, "s=AAAA");
+  const tampered = photo.fullUrl.replace(/s=[^&]+/, "s=AAAA");
   expect((await request.get(tampered)).status()).toBe(403);
   // 別の大きさに付け替えても通らない
-  expect((await request.get(photo.thumbUrl.replace("/thumb?", "/full?"))).status()).toBe(403);
+  expect((await request.get(photo.fullUrl.replace("/full?", "/thumb?"))).status()).toBe(403);
 
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   expect((await upload(request, a.headers, a.groupId, png)).status()).toBe(400);
+});
+
+test("一覧用の小さな画像が大きすぎる送信は断る。#158", async ({ request }) => {
+  const a = await memoriesUser(request);
+  const huge = `data:image/jpeg;base64,${"A".repeat(20 * 1024)}`;
+  const res = await request.post("/api/memories/photos", {
+    headers: a.headers,
+    multipart: {
+      groupId: a.groupId,
+      width: "640",
+      height: "427",
+      tiny: TINY,
+      small: huge,
+      full: { name: "full.jpg", mimeType: "image/jpeg", buffer: PHOTO },
+    },
+  });
+  expect(res.status()).toBe(413);
+});
+
+test("R2 には写真 1 枚につき 1 つだけ置く。送るたびに新しい鍵が 1 つだけ増える。#158", async ({ request }) => {
+  const a = await memoriesUser(request);
+  const first = await (await upload(request, a.headers, a.groupId)).json();
+  const second = await (await upload(request, a.headers, a.groupId)).json();
+  expect(first.id).not.toBe(second.id);
+  // それぞれの full URL は独立して取れる。thumb はどちらも無い(小さな画像は D1 の small)
+  expect((await request.get(first.fullUrl)).status()).toBe(200);
+  expect((await request.get(second.fullUrl)).status()).toBe(200);
+  expect(first.thumbUrl).toBeNull();
+  expect(second.thumbUrl).toBeNull();
+});
+
+test("使わなかった写真をすぐ消す API は、送った本人の、記録に付いていない写真だけ消せる。#158", async ({ request }) => {
+  const a = await memoriesUser(request);
+  const b = await memoriesUser(request);
+  const mine = await (await upload(request, a.headers, a.groupId)).json();
+
+  // ほかの人は消せない
+  expect((await request.delete(`/api/memories/photos/${mine.id}`, { headers: b.headers })).status()).toBe(403);
+
+  // 記録に付けると、本人でも消せなくなる
+  const rec = await request.post("/api/memories/records", {
+    headers: a.headers,
+    data: { groupId: a.groupId, photoIds: [mine.id] },
+  });
+  expect(rec.status()).toBe(201);
+  expect((await request.delete(`/api/memories/photos/${mine.id}`, { headers: a.headers })).status()).toBe(403);
+
+  // 記録に付いていない、自分の写真は消せる
+  const orphan = await (await upload(request, a.headers, a.groupId)).json();
+  expect((await request.delete(`/api/memories/photos/${orphan.id}`, { headers: a.headers })).status()).toBe(204);
+  const afterDelete = await request.post("/api/memories/records", {
+    headers: a.headers,
+    data: { groupId: a.groupId, photoIds: [orphan.id] },
+  });
+  expect(afterDelete.status()).toBe(400);
+
+  // 既に無い写真は 204(消した後にもう一度呼んでも壊れない)
+  expect((await request.delete("/api/memories/photos/does-not-exist", { headers: a.headers })).status()).toBe(204);
+});
+
+test("写真を選んだ後に共有先を変えても、保存すると選んだ共有先に付く。ほかの人の写真は書き換わらない。#158", async ({
+  request,
+}) => {
+  const a = await memoriesUser(request);
+  const b = await memoriesUser(request);
+  const group = await (await request.post("/api/groups", { headers: a.headers, data: { name: "ふたり" } })).json();
+  await request.put(`/api/groups/${group.id}/extensions/memories`, { headers: a.headers, data: { enabled: true } });
+  const { token } = await (await request.post(`/api/groups/${group.id}/invites`, { headers: a.headers })).json();
+  expect((await request.post(`/api/invites/${token}/accept`, { headers: b.headers })).ok()).toBe(true);
+
+  // 自分だけのグループに送った写真を、共有先を「ふたり」に変えて残す
+  const mine = await (await upload(request, a.headers, a.groupId)).json();
+  const record = await request.post("/api/memories/records", {
+    headers: a.headers,
+    data: { groupId: group.id, photoIds: [mine.id] },
+  });
+  expect(record.status()).toBe(201);
+  const body = await record.json();
+  expect(body.groupId).toBe(group.id);
+  expect(body.photos.map((p: { id: string }) => p.id)).toEqual([mine.id]);
+
+  // ほかの人の写真は、共有先を変えても付けられない
+  const theirs = await (await upload(request, b.headers, b.groupId)).json();
+  const denied = await request.post("/api/memories/records", {
+    headers: a.headers,
+    data: { groupId: group.id, photoIds: [theirs.id] },
+  });
+  expect(denied.status()).toBe(400);
 });
 
 test("思い出の拡張を無効にしたグループは、読めなくなるがデータは消えない。F-125", async ({ request }) => {

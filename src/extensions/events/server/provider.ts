@@ -1,7 +1,7 @@
 import type { CalendarContext } from "@extensions/server/types";
 import type { DB } from "@server/core/db/client";
 import type { Attendee, CalendarItem } from "@shared/api-types";
-import { and, gte, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, gte, inArray, isNull, like, lt, or } from "drizzle-orm";
 import { type EventRow, eventAttendees, events } from "./schema";
 
 /** D1 は 1 つの問い合わせに渡せる値の数に上限がある。予定の ID はこの数ずつ渡す */
@@ -79,6 +79,30 @@ export async function listEvents(
         or(gte(events.endsAt, new Date(from)), and(isNull(events.endsAt), gte(events.startsAt, new Date(from)))),
       ),
     );
+  const attendees = await loadAttendees(
+    db,
+    rows.map((r) => r.id),
+  );
+  return rows.map((r) => toCalendarItem(r, attendees.get(r.id) ?? [], ctx.userId));
+}
+
+/**
+ * 題名を探す。予定は場所を持たないので、題名だけが対象。0046
+ * @param db D1 を包んだ Drizzle
+ * @param groupIds 呼んでよいグループ
+ * @param query 探す文字列
+ * @param ctx 探す人
+ */
+export async function searchEvents(
+  db: DB,
+  groupIds: string[],
+  query: string,
+  ctx: CalendarContext,
+): Promise<CalendarItem[]> {
+  const rows = await db
+    .select()
+    .from(events)
+    .where(and(inArray(events.groupId, groupIds), like(events.title, `%${query}%`)));
   const attendees = await loadAttendees(
     db,
     rows.map((r) => r.id),

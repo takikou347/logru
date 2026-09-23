@@ -97,7 +97,7 @@ test("最後の管理者は抜けられず、退会もできない。管理者�
   await expect(partner.page).toHaveURL(/group=/);
 
   // 退会しようとすると断られる
-  await page.goto("/settings");
+  await page.goto("/settings/account");
   await page.getByRole("button", { name: "アカウントを消す" }).click();
   const del = page.getByRole("dialog", { name: "アカウントを消す" });
   await expect(del.getByText(/ほかに管理者がいないグループがあります。.*実家/)).toBeVisible();

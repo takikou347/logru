@@ -91,7 +91,7 @@ export function CalendarPage() {
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [features, setFeatures] = useState(false);
   const enabledExtensions = useEnabledExtensions();
-  const { hidden, remove } = useUndoableDelete();
+  const { hidden, leaving, remove } = useUndoableDelete();
 
   const view = (
     ["month", "week", "day"].includes(params.get("view") ?? "") ? params.get("view") : "month"
@@ -512,7 +512,7 @@ export function CalendarPage() {
 
       <div className={calendar.error && (!calendar.data || calendar.isPlaceholderData) ? "hidden" : "contents"}>
         <CalendarHomeProvider
-          value={{ view, today, selected, days, items, upcoming, open, onPressDay, onSelectWeekDay }}
+          value={{ view, today, selected, days, items, upcoming, leaving, open, onPressDay, onSelectWeekDay }}
         >
           {layoutError ? (
             <LoadFailure what="ホームの並び" error={layoutError} onRetry={refetchLayout} />

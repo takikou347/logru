@@ -60,7 +60,7 @@ async function enableMemoriesForGroup(page: Page, groupName: string) {
 
 /** 自分でも思い出を使うにする。グループで有効でも、これをしないと入口が出ない。0019 */
 async function enableMemoriesForSelf(page: Page) {
-  await page.goto("/extensions");
+  await page.goto("/settings/extensions");
   const toggle = page.getByRole("switch", { name: "思い出を使う" });
   // 自分だけのグループの ID を読み終えるまで、切り替えは disabled のまま
   await expect(toggle).toBeEnabled();

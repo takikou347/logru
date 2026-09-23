@@ -30,7 +30,7 @@ test("予定を足すの近道の URL を開くと、新しい予定のシート
 
 test("ひとコマの近道の URL を開くと、撮る画面が開いた状態で始まる", async ({ page }) => {
   await signUp(page, { name: "こた" });
-  await page.goto("/extensions");
+  await page.goto("/settings/extensions");
   await page.getByRole("switch", { name: "思い出を使う" }).click();
   await expect(page.getByText("使えるようにしました")).toBeVisible();
 
@@ -42,6 +42,6 @@ test("ひとコマの近道の URL を開くと、撮る画面が開いた状態
 test("思い出を使っていない人がひとコマの近道を開くと、機能の一覧へ案内する", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await page.goto("/memories/koma/now");
-  await expect(page).toHaveURL(/\/extensions$/);
+  await expect(page).toHaveURL(/\/settings\/extensions$/);
   await expect(page.getByText("思い出は使っていません")).toBeVisible();
 });

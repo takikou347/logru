@@ -54,7 +54,7 @@ export function FeatureSheet({ onClose }: { onClose: () => void }) {
           onClick={onClose}
         />
         <FeatureRow
-          to="/extensions"
+          to="/settings/extensions"
           icon={<SlidersHorizontal className="size-5" />}
           label="機能を足す、外す"
           onClick={onClose}

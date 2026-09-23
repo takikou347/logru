@@ -64,7 +64,7 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         name: "Logru",
         short_name: "Logru",
-        description: "カレンダーを土台に、使いたい機能だけを足して使うアプリ。",
+        description: "家族や恋人と予定を分け合えるカレンダー。旅の思い出や毎日の写真、家計簿も同じ日に残せます。",
         lang: "ja",
         start_url: "/",
         scope: "/",

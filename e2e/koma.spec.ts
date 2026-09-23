@@ -15,7 +15,7 @@ const inKomaHours = () => hourInTokyo() >= 7 && hourInTokyo() <= 22;
 test("思い出が無い日でも、今日をひとコマで始め、近道の帯から撮れる。F-121、F-126、F-127", async ({ page }) => {
   test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
   await signUp(page, { name: "こた" });
-  await page.goto("/extensions");
+  await page.goto("/settings/extensions");
   await page.getByRole("switch", { name: "思い出を使う" }).click();
 
   // 機能のシートの「ひとコマ」から確認画面へ。今日を始める
@@ -53,7 +53,7 @@ test("思い出が無い日でも、今日をひとコマで始め、近道の�
 test("ひとコマは思い出を消しても残り、つなぎ直せる。F-128、F-129", async ({ page, request }) => {
   test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
   await signUp(page, { name: "こた" });
-  await page.goto("/extensions");
+  await page.goto("/settings/extensions");
   await page.getByRole("switch", { name: "思い出を使う" }).click();
 
   // 今日の日帰りの思い出を、ひとコマを有効にして作る
@@ -86,4 +86,23 @@ test("ひとコマは思い出を消しても残り、つなぎ直せる。F-128
   await expect(link).toContainText("思い出を選ぶ");
   await expect(page.getByRole("button", { name: `${hourInTokyo()} 時 のひとコマ` })).toBeVisible();
   void request;
+});
+
+test("動きを減らす設定では、ひとコマを保存すると現像も吸い込みもせずすぐに移る。#101", async ({ page }) => {
+  test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await signUp(page, { name: "こた" });
+  await page.goto("/extensions");
+  await page.getByRole("switch", { name: "思い出を使う" }).click();
+  await page.goto("/memories/koma");
+  await page.getByRole("button", { name: "今日のひとコマを始める" }).click();
+  await page.getByRole("dialog", { name: "今日のひとコマを始める" }).getByRole("button", { name: "始める" }).click();
+  await expect(page.getByText("今日のひとコマを始めました")).toBeVisible();
+  await page.getByRole("toolbar", { name: "ひとコマの操作" }).getByRole("button").click();
+  await expect(page).toHaveURL(/\/memories\/koma\/now$/);
+
+  await page.locator('input[type="file"][capture]').setInputFiles(PHOTO);
+  await page.getByRole("button", { name: "保存する" }).click();
+  // 動きを減らさない場合は現像(1.2 秒)と吸い込み(0.32 秒)の分だけ遅れて移る。ここではすぐに移ることを確かめる
+  await expect(page).toHaveURL(/\/memories\/koma$/, { timeout: 1_000 });
 });

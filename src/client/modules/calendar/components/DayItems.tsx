@@ -1,8 +1,13 @@
+import { useState } from "react";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { Dot } from "@/components/parts/Panel";
-import { dayTone, formatTime, holidayName, onDay, WEEKDAYS } from "@/lib/dates";
+import { dayTone, formatTime, holidayName, onDay, sameDay, WEEKDAYS } from "@/lib/dates";
+import { useDeviceTilt } from "@/lib/use-device-tilt";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 import type { ViewItem } from "../model";
+import { takeJustAdded } from "../recent-items";
+import { itemKey } from "../use-undoable-delete";
 
 /** 土日と祝日の文字の色。日曜と祝日は朱、土曜は瑠璃 */
 export const toneText = { sun: "text-sun", sat: "text-sat" } as const;
@@ -50,15 +55,18 @@ function ItemTag({ tag }: { tag: string }) {
  * 予定の一覧。色だけで見分けさせず、グループ名も出す。0012
  * 月の表だけに出す項目は、一覧に混ぜず、下に小さく並べる。例は記録の数
  * @param empty 1 件も無いときに出す文
+ * @param leaving 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98
  */
 export function ItemList({
   items,
   onOpen,
   empty,
+  leaving,
 }: {
   items: ViewItem[];
   onOpen: (i: ViewItem) => void;
   empty: string;
+  leaving?: Set<string>;
 }) {
   const primary = items.filter((i) => !i.secondary);
   const extra = items.filter((i) => i.secondary);
@@ -67,7 +75,7 @@ export function ItemList({
   return (
     <div className="flex min-w-0 flex-col">
       {primary.length === 0 && <p className="py-2 text-[13px] leading-relaxed text-ink-2">{empty}</p>}
-      <PrimaryList items={primary} onOpen={onOpen} />
+      <PrimaryList items={primary} onOpen={onOpen} leaving={leaving} />
       {extra.length > 0 && (
         <div className="flex flex-wrap gap-1.5 border-t border-line pt-2 pb-1 not-has-[*]:hidden">
           {extra.map((i) => (
@@ -91,63 +99,111 @@ export function ItemList({
   );
 }
 
-function PrimaryList({ items, onOpen }: { items: ViewItem[]; onOpen: (i: ViewItem) => void }) {
+function PrimaryList({
+  items,
+  onOpen,
+  leaving,
+}: {
+  items: ViewItem[];
+  onOpen: (i: ViewItem) => void;
+  leaving?: Set<string>;
+}) {
   if (items.length === 0) return null;
   return (
     <ul className="flex min-w-0 flex-col">
       {items.map((i) => (
-        <li key={`${i.extension}:${i.id}`} className="border-line not-first:border-t">
-          <button
-            type="button"
-            data-response={i.myResponse}
-            className={cn(
-              "grid min-h-11 w-full grid-cols-[46px_1fr] items-center gap-1 py-1 text-left",
-              i.myResponse === "declined" && "opacity-55",
-            )}
-            onClick={() => onOpen(i)}
-          >
-            <time className="text-sm font-medium text-ink-2">{i.allDay ? "終日" : formatTime(i.startsAt)}</time>
-            <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
-              <Dot color={i.color} response={i.myResponse} />
-              {i.tag && <ItemTag tag={i.tag} />}
-              <ItemTitle item={i} />
-              <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
-            </span>
-          </button>
-        </li>
+        <ItemRow key={itemKey(i)} item={i} onOpen={onOpen} isLeaving={!!leaving?.has(itemKey(i))} />
       ))}
     </ul>
   );
 }
 
 /**
+ * 一覧の 1 行。足した直後は膨らんで入り、消す途中は縮んで消える。動かすのは transform と opacity だけ。0044、0048、#98
+ */
+function ItemRow({
+  item: i,
+  onOpen,
+  isLeaving,
+}: {
+  item: ViewItem;
+  onOpen: (i: ViewItem) => void;
+  isLeaving: boolean;
+}) {
+  // 描いた瞬間に 1 度だけ読む。足した直後の再描画と、月・日を移る再描画を見分けるため
+  const [entering] = useState(() => takeJustAdded(itemKey(i)));
+  return (
+    <li
+      className={cn("border-line not-first:border-t", entering && "item-enter")}
+      data-leaving={isLeaving || undefined}
+    >
+      <button
+        type="button"
+        data-response={i.myResponse}
+        className={cn(
+          "grid min-h-11 w-full grid-cols-[46px_1fr] items-center gap-1 py-1 text-left",
+          i.myResponse === "declined" && "opacity-55",
+        )}
+        onClick={() => onOpen(i)}
+      >
+        <time className="text-sm font-medium text-ink-2">{i.allDay ? "終日" : formatTime(i.startsAt)}</time>
+        <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+          <Dot color={i.color} response={i.myResponse} />
+          {i.tag && <ItemTag tag={i.tag} />}
+          <ItemTitle item={i} />
+          <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
+        </span>
+      </button>
+    </li>
+  );
+}
+
+/**
  * 選んだ日の予定。大きな日付と、その日の予定を並べる。
  * スマホは月の表の下、PC は右の列に出す。
+ *
+ * 今日だけ、端末の傾きで中身(数字と予定)を最大 6px ずらして奥行きを出す。ガラスの面自体は動かさない。
+ * iOS は、初めて触ったときに 1 度だけ許可を求める。動きを減らしているときは止める。0044、0048、#112
+ * @param leaving 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98
  * @param onAddNew この日に予定を足す。空のときのマスコットのボタンから呼ぶ。0053
  */
 export function DayPanel({
   day,
+  today,
   items,
   onOpen,
+  leaving,
   onAddNew,
 }: {
   day: Date;
+  today: Date;
   items: ViewItem[];
   onOpen: (i: ViewItem) => void;
+  leaving?: Set<string>;
   onAddNew: () => void;
 }) {
   const tone = dayTone(day);
   const hol = holidayName(day);
   const mine = items.filter((i) => onDay(i, day));
+  const isToday = sameDay(day, today);
+  const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const { offset, requestOnce } = useDeviceTilt(isToday && !reduced);
+  const tiltStyle = isToday ? { transform: `translate3d(${offset.x}px, ${offset.y}px, 0)` } : undefined;
   return (
     <section
       data-testid="day-panel"
       className="glass grid grid-cols-[auto_1fr] items-start gap-4 rounded-panel px-4.5 py-4 xl:grid-cols-1"
       aria-label={`${day.getMonth() + 1}月${day.getDate()}日の予定`}
+      onPointerDown={isToday ? requestOnce : undefined}
     >
       <div
         data-tone={tone ?? undefined}
-        className={cn("flex min-w-[72px] flex-col xl:flex-row xl:items-end xl:gap-3", tone && toneText[tone])}
+        style={tiltStyle}
+        className={cn(
+          "flex min-w-[72px] flex-col xl:flex-row xl:items-end xl:gap-3",
+          tone && toneText[tone],
+          isToday && "transition-transform duration-fast ease-out",
+        )}
       >
         <span data-testid="big-day" className="text-[72px] leading-[0.9] font-bold tracking-[-0.04em] xl:text-[88px]">
           {day.getDate()}
@@ -168,7 +224,9 @@ export function DayPanel({
           この日の予定はありません。
         </EmptyState>
       ) : (
-        <ItemList items={mine} onOpen={onOpen} empty="この日の予定はありません。" />
+        <div style={tiltStyle} className={cn(isToday && "transition-transform duration-fast ease-out")}>
+          <ItemList items={mine} onOpen={onOpen} leaving={leaving} empty="この日の予定はありません。" />
+        </div>
       )}
     </section>
   );

@@ -14,6 +14,7 @@ import { Flow } from "./Flow";
 import { KomaStrip } from "./KomaStrip";
 import { entriesOf, Lightbox } from "./Lightbox";
 import { MemoryShell, type ShellProps } from "./MemoryShell";
+import { PageFlip } from "./PageFlip";
 import { RecordSheet } from "./RecordSheet";
 
 /** 思い出の 1 日。予定、記録、済んだやりたいことを時刻の順に並べる。F-114 */
@@ -21,7 +22,7 @@ export function DayPage() {
   return <MemoryShell face="day">{(p) => <Day {...p} />}</MemoryShell>;
 }
 
-function Day({ detail, me, groups }: ShellProps) {
+function Day({ detail, me, groups, group }: ShellProps) {
   const { n = "0" } = useParams();
   const navigate = useNavigate();
   const { memory, items } = detail;
@@ -70,29 +71,42 @@ function Day({ detail, me, groups }: ShellProps) {
       {records.error && (
         <LoadFailure what="この日の記録" error={records.error} onRetry={() => void records.refetch()} />
       )}
-      {(memory.komaEnabled || (records.data ?? []).some((r) => r.kind === "koma")) && (
-        <KomaStrip
-          dayStart={from}
-          timeZone={memory.timeZone}
-          records={records.data ?? []}
-          nowPath={Date.now() >= from && Date.now() < to ? "/memories/koma/now" : undefined}
-          onOpen={(r) =>
-            r.createdBy === me.user.id ? setEditing(r) : setPhotoAt(entries.findIndex((e) => e.record.id === r.id))
-          }
-        />
-      )}
-      <Flow
-        events={events}
-        records={(records.data ?? []).filter((r) => r.kind !== "koma")}
-        wishes={doneToday}
-        groups={groups}
-        me={me}
-        timeZone={memory.timeZone}
-        big
-        empty="この日の記録はまだありません。「記録する」から写真や文章を追加できます。"
-        onOpenPhoto={(_r, p) => setPhotoAt(entries.findIndex((e) => e.photo.id === p.id))}
-        onEditRecord={setEditing}
-      />
+      <PageFlip
+        key={day}
+        onPrev={index > 0 ? () => navigate(`/memories/${memory.id}/days/${index - 1}`, { replace: true }) : undefined}
+        onNext={
+          index < days.length - 1
+            ? () => navigate(`/memories/${memory.id}/days/${index + 1}`, { replace: true })
+            : undefined
+        }
+        tint={{ cover: memory.cover, tone: group?.color ?? "nezumi" }}
+      >
+        <div className="flex flex-col gap-3">
+          {(memory.komaEnabled || (records.data ?? []).some((r) => r.kind === "koma")) && (
+            <KomaStrip
+              dayStart={from}
+              timeZone={memory.timeZone}
+              records={records.data ?? []}
+              nowPath={Date.now() >= from && Date.now() < to ? "/memories/koma/now" : undefined}
+              onOpen={(r) =>
+                r.createdBy === me.user.id ? setEditing(r) : setPhotoAt(entries.findIndex((e) => e.record.id === r.id))
+              }
+            />
+          )}
+          <Flow
+            events={events}
+            records={(records.data ?? []).filter((r) => r.kind !== "koma")}
+            wishes={doneToday}
+            groups={groups}
+            me={me}
+            timeZone={memory.timeZone}
+            big
+            empty="この日の記録はまだありません。「記録する」から写真や文章を追加できます。"
+            onOpenPhoto={(_r, p) => setPhotoAt(entries.findIndex((e) => e.photo.id === p.id))}
+            onEditRecord={setEditing}
+          />
+        </div>
+      </PageFlip>
       <Dock label="1 日の操作">
         <Button onClick={() => setRecording(true)} disabled={upcoming}>
           <Camera className="size-5" />

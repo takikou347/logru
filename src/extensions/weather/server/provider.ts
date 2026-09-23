@@ -11,6 +11,7 @@
 import type { CalendarContext } from "@extensions/server/types";
 import type { DB } from "@server/core/db/client";
 import { groupMembers, groups } from "@server/core/db/schema";
+import { enforceRateLimit } from "@server/core/rate-limit";
 import type { CalendarItem } from "@shared/api-types";
 import { and, eq, inArray } from "drizzle-orm";
 import { formatWeatherTitle, weatherIconOf } from "../shared/codes";
@@ -64,6 +65,9 @@ function toCalendarItem(
 /**
  * キャッシュに無い過去の日を、Open-Meteo の過去の天気から 1 日ずつ取り、キャッシュへ残す。F-406、F-407
  * 1 件取れなくても、ほかの日は続けて試す。読めない日は呼び出し側で諦める。F-409
+ *
+ * カレンダーを開くたびに呼ばれる道なので、上限に当たっても投げず、その日の天気を諦めるだけにする。
+ * ほかの拡張の項目までまとめて壊さないため。0065、#161
  */
 async function fetchMissingArchiveDays(
   db: DB,
@@ -72,16 +76,18 @@ async function fetchMissingArchiveDays(
   dates: string[],
   env: Env,
   requestUrl: string,
+  userId: string,
 ): Promise<DailyWeather[]> {
   const results: DailyWeather[] = [];
   for (const date of dates) {
     try {
+      await enforceRateLimit(env.WEATHER_RATE_LIMIT, userId);
       const row = await fetchArchiveDay(location, date, env, requestUrl);
       if (!row) continue;
       await upsertDaily(db, placeKey, [row], "archive");
       results.push(row);
     } catch {
-      // 取れなかった日は、天気を出さないだけにする。F-409
+      // 取れなかった日は、天気を出さないだけにする。上限に当たったときも同じ。F-409、0065
     }
   }
   return results;
@@ -130,7 +136,15 @@ export async function listWeatherItems(
 
   const pastMissing = [...wanted].filter((d) => d < today && !byDate.has(d));
   if (pastMissing.length > 0 && ctx.env && ctx.requestUrl) {
-    const fetched = await fetchMissingArchiveDays(db, location, placeKey, pastMissing, ctx.env, ctx.requestUrl);
+    const fetched = await fetchMissingArchiveDays(
+      db,
+      location,
+      placeKey,
+      pastMissing,
+      ctx.env,
+      ctx.requestUrl,
+      ctx.userId,
+    );
     for (const row of fetched) byDate.set(row.date, { code: row.code, tempMax: row.tempMax, tempMin: row.tempMin });
   }
 

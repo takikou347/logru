@@ -2,7 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { createRouter, HttpError, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { listInput, listItemInput, listItemPatchInput, listPatchInput } from "../shared/schemas";
 import { requireListsGroup, usableGroupIds } from "./access";
 import { type ListItemRow, type ListRow, listItems, lists } from "./schema";
@@ -162,6 +162,9 @@ export const listsRoutes = createRouter()
     const userId = c.get("user").id;
     const list = await loadUsableList(db, userId, c.req.param("id"));
     const input = c.req.valid("json");
+    // 1 つのリストに持てる項目の上限。上限が無いと、掃除しないまま増え続ける。0065、#161
+    const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(listItems).where(eq(listItems.listId, list.id));
+    if (n >= ITEMS_LIMIT) throw new HttpError(409, `項目は ${ITEMS_LIMIT} 個までです。チェック済みを消してください。`);
     const id = crypto.randomUUID();
     await db.insert(listItems).values({ id, listId: list.id, text: input.text, createdBy: userId });
     const row = await db.select().from(listItems).where(eq(listItems.id, id)).get();

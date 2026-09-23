@@ -60,6 +60,13 @@ test("ほかの人の思い出と記録には届かない。F-124", async ({ req
   expect((await upload(request, b.headers, a.groupId)).status()).toBe(404);
 });
 
+test("本文が大きすぎる写真は、全部読む前に 413 で断る。0065、#161", async ({ request }) => {
+  const a = await memoriesUser(request);
+  const big = Buffer.alloc(4 * 1024 * 1024, 1);
+  const res = await upload(request, a.headers, a.groupId, big);
+  expect(res.status()).toBe(413);
+});
+
 test("写真の URL は署名が合うときだけ返し、JPEG でないものは受け付けない。0021", async ({ request }) => {
   const a = await memoriesUser(request);
   const res = await upload(request, a.headers, a.groupId);
@@ -105,12 +112,18 @@ test("端末の送り先は本人だけが置けて外せる。https だけを�
   };
   const http = await request.post("/api/me/push", {
     headers: a.headers,
-    data: { endpoint: "http://push.example/x", keys },
+    data: { endpoint: "http://fcm.googleapis.com/fcm/send/x", keys },
   });
   expect(http.status()).toBe(400);
+  // 知られたブラウザーの送り先のホストだけを受け付ける
+  const unknownHost = await request.post("/api/me/push", {
+    headers: a.headers,
+    data: { endpoint: "https://push.example/x", keys },
+  });
+  expect(unknownHost.status()).toBe(400);
   const ok = await request.post("/api/me/push", {
     headers: a.headers,
-    data: { endpoint: `https://push.example/${Date.now()}`, keys },
+    data: { endpoint: `https://fcm.googleapis.com/fcm/send/${Date.now()}`, keys },
   });
   expect(ok.status()).toBe(201);
   const { id } = await ok.json();
@@ -119,6 +132,22 @@ test("端末の送り先は本人だけが置けて外せる。https だけを�
   expect((await (await request.get("/api/me/push", { headers: a.headers })).json()).devices).toHaveLength(1);
   await request.delete(`/api/me/push/${id}`, { headers: a.headers });
   expect((await (await request.get("/api/me/push", { headers: a.headers })).json()).devices).toHaveLength(0);
+});
+
+test("同じ送り先をほかの人が登録すると、行は消えて作り直り、持ち主が変わる。0065、#161", async ({ request }) => {
+  const a = await memoriesUser(request);
+  const b = await memoriesUser(request);
+  const keys = {
+    p256dh: "BPUm_oLClft9DRthvDIJ303Z0PABoblpADTHcpnZtA0zpfzPQQvBFAfi6afKxM4dsTjIbTqkEH9MCj3xFw6hBOs",
+    auth: "c2VjcmV0c2VjcmV0MTIzNA",
+  };
+  const endpoint = `https://fcm.googleapis.com/fcm/send/${Date.now()}`;
+  await request.post("/api/me/push", { headers: a.headers, data: { endpoint, keys } });
+  expect((await (await request.get("/api/me/push", { headers: a.headers })).json()).devices).toHaveLength(1);
+  await request.post("/api/me/push", { headers: b.headers, data: { endpoint, keys } });
+  // 元の持ち主からは消え、新しく登録した人だけが持つ
+  expect((await (await request.get("/api/me/push", { headers: a.headers })).json()).devices).toHaveLength(0);
+  expect((await (await request.get("/api/me/push", { headers: b.headers })).json()).devices).toHaveLength(1);
 });
 
 test("未来の時刻の記録は断る", async ({ request }) => {

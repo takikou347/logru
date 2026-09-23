@@ -1,8 +1,11 @@
 import { CLIENT_ERROR_BODY_MAX_BYTES, clientErrorRoutes } from "@server/modules/client-errors/routes";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const post = (body: BodyInit, headers: Record<string, string> = { "Content-Type": "application/json" }) =>
-  clientErrorRoutes.request("/", { method: "POST", headers, body });
+const post = (
+  body: BodyInit,
+  headers: Record<string, string> = { "Content-Type": "application/json" },
+  env?: Record<string, unknown>,
+) => clientErrorRoutes.request("/", { method: "POST", headers, body }, env);
 
 describe("POST /api/client-errors。ログイン前にも送るので、ログインは求めない。0040", () => {
   afterEach(() => vi.restoreAllMocks());
@@ -64,5 +67,36 @@ describe("POST /api/client-errors。ログイン前にも送るので、ログ�
       body: JSON.stringify({ path: "/login", message: "x", buildVersion: "abc1234" }),
     });
     expect(res.status).toBe(204);
+  });
+
+  it("束縛が無ければ、上限に当たらず通す。手元と E2E はこれ。0065、#161", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await post(JSON.stringify({ path: "/", message: "x", buildVersion: "abc1234" }), undefined, {});
+    expect(res.status).toBe(204);
+  });
+
+  it("ログインを求めないので、IP を key にした上限を掛ける。0065、#161", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const limit = vi.fn().mockResolvedValue({ success: true });
+    const headers = { "Content-Type": "application/json", "CF-Connecting-IP": "203.0.113.9" };
+    const res = await post(JSON.stringify({ path: "/", message: "x", buildVersion: "abc1234" }), headers, {
+      CLIENT_ERROR_RATE_LIMIT: { limit },
+    });
+    expect(res.status).toBe(204);
+    expect(limit).toHaveBeenCalledWith({ key: "203.0.113.9" });
+  });
+
+  it("上限に当たったら断り、何も出力しない。ステータスは enforceRateLimit 自体の rate-limit.test.ts で確かめる", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const limit = vi.fn().mockResolvedValue({ success: false });
+    const res = await post(
+      JSON.stringify({ path: "/", message: "x", buildVersion: "abc1234" }),
+      { "Content-Type": "application/json", "CF-Connecting-IP": "203.0.113.9" },
+      { CLIENT_ERROR_RATE_LIMIT: { limit } },
+    );
+    // この router 単体には onError が無いので、本番でだけ載る index.ts の onError が付ける 429 にはならない
+    expect(res.status).not.toBe(204);
+    // 上限で断られ、探しやすい形の [client-error] のログには進んでいない
+    expect(spy.mock.calls.some((call) => String(call[0]).includes("[client-error]"))).toBe(false);
   });
 });

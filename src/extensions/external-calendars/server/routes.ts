@@ -67,6 +67,8 @@ export const externalCalendarRoutes = createRouter()
     const db = c.get("db");
     const userId = c.get("user").id;
     const input = c.req.valid("json");
+    // 登録も、登録した直後の読み込みも外の URL を呼ぶので、読み直しと同じ枠で数える。0065、#161
+    await enforceRateLimit(c.env.CALENDAR_SYNC_RATE_LIMIT, userId);
     const allowLocal = isLocalDev(c.env, c.req.url);
     let url: URL;
     try {

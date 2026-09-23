@@ -24,6 +24,7 @@ const me: Me = {
   colorPrefs: [{ targetType: "user", targetId: "mika", color: "asagi" }],
   hiddenMembers: [],
   onboardedAt: null,
+  showLab: false,
 };
 
 const group = (id: string, members: [string, string][], isPersonal = false): GroupSummary => ({

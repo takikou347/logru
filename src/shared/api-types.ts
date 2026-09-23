@@ -125,6 +125,11 @@ export type CalendarItem = {
    * 繰り返さない項目には付かない。0043
    */
   occurrenceAt?: number;
+  /**
+   * その日の小さな写真。32 px の JPEG を data URL にしたもの。1 年をらせんで見る画面で使う。0051
+   * 思い出の拡張が、日ごとにまとめる「記録」の項目に乗せる。無ければ写真を置かない
+   */
+  thumb?: string;
 };
 
 /** 招待への返事。pending は返事待ち、accepted は参加する、declined は参加しない */

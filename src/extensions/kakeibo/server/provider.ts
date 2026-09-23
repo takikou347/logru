@@ -9,6 +9,7 @@ import { kakeiboExpenses } from "./schema";
 /**
  * グループと日ごとの合計を、カレンダーの項目の形にする。0008、0047
  * 終日の項目で、予定の一覧には混ぜない(`secondary`)。押すと、その日を含む月の家計簿の画面へ移る。
+ * kind を expense にすると、カレンダーは塗らない札に金額を右寄せして出す。0056
  * @param groupId その日の合計のグループ
  * @param date `2026-09-22` の形の日付
  * @param amount その日の合計金額
@@ -25,6 +26,8 @@ function toDayItem(groupId: string, date: string, amount: number): CalendarItem 
     allDay: true,
     title: formatYen(amount),
     tag: "家計簿",
+    kind: "expense",
+    amount,
     secondary: true,
   };
 }

@@ -4,8 +4,8 @@ import { and, asc, gt, gte, inArray, like, lt, or } from "drizzle-orm";
 import { DAY_MS, DEFAULT_TIME_ZONE, dayKeyIn, startOfDayIn } from "../shared/days";
 import { type MemoryRow, memories, memoryPhotos, memoryRecords } from "./schema";
 
-/** カレンダーの項目の ID の頭。思い出と、日ごとにまとめた記録を見分ける */
-const ITEM_PREFIX = { memory: "m:", records: "r:" } as const;
+/** カレンダーの項目の ID の頭。思い出、日ごとの記録、日ごとのひとコマを見分ける。ひとコマも MemoryItemSheet の recordsDay の解決に使う */
+const ITEM_PREFIX = { memory: "m:", records: "r:", koma: "k:" } as const;
 
 /** 思い出の 1 行を、カレンダーの項目の形にする。期間にかかるものは終日の帯として出す */
 function toCalendarItem(m: MemoryRow): CalendarItem {
@@ -19,6 +19,7 @@ function toCalendarItem(m: MemoryRow): CalendarItem {
     allDay: true,
     title: m.title,
     tag: "思い出",
+    kind: "record",
     ...(m.place ? { place: m.place } : {}),
   };
 }
@@ -27,10 +28,11 @@ function toCalendarItem(m: MemoryRow): CalendarItem {
  * カレンダーに渡す項目。0008
  *
  * - 思い出: 期間にかかるものを 1 件 1 項目で返す。終日の帯になる
- * - 記録: グループと日ごとに 1 項目にまとめる。題名は「記録 3」。日は日本時間で数える
+ * - 記録、ひとコマ: グループと日と kind(note、koma)ごとに 1 項目にまとめる。題名は「記録 3」「ひとコマ 3」。
+ *   日は日本時間で数える。種類を見分けるアイコンを付ける。0056
  *
- * 記録の項目には、その日でいちばん遅い時刻の koma 種の記録が持つ写真の tiny を thumb として乗せる。
- * 1 年をらせんで見る画面が使う。0051
+ * ひとコマの項目には、その日でいちばん遅い時刻の記録が持つ写真の tiny を thumb として乗せる。
+ * 1 年をらせんで見る画面が使う。0051、0056
  *
  * @param db D1 を包んだ Drizzle
  * @param groupIds 呼んでよいグループ。思い出の拡張が有効なものだけ
@@ -64,13 +66,13 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
       ),
     );
 
-  const counts = new Map<string, { groupId: string; day: string; n: number }>();
-  // 日ごとに、いちばん遅い koma 種の記録を覚えておく。thumb に使う写真を 1 枚だけ選ぶため
+  const counts = new Map<string, { groupId: string; day: string; kind: "note" | "koma"; n: number }>();
+  // 日ごとの、いちばん遅い時刻のひとコマの記録を覚えておく。thumb に使う写真を 1 枚だけ選ぶため
   const latestKoma = new Map<string, { recordId: string; occurredAt: number }>();
   for (const r of records) {
     const day = dayKeyIn(r.occurredAt.getTime(), DEFAULT_TIME_ZONE);
-    const key = `${r.groupId}:${day}`;
-    const c = counts.get(key) ?? { groupId: r.groupId, day, n: 0 };
+    const key = `${r.groupId}:${day}:${r.kind}`;
+    const c = counts.get(key) ?? { groupId: r.groupId, day, kind: r.kind, n: 0 };
     c.n += 1;
     counts.set(key, c);
     if (r.kind === "koma") {
@@ -96,20 +98,23 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
   return [
     ...rows.map(toCalendarItem),
     ...[...counts.values()].map<CalendarItem>((c) => {
-      const key = `${c.groupId}:${c.day}`;
       const start = startOfDayIn(c.day, DEFAULT_TIME_ZONE);
-      const komaRecordId = latestKoma.get(key)?.recordId;
+      const isKoma = c.kind === "koma";
+      // thumb は、ひとコマの項目にだけ乗せる。記録(note)の項目は koma の写真を持たない
+      const komaRecordId = isKoma ? latestKoma.get(`${c.groupId}:${c.day}:${c.kind}`)?.recordId : undefined;
       const thumb = komaRecordId ? thumbByRecordId.get(komaRecordId) : undefined;
       return {
         extension: "memories",
-        id: `${ITEM_PREFIX.records}${c.groupId}:${c.day}`,
+        id: `${isKoma ? ITEM_PREFIX.koma : ITEM_PREFIX.records}${c.groupId}:${c.day}`,
         groupId: c.groupId,
         createdBy: null,
         startsAt: start,
         endsAt: start + DAY_MS,
         allDay: true,
-        title: `記録 ${c.n}`,
-        tag: "記録",
+        title: isKoma ? `ひとコマ ${c.n}` : `記録 ${c.n}`,
+        tag: isKoma ? "ひとコマ" : "記録",
+        kind: "record",
+        icon: isKoma ? "timer" : "camera",
         secondary: true,
         ...(thumb ? { thumb } : {}),
       };

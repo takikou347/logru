@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { Dot } from "@/components/parts/Panel";
 import { dayTone, formatTime, holidayName, onDay, sameDay, WEEKDAYS } from "@/lib/dates";
 import { useDeviceTilt } from "@/lib/use-device-tilt";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
-import type { ViewItem } from "../model";
+import { kindIconOf } from "../kind-icon";
+import { type ItemKind, KIND_LABEL, KIND_ORDER, kindOf, type ViewItem } from "../model";
 import { takeJustAdded } from "../recent-items";
 import { itemKey } from "../use-undoable-delete";
 
@@ -42,18 +43,24 @@ function ItemTitle({ item }: { item: Pick<ViewItem, "title" | "myResponse" | "co
   );
 }
 
-/** 予定ではない項目の印。例は「思い出」 */
-function ItemTag({ tag }: { tag: string }) {
+/** 金額を `¥1,200` の形に整える。家計簿の見出しの合計に使う。カレンダーは拡張の書式を知らないので、ここに持つ。0056 */
+function formatTotal(amount: number): string {
+  return `¥${amount.toLocaleString("ja-JP")}`;
+}
+
+/** 種類の見出し。家計簿は、その日の合計を右に添える。0056 */
+function KindHeading({ id, kind, total }: { id: string; kind: ItemKind; total?: number }) {
   return (
-    <span className="flex-none rounded-[5px] bg-[color-mix(in_srgb,var(--ink)_10%,transparent)] px-1 text-[10px] leading-4 font-bold text-ink-2">
-      {tag}
-    </span>
+    <div id={id} className="mb-1 flex items-baseline justify-between px-0.5 text-xs font-bold text-ink-2">
+      <span>{KIND_LABEL[kind]}</span>
+      {total !== undefined && <span className="text-ink tabular-nums">{formatTotal(total)}</span>}
+    </div>
   );
 }
 
 /**
  * 予定の一覧。色だけで見分けさせず、グループ名も出す。0012
- * 月の表だけに出す項目は、一覧に混ぜず、下に小さく並べる。例は記録の数
+ * 「予定」「思い出」「家計簿」の見出しで分ける。家計簿の見出しには、その日の合計を出す。0056
  * @param empty 1 件も無いときに出す文
  * @param leaving 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98
  */
@@ -68,58 +75,37 @@ export function ItemList({
   empty: string;
   leaving?: Set<string>;
 }) {
-  const primary = items.filter((i) => !i.secondary);
-  const extra = items.filter((i) => i.secondary);
-  if (primary.length === 0 && extra.length === 0)
-    return <p className="py-2.5 text-[13px] leading-relaxed text-ink-2">{empty}</p>;
+  const headingId = useId();
+  if (items.length === 0) return <p className="py-2.5 text-[13px] leading-relaxed text-ink-2">{empty}</p>;
   return (
-    <div className="flex min-w-0 flex-col">
-      {primary.length === 0 && <p className="py-2 text-[13px] leading-relaxed text-ink-2">{empty}</p>}
-      <PrimaryList items={primary} onOpen={onOpen} leaving={leaving} />
-      {extra.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 border-t border-line pt-2 pb-1 not-has-[*]:hidden">
-          {extra.map((i) => (
-            <button
-              key={`${i.extension}:${i.id}`}
-              type="button"
-              className={cn(
-                "inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line px-3 text-xs font-medium text-ink-2",
-                `c-${i.color}`,
+    <div className="flex min-w-0 flex-col gap-3">
+      {KIND_ORDER.map((kind) => {
+        const kindItems = items.filter((i) => kindOf(i) === kind);
+        if (kindItems.length === 0) return null;
+        const total = kind === "expense" ? kindItems.reduce((sum, i) => sum + (i.amount ?? 0), 0) : undefined;
+        const id = `${headingId}-${kind}`;
+        return (
+          <div key={kind} role="group" aria-labelledby={id}>
+            <KindHeading id={id} kind={kind} total={total} />
+            <ul className="flex min-w-0 flex-col">
+              {kindItems.map((i) =>
+                kind === "expense" ? (
+                  <MoneyRow key={itemKey(i)} item={i} onOpen={onOpen} isLeaving={!!leaving?.has(itemKey(i))} />
+                ) : (
+                  <ItemRow key={itemKey(i)} item={i} onOpen={onOpen} isLeaving={!!leaving?.has(itemKey(i))} />
+                ),
               )}
-              onClick={() => onOpen(i)}
-            >
-              <Dot color={i.color} />
-              {i.title}
-              <span className="text-[11px]">{i.groupName}</span>
-            </button>
-          ))}
-        </div>
-      )}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function PrimaryList({
-  items,
-  onOpen,
-  leaving,
-}: {
-  items: ViewItem[];
-  onOpen: (i: ViewItem) => void;
-  leaving?: Set<string>;
-}) {
-  if (items.length === 0) return null;
-  return (
-    <ul className="flex min-w-0 flex-col">
-      {items.map((i) => (
-        <ItemRow key={itemKey(i)} item={i} onOpen={onOpen} isLeaving={!!leaving?.has(itemKey(i))} />
-      ))}
-    </ul>
-  );
-}
-
 /**
- * 一覧の 1 行。足した直後は膨らんで入り、消す途中は縮んで消える。動かすのは transform と opacity だけ。0044、0048、#98
+ * 一覧の 1 行。予定ではない項目は、色の点の隣に拡張のアイコンを付ける。色は誰の記録か、アイコンは何の記録かを表す。0056
+ * 足した直後は膨らんで入り、消す途中は縮んで消える。動かすのは transform と opacity だけ。0044、0048、#98
  */
 function ItemRow({
   item: i,
@@ -130,8 +116,10 @@ function ItemRow({
   onOpen: (i: ViewItem) => void;
   isLeaving: boolean;
 }) {
+  const kind = kindOf(i);
   // 描いた瞬間に 1 度だけ読む。足した直後の再描画と、月・日を移る再描画を見分けるため
   const [entering] = useState(() => takeJustAdded(itemKey(i)));
+  const Icon = kind !== "event" ? kindIconOf(i) : null;
   return (
     <li
       className={cn("border-line not-first:border-t", entering && "item-enter")}
@@ -149,9 +137,47 @@ function ItemRow({
         <time className="text-sm font-medium text-ink-2">{i.allDay ? "終日" : formatTime(i.startsAt)}</time>
         <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <Dot color={i.color} response={i.myResponse} />
-          {i.tag && <ItemTag tag={i.tag} />}
+          {Icon && <Icon className="size-3.5 flex-none text-ink-2" aria-hidden="true" />}
+          {kind !== "event" && <span className="sr-only">{KIND_LABEL[kind]}、</span>}
           <ItemTitle item={i} />
           <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
+        </span>
+      </button>
+    </li>
+  );
+}
+
+/**
+ * 家計簿など、金額の 1 行。円のアイコンと金額を右寄せにする。数字の幅は tabular-nums でそろえる。塗らない札。0056
+ * 足した直後は膨らんで入り、消す途中は縮んで消える。動かすのは transform と opacity だけ。0044、0048、#98
+ */
+function MoneyRow({
+  item: i,
+  onOpen,
+  isLeaving,
+}: {
+  item: ViewItem;
+  onOpen: (i: ViewItem) => void;
+  isLeaving: boolean;
+}) {
+  const [entering] = useState(() => takeJustAdded(itemKey(i)));
+  const Icon = kindIconOf(i);
+  return (
+    <li
+      className={cn("border-line not-first:border-t", entering && "item-enter")}
+      data-leaving={isLeaving || undefined}
+    >
+      <button
+        type="button"
+        className="grid min-h-11 w-full grid-cols-[46px_1fr] items-center gap-1 py-1 text-left"
+        onClick={() => onOpen(i)}
+      >
+        <Icon className="size-4 text-ink-2" aria-hidden="true" />
+        <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+          <Dot color={i.color} />
+          <span className="sr-only">{KIND_LABEL.expense}、</span>
+          <span className="min-w-0 truncate text-ink-2">{i.groupName}</span>
+          <span className="ml-auto font-semibold text-ink tabular-nums">{i.title}</span>
         </span>
       </button>
     </li>

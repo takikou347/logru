@@ -1,5 +1,5 @@
 import type { ClientExtension } from "@extensions/client/types";
-import { Wallet } from "lucide-react";
+import { BadgeJapaneseYen, Wallet } from "lucide-react";
 import { kakeiboManifest } from "../manifest";
 import { MonthTotalWidget, RecordHomeWidget } from "./HomeWidget";
 import { KakeiboItemSheet } from "./KakeiboItemSheet";
@@ -7,10 +7,14 @@ import { KakeiboItemSheet } from "./KakeiboItemSheet";
 /**
  * 家計簿の拡張の、画面の側。docs/logru/extensions/kakeibo/design.md
  * カレンダーの項目は日ごとの合計で、押すとその月の画面へ移すだけなので deleteItem は持たない。0047
+ *
+ * icon は、機能の一覧のカードと、カレンダーで金額を見分ける円のアイコンに使う。0056
+ * 入口の nav.icon(Wallet)とは別に持ち、カレンダーでは常に円のアイコンで出す
  */
 export const kakeiboClient: ClientExtension = {
   manifest: kakeiboManifest,
   Editor: KakeiboItemSheet,
+  icon: BadgeJapaneseYen,
   nav: { label: "家計簿", icon: Wallet, path: "/kakeibo", description: "支出の記録と合計" },
   actions: [{ label: "記録する", icon: Wallet, path: "/kakeibo?record=1", hint: "金額とカテゴリ" }],
   widgets: [

@@ -1,4 +1,5 @@
 import { ListChecks } from "lucide-react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
@@ -6,6 +7,7 @@ import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { Dock } from "@/components/parts/Dock";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
+import { FeatureSheet } from "@/components/parts/FeatureSheet";
 import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import { Panel } from "@/components/parts/Panel";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
@@ -29,6 +31,7 @@ export function ListsPage() {
   const setGroup = (id: string | null) =>
     setParams((p) => (id ? p.set("group", id) : p.delete("group"), p), { replace: true });
   const lists = useLists(filterGroup, ready);
+  const [features, setFeatures] = useState(false);
 
   const creating = params.get("create") === "1";
   const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
@@ -50,7 +53,8 @@ export function ListsPage() {
   return (
     <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
       <Page>
-        <PageBar title="リスト" />
+        {/* 見出しを押すと機能のシートが開き、ほかの拡張の画面へ近道できる。issue #26 */}
+        <PageBar title="リスト" onTitleClick={() => setFeatures(true)} />
         <GroupFilterBand options={filterOptions} />
 
         {lists.error && !lists.data && (
@@ -97,6 +101,7 @@ export function ListsPage() {
         </Dock>
       </Page>
       {creating && <CreateListSheet groups={groups} me={data} defaultGroupId={filterGroup} onClose={closeCreate} />}
+      {features && <FeatureSheet onClose={() => setFeatures(false)} />}
     </AppLayout>
   );
 }

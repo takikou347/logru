@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, Coins } from "lucide-react";
+import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
@@ -6,6 +7,7 @@ import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { Dock } from "@/components/parts/Dock";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
+import { FeatureSheet } from "@/components/parts/FeatureSheet";
 import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import { Panel, PanelRow } from "@/components/parts/Panel";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
@@ -36,6 +38,7 @@ export function KakeiboPage() {
   const [params, setParams] = useSearchParams();
   const deleteExpense = useDeleteExpense();
   const { pending, remove: removeRecord } = useUndoableDelete("記録を消しました");
+  const [features, setFeatures] = useState(false);
 
   const groupParam = params.get("group");
   const group = groups.some((g) => g.id === groupParam) ? groupParam : null;
@@ -76,7 +79,8 @@ export function KakeiboPage() {
   return (
     <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
       <Page>
-        <PageBar title="家計簿" />
+        {/* 見出しを押すと機能のシートが開き、ほかの拡張の画面へ近道できる。issue #26 */}
+        <PageBar title="家計簿" onTitleClick={() => setFeatures(true)} />
         <GroupFilterBand options={filterOptions} />
 
         <div className="glass flex items-center justify-between rounded-full px-2 py-1.5">
@@ -174,6 +178,7 @@ export function KakeiboPage() {
       {editing && (
         <ExpenseSheet groups={groups} me={data} expense={editing} onClose={closeEdit} onDelete={handleDeleteExpense} />
       )}
+      {features && <FeatureSheet onClose={() => setFeatures(false)} />}
     </AppLayout>
   );
 }

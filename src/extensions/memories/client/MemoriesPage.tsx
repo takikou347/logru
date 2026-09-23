@@ -8,6 +8,7 @@ import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { Dock } from "@/components/parts/Dock";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
+import { FeatureSheet } from "@/components/parts/FeatureSheet";
 import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
@@ -65,6 +66,7 @@ export function MemoriesPage() {
   const group = groups.some((g) => g.id === remembered) ? remembered : null;
   const list = useMemoryList(group);
   const [creating, setCreating] = useState(false);
+  const [features, setFeatures] = useState(false);
   const recording = params.get("record") === "1";
   const closeRecord = () => setParams((p) => (p.delete("record"), p), { replace: true });
 
@@ -94,7 +96,8 @@ export function MemoriesPage() {
   return (
     <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
       <Page>
-        <PageBar title="思い出" />
+        {/* 見出しを押すと機能のシートが開き、ほかの拡張の画面へ近道できる。issue #26 */}
+        <PageBar title="思い出" onTitleClick={() => setFeatures(true)} />
         <GroupFilterBand options={filterOptions} />
         {list.error && !list.data && (
           <LoadFailure what="思い出" error={list.error} onRetry={() => void list.refetch()} />
@@ -119,6 +122,7 @@ export function MemoriesPage() {
       </Page>
       {creating && <MemorySheet groups={groups} me={data} defaultGroupId={group} onClose={() => setCreating(false)} />}
       {recording && <RecordSheet groups={groups} me={data} defaultGroupId={group} onClose={closeRecord} />}
+      {features && <FeatureSheet onClose={() => setFeatures(false)} />}
     </AppLayout>
   );
 }

@@ -33,7 +33,8 @@ test("リストを作り、項目を足す、チェックする、消す。日�
   // リストを作る
   await page.goto("/lists");
   await expect(page.getByText("リストを作ると、ここに並びます。")).toBeVisible();
-  await page.getByRole("button", { name: "リストを作る" }).click();
+  // 空の一覧は、下の帯の主なボタンと空の表示のボタンが同じ「リストを作る」を名乗るので、帯の方を選ぶ
+  await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   const create = page.getByRole("dialog", { name: "リストを作る" });
   await create.getByLabel("名前").fill("買い物");
   await create.getByLabel("日付").fill("2026-09-25");
@@ -79,7 +80,7 @@ test("項目を消すと 5 秒だけ元に戻せる。issue #12", async ({ page 
   await signUp(page, { name: "こた" });
   await enableLists(page);
   await page.goto("/lists");
-  await page.getByRole("button", { name: "リストを作る" }).click();
+  await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   const create = page.getByRole("dialog", { name: "リストを作る" });
   await create.getByLabel("名前").fill("買い物");
   await create.getByRole("button", { name: "作る" }).click();
@@ -102,7 +103,7 @@ test("リストを直す、消す。グループの誰でもできる。「リ�
   await signUp(page, { name: "こた" });
   await enableLists(page);
   await page.goto("/lists");
-  await page.getByRole("button", { name: "リストを作る" }).click();
+  await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("旅行の持ち物");
   await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
   await expect(page).toHaveURL(/\/lists\/.+/);

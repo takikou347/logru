@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronLeft, SlidersHorizontal, Users } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, SlidersHorizontal, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
 import { useMe } from "@/api/common";
@@ -176,8 +176,20 @@ export function AccountMenu({ wide = false }: { wide?: boolean }) {
  * 設定やグループの画面の上の帯。左に戻るボタンを置く。
  * @param back 戻る先。渡すと PC でも戻るボタンを出す。一覧の下の画面で使う。渡さなければスマホだけに出し、カレンダーへ戻る
  * @param backMobileOnly back を渡しつつ、PC では隠す。PC に別の道順(設定の目次など)が既にある画面で使う
+ * @param onTitleClick 渡すと見出しがボタンになる。拡張の画面どうしの行き来を近くするため、
+ *   機能のシートを開くのに使う。スマホで下の帯が無い画面(設定など)でも同じ道が開ける。issue #26
  */
-export function PageBar({ title, back, backMobileOnly }: { title: string; back?: string; backMobileOnly?: boolean }) {
+export function PageBar({
+  title,
+  back,
+  backMobileOnly,
+  onTitleClick,
+}: {
+  title: string;
+  back?: string;
+  backMobileOnly?: boolean;
+  onTitleClick?: () => void;
+}) {
   const hideOnDesktop = !back || backMobileOnly;
   return (
     <header className="glass flex min-h-[58px] items-center gap-1 rounded-full py-1.5 pr-4.5 pl-1.5">
@@ -186,7 +198,17 @@ export function PageBar({ title, back, backMobileOnly }: { title: string; back?:
           <ChevronLeft className="size-5" />
         </Link>
       </Button>
-      <h1 className={cn("pl-2 text-[17px] font-bold", hideOnDesktop && "lg:pl-3")}>{title}</h1>
+      {onTitleClick ? (
+        <h1 className={cn("pl-2 text-[17px] font-bold", hideOnDesktop && "lg:pl-3")}>
+          <button type="button" className="flex items-center gap-1" onClick={onTitleClick}>
+            {title}
+            <ChevronDown className="size-4 text-ink-2" aria-hidden="true" />
+            <span className="sr-only">。押すと機能の一覧が開きます</span>
+          </button>
+        </h1>
+      ) : (
+        <h1 className={cn("pl-2 text-[17px] font-bold", hideOnDesktop && "lg:pl-3")}>{title}</h1>
+      )}
     </header>
   );
 }

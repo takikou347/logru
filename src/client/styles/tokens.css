@@ -1,6 +1,12 @@
-/* 色と書体の決まり。0010 と docs/logru/images/ui.html に合わせる */
+/*
+ * 色と書体の決まり。0010 と docs/logru/images/ui.html に合わせる。
+ * 値の置き場は 0044。色はここ、角丸はここ(--r-panel、--r-field)と globals.css(--radius)、
+ * 影はここ(--glass-shadow)、ぼかしはここ(--blur、--glass-filter)、動きの時間はここ(--dur-*)、
+ * 緩急は globals.css(--ease-out、--ease-in-out)にある。
+ */
 :root {
   color-scheme: light;
+  /* 色 */
   --ground: #e6ece8;
   --ink: #17202c;
   --ink-2: #4a5563;
@@ -14,6 +20,7 @@
   --glass-flat: #eef2f0;
   --glass-edge: rgba(255, 255, 255, 0.72);
   --glass-shine: rgba(255, 255, 255, 0.55);
+  /* 影。ガラスの縁と厚みを出す */
   --glass-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(23, 32, 44, 0.06),
     0 18px 40px -18px rgba(23, 32, 44, 0.35);
@@ -39,15 +46,23 @@
   --on-destructive: #fff;
   --accent: var(--aizumi);
 
+  /* 書体 */
   --font: "Murecho Variable", "Murecho", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  /* 角丸。ガラスの面だけの scale。コンポーネントの scale は globals.css の --radius */
   --r-panel: 28px;
   --r-field: 14px;
+  /* ぼかし */
   --blur: blur(26px) saturate(180%);
   /*
    * 奥を読む加工。ぼかしを切った面では、色を濃くするとインクだまりが強く出て、上の文字が読めなくなる。
    * ぼかす面だけが --blur を読む。#3
    */
   --glass-filter: none;
+
+  /* 動きの時間。速い、普通、遅いの 3 段だけ。緩急は globals.css の --ease-out、--ease-in-out。0044 */
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --dur-slow: 320ms;
 }
 
 :root[data-theme="dark"] {
@@ -107,17 +122,14 @@
     --glass: var(--glass-flat);
   }
 }
-@media (prefers-reduced-transparency: reduce) {
-  :root {
-    --glass: var(--glass-flat);
-    --blur: none;
-    --glass-filter: none;
-  }
-}
 
 /*
  * 背景のテーマ「平ら」。端末の「透明度を下げる」と同じ --glass-flat を常に使い、ぼかしも切る。
  * インクだまりと思い出の表紙は変えない。グループの色と写真は、奥の色としてそのまま残す。#50、0010、0024
+ *
+ * 端末の「透明度を下げる」が有効なときの既定は、src/client/lib/theme.ts と public/theme-boot.js が決め、
+ * data-bg-theme に反映してから描く。ここでは data-bg-theme だけを見る。利用者がガラスを選んでいれば、
+ * 端末の設定に関わらずガラスのまま描く。#95
  */
 :root[data-bg-theme="flat"] {
   --glass: var(--glass-flat);

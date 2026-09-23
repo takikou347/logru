@@ -6,27 +6,34 @@ import type { HomeWidget, HomeWidgetProps } from "@extensions/client/types";
 import { HOME_CALENDAR_WIDGET_KEY } from "@shared/home";
 import type { ReactNode } from "react";
 import { DayPanel, ItemList } from "../calendar/components/DayItems";
-import { MonthGrid } from "../calendar/components/MonthGrid";
+import { MonthFlipDeck } from "../calendar/components/MonthFlipDeck";
 import { WeekList } from "../calendar/components/WeekList";
 import { useCalendarHome } from "./CalendarContext";
 
-/** カレンダー本体。月の表か週の一覧を出す */
+/** カレンダー本体。月の表(日めくりの 3D 送り。#99)か週の一覧を出す */
 function CalendarBodyWidget() {
-  const { view, days, today, selected, items, onPressDay, onSelectWeekDay, open } = useCalendarHome();
+  const { view, days, today, selected, items, onPressDay, onSelectWeekDay, open, monthNav } = useCalendarHome();
   return (
     <div data-testid="widget-calendar">
       {view === "month" ? (
-        <MonthGrid
-          days={days}
-          month={selected.getMonth()}
+        <MonthFlipDeck
+          monthAnchor={selected}
           today={today}
           selected={selected}
           items={items}
           onPressDay={onPressDay}
           onOpenItem={open}
+          monthNav={monthNav}
         />
       ) : (
-        <WeekList days={days} today={today} items={items} onSelect={onSelectWeekDay} onOpen={open} />
+        <WeekList
+          days={days}
+          today={today}
+          selected={selected}
+          items={items}
+          onSelect={onSelectWeekDay}
+          onOpen={open}
+        />
       )}
     </div>
   );

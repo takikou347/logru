@@ -1,5 +1,6 @@
 import type { Attendee, AttendeeResponse, CalendarItem, GroupSummary, Me } from "@shared/api-types";
 import { groupColor, memberColor } from "@/lib/colors";
+import { itemKey } from "./use-undoable-delete";
 
 /** 項目の参加者を、名前と色を付けて画面で使う形にしたもの。#28 */
 export type ViewAttendee = {
@@ -163,6 +164,26 @@ export function byPeople<T extends Pick<CalendarItem, "createdBy" | "attendees">
     const owners = ownersOf(i);
     return owners.length === 0 || owners.some((id) => !hidden.has(id));
   });
+}
+
+/**
+ * カレンダーの生データを、画面で使う項目に仕立てる。色を付け、消した人と隠した人を除き、グループで絞る。
+ * CalendarPage の月・週・日の本体と、月送りの日めくり(MonthFlipDeck)が隣の月を仕立てるのに使う。#99
+ * @param raw GET /calendar の応答。読み込み中は undefined
+ * @param deletedKeys 消す操作の 5 秒の間、画面から隠す項目。itemKey の形
+ */
+export function viewItemsOf(
+  raw: CalendarItem[] | undefined,
+  groups: GroupSummary[],
+  me: Me | undefined,
+  hiddenIds: Set<string>,
+  deletedKeys: Set<string>,
+  groupFilter: string | null,
+): ViewItem[] {
+  if (!raw || !me) return [];
+  return byPeople(decorate(raw, groups, me), hiddenIds).filter(
+    (i) => !deletedKeys.has(itemKey(i)) && (!groupFilter || i.groupId === groupFilter),
+  );
 }
 
 /** インクだまりに使う 3 色。自分だけのグループを先頭に、グループの並び順 */

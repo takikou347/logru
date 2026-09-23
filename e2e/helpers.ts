@@ -1,4 +1,4 @@
-import { type APIRequestContext, expect, type Page } from "@playwright/test";
+import { type APIRequestContext, expect, type Locator, type Page } from "@playwright/test";
 
 /** Firebase の Auth エミュレーター。.env.test と同じ値 */
 export const EMULATOR = "http://127.0.0.1:9099";
@@ -132,6 +132,25 @@ export async function resetPassword(request: APIRequestContext, oobCode: string,
 
 /** 選んだ日の予定の欄 */
 export const dayPanel = (page: Page) => page.getByTestId("day-panel");
+
+/**
+ * タッチの横のスワイプを起こす。月送りの日めくり(#99)のように、指の動きを追う操作を確かめるのに使う。
+ * @param dx 動かす向きと幅。負なら左(次へ)、正なら右(前へ)
+ * @param steps 途中の touchmove の回数。多いほど、指がゆっくり動いたことになる
+ */
+export async function swipeHorizontal(target: Locator, dx: number, steps = 8) {
+  const box = (await target.boundingBox())!;
+  const startX = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  const point = (x: number) => ({ identifier: 1, clientX: x, clientY: y });
+  await target.dispatchEvent("touchstart", { touches: [point(startX)], changedTouches: [point(startX)] });
+  for (let i = 1; i <= steps; i++) {
+    const x = startX + (dx * i) / steps;
+    await target.dispatchEvent("touchmove", { touches: [point(x)], changedTouches: [point(x)] });
+  }
+  const endX = startX + dx;
+  await target.dispatchEvent("touchend", { touches: [], changedTouches: [point(endX)] });
+}
 
 /**
  * カレンダーの下の操作から、予定を 1 件足す。

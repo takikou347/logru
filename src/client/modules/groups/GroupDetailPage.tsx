@@ -17,7 +17,6 @@ import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { ScreenTour } from "@/components/parts/ScreenTour";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { groupColor, memberColor } from "@/lib/colors";
 import { BASE_TOURS } from "@/lib/tours";
 import { poolColorsOf } from "../calendar/model";
@@ -225,9 +224,10 @@ export function GroupDetailPage() {
         )}
 
         <Panel title="機能">
+          {/* 予定はいつも有効で、切り替えられない。ほかの行と同じくトグルではなく字だけで見せる。issue #16 */}
           <PanelRow>
             <span>予定</span>
-            <Switch checked disabled aria-label="予定。いつも使えます" />
+            <span className="text-xs text-ink-2">いつも使えます</span>
           </PanelRow>
           {extensions.data && extensions.data.length > 0 ? (
             extensions.data.map((x) => (

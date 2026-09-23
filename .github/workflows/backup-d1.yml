@@ -5,7 +5,9 @@ name: D1 バックアップ
 #
 # 既定のブランチ develop の上で動く。production の GitHub Environment は main からしか
 # 使えない決まり(0026)なので、ここではデプロイ用の CLOUDFLARE_API_TOKEN を使わない。
-# 代わりに、バックアップだけの権限を持つ鍵をリポジトリの Secrets に別で置く。#92
+# 代わりに、バックアップだけの権限を持つ鍵を、専用の GitHub Environment backup に置く。
+# backup は develop からしか使えない設定にする。リポジトリの Secrets には置かない。
+# リポジトリの Secrets は、claude/* を含むどのブランチの workflow_dispatch からも読める。#92
 on:
   schedule:
     # 毎週日曜 18:00 UTC。日本時間の月曜 3:00。使う人が少ない時間を選ぶ
@@ -16,6 +18,9 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # backup の Deployment branches を develop だけにする。develop は保護されているので、
+    # このブランチ以外からは 4 つの鍵を読めない
+    environment: backup
     strategy:
       # 1 つの環境が失敗しても、もう片方は続けて試す
       fail-fast: false
@@ -29,7 +34,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       D1_BACKUP_API_TOKEN: ${{ secrets.D1_BACKUP_API_TOKEN }}
     steps:
-      # 鍵が置かれるまでは、失敗させずに知らせるだけで終える。README の手順で置く
+      # 鍵が置かれるまでは、失敗させずに知らせるだけで終える。backup の Environment に置く
       - name: 鍵がそろっているか確かめる
         id: ready
         env:

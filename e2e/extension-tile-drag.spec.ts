@@ -12,10 +12,12 @@ test("スマホで、機能のタイルを指で引いて並べ替えると、�
   await page.goto("/settings/extensions");
   const grid = page.getByTestId("extension-tile-grid");
   const tiles = grid.locator('[data-testid^="extension-tile-"]');
-  // いつも足された「外部のカレンダー」が先頭。並びをまだ保存していないので、拡張の一覧の順(思い出、家計簿)で並ぶ
+  // いつも足された拡張(外部のカレンダー、天気)が先頭。並びをまだ保存していないので、
+  // 足せる拡張は拡張の一覧の順(思い出、家計簿)で並ぶ
   await expect(tiles.nth(0)).toHaveAttribute("data-testid", "extension-tile-external");
-  await expect(tiles.nth(1)).toHaveAttribute("data-testid", "extension-tile-memories");
-  await expect(tiles.nth(2)).toHaveAttribute("data-testid", "extension-tile-kakeibo");
+  await expect(tiles.nth(1)).toHaveAttribute("data-testid", "extension-tile-weather");
+  await expect(tiles.nth(2)).toHaveAttribute("data-testid", "extension-tile-memories");
+  await expect(tiles.nth(3)).toHaveAttribute("data-testid", "extension-tile-kakeibo");
 
   await page.getByRole("button", { name: "並びを変える" }).click();
 
@@ -38,12 +40,12 @@ test("スマホで、機能のタイルを指で引いて並べ替えると、�
   ]);
   expect(resp.ok()).toBe(true);
 
-  await expect(tiles.nth(1)).toHaveAttribute("data-testid", "extension-tile-kakeibo");
-  await expect(tiles.nth(2)).toHaveAttribute("data-testid", "extension-tile-memories");
+  await expect(tiles.nth(2)).toHaveAttribute("data-testid", "extension-tile-kakeibo");
+  await expect(tiles.nth(3)).toHaveAttribute("data-testid", "extension-tile-memories");
 
   await page.getByRole("button", { name: "完了" }).click();
   await page.reload();
   const reloadedTiles = page.getByTestId("extension-tile-grid").locator('[data-testid^="extension-tile-"]');
-  await expect(reloadedTiles.nth(1)).toHaveAttribute("data-testid", "extension-tile-kakeibo");
-  await expect(reloadedTiles.nth(2)).toHaveAttribute("data-testid", "extension-tile-memories");
+  await expect(reloadedTiles.nth(2)).toHaveAttribute("data-testid", "extension-tile-kakeibo");
+  await expect(reloadedTiles.nth(3)).toHaveAttribute("data-testid", "extension-tile-memories");
 });

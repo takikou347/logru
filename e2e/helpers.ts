@@ -194,6 +194,16 @@ export async function removeExtension(page: Page, label: string) {
 }
 
 /**
+ * 「共有」の選ぶ行を押し、開いた「共有する相手」の一覧から選ぶ。0057
+ * @param host シートかダイアログ。行を探す範囲
+ * @param name 選ぶ相手の名前。「共有しない」「自分だけ」も使える
+ */
+export async function pickShare(page: Page, host: Locator, name: string) {
+  await host.getByRole("button", { name: /^共有/ }).click();
+  await page.getByRole("dialog", { name: "共有する相手" }).getByRole("radio", { name }).click();
+}
+
+/**
  * カレンダーの下の操作から、予定を 1 件足す。
  * @param group 共有するグループの名前。無ければ「共有しない」のまま保存する
  */
@@ -201,7 +211,7 @@ export async function addEvent(page: Page, title: string, group?: string) {
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill(title);
-  if (group) await sheet.getByRole("radio", { name: group }).click();
+  if (group) await pickShare(page, sheet, group);
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("予定を足しました")).toBeVisible();
 }

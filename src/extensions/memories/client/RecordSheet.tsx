@@ -3,12 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Camera, ImagePlus, RotateCw, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Chip } from "@/components/parts/Chip";
-import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
+import { FieldMessage, PanelRow } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
+import { SharePickerRow } from "@/components/parts/SharePicker";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
-import { groupColor } from "@/lib/colors";
 import { auth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import type { MemoryItem, MemoryRecord, Photo } from "../shared/types";
@@ -282,27 +281,14 @@ export function RecordSheet({
 
       <div>
         {!record && (
-          <PanelRow>
-            <span>共有</span>
-            <span
-              className="flex max-w-[70%] flex-wrap justify-end gap-1.5"
-              role="radiogroup"
-              aria-label="共有するグループ"
-            >
-              {groups.map((g) => (
-                <Chip
-                  key={g.id}
-                  role="radio"
-                  aria-checked={groupId === g.id}
-                  onClick={() => setGroupId(g.id)}
-                  disabled={slots.length > 0}
-                >
-                  <Dot color={groupColor(g, me.colorPrefs)} />
-                  {g.isPersonal ? "共有しない" : g.name}
-                </Chip>
-              ))}
-            </span>
-          </PanelRow>
+          <SharePickerRow
+            groups={groups}
+            me={me}
+            value={groupId}
+            onChange={setGroupId}
+            disabled={slots.length > 0}
+            disabledReason="写真を追加した後は、共有先を変えられません。"
+          />
         )}
         <PanelRow>
           <label htmlFor="record-time">時刻</label>
@@ -335,7 +321,6 @@ export function RecordSheet({
           </PanelRow>
         )}
       </div>
-      {slots.length > 0 && !record && <FieldMessage>写真を追加した後は、共有先を変えられません。</FieldMessage>}
       {error && <FieldMessage error>{error}</FieldMessage>}
 
       <div className="flex gap-2">

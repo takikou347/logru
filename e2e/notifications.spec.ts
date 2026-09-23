@@ -1,5 +1,5 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
-import { addExtension, dayPanel, signUp } from "./helpers";
+import { addExtension, dayPanel, pickShare, signUp } from "./helpers";
 
 /**
  * 「ふたり」のグループを作り、ほかの人を招待リンクで入れる。invitations.spec.ts と同じ作り方。
@@ -30,7 +30,7 @@ async function addInvited(page: Page, title: string, names: string[]) {
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill(title);
-  await sheet.getByRole("radio", { name: "ふたり" }).click();
+  await pickShare(page, sheet, "ふたり");
   const picker = sheet.getByRole("group", { name: "招待する人" });
   for (const name of names) await picker.getByRole("button", { name, exact: true }).click();
   await sheet.getByRole("button", { name: "保存する" }).click();

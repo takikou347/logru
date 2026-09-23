@@ -5,7 +5,7 @@
  * ここを読まず、自分の hook で自分のデータを読む。ホームはこの中身を知らない。
  */
 import { createContext, type ReactNode, useContext } from "react";
-import type { ItemKind, ViewItem } from "../calendar/model";
+import type { ViewItem } from "../calendar/model";
 
 export type CalendarView = "month" | "week" | "day";
 
@@ -17,8 +17,8 @@ export type MonthNav = {
   /** いま絞っているグループ。隣の月の項目を仕立てるのに使う */
   groupFilter: string | null;
   hiddenIds: Set<string>;
-  /** 絞り込みの帯で外した種類。隣の月の項目を仕立てるのに使う。0056 */
-  hiddenKinds: ReadonlySet<ItemKind>;
+  /** 絞り込みの帯で外した拡張の key。隣の月の項目を仕立てるのに使う。0056 */
+  hiddenKinds: ReadonlySet<string>;
   /** 消す操作の 5 秒の間、画面から隠している項目。itemKey の形 */
   deletedKeys: Set<string>;
   /** PC の矢印ボタンとキーで月を送ったときの合図。id が変わるたびに 1 回だけめくる */

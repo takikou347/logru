@@ -6,10 +6,10 @@ import { toast } from "sonner";
 // biome-ignore lint/style/noRestrictedImports: エラーの型 ApiError だけを使う。api() 本体は ./api から呼ぶ
 import { ApiError } from "@/api/client";
 import { Notice } from "@/components/layout/AuthShell";
-import { Chip } from "@/components/parts/Chip";
 import { Field } from "@/components/parts/Field";
 import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
+import { SharePickerRow } from "@/components/parts/SharePicker";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -115,8 +115,6 @@ export function EventSheet({
   const canEdit = !editing || canEditEvent(editing, myId);
   const canDelete = editing ? canDeleteEvent(editing, myId) : false;
   const personal = groups.find((g) => g.isPersonal);
-  // 「共有しない」は自分だけのグループに置く。0009
-  const choices = personal ? [personal, ...groups.filter((g) => g !== personal)] : groups;
 
   const initialStart = editing ? editing.startsAt : defaultStart(target.mode === "new" ? target.date : new Date());
   const initialEnd = editing ? editing.endsAt : initialStart + 60 * 60 * 1000;
@@ -388,29 +386,8 @@ export function EventSheet({
           )}
           <RepeatFields value={repeat} onChange={setRepeat} />
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-ink-2" id="event-group-label">
-              共有
-            </span>
-            <div
-              className="flex flex-wrap gap-2"
-              role="radiogroup"
-              aria-labelledby="event-group-label"
-              aria-describedby="event-group-hint"
-            >
-              {choices.map((g) => (
-                <Chip
-                  key={g.id}
-                  role="radio"
-                  aria-checked={g.id === groupId}
-                  disabled={!isCreator}
-                  onClick={() => setGroupId(g.id)}
-                >
-                  <Dot color={groupColor(g, me.colorPrefs)} />
-                  {g.isPersonal ? "共有しない" : g.name}
-                </Chip>
-              ))}
-            </div>
-            <FieldMessage id="event-group-hint">
+            <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} disabled={!isCreator} />
+            <FieldMessage>
               {shared ? `「${shared.name}」のメンバー全員に見えます。` : "自分だけに見えます。"}
               {canEdit && !isCreator && " グループを変えられるのは、作った人だけです。"}
             </FieldMessage>

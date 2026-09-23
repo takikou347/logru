@@ -1,10 +1,11 @@
 import { type CSSProperties, useRef, useState } from "react";
 import { AvatarStack } from "@/components/parts/Avatars";
 import { dayTone, formatDay, formatTime, holidayName, onDay, sameDay, WEEKDAYS } from "@/lib/dates";
+import { extensionLabel } from "@/lib/extension-visuals";
 import { cn } from "@/lib/utils";
 import { kindIconOf } from "../kind-icon";
 import { daySpan, hiddenPerDay, isMultiDay, layoutWeek, type SpanSegment } from "../lanes";
-import { KIND_LABEL, kindOf, type ViewItem } from "../model";
+import { kindOf, type ViewItem } from "../model";
 import { takeJustAdded } from "../recent-items";
 import { itemKey } from "../use-undoable-delete";
 import { toneText } from "./DayItems";
@@ -306,7 +307,7 @@ function spanLabel(item: ViewItem): string {
   const day = (d: Date) => `${d.getMonth() + 1}月${d.getDate()}日`;
   const tail = responseWord[item.myResponse ?? "accepted"];
   const kind = kindOf(item);
-  const title = kind === "event" ? item.title : `${KIND_LABEL[kind]}、${item.title}`;
+  const title = kind === "event" ? item.title : `${extensionLabel(item.extension)}、${item.title}`;
   if (item.allDay) return `${title}、${day(first)}から${day(last)}まで${tail}`;
   return `${title}、${day(first)} ${formatTime(item.startsAt)}から${day(last)} ${formatTime(item.endsAt!)}まで${tail}`;
 }
@@ -415,7 +416,7 @@ function EventChip({ item, onOpen, isLeaving }: { item: ViewItem; onOpen: () => 
     >
       {!item.allDay && <time className="flex-none text-ink-2 @max-[90px]:hidden">{formatTime(item.startsAt)}</time>}
       {kind !== "event" && <KindIcon item={item} />}
-      {kind !== "event" && <span className="sr-only">{KIND_LABEL[kind]}、</span>}
+      {kind !== "event" && <span className="sr-only">{extensionLabel(item.extension)}、</span>}
       <span className={cn("min-w-0 truncate", declined && "line-through")}>{item.title}</span>
       {item.myResponse && item.myResponse !== "accepted" && (
         <span className="sr-only">{responseWord[item.myResponse]}</span>
@@ -441,7 +442,7 @@ function MoneyChip({ item, onOpen, isLeaving }: { item: ViewItem; onOpen: () => 
       onClick={onOpen}
     >
       <KindIcon item={item} />
-      <span className="sr-only">{KIND_LABEL.expense}、</span>
+      <span className="sr-only">{extensionLabel(item.extension)}、</span>
       <span className="ml-auto min-w-0 truncate font-semibold text-ink tabular-nums">{item.title}</span>
     </button>
   );

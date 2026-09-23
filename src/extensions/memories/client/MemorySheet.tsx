@@ -3,15 +3,14 @@ import { BookOpen } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { Chip } from "@/components/parts/Chip";
 import { Field } from "@/components/parts/Field";
-import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
+import { FieldMessage, PanelRow } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
+import { SharePickerRow } from "@/components/parts/SharePicker";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { groupColor } from "@/lib/colors";
 import { dateKey, formatTime } from "@/lib/dates";
 import { useCalendar } from "@/modules/calendar/api";
 import { addDaysToKey, dayKeyIn, daysBetween, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
@@ -241,23 +240,7 @@ export function MemorySheet({
               : `${length - 1} 泊 ${length} 日`
             : "終わりの日は始まりの日以降にしてください。"}
         </FieldMessage>
-        {!memory && (
-          <PanelRow>
-            <span>共有</span>
-            <span
-              className="flex max-w-[70%] flex-wrap justify-end gap-1.5"
-              role="radiogroup"
-              aria-label="共有するグループ"
-            >
-              {groups.map((g) => (
-                <Chip key={g.id} role="radio" aria-checked={groupId === g.id} onClick={() => setGroupId(g.id)}>
-                  <Dot color={groupColor(g, me.colorPrefs)} />
-                  {g.isPersonal ? "共有しない" : g.name}
-                </Chip>
-              ))}
-            </span>
-          </PanelRow>
-        )}
+        {!memory && <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} />}
         {events.length > 0 && (
           <fieldset className="flex flex-col gap-1">
             <legend className="mb-1 text-xs font-medium text-ink-2">入れる予定</legend>

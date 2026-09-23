@@ -2,11 +2,12 @@ import { useId, useState } from "react";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { Dot } from "@/components/parts/Panel";
 import { dayTone, formatTime, holidayName, onDay, sameDay, WEEKDAYS } from "@/lib/dates";
+import { extensionGroups, extensionLabel } from "@/lib/extension-visuals";
 import { useDeviceTilt } from "@/lib/use-device-tilt";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 import { kindIconOf } from "../kind-icon";
-import { type ItemKind, KIND_LABEL, KIND_ORDER, kindOf, type ViewItem } from "../model";
+import { kindOf, type ViewItem } from "../model";
 import { takeJustAdded } from "../recent-items";
 import { itemKey } from "../use-undoable-delete";
 
@@ -48,11 +49,11 @@ function formatTotal(amount: number): string {
   return `¥${amount.toLocaleString("ja-JP")}`;
 }
 
-/** 種類の見出し。家計簿は、その日の合計を右に添える。0056 */
-function KindHeading({ id, kind, total }: { id: string; kind: ItemKind; total?: number }) {
+/** 種類の見出し。金額の項目があれば、その日の合計を右に添える。0056 */
+function KindHeading({ id, label, total }: { id: string; label: string; total?: number }) {
   return (
     <div id={id} className="mb-1 flex items-baseline justify-between px-0.5 text-xs font-bold text-ink-2">
-      <span>{KIND_LABEL[kind]}</span>
+      <span>{label}</span>
       {total !== undefined && <span className="text-ink tabular-nums">{formatTotal(total)}</span>}
     </div>
   );
@@ -60,7 +61,7 @@ function KindHeading({ id, kind, total }: { id: string; kind: ItemKind; total?: 
 
 /**
  * 予定の一覧。色だけで見分けさせず、グループ名も出す。0012
- * 「予定」「思い出」「家計簿」の見出しで分ける。家計簿の見出しには、その日の合計を出す。0056
+ * 項目を出した拡張ごとの見出しで分ける。金額の項目(kind が expense)があれば、見出しにその日の合計を出す。0056
  * @param empty 1 件も無いときに出す文
  * @param leaving 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98
  */
@@ -79,17 +80,18 @@ export function ItemList({
   if (items.length === 0) return <p className="py-2.5 text-[13px] leading-relaxed text-ink-2">{empty}</p>;
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      {KIND_ORDER.map((kind) => {
-        const kindItems = items.filter((i) => kindOf(i) === kind);
-        if (kindItems.length === 0) return null;
-        const total = kind === "expense" ? kindItems.reduce((sum, i) => sum + (i.amount ?? 0), 0) : undefined;
-        const id = `${headingId}-${kind}`;
+      {extensionGroups().map(({ key, label }) => {
+        const groupItems = items.filter((i) => i.extension === key);
+        if (groupItems.length === 0) return null;
+        const moneyItems = groupItems.filter((i) => kindOf(i) === "expense");
+        const total = moneyItems.length > 0 ? moneyItems.reduce((sum, i) => sum + (i.amount ?? 0), 0) : undefined;
+        const id = `${headingId}-${key}`;
         return (
-          <div key={kind} role="group" aria-labelledby={id}>
-            <KindHeading id={id} kind={kind} total={total} />
+          <div key={key} role="group" aria-labelledby={id}>
+            <KindHeading id={id} label={label} total={total} />
             <ul className="flex min-w-0 flex-col">
-              {kindItems.map((i) =>
-                kind === "expense" ? (
+              {groupItems.map((i) =>
+                kindOf(i) === "expense" ? (
                   <MoneyRow key={itemKey(i)} item={i} onOpen={onOpen} isLeaving={!!leaving?.has(itemKey(i))} />
                 ) : (
                   <ItemRow key={itemKey(i)} item={i} onOpen={onOpen} isLeaving={!!leaving?.has(itemKey(i))} />
@@ -138,7 +140,7 @@ function ItemRow({
         <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <Dot color={i.color} response={i.myResponse} />
           {Icon && <Icon className="size-3.5 flex-none text-ink-2" aria-hidden="true" />}
-          {kind !== "event" && <span className="sr-only">{KIND_LABEL[kind]}、</span>}
+          {kind !== "event" && <span className="sr-only">{extensionLabel(i.extension)}、</span>}
           <ItemTitle item={i} />
           <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
         </span>
@@ -175,7 +177,7 @@ function MoneyRow({
         <Icon className="size-4 text-ink-2" aria-hidden="true" />
         <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <Dot color={i.color} />
-          <span className="sr-only">{KIND_LABEL.expense}、</span>
+          <span className="sr-only">{extensionLabel(i.extension)}、</span>
           <span className="min-w-0 truncate text-ink-2">{i.groupName}</span>
           <span className="ml-auto font-semibold text-ink tabular-nums">{i.title}</span>
         </span>

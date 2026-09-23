@@ -13,10 +13,12 @@ import { FailurePanel, LoadFailure } from "@/components/parts/Failure";
 import { Field } from "@/components/parts/Field";
 import { Dot, Empty, FieldMessage, Panel, PanelRow, RowButton } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
+import { ScreenTour } from "@/components/parts/ScreenTour";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { groupColor, memberColor } from "@/lib/colors";
+import { BASE_TOURS } from "@/lib/tours";
 import { poolColorsOf } from "../calendar/model";
 import {
   useCreateInvite,
@@ -191,7 +193,7 @@ export function GroupDetailPage() {
         </Panel>
 
         {admin && (
-          <Panel title="招待">
+          <Panel title="招待" data-tour="group-invite">
             {invite ? (
               <>
                 <FieldMessage>
@@ -281,6 +283,7 @@ export function GroupDetailPage() {
           </div>
         </ResponsiveSheet>
       )}
+      {!colorTarget && !confirmLeave && <ScreenTour id="group" steps={BASE_TOURS.group} />}
     </AppLayout>
   );
 }

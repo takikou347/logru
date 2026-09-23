@@ -20,7 +20,9 @@ import { poolColorsOf } from "../calendar/model";
 import { AvatarSection } from "./AvatarSection";
 import { useUpdateName, useUpdateSettings } from "./api";
 import { DeleteAccountSheet } from "./components/DeleteAccountSheet";
+import { InstallGuideButton } from "./components/InstallGuideButton";
 import { PushSection } from "./components/PushSection";
+import { ResetToursButton } from "./components/ResetToursButton";
 
 const MODES = [
   { value: "system", label: "端末と同じ" },
@@ -147,6 +149,12 @@ export function SettingsPage() {
         {clientExtensions.map((x) => x.SettingsSection && <x.SettingsSection key={x.manifest.key} />)}
 
         <PushSection />
+
+        {/* 仮の置き場所。#72 の「使い方」の欄ができたら、そこへ移す。F-33、F-34 */}
+        <Panel title="案内">
+          <ResetToursButton />
+          <InstallGuideButton />
+        </Panel>
 
         <Panel title="アカウント">
           <div>

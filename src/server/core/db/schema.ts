@@ -38,6 +38,8 @@ export const userSettings = sqliteTable("user_settings", {
   /** いま置いている写真の R2 の鍵の乱数の部分。置き直すたびに変わる。頭文字のときは空 */
   avatarPhotoKey: text("avatar_photo_key"),
   updatedAt: updatedAt(),
+  /** 案内を見た画面の ID。F-33 */
+  toursSeen: text("tours_seen", { mode: "json" }).$type<string[]>().notNull().default([]),
 });
 
 /** 規約に同意した版。最新の版の行が無ければ同意を取り直す。F-16 */

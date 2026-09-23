@@ -13,7 +13,15 @@ export type BgTheme = "glass" | "flat";
 /** `GET /api/me` の応答 */
 export type Me = {
   user: { id: string; name: string; email: string; image: string | null; avatarUrl: string | null };
-  settings: { themeMode: ThemeMode; bgTheme: BgTheme; accentColor: string; userColor: string; avatarKind: AvatarKind };
+  settings: {
+    themeMode: ThemeMode;
+    bgTheme: BgTheme;
+    accentColor: string;
+    userColor: string;
+    avatarKind: AvatarKind;
+    /** 案内を見た画面の ID。F-33 */
+    toursSeen: string[];
+  };
   /** 同意を取り直す文書。空なら同意済み */
   needsAgreement: LegalDocument[];
   /** ログインに使った手段。`google.com` か `password` */

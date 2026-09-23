@@ -8,6 +8,8 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_APP_ID: string;
   /** 入っていれば Auth エミュレーターにつなぐ。手元の開発と E2E テストだけ */
   readonly VITE_FIREBASE_AUTH_EMULATOR_URL?: string;
+  /** `off` なら画面の案内を出さない。E2E テストだけ。案内の吹き出しがほかの操作を隠さないように。F-33 */
+  readonly VITE_TOURS?: string;
 }
 
 interface ImportMeta {

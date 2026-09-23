@@ -17,6 +17,7 @@ const me: Me = {
     accentColor: "aizumi",
     userColor: "wakatake",
     avatarKind: "initial",
+    toursSeen: [],
   },
   needsAgreement: [],
   provider: "password",

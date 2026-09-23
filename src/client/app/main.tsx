@@ -9,6 +9,7 @@ import { setApiFailureHandlers } from "@/api/client";
 import { keys } from "@/api/keys";
 import { queryClient } from "@/api/query-client";
 import { Toaster } from "@/components/ui/sonner";
+import { listenInstallPrompt } from "@/lib/pwa";
 import { isSessionExpired, markSessionExpired } from "@/lib/session-expired";
 import { applyTheme, readStoredTheme, watchSystemTheme } from "@/lib/theme";
 import { AuthProvider, signOut } from "./auth";
@@ -47,6 +48,9 @@ window.setTimeout(() => {
     // 使えない環境では何もしない
   }
 }, 10_000);
+
+// Android の Chrome が「追加できる」と知らせるのは画面の部品より先のことがある。最初に受け始める。F-34
+listenInstallPrompt();
 
 const stored = readStoredTheme();
 applyTheme(stored.mode, stored.bgTheme, stored.accent);

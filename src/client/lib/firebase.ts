@@ -9,7 +9,8 @@ import { connectAuthEmulator, GoogleAuthProvider, getAuth } from "firebase/auth"
 
 const app = initializeApp({
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  // 書いていなければ、画面と同じドメインにする。Worker が Firebase へ中継する。#1
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || location.host,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 });

@@ -15,9 +15,9 @@ import { VitePWA } from "vite-plugin-pwa";
  */
 function firebaseCsp(env: Record<string, string>): Plugin {
   const emulator = env.VITE_FIREBASE_AUTH_EMULATOR_URL ?? "";
-  const frame = [`https://${env.VITE_FIREBASE_AUTH_DOMAIN}`, "https://apis.google.com", emulator]
-    .filter(Boolean)
-    .join(" ");
+  // 認証用のドメインを書かない組み立ては、アプリと同じドメインを使う。#1
+  const authDomain = env.VITE_FIREBASE_AUTH_DOMAIN ? `https://${env.VITE_FIREBASE_AUTH_DOMAIN}` : "'self'";
+  const frame = [authDomain, "https://apis.google.com", emulator].filter(Boolean).join(" ");
   return {
     name: "logru-firebase-csp",
     apply: "build",
@@ -70,7 +70,8 @@ export default defineConfig(({ mode }) => ({
         // 端末への知らせを受ける処理。0023
         importScripts: ["/push-sw.js"],
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//],
+        // 認証の通り道は Worker が Firebase へ中継する。画面の代わりに index.html を返さない。#1
+        navigateFallbackDenylist: [/^\/api\//, /^\/__\//],
         // 書体は数が多いので先に全部は持たず、使ったものだけ残す
         globPatterns: ["**/*.{js,css,html,svg,png}"],
         runtimeCaching: [

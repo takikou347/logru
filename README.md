@@ -132,7 +132,14 @@ staging と本番で 1 つのプロジェクトを使う。作るのは 1 回だ
 2. Authentication の「ログイン方法」で、「メール / パスワード」と「Google」を有効にする
 3. Authentication の「設定」の「承認済みドメイン」に、`logru-staging.tkkwkut-400.workers.dev` と `logru-production.tkkwkut-400.workers.dev` を足す
 4. Authentication の「テンプレート」で、メールの言語を日本語にする
-5. 「プロジェクトの設定」でウェブアプリを足し、出てきた値を `.env.production` に書く。これらは画面に配られる値で、秘密ではない。staging も同じ値で組み立てる
+5. 「プロジェクトの設定」でウェブアプリを足し、出てきた値を `.env.production` に書く。これらは画面に配られる値で、秘密ではない。staging も同じ値で組み立てる。
+   `VITE_FIREBASE_AUTH_DOMAIN` は書かない。画面を開いたドメインを認証用のドメインにし、Worker が `/__/auth/*` を `<プロジェクト ID>.firebaseapp.com` へ中継する。Safari で Google のログインが戻らないのを避けるため。#1
+6. Google Cloud のコンソールの「API とサービス」の「認証情報」で、Firebase が作った OAuth クライアント（Web client）を開く。「承認済みのリダイレクト URI」に次の 2 つを足す
+
+   ```text
+   https://logru-staging.tkkwkut-400.workers.dev/__/auth/handler
+   https://logru-production.tkkwkut-400.workers.dev/__/auth/handler
+   ```
 
 ### Cloudflare
 

@@ -37,6 +37,8 @@ export const userSettings = sqliteTable("user_settings", {
     .default("initial"),
   /** いま置いている写真の R2 の鍵の乱数の部分。置き直すたびに変わる。頭文字のときは空 */
   avatarPhotoKey: text("avatar_photo_key"),
+  /** いま置いている写真の大きさ。R2 に聞かず、写真とアバターの合計を D1 だけで測るために持つ。0066 */
+  avatarBytes: integer("avatar_bytes").notNull().default(0),
   updatedAt: updatedAt(),
   /** はじめての案内を見終えたか、飛ばした日時。空なら次にカレンダーを開いたとき出す。F-32、0035 */
   onboardedAt: integer("onboarded_at", { mode: "timestamp_ms" }),
@@ -204,5 +206,7 @@ export const notifications = sqliteTable(
   (t) => [
     index("notifications_user_created_idx").on(t.userId, t.createdAt),
     index("notifications_user_unread_idx").on(t.userId, t.readAt),
+    // 90 日を過ぎた行を消す定期処理は利用者をまたいで created_at だけで探すので、単独の索引も要る。0066
+    index("notifications_created_idx").on(t.createdAt),
   ],
 );

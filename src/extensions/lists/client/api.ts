@@ -131,11 +131,15 @@ export function useToggleItem(listId: string) {
   });
 }
 
-/** 項目を消す。F-205 */
+/**
+ * 項目を消す。F-205
+ * @param keepalive 画面を閉じるときに送り切る。5 秒の「元に戻す」の間に画面を離れたとき。issue #12
+ */
 export function useDeleteItem(listId: string) {
   const invalidate = useInvalidateLists();
   return useMutation({
-    mutationFn: (id: string) => api(`/lists/${listId}/items/${id}`, { method: "DELETE" }),
+    mutationFn: ({ id, keepalive }: { id: string; keepalive?: boolean }) =>
+      api(`/lists/${listId}/items/${id}`, { method: "DELETE", keepalive }),
     onSettled: invalidate,
   });
 }

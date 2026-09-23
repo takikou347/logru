@@ -12,11 +12,14 @@ import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
 import { formatShortDate } from "@/lib/dates";
+import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
 import { formatYen } from "../shared/format";
-import { useKakeiboGroups, useKakeiboSummary } from "./api";
+import { sumAmount, summarizeByCategory } from "../shared/totals";
+import type { KakeiboExpense } from "./api";
+import { useDeleteExpense, useKakeiboGroups, useKakeiboSummary } from "./api";
 import { ExpenseSheet } from "./ExpenseSheet";
 import { addMonthsToKey, formatMonthLabel, monthKeyOf } from "./parts";
 
@@ -31,6 +34,8 @@ export function KakeiboPage() {
   const me = useMe();
   const { groups, ready } = useKakeiboGroups();
   const [params, setParams] = useSearchParams();
+  const deleteExpense = useDeleteExpense();
+  const { pending, remove: removeRecord } = useUndoableDelete("記録を消しました");
 
   const groupParam = params.get("group");
   const group = groups.some((g) => g.id === groupParam) ? groupParam : null;
@@ -50,8 +55,14 @@ export function KakeiboPage() {
 
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
-  const records = summary.data?.records ?? [];
+  // 消す途中(元に戻せる 5 秒の間)の記録は、合計からもすぐ外して見せる。実際に消す API は後から呼ばれる。issue #12
+  const records = (summary.data?.records ?? []).filter((r) => !pending.has(r.id));
+  const total = sumAmount(records);
+  const byCategory = summarizeByCategory(records);
   const filterOptions = groupFilterOptions({ groups, me: data, value: group, onChange: setGroup });
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
+  const handleDeleteExpense = (expense: KakeiboExpense) =>
+    removeRecord(expense.id, ({ keepalive }) => deleteExpense.mutateAsync({ id: expense.id, keepalive }));
   // 足せるものは支出だけ。「+」を押すと直接シートが開く。issue #150
   const addables: Addable[] = [
     {
@@ -98,10 +109,10 @@ export function KakeiboPage() {
         {summary.data && (
           <Panel title="この月の合計">
             <p className="text-3xl font-extrabold" data-testid="kakeibo-total">
-              {formatYen(summary.data.total)}
+              {formatYen(total)}
             </p>
             <div className="flex flex-col">
-              {summary.data.byCategory.map((c) => (
+              {byCategory.map((c) => (
                 <PanelRow key={c.category}>
                   <span data-testid={`kakeibo-category-${c.category}`}>{kakeiboCategoryLabel(c.category)}</span>
                   <span className="font-bold">{formatYen(c.total)}</span>
@@ -160,7 +171,9 @@ export function KakeiboPage() {
         </Dock>
       </Page>
       {recording && <ExpenseSheet groups={groups} me={data} defaultGroupId={group} onClose={closeRecord} />}
-      {editing && <ExpenseSheet groups={groups} me={data} expense={editing} onClose={closeEdit} />}
+      {editing && (
+        <ExpenseSheet groups={groups} me={data} expense={editing} onClose={closeEdit} onDelete={handleDeleteExpense} />
+      )}
     </AppLayout>
   );
 }

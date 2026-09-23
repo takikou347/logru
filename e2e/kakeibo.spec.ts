@@ -91,3 +91,22 @@ test("記録を直す、消すのは書いた人の家計簿の画面から。F-
   await expect(page.getByTestId("kakeibo-total")).toHaveText("¥0");
   await expect(page.getByText("この月の記録はまだありません。")).toBeVisible();
 });
+
+test("記録を消すと 5 秒だけ元に戻せる。issue #12", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+  await page.goto("/kakeibo");
+
+  await page.getByRole("button", { name: "支出を記録する" }).click();
+  const create = page.getByRole("dialog", { name: "記録する" });
+  await create.getByLabel("金額").fill("500");
+  await create.getByRole("radio", { name: "日用品" }).click();
+  await create.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥500");
+
+  await page.getByRole("button", { name: /日用品/ }).click();
+  await page.getByRole("dialog", { name: "記録を直す" }).getByRole("button", { name: "消す" }).click();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥0");
+  await page.getByRole("button", { name: "元に戻す" }).click();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥500");
+});

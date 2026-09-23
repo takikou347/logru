@@ -80,11 +80,15 @@ export function useSaveExpense() {
   });
 }
 
-/** 支出を消す。F-307 */
+/**
+ * 支出を消す。F-307
+ * @param keepalive 画面を閉じるときに送り切る。5 秒の「元に戻す」の間に画面を離れたとき。issue #12
+ */
 export function useDeleteExpense() {
   const invalidate = useInvalidateKakeibo();
   return useMutation({
-    mutationFn: (id: string) => api(`/kakeibo/${id}`, { method: "DELETE" }),
+    mutationFn: ({ id, keepalive }: { id: string; keepalive?: boolean }) =>
+      api(`/kakeibo/${id}`, { method: "DELETE", keepalive }),
     onSettled: invalidate,
   });
 }

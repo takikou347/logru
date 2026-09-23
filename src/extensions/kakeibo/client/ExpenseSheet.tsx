@@ -12,7 +12,7 @@ import { dateKey } from "@/lib/dates";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_CATEGORIES, type KakeiboCategory } from "../shared/categories";
 import type { KakeiboExpense } from "./api";
-import { useDeleteExpense, useSaveExpense } from "./api";
+import { useSaveExpense } from "./api";
 
 /**
  * 記録するシート、直すシート。F-301、F-302、F-307
@@ -20,9 +20,11 @@ import { useDeleteExpense, useSaveExpense } from "./api";
  * 金額の欄は最初から数字の入力盤が開くようにする。カテゴリは既定を選ばず、押して選ぶ。
  * ホームの「記録する」から開くと、カテゴリを選んで保存するまで 3 タップと金額の入力 1 回で済む。F-305
  * 直すときは、書いた人だけが編集でき、消せる。ほかの人が開くと見るだけになる。
+ * 消す処理そのものは持たず、呼び出し側(KakeiboPage)の 5 秒の「元に戻す」に任せる。issue #12
  *
  * @param expense 直す記録。無ければ新しく作る
  * @param defaultGroupId 最初に選ぶグループ。無ければ自分だけ
+ * @param onDelete 「消す」を押したとき。expense があるときだけ渡る
  */
 export function ExpenseSheet({
   groups,
@@ -30,15 +32,16 @@ export function ExpenseSheet({
   expense,
   defaultGroupId,
   onClose,
+  onDelete,
 }: {
   groups: GroupSummary[];
   me: Me;
   expense?: KakeiboExpense;
   defaultGroupId?: string | null;
   onClose: () => void;
+  onDelete?: (expense: KakeiboExpense) => void;
 }) {
   const saveExpense = useSaveExpense();
-  const deleteExpense = useDeleteExpense();
   const canEdit = !expense || expense.createdBy === me.user.id;
 
   const [groupId, setGroupId] = useState(
@@ -85,14 +88,11 @@ export function ExpenseSheet({
     }
   }
 
-  /** 消す。押した後すぐ閉じ、失敗したら知らせる */
+  /** 消す。押した後すぐ閉じ、5 秒の「元に戻す」は呼び出し側に任せる */
   function remove() {
     if (!expense) return;
     onClose();
-    deleteExpense.mutate(expense.id, {
-      onSuccess: () => toast("記録を消しました"),
-      onError: (e) => toast.error((e as Error).message),
-    });
+    onDelete?.(expense);
   }
 
   return (

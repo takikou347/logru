@@ -8,6 +8,7 @@ import { Empty, Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { cn } from "@/lib/utils";
 import type { ListItem } from "./api";
 import { useAddItem, useDeleteItem, useListDetail, useToggleItem } from "./api";
@@ -46,18 +47,20 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
         ref={inputRef}
         value={text}
         maxLength={200}
-        placeholder="項目を追加"
-        aria-label="項目を追加"
+        placeholder="項目を足す"
+        aria-label="項目を足す"
         onChange={(e) => setText(e.target.value)}
       />
     </form>
   );
 }
 
-/** 項目の行。チェックすると下へ寄り、字が薄くなる。F-204、F-205 */
-function ItemRow({ item, listId }: { item: ListItem; listId: string }) {
+/**
+ * 項目の行。チェックすると下へ寄り、字が薄くなる。F-204、F-205
+ * 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
+ */
+function ItemRow({ item, listId, onRemove }: { item: ListItem; listId: string; onRemove: (item: ListItem) => void }) {
   const toggleItem = useToggleItem(listId);
-  const deleteItem = useDeleteItem(listId);
   return (
     <li className="grid min-h-[52px] grid-cols-[34px_1fr_auto] items-center gap-1 border-t border-line text-sm">
       <Checkbox
@@ -71,7 +74,7 @@ function ItemRow({ item, listId }: { item: ListItem; listId: string }) {
         type="button"
         className="grid size-9 place-items-center text-ink-3"
         aria-label={`${item.text} を消す`}
-        onClick={() => deleteItem.mutate(item.id)}
+        onClick={() => onRemove(item)}
       >
         <Trash2 className="size-4" />
       </button>
@@ -88,6 +91,8 @@ export function ListDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [params, setParams] = useSearchParams();
   const detail = useListDetail(id ?? null);
+  const deleteItem = useDeleteItem(id ?? "");
+  const { pending, remove } = useUndoableDelete("項目を消しました");
   const [editing, setEditing] = useState(false);
   const addFocused = params.get("add") === "1";
 
@@ -108,7 +113,9 @@ export function ListDetailPage() {
   }
 
   const list = detail.data;
-  const items = [...list.items].sort((a, b) => Number(a.checked) - Number(b.checked));
+  const items = [...list.items].filter((i) => !pending.has(i.id)).sort((a, b) => Number(a.checked) - Number(b.checked));
+  const removeItem = (item: ListItem) =>
+    remove(item.id, ({ keepalive }) => deleteItem.mutateAsync({ id: item.id, keepalive }));
 
   return (
     <AppLayout poolColors={[]}>
@@ -137,7 +144,7 @@ export function ListDetailPage() {
           ) : (
             <ul>
               {items.map((item) => (
-                <ItemRow key={item.id} item={item} listId={list.id} />
+                <ItemRow key={item.id} item={item} listId={list.id} onRemove={removeItem} />
               ))}
             </ul>
           )}

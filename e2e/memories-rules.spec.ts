@@ -1,5 +1,9 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { signUp } from "./helpers";
+
+const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
 
 /** グループを作り、そのグループで思い出を有効にする。有効にした人は、自分でも使うことになる */
 async function groupWithMemories(page: import("@playwright/test").Page, name: string) {
@@ -38,12 +42,31 @@ test("記録はいつでも「共有しない」を選べる", async ({ page }) 
   await groupWithMemories(page, "ふたり");
   await page.goto("/memories?record=1");
   const sheet = page.getByRole("dialog", { name: "記録する" });
-  const group = sheet.getByRole("radiogroup", { name: "共有するグループ" });
-  await expect(group.getByRole("radio", { name: "共有しない" })).toHaveAttribute("aria-checked", "true");
-  await expect(group.getByRole("radio", { name: "ふたり" })).toBeVisible();
+  const shareRow = sheet.getByRole("button", { name: /^共有/ });
+  await expect(shareRow).toContainText("共有しない");
+  await shareRow.click();
+  const picker = page.getByRole("dialog", { name: "共有する相手" });
+  await expect(picker.getByRole("radio", { name: "共有しない" })).toHaveAttribute("aria-checked", "true");
+  await expect(picker.getByRole("radio", { name: "ふたり" })).toBeVisible();
+  // 選んでいる行をもう一度押して、値を変えずに閉じる
+  await picker.getByRole("radio", { name: "共有しない" }).click();
   await sheet.getByLabel("文章").fill("ひとりのメモ");
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("記録しました")).toBeVisible();
+});
+
+test("写真を足した後は、共有の行を押せず、理由が下に出る。0057", async ({ page }) => {
+  await signUp(page);
+  await groupWithMemories(page, "ふたり");
+  await page.goto("/memories?record=1");
+  const sheet = page.getByRole("dialog", { name: "記録する" });
+  const shareRow = sheet.getByRole("button", { name: /^共有/ });
+  await expect(shareRow).toBeEnabled();
+  await expect(sheet.getByText("写真を追加した後は、共有先を変えられません。")).toHaveCount(0);
+
+  await sheet.locator('input[type="file"][multiple]').setInputFiles(PHOTO);
+  await expect(shareRow).toBeDisabled({ timeout: 15_000 });
+  await expect(sheet.getByText("写真を追加した後は、共有先を変えられません。")).toBeVisible();
 });
 
 test("カレンダーの思い出は、その場で編集でき、思い出を開ける。記録は予定の一覧に混ざらない", async ({ page }) => {

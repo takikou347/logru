@@ -4,12 +4,13 @@ import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { LoadFailure } from "@/components/parts/Failure";
+import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import { Empty, Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { useLists, useListsGroups } from "./api";
 import { CreateListSheet } from "./CreateListSheet";
-import { formatShortDate, GroupFilter, SideGroupFilter } from "./parts";
+import { formatShortDate } from "./parts";
 
 /**
  * リストの一覧。F-202
@@ -32,15 +33,13 @@ export function ListsPage() {
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
   const rows = lists.data ?? [];
+  const filterOptions = groupFilterOptions({ groups, me: data, value: filterGroup, onChange: setGroup });
 
   return (
-    <AppLayout
-      poolColors={poolColorsOf(groups, data)}
-      side={<SideGroupFilter groups={groups} me={data} value={filterGroup} onChange={setGroup} />}
-    >
+    <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
       <Page>
         <PageBar title="リスト" />
-        <GroupFilter groups={groups} me={data} value={filterGroup} onChange={setGroup} />
+        <GroupFilterBand options={filterOptions} />
 
         {lists.error && !lists.data && (
           <LoadFailure what="リスト" error={lists.error} onRetry={() => void lists.refetch()} />

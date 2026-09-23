@@ -1,5 +1,5 @@
 import { type APIRequestContext, type Browser, expect, type Page, test } from "@playwright/test";
-import { apiUser, dayPanel, signUp } from "./helpers";
+import { apiUser, dayPanel, pickShare, signUp } from "./helpers";
 
 /**
  * 「ふたり」のグループを作り、ほかの人を招待リンクで入れる。人ごとに別の端末で開く
@@ -30,7 +30,7 @@ async function addInvited(page: Page, title: string, names: string[]) {
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill(title);
-  await sheet.getByRole("radio", { name: "ふたり" }).click();
+  await pickShare(page, sheet, "ふたり");
   const picker = sheet.getByRole("group", { name: "招待する人" });
   for (const name of names) await picker.getByRole("button", { name, exact: true }).click();
   await sheet.getByRole("button", { name: "保存する" }).click();
@@ -57,7 +57,7 @@ test("招待した相手には返事待ちの枠線で出て、参加すると�
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   const draft = page.getByRole("dialog", { name: "新しい予定" });
   await expect(draft.getByRole("group", { name: "招待する人" })).toHaveCount(0);
-  await draft.getByRole("radio", { name: "ふたり" }).click();
+  await pickShare(page, draft, "ふたり");
   await expect(draft.getByRole("group", { name: "招待する人" }).getByRole("button", { name: "全員" })).toBeVisible();
   await page.keyboard.press("Escape");
 
@@ -124,7 +124,7 @@ test("招待された人は予定を直せ、直した内容は作った人に�
   await expect(sheet).toHaveAccessibleName("予定を直す");
   await sheet.getByLabel("題名").fill("買い出しと夕飯");
   // グループを変えられるのは作った人だけ
-  await expect(sheet.getByRole("radio", { name: "共有しない" })).toBeDisabled();
+  await expect(sheet.getByRole("button", { name: /^共有/ })).toBeDisabled();
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(mika!.getByText("予定を保存しました")).toBeVisible();
 

@@ -12,10 +12,11 @@ import { Dot } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { extensionLabel } from "@/lib/extension-visuals";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useSearch } from "@/modules/search/api";
 import { kindIconOf } from "../kind-icon";
-import { decorate, KIND_LABEL, kindOf, type ViewItem } from "../model";
+import { decorate, kindOf, type ViewItem } from "../model";
 
 /** 探す文字を止めてから API を呼ぶまでの間。連打のたびに探させない */
 const DEBOUNCE_MS = 300;
@@ -39,7 +40,7 @@ function ResultRow({ item, onOpen }: { item: ViewItem; onOpen: (item: ViewItem) 
         <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <Dot color={item.color} />
           {Icon && <Icon className="size-3.5 flex-none text-ink-2" aria-hidden="true" />}
-          {kind !== "event" && <span className="sr-only">{KIND_LABEL[kind]}、</span>}
+          {kind !== "event" && <span className="sr-only">{extensionLabel(item.extension)}、</span>}
           <span className="truncate">{item.title}</span>
         </span>
         <span className="truncate text-xs text-ink-2">

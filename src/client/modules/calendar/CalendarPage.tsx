@@ -1,6 +1,6 @@
 import { clientExtension, defaultExtension } from "@extensions/client/registry";
 import type { EditorTarget } from "@extensions/client/types";
-import type { CalendarItem, GroupSummary, HomeWidgetEntry } from "@shared/api-types";
+import type { CalendarItem, HomeWidgetEntry } from "@shared/api-types";
 import { defaultHomeLayout, mergeHomeLayout, visibleHomeLayout } from "@shared/home";
 import { ChevronLeft, ChevronRight, LayoutGrid, Pencil, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -8,18 +8,15 @@ import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useGroups, useMe } from "@/api/common";
 import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components/layout/AppLayout";
-import { Chip } from "@/components/parts/Chip";
 import { LoadFailure } from "@/components/parts/Failure";
 import { FeatureSheet } from "@/components/parts/FeatureSheet";
+import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import { InstallBanner } from "@/components/parts/InstallBanner";
 import { NotificationBell } from "@/components/parts/NotificationBell";
-import { Dot } from "@/components/parts/Panel";
 import { ScreenTour } from "@/components/parts/ScreenTour";
 import { Segmented } from "@/components/parts/Segmented";
 import { ShortcutBand } from "@/components/parts/ShortcutBand";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { groupColor } from "@/lib/colors";
 import {
   addDays,
   addMonths,
@@ -334,26 +331,14 @@ export function CalendarPage() {
     (x.itemAddons ?? []).filter((a) => a.extension === editorKey).map((a) => a.Component),
   );
 
-  /** グループで絞る選択肢の中身。自分だけのグループは「自分だけの予定」と書く。0009 */
-  const groupOption = (g: GroupSummary) => ({
-    key: g.id,
-    pressed: groupFilter === g.id,
-    onClick: () => update({ group: groupFilter === g.id ? null : g.id }),
-    children: (
-      <>
-        <Dot color={me.data ? groupColor(g, me.data.colorPrefs) : g.color} />
-        {g.isPersonal ? "自分だけの予定" : g.name}
-      </>
-    ),
+  /** グループで絞る選択肢。自分だけのグループは「自分だけの予定」と書く。0009、0057 */
+  const filterOptions = groupFilterOptions({
+    groups: allGroups,
+    me: me.data,
+    value: groupFilter,
+    onChange: (id) => update({ group: id }),
+    personalLabel: "自分だけの予定",
   });
-
-  /** 絞り込みの選択肢。スマホは丸いボタン、PC は左の列の行 */
-  const filters = (
-    render: (p: { key: string; pressed: boolean; onClick: () => void; children: React.ReactNode }) => React.ReactNode,
-  ) => [
-    render({ key: "all", pressed: !groupFilter, onClick: () => update({ group: null }), children: "すべて" }),
-    ...allGroups.map((g) => render(groupOption(g))),
-  ];
 
   /**
    * 予定を足すボタン。
@@ -374,33 +359,40 @@ export function CalendarPage() {
       poolFocus={focusIndex >= 0 ? focusIndex : null}
       side={
         <div className="flex flex-col gap-3">
-          <div role="group" aria-label="表示するグループ" className="pr-2" data-tour="group-filter">
-            <SideHeading>表示するグループ</SideHeading>
-            {filters(({ key, pressed, onClick, children }) => {
+          <SideGroupFilter
+            options={filterOptions}
+            tourId="group-filter"
+            renderOption={(o) => {
               // 共有のグループは、矢印でメンバーを開き、人ごとに出し入れできる。F-20
-              const section = sections.find((s) => s.group.id === key);
+              const section = sections.find((s) => s.group.id === o.key);
               if (!section) {
                 return (
-                  <button key={key} type="button" className={sideItemClass} aria-pressed={pressed} onClick={onClick}>
-                    {children}
+                  <button
+                    key={o.key}
+                    type="button"
+                    className={sideItemClass}
+                    aria-pressed={o.pressed}
+                    onClick={o.onClick}
+                  >
+                    {o.label}
                   </button>
                 );
               }
               return (
                 <SideGroup
-                  key={key}
+                  key={o.key}
                   section={section}
-                  label={children}
-                  pressed={pressed}
-                  onFilter={onClick}
-                  open={sideOpen.isOpen(key)}
-                  onOpenChange={(o) => sideOpen.setOpen(key, o)}
+                  label={o.label}
+                  pressed={o.pressed}
+                  onFilter={o.onClick}
+                  open={sideOpen.isOpen(o.key)}
+                  onOpenChange={(v) => sideOpen.setOpen(o.key, v)}
                   hidden={hiddenIds}
                   onToggle={togglePerson}
                 />
               );
-            })}
-          </div>
+            }}
+          />
           <div>
             <SideHeading>種類で絞る</SideHeading>
             <SideKinds hidden={hiddenKinds} onToggle={toggleKind} />
@@ -509,28 +501,14 @@ export function CalendarPage() {
 
       {/*
         グループが多いときは横に流れる。はみ出すときだけ、流せることが分かるよう下にバーを出す。F-25
-        下の余白 12 px はバーの有無にかかわらず取る。バーは余白の下 4 px に重なり、チップとは 8 px あく。帯の高さは変わらない
+        下の余白 12 px はバーの有無にかかわらず取る。バーは余白の下 4 px に重なり、チップとは 8 px あく。帯の高さは変わらない。0057
       */}
-      <nav className="-mx-4 lg:hidden" aria-label="グループで絞る" data-tour="group-filter">
-        <ScrollArea
-          orientation="horizontal"
-          className="px-4"
-          viewportClassName="pb-3"
-          scrollbarClassName="left-4! right-4!"
-        >
-          <div className="flex w-max gap-2">
-            {filters(({ key, pressed, onClick, children }) => (
-              <Chip key={key} aria-pressed={pressed} onClick={onClick}>
-                {children}
-              </Chip>
-            ))}
-            {sections.length > 0 && (
-              <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />
-            )}
-            <KindChip hidden={hiddenKinds} onToggle={toggleKind} />
-          </div>
-        </ScrollArea>
-      </nav>
+      <GroupFilterBand options={filterOptions} tourId="group-filter">
+        {sections.length > 0 && (
+          <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />
+        )}
+        <KindChip hidden={hiddenKinds} onToggle={toggleKind} />
+      </GroupFilterBand>
 
       {calendar.error && (!calendar.data || calendar.isPlaceholderData) && (
         <LoadFailure

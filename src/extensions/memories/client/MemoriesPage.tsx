@@ -7,6 +7,7 @@ import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
+import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { poolColorsOf } from "@/modules/calendar/model";
@@ -16,7 +17,7 @@ import { useMemoryGroups, useMemoryList } from "./api";
 import { CoverOpen } from "./Book";
 import { Dock } from "./Dock";
 import { MemorySheet } from "./MemorySheet";
-import { formatClock, formatSpan, GroupFilter, GroupLabel, PhotoImg, SideGroupFilter } from "./parts";
+import { formatClock, formatSpan, GroupLabel, PhotoImg } from "./parts";
 import { RecordSheet } from "./RecordSheet";
 
 const FILTER_KEY = "logru-memories-group";
@@ -81,15 +82,13 @@ export function MemoriesPage() {
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
   const empty = list.data && list.data.memories.length === 0 && list.data.recent.length === 0;
+  const filterOptions = groupFilterOptions({ groups, me: data, value: group, onChange: setGroup });
 
   return (
-    <AppLayout
-      poolColors={poolColorsOf(groups, data)}
-      side={<SideGroupFilter groups={groups} me={data} value={group} onChange={setGroup} />}
-    >
+    <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
       <Page>
         <PageBar title="思い出" />
-        <GroupFilter groups={groups} me={data} value={group} onChange={setGroup} />
+        <GroupFilterBand options={filterOptions} />
         {list.error && !list.data && (
           <LoadFailure what="思い出" error={list.error} onRetry={() => void list.refetch()} />
         )}

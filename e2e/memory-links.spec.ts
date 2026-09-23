@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addEvent, signUp } from "./helpers";
+import { addEvent, pickShare, signUp } from "./helpers";
 
 /** グループを作り、そのグループで思い出を有効にする */
 async function groupWithMemories(page: import("@playwright/test").Page, name: string) {
@@ -22,7 +22,7 @@ test("思い出を作るとき、期間の予定が最初から入り、外し�
   await page.getByRole("button", { name: "思い出を作る" }).click();
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("箱根 日帰り");
-  await create.getByRole("radio", { name: "ふたり" }).click();
+  await pickShare(page, create, "ふたり");
   await expect(create.getByRole("checkbox", { name: "「ロマンスカー」を入れる" })).toBeChecked();
   await create.getByRole("checkbox", { name: "「歯医者」を入れる" }).click();
   await create.getByRole("button", { name: "作る" }).click();
@@ -47,7 +47,7 @@ test("予定を足すとき、重なる思い出に入れるか選べる。0020"
   await page.getByRole("button", { name: "思い出を作る" }).click();
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("鎌倉 散歩");
-  await create.getByRole("radio", { name: "ふたり" }).click();
+  await pickShare(page, create, "ふたり");
   await create.getByRole("button", { name: "作る" }).click();
   await expect(page.getByRole("heading", { name: "鎌倉 散歩" })).toBeVisible();
 
@@ -56,7 +56,7 @@ test("予定を足すとき、重なる思い出に入れるか選べる。0020"
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   let sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill("江ノ電");
-  await sheet.getByRole("radio", { name: "ふたり" }).click();
+  await pickShare(page, sheet, "ふたり");
   await expect(sheet.getByRole("switch", { name: "「鎌倉 散歩」に入れる" })).toBeChecked();
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("予定を足しました")).toBeVisible();
@@ -65,7 +65,7 @@ test("予定を足すとき、重なる思い出に入れるか選べる。0020"
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill("仕事の電話");
-  await sheet.getByRole("radio", { name: "ふたり" }).click();
+  await pickShare(page, sheet, "ふたり");
   await sheet.getByRole("switch", { name: "「鎌倉 散歩」に入れる" }).click();
   await expect(sheet.getByRole("switch", { name: "「鎌倉 散歩」に入れる" })).not.toBeChecked();
   const excluded = page.waitForResponse(

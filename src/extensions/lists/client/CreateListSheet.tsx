@@ -1,13 +1,12 @@
 import type { GroupSummary, Me } from "@shared/api-types";
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router";
-import { Chip } from "@/components/parts/Chip";
 import { Field } from "@/components/parts/Field";
-import { Dot, FieldMessage } from "@/components/parts/Panel";
+import { FieldMessage } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
+import { SharePickerRow } from "@/components/parts/SharePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { groupColor } from "@/lib/colors";
 import { useCreateList } from "./api";
 
 /**
@@ -29,8 +28,6 @@ export function CreateListSheet({
   const navigate = useNavigate();
   const createList = useCreateList();
   const personal = groups.find((g) => g.isPersonal);
-  // 「自分だけ」は自分だけのグループに置く。0009
-  const choices = personal ? [personal, ...groups.filter((g) => g !== personal)] : groups;
 
   const [groupId, setGroupId] = useState(
     groups.some((g) => g.id === defaultGroupId) ? defaultGroupId! : (personal?.id ?? groups[0]?.id ?? ""),
@@ -72,19 +69,7 @@ export function CreateListSheet({
             />
           )}
         </Field>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-ink-2" id="lists-group-label">
-            共有
-          </span>
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="lists-group-label">
-            {choices.map((g) => (
-              <Chip key={g.id} role="radio" aria-checked={g.id === groupId} onClick={() => setGroupId(g.id)}>
-                <Dot color={groupColor(g, me.colorPrefs)} />
-                {g.isPersonal ? "自分だけ" : g.name}
-              </Chip>
-            ))}
-          </div>
-        </div>
+        <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} noneLabel="自分だけ" />
         <Field label="日付" hint="付けると、その日のカレンダーに出ます。省けます">
           {(p) => <Input {...p} type="date" value={date} onChange={(e) => setDate(e.target.value)} />}
         </Field>

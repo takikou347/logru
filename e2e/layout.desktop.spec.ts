@@ -20,7 +20,7 @@ test("左の列の下のアイコンから、設定を開き、ログアウト�
   await expect(menu.getByText(user.email)).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: "グループ" })).toHaveCount(0);
   await menu.getByRole("menuitem", { name: "設定" }).click();
-  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page).toHaveURL(/\/settings\/appearance$/);
   await expect(page.getByRole("link", { name: "戻る" })).toBeHidden();
 
   menu = await openAccountMenu(page);

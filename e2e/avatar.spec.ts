@@ -14,7 +14,7 @@ test("設定で写真を置くとメニューのアバターが写真になり�
   await expect(menu.locator("img")).toHaveCount(0);
   await page.keyboard.press("Escape");
 
-  await page.goto("/settings");
+  await page.goto("/settings/appearance");
   const avatarPanel = page.getByRole("region", { name: "アバター" });
   await expect(avatarPanel.getByRole("button", { name: "頭文字に戻す" })).toBeDisabled();
 
@@ -34,7 +34,7 @@ test("設定で写真を置くとメニューのアバターが写真になり�
   await page.keyboard.press("Escape");
 
   // 頭文字に戻すと、メニューも頭文字に戻る
-  await page.goto("/settings");
+  await page.goto("/settings/appearance");
   await page.getByRole("region", { name: "アバター" }).getByRole("button", { name: "頭文字に戻す" }).click();
   await expect(page.getByText("アバターを頭文字に戻しました")).toBeVisible();
   await expect(page.getByRole("region", { name: "アバター" }).locator("img")).toHaveCount(0);

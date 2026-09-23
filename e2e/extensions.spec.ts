@@ -7,7 +7,7 @@ test("下の操作の「機能」で機能のシートが開き、機能の一�
   const sheet = page.getByRole("dialog", { name: "機能" });
   await expect(sheet.getByRole("link", { name: /グループ/ })).toBeVisible();
   await sheet.getByRole("link", { name: "機能を足す、外す" }).click();
-  await expect(page).toHaveURL(/\/extensions$/);
+  await expect(page).toHaveURL(/\/settings\/extensions$/);
   await expect(page.getByRole("heading", { name: "機能" })).toBeVisible();
 });
 

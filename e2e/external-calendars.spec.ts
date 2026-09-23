@@ -6,7 +6,7 @@ const SAMPLE_PATH = "/api/external-calendars/__test__/sample.ics";
 
 /** 設定の画面から、外部のカレンダーを 1 つ登録する */
 async function register(page: Page, name: string, url: string) {
-  await page.goto("/settings");
+  await page.goto("/settings/extensions/external");
   const section = page.getByRole("region", { name: "外部のカレンダー" });
   await section.getByRole("button", { name: "カレンダーを登録する" }).click();
   const sheet = page.getByRole("dialog", { name: "外部のカレンダーを登録する" });
@@ -68,7 +68,7 @@ test("読み直し、登録を消すと、取り込んだ予定も消える", as
   await page.goto("/");
   await expect(dayPanel(page).getByRole("button", { name: /外部の打ち合わせ/ })).toBeVisible();
 
-  await page.goto("/settings");
+  await page.goto("/settings/extensions/external");
   await section.getByRole("button", { name: "しごと の登録を消す" }).click();
   await page.getByRole("dialog", { name: "しごと の登録を消す" }).getByRole("button", { name: "登録を消す" }).click();
   await expect(section.getByText("まだ登録していません。")).toBeVisible();
@@ -114,7 +114,7 @@ test("外部のカレンダーを登録していなければ、外部のカレ�
 
 test("https でない URL は断り、読めない URL は登録して理由を出す", async ({ page, baseURL }) => {
   await signUp(page);
-  await page.goto("/settings");
+  await page.goto("/settings/extensions/external");
   const section = page.getByRole("region", { name: "外部のカレンダー" });
   await section.getByRole("button", { name: "カレンダーを登録する" }).click();
   const sheet = page.getByRole("dialog", { name: "外部のカレンダーを登録する" });

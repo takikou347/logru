@@ -5,8 +5,9 @@ import { toast } from "sonner";
 import { useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
-import { Dot, Empty, FieldMessage, Panel } from "@/components/parts/Panel";
+import { Dot, FieldMessage, Panel } from "@/components/parts/Panel";
 import { ScreenTour } from "@/components/parts/ScreenTour";
 import { Switch } from "@/components/ui/switch";
 import { groupColor } from "@/lib/colors";
@@ -54,11 +55,11 @@ export function ExtensionsPage() {
           <LoadFailure what="機能の一覧" error={overview.error} onRetry={() => void overview.refetch()} />
         )}
         {list.length === 0 && !overview.error && (
-          <Empty>
+          <EmptyState pose="compass" action={{ label: "カレンダーを見る", to: "/" }}>
             足せる機能はまだありません。
             <br />
             予定と外部のカレンダーは、いつも使えます。
-          </Empty>
+          </EmptyState>
         )}
         {list.map((x) => {
           const pending = toggle.isPending && toggle.variables?.key === x.key;

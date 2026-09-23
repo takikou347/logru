@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/parts/EmptyState";
 import { Dot } from "@/components/parts/Panel";
 import { dayTone, formatTime, holidayName, onDay, WEEKDAYS } from "@/lib/dates";
 import { cn } from "@/lib/utils";
@@ -122,8 +123,19 @@ function PrimaryList({ items, onOpen }: { items: ViewItem[]; onOpen: (i: ViewIte
 /**
  * 選んだ日の予定。大きな日付と、その日の予定を並べる。
  * スマホは月の表の下、PC は右の列に出す。
+ * @param onAddNew この日に予定を足す。空のときのマスコットのボタンから呼ぶ。0053
  */
-export function DayPanel({ day, items, onOpen }: { day: Date; items: ViewItem[]; onOpen: (i: ViewItem) => void }) {
+export function DayPanel({
+  day,
+  items,
+  onOpen,
+  onAddNew,
+}: {
+  day: Date;
+  items: ViewItem[];
+  onOpen: (i: ViewItem) => void;
+  onAddNew: () => void;
+}) {
   const tone = dayTone(day);
   const hol = holidayName(day);
   const mine = items.filter((i) => onDay(i, day));
@@ -146,7 +158,18 @@ export function DayPanel({ day, items, onOpen }: { day: Date; items: ViewItem[];
           {hol && <div className="mt-0.5 text-[11px] text-ink">{hol}</div>}
         </div>
       </div>
-      <ItemList items={mine} onOpen={onOpen} empty="予定はありません。日付を押すと、その日の予定を足せます。" />
+      {mine.length === 0 ? (
+        <EmptyState
+          pose="calendar"
+          bordered={false}
+          className="items-start py-2 text-left"
+          action={{ label: "この日の予定を作る", onClick: onAddNew, variant: "default" }}
+        >
+          この日の予定はありません。
+        </EmptyState>
+      ) : (
+        <ItemList items={mine} onOpen={onOpen} empty="この日の予定はありません。" />
+      )}
     </section>
   );
 }

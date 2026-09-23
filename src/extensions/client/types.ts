@@ -14,6 +14,12 @@ import type { ExtensionManifest } from "../types";
 export type EditorTarget = { mode: "new"; date: Date; groupId?: string } | { mode: "edit"; item: CalendarItem };
 
 /**
+ * 繰り返す項目を直す、消すときの範囲。この回だけ・これ以降・全部。0043
+ * 繰り返さない項目では省く。
+ */
+export type ItemEditScope = "this" | "following" | "all";
+
+/**
  * 新しく作るシートに並べる、その日に既にある項目。ほかの拡張の項目も入る。
  * 色とグループ名はカレンダーが付ける。拡張はグループの色の決まりを知らなくてよい
  */
@@ -61,8 +67,11 @@ export type ItemEditorProps = {
   groups: GroupSummary[];
   me: Me;
   onClose: () => void;
-  /** 消すとき。消す処理はカレンダーが持ち、5 秒のあいだ元に戻せるようにする */
-  onDelete: (item: CalendarItem) => void;
+  /**
+   * 消すとき。消す処理はカレンダーが持ち、5 秒のあいだ元に戻せるようにする。
+   * 繰り返す項目では scope を渡す。0043
+   */
+  onDelete: (item: CalendarItem, scope?: ItemEditScope) => void;
   /** ほかの拡張が、このシートに足す欄。使える拡張の分だけ、カレンダーが渡す */
   addons?: ComponentType<ItemAddonProps>[];
 };
@@ -124,8 +133,13 @@ export type ClientExtension = {
   /**
    * 項目を消す。読むだけの拡張は省く。省くと、カレンダーは消す操作を出さない
    * @param keepalive 画面を閉じるときに送り切る
+   * @param occurrenceAt 繰り返す項目の回。項目の occurrenceAt をそのまま渡す。0043
+   * @param scope 繰り返す項目を消す範囲。0043
    */
-  deleteItem?: (id: string, opts: { keepalive: boolean }) => Promise<void>;
+  deleteItem?: (
+    id: string,
+    opts: { keepalive: boolean; occurrenceAt?: number; scope?: ItemEditScope },
+  ) => Promise<void>;
   /** 設定の画面に出す欄。利用者ごとの拡張が、登録の画面を置くのに使う。無ければ省く */
   SettingsSection?: ComponentType;
   /**

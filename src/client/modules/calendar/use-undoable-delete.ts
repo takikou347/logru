@@ -1,4 +1,5 @@
 import { clientExtension } from "@extensions/client/registry";
+import type { ItemEditScope } from "@extensions/client/types";
 import type { CalendarItem } from "@shared/api-types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -9,8 +10,12 @@ const UNDO_MS = 5000;
 /** 縮んで消える動きの長さ。globals.css の [data-leaving] と同じ --dur-base(220ms)。0044、0048 */
 const EXIT_MS = 220;
 
-/** 項目を見分ける名前。拡張が違えば ID が重なりうるので、拡張の名前を前に付ける */
-export const itemKey = (item: Pick<CalendarItem, "extension" | "id">) => `${item.extension}:${item.id}`;
+/**
+ * 項目を見分ける名前。拡張が違えば ID が重なりうるので、拡張の名前を前に付ける。
+ * 繰り返す項目は、同じ ID で回ごとに何件も出るので、occurrenceAt も付けて見分ける。0043
+ */
+export const itemKey = (item: Pick<CalendarItem, "extension" | "id" | "occurrenceAt">) =>
+  `${item.extension}:${item.id}${item.occurrenceAt != null ? `:${item.occurrenceAt}` : ""}`;
 
 function without(s: Set<string>, key: string): Set<string> {
   if (!s.has(key)) return s;
@@ -41,14 +46,20 @@ export function useUndoableDelete() {
   const qc = useQueryClient();
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [leaving, setLeaving] = useState<Set<string>>(new Set());
-  const timers = useRef(new Map<string, { exitTimer: number; commitTimer: number; item: CalendarItem }>());
+  const timers = useRef(
+    new Map<string, { exitTimer: number; commitTimer: number; item: CalendarItem; scope: ItemEditScope | undefined }>(),
+  );
 
   const commit = useCallback(
-    async (item: CalendarItem, keepalive = false) => {
+    async (item: CalendarItem, scope: ItemEditScope | undefined, keepalive = false) => {
       const key = itemKey(item);
       timers.current.delete(key);
       try {
-        await clientExtension(item.extension)?.deleteItem?.(item.id, { keepalive });
+        await clientExtension(item.extension)?.deleteItem?.(item.id, {
+          keepalive,
+          occurrenceAt: item.occurrenceAt,
+          scope,
+        });
       } catch (e) {
         if (!keepalive) toast.error((e as Error).message);
       }
@@ -68,12 +79,12 @@ export function useUndoableDelete() {
   }, []);
 
   const remove = useCallback(
-    (item: CalendarItem) => {
+    (item: CalendarItem, scope?: ItemEditScope) => {
       const key = itemKey(item);
       setLeaving((s) => withKey(s, key));
       const exitTimer = window.setTimeout(() => setHidden((s) => withKey(s, key)), EXIT_MS);
-      const commitTimer = window.setTimeout(() => void commit(item), UNDO_MS);
-      timers.current.set(key, { exitTimer, commitTimer, item });
+      const commitTimer = window.setTimeout(() => void commit(item, scope), UNDO_MS);
+      timers.current.set(key, { exitTimer, commitTimer, item, scope });
       toast("予定を消しました", {
         duration: UNDO_MS,
         action: {
@@ -95,10 +106,10 @@ export function useUndoableDelete() {
 
   useEffect(() => {
     const flush = () => {
-      for (const { exitTimer, commitTimer, item } of timers.current.values()) {
+      for (const { exitTimer, commitTimer, item, scope } of timers.current.values()) {
         window.clearTimeout(exitTimer);
         window.clearTimeout(commitTimer);
-        void commit(item, true);
+        void commit(item, scope, true);
       }
     };
     window.addEventListener("pagehide", flush);

@@ -61,11 +61,12 @@ test("カレンダーの思い出は、その場で編集でき、思い出を�
 
   await page.goto("/");
   const day = page.getByTestId("day-panel");
-  const memory = day.getByRole("button", { name: /鎌倉 散歩/ });
+  // 思い出は「思い出」の見出しの下にまとまる。予定は無いので「予定」の見出しは出ない。0056
+  await expect(day.getByRole("group", { name: "予定" })).toHaveCount(0);
+  const memories = day.getByRole("group", { name: "思い出" });
+  const memory = memories.getByRole("button", { name: /鎌倉 散歩/ });
   await expect(memory).toContainText("思い出");
-  // 記録は予定の一覧ではなく、下に小さく出る
-  await expect(day.getByRole("list").getByText(/記録 1/)).toHaveCount(0);
-  await expect(day.getByRole("button", { name: /記録 1/ })).toBeVisible();
+  await expect(memories.getByRole("button", { name: /記録 1/ })).toBeVisible();
 
   await memory.click();
   const edit = page.getByRole("dialog", { name: "思い出を編集" });

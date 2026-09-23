@@ -4,8 +4,8 @@ import { and, gt, gte, inArray, like, lt, or } from "drizzle-orm";
 import { DAY_MS, DEFAULT_TIME_ZONE, dayKeyIn, startOfDayIn } from "../shared/days";
 import { type MemoryRow, memories, memoryRecords } from "./schema";
 
-/** カレンダーの項目の ID の頭。思い出と、日ごとにまとめた記録を見分ける */
-const ITEM_PREFIX = { memory: "m:", records: "r:" } as const;
+/** カレンダーの項目の ID の頭。思い出、日ごとの記録、日ごとのひとコマを見分ける。ひとコマも MemoryItemSheet の recordsDay の解決に使う */
+const ITEM_PREFIX = { memory: "m:", records: "r:", koma: "k:" } as const;
 
 /** 思い出の 1 行を、カレンダーの項目の形にする。期間にかかるものは終日の帯として出す */
 function toCalendarItem(m: MemoryRow): CalendarItem {
@@ -19,6 +19,7 @@ function toCalendarItem(m: MemoryRow): CalendarItem {
     allDay: true,
     title: m.title,
     tag: "思い出",
+    kind: "record",
     ...(m.place ? { place: m.place } : {}),
   };
 }
@@ -27,7 +28,8 @@ function toCalendarItem(m: MemoryRow): CalendarItem {
  * カレンダーに渡す項目。0008
  *
  * - 思い出: 期間にかかるものを 1 件 1 項目で返す。終日の帯になる
- * - 記録: グループと日ごとに 1 項目にまとめる。題名は「記録 3」。日は日本時間で数える
+ * - 記録、ひとコマ: グループと日と kind(note、koma)ごとに 1 項目にまとめる。題名は「記録 3」「ひとコマ 3」。
+ *   日は日本時間で数える。種類を見分けるアイコンを付ける。0056
  *
  * @param db D1 を包んだ Drizzle
  * @param groupIds 呼んでよいグループ。思い出の拡張が有効なものだけ
@@ -46,7 +48,7 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
       ),
     );
   const records = await db
-    .select({ groupId: memoryRecords.groupId, occurredAt: memoryRecords.occurredAt })
+    .select({ groupId: memoryRecords.groupId, occurredAt: memoryRecords.occurredAt, kind: memoryRecords.kind })
     .from(memoryRecords)
     .where(
       and(
@@ -56,11 +58,11 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
       ),
     );
 
-  const counts = new Map<string, { groupId: string; day: string; n: number }>();
+  const counts = new Map<string, { groupId: string; day: string; kind: "note" | "koma"; n: number }>();
   for (const r of records) {
     const day = dayKeyIn(r.occurredAt.getTime(), DEFAULT_TIME_ZONE);
-    const key = `${r.groupId}:${day}`;
-    const c = counts.get(key) ?? { groupId: r.groupId, day, n: 0 };
+    const key = `${r.groupId}:${day}:${r.kind}`;
+    const c = counts.get(key) ?? { groupId: r.groupId, day, kind: r.kind, n: 0 };
     c.n += 1;
     counts.set(key, c);
   }
@@ -69,16 +71,19 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
     ...rows.map(toCalendarItem),
     ...[...counts.values()].map<CalendarItem>((c) => {
       const start = startOfDayIn(c.day, DEFAULT_TIME_ZONE);
+      const isKoma = c.kind === "koma";
       return {
         extension: "memories",
-        id: `${ITEM_PREFIX.records}${c.groupId}:${c.day}`,
+        id: `${isKoma ? ITEM_PREFIX.koma : ITEM_PREFIX.records}${c.groupId}:${c.day}`,
         groupId: c.groupId,
         createdBy: null,
         startsAt: start,
         endsAt: start + DAY_MS,
         allDay: true,
-        title: `記録 ${c.n}`,
-        tag: "記録",
+        title: isKoma ? `ひとコマ ${c.n}` : `記録 ${c.n}`,
+        tag: isKoma ? "ひとコマ" : "記録",
+        kind: "record",
+        icon: isKoma ? "timer" : "camera",
         secondary: true,
       };
     }),

@@ -54,7 +54,7 @@ test("めくっている間も、ガラスの面(表の外枠)は動かない。
 });
 
 test("ラボで「横に滑るだけ」を選んでも、スワイプで月は移る", async ({ page }) => {
-  await page.goto("/settings");
+  await page.goto("/settings/appearance");
   const lab = page.getByRole("region", { name: "ラボ" });
   await lab.getByRole("switch", { name: "月送り: 横に滑るだけ" }).click();
   await page.goto("/");

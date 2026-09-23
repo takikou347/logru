@@ -1,8 +1,8 @@
 import { clientExtension, defaultExtension } from "@extensions/client/registry";
 import type { EditorTarget } from "@extensions/client/types";
 import type { GroupSummary, HomeWidgetEntry } from "@shared/api-types";
-import { defaultHomeLayout, visibleHomeLayout } from "@shared/home";
-import { ChevronLeft, ChevronRight, LayoutGrid, Pencil, Plus, RotateCcw } from "lucide-react";
+import { defaultHomeLayout, mergeHomeLayout, visibleHomeLayout } from "@shared/home";
+import { ChevronLeft, ChevronRight, LayoutGrid, Pencil, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -11,9 +11,12 @@ import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components
 import { Chip } from "@/components/parts/Chip";
 import { LoadFailure } from "@/components/parts/Failure";
 import { FeatureSheet } from "@/components/parts/FeatureSheet";
+import { InstallBanner } from "@/components/parts/InstallBanner";
 import { NotificationBell } from "@/components/parts/NotificationBell";
 import { Dot } from "@/components/parts/Panel";
+import { ScreenTour } from "@/components/parts/ScreenTour";
 import { Segmented } from "@/components/parts/Segmented";
+import { ShortcutBand } from "@/components/parts/ShortcutBand";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { groupColor } from "@/lib/colors";
@@ -29,13 +32,16 @@ import {
   weekDays,
 } from "@/lib/dates";
 import { useEnabledExtensions } from "@/lib/extensions";
+import { BASE_TOURS } from "@/lib/tours";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useSaveHomeLayout } from "../home/api";
 import { CalendarHomeProvider, type CalendarView } from "../home/CalendarContext";
 import { AddWidgetSheet } from "../home/components/AddWidgetSheet";
+import { HomeEditBar } from "../home/components/HomeEditBar";
 import { WidgetGrid } from "../home/components/WidgetGrid";
-import { useHomeWidgetVisibility, useMergeHomeLayout, useVisibleHomeWidgets } from "../home/layout";
+import { useHomeWidgetVisibility, useVisibleHomeWidgets } from "../home/layout";
 import { HOME_WIDGET_CATALOG, homeWidget } from "../home/widgets";
+import { Onboarding } from "../onboarding/Onboarding";
 import { useCalendar, useMemberVisibility } from "./api";
 import { PeopleChip, SideGroup, useOpenGroups } from "./components/PeopleFilter";
 import { RefreshButton } from "./components/RefreshButton";
@@ -175,7 +181,6 @@ export function CalendarPage() {
     refetch: refetchLayout,
   } = useVisibleHomeWidgets(form);
   const isWidgetVisible = useHomeWidgetVisibility();
-  const mergeLayout = useMergeHomeLayout();
   const [editingHome, setEditingHome] = useState(false);
   const [editedEntries, setEditedEntries] = useState<HomeWidgetEntry[] | null>(null);
   const [mergeBase, setMergeBase] = useState<HomeWidgetEntry[]>([]);
@@ -185,7 +190,7 @@ export function CalendarPage() {
   const saveLayout = useSaveHomeLayout(editingForm ?? form);
   const [addSheet, setAddSheet] = useState(false);
 
-  // 編集の状態で出す並び。直した順と大きさをそのまま使う。ホームは並べ方と大きさだけを知る
+  // 編集の状態で出す並び。直した順をそのまま使う。ホームは並べ方だけを知る
   const editingSlots = useMemo(
     () =>
       (editedEntries ?? []).flatMap((entry) => {
@@ -212,7 +217,7 @@ export function CalendarPage() {
   };
   const finishEdit = () => {
     const visible = editVisible ?? isWidgetVisible;
-    const merged = mergeLayout(mergeBase, editedEntries ?? [], visible);
+    const merged = mergeHomeLayout(mergeBase, editedEntries ?? [], visible);
     saveLayout.mutate(merged, {
       onSuccess: () => {
         setEditingHome(false);
@@ -266,7 +271,7 @@ export function CalendarPage() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (editor || features || editingHome || e.metaKey || e.ctrlKey || e.altKey) return;
-      if ((e.target as HTMLElement).closest("input, textarea, select, [contenteditable]")) return;
+      if ((e.target as HTMLElement).closest("input, textarea, select, [contenteditable], [role=dialog]")) return;
       if (e.key === "ArrowLeft") move(-1);
       else if (e.key === "ArrowRight") move(1);
       else if (e.key === "t" || e.key === "T") update({ date: today });
@@ -327,7 +332,7 @@ export function CalendarPage() {
       poolColors={poolColorsOf(allGroups, me.data)}
       poolFocus={focusIndex >= 0 ? focusIndex : null}
       side={
-        <div role="group" aria-label="表示するグループ" className="pr-2">
+        <div role="group" aria-label="表示するグループ" className="pr-2" data-tour="group-filter">
           <SideHeading>表示するグループ</SideHeading>
           {filters(({ key, pressed, onClick, children }) => {
             // 共有のグループは、矢印でメンバーを開き、人ごとに出し入れできる。F-20
@@ -361,101 +366,102 @@ export function CalendarPage() {
         入る月と入らない月で高さが変わると落ち着かないので、スマホではいつも月と年の下へ操作を置く。
         9 月でも 10 月でも、「今日」が出ても出なくても、帯の形は変わらない。PC は 1 行のまま
       */}
-      <header className="glass flex min-h-[58px] flex-wrap items-center gap-x-2 gap-y-1 rounded-panel py-1.5 pr-1.5 pl-4 lg:flex-nowrap lg:pl-5">
-        <h1 className="flex shrink-0 items-baseline gap-1" aria-live="polite">
-          <span data-testid="month-number" className="text-[38px] leading-none font-bold">
-            {selected.getMonth() + 1}
-          </span>
-          <span className="text-[17px] font-bold">月</span>
-          <span className="ml-2 text-[17px] font-medium text-ink-2">{selected.getFullYear()}</span>
-        </h1>
-        <div className="flex w-full shrink-0 items-center justify-end gap-0.5 lg:ml-auto lg:w-auto lg:gap-1">
-          {!editingHome && showTodayButton && (
-            <button
-              type="button"
-              className="min-h-10 shrink-0 rounded-full border border-(--glass-edge) bg-field px-3.5 text-[13px] font-bold whitespace-nowrap"
-              onClick={() => update({ date: today })}
+      {!editingHome && (
+        <header className="glass flex min-h-[58px] flex-wrap items-center gap-x-2 gap-y-1 rounded-panel py-1.5 pr-1.5 pl-4 lg:flex-nowrap lg:pl-5">
+          <h1 className="flex shrink-0 items-baseline gap-1" aria-live="polite">
+            <span data-testid="month-number" className="text-[38px] leading-none font-bold">
+              {selected.getMonth() + 1}
+            </span>
+            <span className="text-[17px] font-bold">月</span>
+            <span className="ml-2 text-[17px] font-medium text-ink-2">{selected.getFullYear()}</span>
+          </h1>
+          <div className="flex w-full shrink-0 items-center justify-end gap-0.5 lg:ml-auto lg:w-auto lg:gap-1">
+            {showTodayButton && (
+              <button
+                type="button"
+                className="min-h-10 shrink-0 rounded-full border border-(--glass-edge) bg-field px-3.5 text-[13px] font-bold whitespace-nowrap"
+                onClick={() => update({ date: today })}
+              >
+                今日
+              </button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={view === "month" ? "前の月" : "前へ"}
+              onClick={() => move(-1)}
             >
-              今日
-            </button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={view === "month" ? "前の月" : "前へ"}
-            onClick={() => move(-1)}
-          >
-            <ChevronLeft className="size-5" />
-          </Button>
-          <Button variant="ghost" size="icon" aria-label={view === "month" ? "次の月" : "次へ"} onClick={() => move(1)}>
-            <ChevronRight className="size-5" />
-          </Button>
-          {!editingHome && <RefreshButton />}
-          {editingHome ? (
-            <div className="ml-2 flex items-center gap-1.5">
-              <div className="hidden items-center gap-1.5 lg:flex">
-                <Button variant="ghost" size="sm" onClick={() => setAddSheet(true)}>
-                  <Plus className="size-4" />
-                  ウィジェットを足す
-                </Button>
-                <Button variant="ghost" size="sm" onClick={resetToDefault}>
-                  <RotateCcw className="size-4" />
-                  最初の並びに戻す
-                </Button>
-              </div>
-              <Button variant="ghost" size="sm" disabled={saveLayout.isPending} onClick={cancelEdit}>
-                取り消し
-              </Button>
-              <Button size="sm" aria-busy={saveLayout.isPending} disabled={saveLayout.isPending} onClick={finishEdit}>
-                完了
-              </Button>
-            </div>
-          ) : (
+              <ChevronLeft className="size-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={view === "month" ? "次の月" : "次へ"}
+              onClick={() => move(1)}
+            >
+              <ChevronRight className="size-5" />
+            </Button>
+            <RefreshButton />
             <div className="ml-2 hidden gap-2.5 lg:flex">
               <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} />
-              <Button variant="secondary" disabled={layoutLoading || !!layoutError} onClick={startEdit}>
+              <Button
+                variant="secondary"
+                disabled={layoutLoading || !!layoutError}
+                onClick={startEdit}
+                data-tour="edit-home"
+              >
                 <Pencil className="size-4" />
                 ホームを編集
               </Button>
               {addButton()}
             </div>
-          )}
-          <NotificationBell />
-          <AccountMenu />
-        </div>
-      </header>
+            <NotificationBell />
+            <AccountMenu />
+          </div>
+        </header>
+      )}
+
+      {/* ホーム画面に追加する案内。上の帯のすぐ下に並べる。F-34 */}
+      {!editingHome && <InstallBanner className="-order-1" />}
+
+      {/* 近道の帯。スマホは上の帯のすぐ下、PC は左の列。F-26、0037 */}
+      {!editingHome && <ShortcutBand className="lg:hidden" />}
 
       {!editingHome && (
         <div className="-mb-1 lg:hidden">
-          <Button variant="secondary" className="w-full" disabled={layoutLoading || !!layoutError} onClick={startEdit}>
+          <Button
+            variant="secondary"
+            className="w-full"
+            disabled={layoutLoading || !!layoutError}
+            onClick={startEdit}
+            data-tour="edit-home"
+          >
             <Pencil className="size-4" />
             ホームを編集
           </Button>
         </div>
       )}
 
+      {/* 編集の間は、上の帯の代わりに編集の帯を出す。月を移る矢印や知らせは要らない。取り消しはここだけ。#76 */}
       {editingHome && (
-        <div className="-mb-1 flex flex-wrap gap-2 lg:hidden">
-          <Button variant="secondary" size="sm" className="flex-1" onClick={() => setAddSheet(true)}>
-            <Plus className="size-4" />
-            ウィジェットを足す
-          </Button>
-          <Button variant="secondary" size="sm" className="flex-1" onClick={resetToDefault}>
-            <RotateCcw className="size-4" />
-            最初の並びに戻す
-          </Button>
-          <Button variant="ghost" size="sm" className="flex-1" disabled={saveLayout.isPending} onClick={cancelEdit}>
-            取り消し
-          </Button>
-        </div>
+        <HomeEditBar
+          saving={saveLayout.isPending}
+          onCancel={cancelEdit}
+          onSave={finishEdit}
+          onAdd={() => setAddSheet(true)}
+          onReset={resetToDefault}
+        />
       )}
 
-      {/* グループが多いときは横に流れる。流せることが分かるよう、下にいつもバーを出す。F-25 */}
-      <nav className="-mx-4 lg:hidden" aria-label="グループで絞る">
+      {/*
+        グループが多いときは横に流れる。はみ出すときだけ、流せることが分かるよう下にバーを出す。F-25
+        下の余白 12 px はバーの有無にかかわらず取る。バーは余白の下 4 px に重なり、チップとは 8 px あく。帯の高さは変わらない
+      */}
+      <nav className="-mx-4 lg:hidden" aria-label="グループで絞る" data-tour="group-filter">
         <ScrollArea
           orientation="horizontal"
           className="px-4"
-          viewportClassName="pb-1.5"
+          viewportClassName="pb-3"
           scrollbarClassName="left-4! right-4!"
         >
           <div className="flex w-max gap-2">
@@ -514,12 +520,14 @@ export function CalendarPage() {
 
       {features && <FeatureSheet onClose={() => setFeatures(false)} />}
 
+      {!editingHome && !editor && !features && <ScreenTour id="calendar" steps={BASE_TOURS.calendar} />}
+
+      {me.data && <Onboarding me={me.data} paused={editor !== null} onAddEvent={() => addNew(today)} />}
+
       {addSheet && (
         <AddWidgetSheet
           present={new Set((editedEntries ?? []).map((e) => e.key))}
-          onAdd={(widget) =>
-            setEditedEntries((prev) => [...(prev ?? []), { key: widget.key, size: widget.defaultSize }])
-          }
+          onAdd={(widget) => setEditedEntries((prev) => [...(prev ?? []), { key: widget.key }])}
           onClose={() => setAddSheet(false)}
         />
       )}

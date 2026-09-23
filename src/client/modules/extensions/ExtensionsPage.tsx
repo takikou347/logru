@@ -5,8 +5,10 @@ import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Dot, Empty, FieldMessage, Panel } from "@/components/parts/Panel";
+import { ScreenTour } from "@/components/parts/ScreenTour";
 import { Switch } from "@/components/ui/switch";
 import { groupColor } from "@/lib/colors";
+import { BASE_TOURS } from "@/lib/tours";
 import { poolColorsOf } from "../calendar/model";
 import { useExtensionOverview, useToggleExtension } from "./api";
 
@@ -53,6 +55,7 @@ export function ExtensionsPage() {
                 <Switch
                   checked={checked}
                   aria-label={`${x.label}を使う`}
+                  data-tour="extension-toggle"
                   disabled={!overview.data?.personalGroupId || pending}
                   onCheckedChange={(enabled) => toggle.mutate({ key: x.key, enabled })}
                 />
@@ -82,6 +85,7 @@ export function ExtensionsPage() {
           );
         })}
       </Page>
+      <ScreenTour id="extensions" steps={BASE_TOURS.extensions} />
     </AppLayout>
   );
 }

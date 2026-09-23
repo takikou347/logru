@@ -3,8 +3,9 @@ import { ScrollArea as ScrollAreaPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 /**
- * 流れる欄。スクロールバーをいつも出す。0019
+ * 流れる欄。中身がはみ出すときだけ、スクロールバーを出す。0019
  * macOS と iPhone は、流している間しかバーを出さない。流せることに気づかせるため、自前で描く。
+ * バーは中身に重ねて置くので、出ても出なくても欄の高さは変わらない。
  *
  * @param orientation 流れる向き。横ならバーを下に、縦なら右に出す
  */
@@ -22,7 +23,7 @@ function ScrollArea({
   scrollbarClassName?: string
 }) {
   return (
-    <ScrollAreaPrimitive.Root data-slot="scroll-area" type="always" className={cn("relative overflow-hidden", className)} {...props}>
+    <ScrollAreaPrimitive.Root data-slot="scroll-area" type="auto" className={cn("relative overflow-hidden", className)} {...props}>
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
         className={cn("size-full rounded-[inherit] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50", viewportClassName)}

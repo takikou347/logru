@@ -4,7 +4,7 @@ import type { ViewItem } from "../model";
 import { ItemList, toneText } from "./DayItems";
 
 /**
- * 週と日の表示。日ごとに予定を並べる。今日の日付にはテーマカラーの下線を引く。
+ * 週と日の表示。日ごとに予定を並べる。今日の行は、欄の左の縁に縦のしおりを立てて示す。大きさは月の表の今日のしおりを縦にしたもの。0012
  * @param onSelect 日付を押したとき。その日の表示に移る
  */
 export function WeekList({
@@ -33,20 +33,19 @@ export function WeekList({
           <div
             key={d.getTime()}
             data-testid="week-row"
-            className="grid grid-cols-[64px_1fr] gap-2.5 border-b border-line py-2.5 last:border-b-0"
+            data-today={isToday || undefined}
+            className="relative grid grid-cols-[64px_1fr] gap-2.5 border-b border-line py-2.5 last:border-b-0"
           >
+            {isToday && (
+              <span className="absolute top-3 -left-4 h-[22px] w-[5px] rounded-r-[3px] bg-primary" aria-hidden="true" />
+            )}
             <button
               type="button"
               className={cn("flex min-h-11 flex-col items-start text-left", tone && toneText[tone])}
               onClick={() => onSelect(d)}
               aria-current={isToday ? "date" : undefined}
             >
-              <span
-                className={cn(
-                  "text-2xl leading-none font-bold",
-                  isToday && "underline decoration-primary decoration-3 underline-offset-5",
-                )}
-              >
+              <span className={cn("text-2xl leading-none", isToday ? "font-extrabold" : "font-bold")}>
                 {d.getDate()}
               </span>
               <span className={cn("mt-1 text-xs", !tone && "text-ink-2")}>

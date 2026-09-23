@@ -44,12 +44,12 @@ export function WeekList({
               <span
                 className={cn(
                   "text-2xl leading-none font-bold",
-                  isToday && "underline decoration-primary decoration-3 underline-offset-5",
+                  isToday && "underline decoration-primary decoration-3 underline-offset-8",
                 )}
               >
                 {d.getDate()}
               </span>
-              <span className={cn("mt-1 text-xs", !tone && "text-ink-2")}>
+              <span className={cn("mt-3 text-xs", !tone && "text-ink-2")}>
                 {WEEKDAYS[d.getDay()]}
                 {hol ? ` ${hol}` : ""}
               </span>

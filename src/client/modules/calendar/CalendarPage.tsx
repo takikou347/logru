@@ -450,12 +450,15 @@ export function CalendarPage() {
         </div>
       )}
 
-      {/* グループが多いときは横に流れる。流せることが分かるよう、下にいつもバーを出す。F-25 */}
+      {/*
+        グループが多いときは横に流れる。はみ出すときだけ、流せることが分かるよう下にバーを出す。F-25
+        下の余白 12 px はバーの有無にかかわらず取る。バーは余白の下 4 px に重なり、チップとは 8 px あく。帯の高さは変わらない
+      */}
       <nav className="-mx-4 lg:hidden" aria-label="グループで絞る">
         <ScrollArea
           orientation="horizontal"
           className="px-4"
-          viewportClassName="pb-1.5"
+          viewportClassName="pb-3"
           scrollbarClassName="left-4! right-4!"
         >
           <div className="flex w-max gap-2">

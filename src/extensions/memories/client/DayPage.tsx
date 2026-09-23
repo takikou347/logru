@@ -39,6 +39,8 @@ function Day({ detail, me, groups, group }: ShellProps) {
   const events = (calendar.data ?? []).filter(
     (e) => e.extension === "events" && memoryOfEvent(e, groupMemories)?.id === memory.id,
   );
+  // 天気の拡張が、いつもの場所の天気を項目として返していれば、その日の上に出す。0008、F-406
+  const weather = (calendar.data ?? []).find((e) => e.extension === "weather");
   const wishes = items.filter((i) => i.kind === "wish");
   const doneToday = wishes.filter((w) => w.doneAt && w.doneAt >= from && w.doneAt < to);
   const [recording, setRecording] = useState(false);
@@ -82,6 +84,12 @@ function Day({ detail, me, groups, group }: ShellProps) {
         tint={{ cover: memory.cover, tone: group?.color ?? "nezumi" }}
       >
         <div className="flex flex-col gap-3">
+          {weather && (
+            <p className="glass rounded-panel px-3.5 py-2 text-center text-sm text-ink-2">
+              <span className="sr-only">この日の天気 </span>
+              {weather.title}
+            </p>
+          )}
           {(memory.komaEnabled || (records.data ?? []).some((r) => r.kind === "koma")) && (
             <KomaStrip
               dayStart={from}

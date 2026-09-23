@@ -7,6 +7,7 @@ import { externalCalendarsServer } from "@extensions/external-calendars/server/i
 import { kakeiboServer } from "@extensions/kakeibo/server/index";
 import { listsServer } from "@extensions/lists/server/index";
 import { memoriesServer } from "@extensions/memories/server/index";
+import { weatherServer } from "@extensions/weather/server/index";
 import type { ServerExtension } from "./types";
 
 /** すべての拡張。並びはカレンダーの項目の並びに影響しない */
@@ -16,6 +17,7 @@ export const serverExtensions: ServerExtension[] = [
   memoriesServer,
   kakeiboServer,
   listsServer,
+  weatherServer,
 ];
 
 /** すべての拡張の表の定義。db/client.ts が Drizzle に渡す */

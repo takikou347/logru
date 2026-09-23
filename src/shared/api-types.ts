@@ -60,6 +60,17 @@ export type GroupSummary = {
   extensions: string[];
 };
 
+/** 繰り返しの規則。無ければ繰り返さない。予定の拡張で使う。0043 */
+export type RepeatRule = {
+  freq: "daily" | "weekly" | "monthly" | "yearly";
+  /** weekly だけで使う。月を 1、日を 7 とした数 */
+  daysOfWeek?: number[];
+  /** 終わりの日。ミリ秒の UTC */
+  until?: number | null;
+  /** 終わりの回数 */
+  count?: number | null;
+};
+
 /** カレンダーに並べる 1 件。拡張はこの形で項目を渡す。0002、0008 */
 export type CalendarItem = {
   /** 項目を出した拡張の key */
@@ -95,6 +106,13 @@ export type CalendarItem = {
    * 返事待ちは枠線だけ、参加しないは薄くして取り消し線。招待されていなければ省く。作った人は accepted
    */
   myResponse?: AttendeeResponse;
+  /** 繰り返しの規則。無ければ繰り返さない。予定の拡張で使う。0043 */
+  repeat?: RepeatRule | null;
+  /**
+   * 繰り返す項目の、この回の規則どおりの始まりの時刻。同じ予定の別の回を見分けるのに使う。
+   * 繰り返さない項目には付かない。0043
+   */
+  occurrenceAt?: number;
 };
 
 /** 招待への返事。pending は返事待ち、accepted は参加する、declined は参加しない */

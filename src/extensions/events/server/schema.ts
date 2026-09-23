@@ -16,6 +16,14 @@ export const events = sqliteTable(
     startsAt: integer("starts_at", { mode: "timestamp_ms" }).notNull(),
     endsAt: integer("ends_at", { mode: "timestamp_ms" }),
     memo: text("memo"),
+    /** 繰り返しの周期。空なら繰り返さない。0043 */
+    repeatFreq: text("repeat_freq", { enum: ["daily", "weekly", "monthly", "yearly"] }),
+    /** 毎週だけで使う。月を 1、日を 7 とした数の配列。JSON で持つ。0043 */
+    repeatDaysOfWeek: text("repeat_days_of_week", { mode: "json" }).$type<number[]>(),
+    /** 繰り返しの終わりの日。repeat_count と同時には入らない。0043 */
+    repeatUntil: integer("repeat_until", { mode: "timestamp_ms" }),
+    /** 繰り返しの終わりの回数。repeat_until と同時には入らない。0043 */
+    repeatCount: integer("repeat_count"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -25,6 +33,35 @@ export const events = sqliteTable(
 
 /** 表の 1 行 */
 export type EventRow = typeof events.$inferSelect;
+
+/**
+ * 繰り返しの回のうち、直したか取り消した回だけの行。0043
+ *
+ * occurrence_at は、直す前の規則どおりの始まりの時刻。cancelled が真ならその回を出さない。
+ * ほかの列は直した値だけが入り、空なら events の値をそのまま使う。
+ */
+export const eventOccurrenceEdits = sqliteTable(
+  "event_occurrence_edits",
+  {
+    eventId: text("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    occurrenceAt: integer("occurrence_at", { mode: "timestamp_ms" }).notNull(),
+    cancelled: integer("cancelled", { mode: "boolean" }).notNull().default(false),
+    startsAt: integer("starts_at", { mode: "timestamp_ms" }),
+    endsAt: integer("ends_at", { mode: "timestamp_ms" }),
+    allDay: integer("all_day", { mode: "boolean" }),
+    title: text("title"),
+    memo: text("memo"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.eventId, t.occurrenceAt] }),
+    index("event_occurrence_edits_event_idx").on(t.eventId),
+  ],
+);
+
+/** 直しと取り消しの表の 1 行 */
+export type EventOccurrenceEditRow = typeof eventOccurrenceEdits.$inferSelect;
 
 /**
  * 予定の参加者と、その返事。作った人もいつも入り、accepted にする。#28

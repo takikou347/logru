@@ -29,7 +29,9 @@ test("外すと確認のシートに「記録は消えません」と出る。�
   await expect(page.getByText("記録しました")).toBeVisible();
   await expect(page.getByTestId("kakeibo-total")).toHaveText("¥1,200");
 
+  // タイルの中に、拡張が渡す短い字(今月の合計)が出る。issue #145
   await page.goto("/settings/extensions");
+  await expect(page.getByTestId("extension-tile-kakeibo").getByText("¥1,200")).toBeVisible();
   await page.getByRole("button", { name: "並びを変える" }).click();
   await page.getByRole("button", { name: "家計簿を外す" }).click();
   const confirm = page.getByRole("dialog", { name: "家計簿を外しますか" });

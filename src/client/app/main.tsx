@@ -9,6 +9,7 @@ import { setApiFailureHandlers } from "@/api/client";
 import { keys } from "@/api/keys";
 import { queryClient } from "@/api/query-client";
 import { Toaster } from "@/components/ui/sonner";
+import { clientErrorReporter, describeError } from "@/lib/error-report";
 import { listenInstallPrompt } from "@/lib/pwa";
 import { isSessionExpired, markSessionExpired } from "@/lib/session-expired";
 import { applyTheme, readStoredTheme, watchSystemTheme } from "@/lib/theme";
@@ -25,6 +26,16 @@ setApiFailureHandlers({
   },
   // 自分を読み直すと、ログインが要る画面の入口が同意の画面へ移す
   onLegalRequired: () => void queryClient.invalidateQueries({ queryKey: keys.me }),
+});
+
+// 画面で起きた誤りをサーバーへ送り、Workers Logs で見る。0040
+window.addEventListener("error", (e) => {
+  const { message, stack } = describeError(e.error ?? e.message);
+  clientErrorReporter.report(message, stack);
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const { message, stack } = describeError(e.reason);
+  clientErrorReporter.report(message, stack);
 });
 
 // 新しい版を出した後に、消えた古いファイルを読みにいったら、1 度だけ黙って読み込み直す。0025

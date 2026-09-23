@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { isRouteErrorResponse, Link, useRouteError } from "react-router";
 import { AuthCard, AuthShell, AuthText, AuthTitle } from "@/components/layout/AuthShell";
 import { Button } from "@/components/ui/button";
+import { clientErrorReporter, describeError } from "@/lib/error-report";
 
 /**
  * 画面を開けなかったとき。新しい版を公開した直後に、古いファイルを読みにいくと起きる。
@@ -8,10 +10,17 @@ import { Button } from "@/components/ui/button";
  * それでも開けなければここに来る。0025
  *
  * カレンダーへは、アプリを読み込み直して移る。壊れた画面の状態を持ち越さない。
+ * 無いページ(404)を除き、起きた誤りをサーバーへ送る。0040
  */
 export function RouteError() {
   const error = useRouteError();
-  if (isRouteErrorResponse(error) && error.status === 404) return <NotFound />;
+  const notFound = isRouteErrorResponse(error) && error.status === 404;
+  useEffect(() => {
+    if (notFound) return;
+    const { message, stack } = describeError(error);
+    clientErrorReporter.report(message, stack);
+  }, [error, notFound]);
+  if (notFound) return <NotFound />;
   return (
     <AuthShell>
       <AuthCard role="alert">

@@ -3,7 +3,7 @@
  *
  * index.html は 1 つしか無いので、招待リンクの分だけ Worker が OG タグを書き換えて返す。
  * DB は読まない。グループの名前や招待した人の名前は入れない。LINE の下見のサーバーが
- * 結果をキャッシュに残すため、グループが変わっても文言は同じにする。#93
+ * 結果をキャッシュに残すため、グループが変わっても文言は同じにする。#93、#131
  */
 
 const INVITE_PATH = /^\/invite\/([^/]+)$/;
@@ -31,7 +31,11 @@ function setMetaContent(html: string, property: string, content: string): string
  */
 export function rewriteInviteMeta(html: string, appUrl: string, token: string): string {
   const withTitle = setMetaContent(html, "og:title", "Logru への招待");
-  const withDescription = setMetaContent(withTitle, "og:description", "Logru への招待が届いています。");
+  const withDescription = setMetaContent(
+    withTitle,
+    "og:description",
+    "Logru で、いっしょに予定を分け合いませんか。リンクから参加できます。",
+  );
   const withUrl = setMetaContent(withDescription, "og:url", `${appUrl}/invite/${token}`);
   return setMetaContent(withUrl, "og:image", `${appUrl}/og-image.png`);
 }

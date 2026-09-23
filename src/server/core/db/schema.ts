@@ -42,6 +42,11 @@ export const userSettings = sqliteTable("user_settings", {
   onboardedAt: integer("onboarded_at", { mode: "timestamp_ms" }),
   /** 案内を見た画面の ID。F-33 */
   toursSeen: text("tours_seen", { mode: "json" }).$type<string[]>().notNull().default([]),
+  /**
+   * 足した機能のタイルの並び。key の配列。まだ並びを持たない(新しく足した)機能は、末尾に自動で足す。0058
+   * 移行 0019
+   */
+  extensionOrder: text("extension_order", { mode: "json" }).$type<string[]>().notNull().default([]),
 });
 
 /** 規約に同意した版。最新の版の行が無ければ同意を取り直す。F-16 */

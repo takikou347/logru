@@ -84,6 +84,29 @@ export function useMarkTourSeen() {
   });
 }
 
+/**
+ * 足した機能のタイルの並びを変える。押した瞬間に画面に効かせ、失敗したら元に戻す。0058
+ * FeatureSheet と、設定の「機能」の両方が使う
+ */
+export function useSetExtensionOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (order: string[]) =>
+      api<{ extensionOrder: string[] }>("/me/extension-order", { method: "PUT", body: { order } }),
+    onMutate: async (order) => {
+      await qc.cancelQueries({ queryKey: keys.me });
+      const prev = qc.getQueryData<Me>(keys.me);
+      if (prev) qc.setQueryData<Me>(keys.me, { ...prev, settings: { ...prev.settings, extensionOrder: order } });
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(keys.me, ctx.prev);
+      toast.error((e as Error).message);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.me }),
+  });
+}
+
 /** 画面の案内をもう一度出す。見た画面の一覧を空にする。F-33 */
 export function useResetTours() {
   const qc = useQueryClient();

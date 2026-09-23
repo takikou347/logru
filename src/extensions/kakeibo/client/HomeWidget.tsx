@@ -24,6 +24,13 @@ export function RecordHomeWidget() {
   );
 }
 
+/** 機能のタイルに出す短い字。今月の支出の合計。使っていないときは読み込まない。0058 */
+export function useMonthTotalHint(enabled: boolean): string | null {
+  const month = monthKeyOf(new Date());
+  const summary = useKakeiboSummary(null, month, enabled);
+  return enabled && summary.data ? formatYen(summary.data.total) : null;
+}
+
 /** 「今月の合計」。使えるすべてのグループを合わせた、今月の支出の合計を出す。F-306 */
 export function MonthTotalWidget() {
   const month = monthKeyOf(new Date());

@@ -16,8 +16,8 @@ export const BASE_TOURS = {
   group: [{ target: '[data-tour="group-invite"]', text: "招待リンクを渡すと、7 日のあいだ相手がグループに入れます。" }],
   extensions: [
     {
-      target: '[data-tour="extension-toggle"]',
-      text: "「使う」を切ると、自分の画面から入口が消えます。データは消えません。",
+      target: '[data-tour="extension-add"]',
+      text: "「+」から機能を足せます。外しても、記録は消えません。また足すと戻ります。",
     },
   ],
 } satisfies Record<string, TourStep[]>;

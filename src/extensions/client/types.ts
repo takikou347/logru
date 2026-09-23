@@ -167,6 +167,11 @@ export type ClientExtension = {
    * hook なので、呼ぶ順を変えないよう、拡張の一覧の順にいつも呼ぶ。使えないときは enabled が false で、読み込みを止める
    */
   useShortcut?: (enabled: boolean) => ExtensionShortcut | null;
+  /**
+   * 機能のタイルに出す短い字を返す hook。無ければタイルはアイコンだけになる。例は家計簿の今月の合計。0058
+   * useShortcut と同じ理由で、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ
+   */
+  useTileHint?: (enabled: boolean) => string | null;
   /** ほかの拡張の編集シートに足す欄 */
   itemAddons?: ItemAddon[];
   /** 端末に知らせるもの。例は「ひとコマの時刻」。知らせる拡張を使っているときだけ、設定に知らせの欄を出す。F-23 */

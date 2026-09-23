@@ -21,6 +21,7 @@ type DragStart = { index: number; pointerId: number };
 
 /**
  * Pointer Events で、指でもマウスでも動くドラッグの並べ替え。専用のライブラリは使わない。0029、#121
+ * ホームのウィジェット(WidgetGrid)と、機能のタイルの並び(ExtensionTileGrid)が同じ hook を使う。0058
  *
  * 持ち手の pointerdown から始め、pointer capture で指を追う。並べ替え先は、各枠の中心と指の距離が
  * いちばん近いものにする。画面の端に来たら window を自動でスクロールする。

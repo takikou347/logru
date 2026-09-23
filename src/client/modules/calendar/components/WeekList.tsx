@@ -4,7 +4,7 @@ import type { ViewItem } from "../model";
 import { ItemList, toneText } from "./DayItems";
 
 /**
- * 週と日の表示。日ごとに予定を並べる。今日の行は、月の表の今日と同じ板としおりで、行の横いっぱいに示す。0012
+ * 週と日の表示。日ごとに予定を並べる。今日の行は、欄の左の縁に縦のしおりを立てて示す。大きさは月の表の今日のしおりを縦にしたもの。0012
  * @param onSelect 日付を押したとき。その日の表示に移る
  */
 export function WeekList({
@@ -34,19 +34,10 @@ export function WeekList({
             key={d.getTime()}
             data-testid="week-row"
             data-today={isToday || undefined}
-            className="relative isolate grid grid-cols-[64px_1fr] gap-2.5 border-b border-line py-2.5 last:border-b-0"
+            className="relative grid grid-cols-[64px_1fr] gap-2.5 border-b border-line py-2.5 last:border-b-0"
           >
             {isToday && (
-              <>
-                <span
-                  className="absolute -inset-x-2 inset-y-1 -z-10 rounded-xl bg-field-strong shadow-[inset_0_1px_0_var(--glass-edge),0_6px_14px_-8px_rgba(0,0,0,.45)]"
-                  aria-hidden="true"
-                />
-                <span
-                  className="absolute top-1 left-0 h-[5px] w-[22px] rounded-b-[3px] bg-primary"
-                  aria-hidden="true"
-                />
-              </>
+              <span className="absolute top-3 -left-4 h-[22px] w-[5px] rounded-r-[3px] bg-primary" aria-hidden="true" />
             )}
             <button
               type="button"
@@ -54,7 +45,7 @@ export function WeekList({
               onClick={() => onSelect(d)}
               aria-current={isToday ? "date" : undefined}
             >
-              <span className={cn("text-2xl leading-none", isToday ? "pt-[3px] font-extrabold" : "font-bold")}>
+              <span className={cn("text-2xl leading-none", isToday ? "font-extrabold" : "font-bold")}>
                 {d.getDate()}
               </span>
               <span className={cn("mt-1 text-xs", !tone && "text-ink-2")}>

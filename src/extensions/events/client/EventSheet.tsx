@@ -25,8 +25,11 @@ import {
   toTimeInput,
   withTime,
 } from "@/lib/dates";
+import { vibrateShort } from "@/lib/haptics";
 import { useOnline } from "@/lib/online";
 import { cn } from "@/lib/utils";
+import { markJustAdded } from "@/modules/calendar/recent-items";
+import { itemKey } from "@/modules/calendar/use-undoable-delete";
 import { canDeleteEvent, canEditEvent, canRespond, inviteeIds } from "../shared/permissions";
 import { createEvent, respondToEvent, updateEvent } from "./api";
 import { AttendeeList, InvitePicker, RsvpBar } from "./Invitees";
@@ -258,6 +261,11 @@ export function EventSheet({
       // 足された欄の仕事は、予定の保存が済んでから行う。失敗しても予定は保存できている
       await Promise.all([...afterSaves.current].map((fn) => fn(saved.id).catch((e: Error) => toast.error(e.message))));
       await qc.invalidateQueries({ queryKey: ["calendar"] });
+      if (!editing) {
+        // 新しく足したチップだけ、膨らんで入る動きにする。直したときは動かさない。0044、0048、#98、#112
+        markJustAdded(itemKey(saved));
+        vibrateShort();
+      }
       toast(editing ? "予定を保存しました" : "予定を足しました");
       onClose();
     } catch (err) {

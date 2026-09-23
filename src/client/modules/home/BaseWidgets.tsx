@@ -12,7 +12,7 @@ import { useCalendarHome } from "./CalendarContext";
 
 /** カレンダー本体。月の表か週の一覧を出す */
 function CalendarBodyWidget() {
-  const { view, days, today, selected, items, onPressDay, onSelectWeekDay, open } = useCalendarHome();
+  const { view, days, today, selected, items, leaving, onPressDay, onSelectWeekDay, open } = useCalendarHome();
   return (
     <div data-testid="widget-calendar">
       {view === "month" ? (
@@ -22,11 +22,12 @@ function CalendarBodyWidget() {
           today={today}
           selected={selected}
           items={items}
+          leaving={leaving}
           onPressDay={onPressDay}
           onOpenItem={open}
         />
       ) : (
-        <WeekList days={days} today={today} items={items} onSelect={onSelectWeekDay} onOpen={open} />
+        <WeekList days={days} today={today} items={items} leaving={leaving} onSelect={onSelectWeekDay} onOpen={open} />
       )}
     </div>
   );
@@ -42,22 +43,22 @@ function OnlyInMonthView({ editing, children }: { editing: boolean; children: Re
 
 /** 選んだ日の予定。大きな日付と、その日の予定。週・日の表示では、同じ予定が一覧に出るので隠す */
 function DayPanelWidget({ editing }: HomeWidgetProps) {
-  const { selected, items, open } = useCalendarHome();
+  const { today, selected, items, leaving, open } = useCalendarHome();
   return (
     <OnlyInMonthView editing={editing}>
-      <DayPanel day={selected} items={items} onOpen={open} />
+      <DayPanel day={selected} today={today} items={items} leaving={leaving} onOpen={open} />
     </OnlyInMonthView>
   );
 }
 
 /** このあと。近い順に 5 件。週・日の表示では隠す */
 function UpcomingWidget({ editing }: HomeWidgetProps) {
-  const { upcoming, open } = useCalendarHome();
+  const { upcoming, leaving, open } = useCalendarHome();
   return (
     <OnlyInMonthView editing={editing}>
       <section className="glass rounded-panel px-4.5 py-4" aria-label="このあとの予定">
         <h2 className="mb-1 text-xs font-bold text-ink-2">このあと</h2>
-        <ItemList items={upcoming} onOpen={open} empty="この期間に、このあとの予定はありません。" />
+        <ItemList items={upcoming} leaving={leaving} onOpen={open} empty="この期間に、このあとの予定はありません。" />
       </section>
     </OnlyInMonthView>
   );

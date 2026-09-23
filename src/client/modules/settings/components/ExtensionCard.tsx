@@ -2,8 +2,8 @@ import { ChevronRight } from "lucide-react";
 import { Link } from "react-router";
 import { Panel } from "@/components/parts/Panel";
 import { Switch } from "@/components/ui/switch";
+import { extensionIcon, extensionTileColor } from "@/lib/extension-visuals";
 import { cn } from "@/lib/utils";
-import { extensionIcon, extensionTileColor } from "../extension-visuals";
 
 /**
  * 設定の「機能」のカード。アイコン、一言、見本の色味、「使う」を並べる。issue #102

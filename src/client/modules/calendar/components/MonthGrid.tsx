@@ -2,8 +2,9 @@ import { type CSSProperties, useRef, useState } from "react";
 import { AvatarStack } from "@/components/parts/Avatars";
 import { dayTone, formatDay, formatTime, holidayName, onDay, sameDay, WEEKDAYS } from "@/lib/dates";
 import { cn } from "@/lib/utils";
+import { kindIconOf } from "../kind-icon";
 import { daySpan, hiddenPerDay, isMultiDay, layoutWeek, type SpanSegment } from "../lanes";
-import type { ViewItem } from "../model";
+import { KIND_LABEL, kindOf, type ViewItem } from "../model";
 import { takeJustAdded } from "../recent-items";
 import { itemKey } from "../use-undoable-delete";
 import { toneText } from "./DayItems";
@@ -198,23 +199,30 @@ export function MonthGridBody({
                     aria-hidden="true"
                   >
                     {mine.slice(0, MAX_DOTS).map((i) => (
-                      <span
-                        key={`${i.extension}:${i.id}`}
-                        data-response={i.myResponse}
-                        className={cn("swatch-dot size-1.5", `c-${i.color}`, responseMark[i.myResponse ?? "accepted"])}
-                      />
+                      <KindMark key={`${i.extension}:${i.id}`} item={i} />
                     ))}
                     {moreDots > 0 && <span>+{moreDots}</span>}
                   </span>
                   <span className="relative z-[2] hidden min-w-0 flex-col gap-[3px] lg:mt-[calc(var(--lanes)*var(--lane))] lg:flex">
-                    {mine.slice(0, chipSlots).map((i) => (
-                      <EventChip
-                        key={itemKey(i)}
-                        item={i}
-                        onOpen={() => onOpenItem(i)}
-                        isLeaving={!!leaving?.has(itemKey(i))}
-                      />
-                    ))}
+                    {mine
+                      .slice(0, chipSlots)
+                      .map((i) =>
+                        kindOf(i) === "expense" ? (
+                          <MoneyChip
+                            key={itemKey(i)}
+                            item={i}
+                            onOpen={() => onOpenItem(i)}
+                            isLeaving={!!leaving?.has(itemKey(i))}
+                          />
+                        ) : (
+                          <EventChip
+                            key={itemKey(i)}
+                            item={i}
+                            onOpen={() => onOpenItem(i)}
+                            isLeaving={!!leaving?.has(itemKey(i))}
+                          />
+                        ),
+                      )}
                     {moreChips > 0 && (
                       <button
                         type="button"
@@ -269,13 +277,38 @@ const responseMark = {
   declined: "opacity-35",
 } as const;
 
-/** 帯の読み上げ。`出張、9月21日から9月25日まで` の形 */
+/**
+ * スマホのマスの、1 件ぶんの印。色は誰の記録か(グループ)、形は何の記録か(種類)を表す。0056
+ * 予定は色の点のまま。ほかは、グループの色で塗った、種類のアイコン
+ */
+function KindMark({ item }: { item: Pick<ViewItem, "extension" | "icon" | "kind" | "color" | "myResponse"> }) {
+  if (kindOf(item) === "event") {
+    return (
+      <span
+        data-response={item.myResponse}
+        className={cn("swatch-dot size-1.5", `c-${item.color}`, responseMark[item.myResponse ?? "accepted"])}
+      />
+    );
+  }
+  const Icon = kindIconOf(item);
+  return <Icon className={cn("size-2.5 flex-none text-(--c)", `c-${item.color}`)} aria-hidden="true" />;
+}
+
+/** 何日も続く帯の、頭に付ける種類のアイコン。題名の前の文字の印だった箇所をアイコンに置き換える。0056 */
+function KindIcon({ item }: { item: Pick<ViewItem, "extension" | "icon"> }) {
+  const Icon = kindIconOf(item);
+  return <Icon className="size-3.5 flex-none" aria-hidden="true" />;
+}
+
+/** 帯の読み上げ。`出張、9月21日から9月25日まで` の形。予定ではない項目は、題名の前に種類の名前を添える。0056 */
 function spanLabel(item: ViewItem): string {
   const { first, last } = daySpan(item);
   const day = (d: Date) => `${d.getMonth() + 1}月${d.getDate()}日`;
   const tail = responseWord[item.myResponse ?? "accepted"];
-  if (item.allDay) return `${item.title}、${day(first)}から${day(last)}まで${tail}`;
-  return `${item.title}、${day(first)} ${formatTime(item.startsAt)}から${day(last)} ${formatTime(item.endsAt!)}まで${tail}`;
+  const kind = kindOf(item);
+  const title = kind === "event" ? item.title : `${KIND_LABEL[kind]}、${item.title}`;
+  if (item.allDay) return `${title}、${day(first)}から${day(last)}まで${tail}`;
+  return `${title}、${day(first)} ${formatTime(item.startsAt)}から${day(last)} ${formatTime(item.endsAt!)}まで${tail}`;
 }
 
 /**
@@ -340,9 +373,7 @@ function SpanMarks({ segment, onOpen }: { segment: SpanSegment<ViewItem>; onOpen
         onClick={onOpen}
       >
         {!item.allDay && !before && <time className="flex-none text-ink-2">{formatTime(item.startsAt)}</time>}
-        {item.tag && !before && (
-          <span className="flex-none rounded-[4px] bg-black/15 px-1 text-[10px] leading-4 font-bold">{item.tag}</span>
-        )}
+        {kindOf(item) !== "event" && !before && <KindIcon item={item} />}
         <span className={cn("min-w-0 truncate", declined && "line-through")}>{item.title}</span>
         {avatars > 0 && <AvatarStack people={item.people} max={avatars} size={18} className="ml-auto" />}
       </button>
@@ -351,8 +382,9 @@ function SpanMarks({ segment, onOpen }: { segment: SpanSegment<ViewItem>; onOpen
 }
 
 /**
- * PC のマスの中の、1 日だけの予定。左に色の縦線を引く。
+ * PC のマスの中の、1 日だけの予定と、思い出などの記録。左に色の縦線を引く。
  * マスが狭いときは、時刻を隠して予定名を優先する。
+ * 予定ではない項目は、題名の前に拡張のアイコンを付ける。色は誰の記録か(グループ)、アイコンは何の記録か(種類)を表す。0056
  * 返事待ちは塗らずに枠線だけ、参加しないは薄くして取り消し線。#28
  *
  * 足した直後は膨らんで入り、消す途中は縮んで消える。動かすのは transform と opacity だけ。0044、0048、#98
@@ -360,6 +392,7 @@ function SpanMarks({ segment, onOpen }: { segment: SpanSegment<ViewItem>; onOpen
 function EventChip({ item, onOpen, isLeaving }: { item: ViewItem; onOpen: () => void; isLeaving: boolean }) {
   const pending = item.myResponse === "pending";
   const declined = item.myResponse === "declined";
+  const kind = kindOf(item);
   // 描いた瞬間に 1 度だけ読む。足した直後の再描画と、月を移る再描画を見分けるため
   const [entering] = useState(() => takeJustAdded(itemKey(item)));
   return (
@@ -381,15 +414,35 @@ function EventChip({ item, onOpen, isLeaving }: { item: ViewItem; onOpen: () => 
       onClick={onOpen}
     >
       {!item.allDay && <time className="flex-none text-ink-2 @max-[90px]:hidden">{formatTime(item.startsAt)}</time>}
-      {item.tag && !item.secondary && (
-        <span className="flex-none rounded-[4px] bg-[color-mix(in_srgb,var(--ink)_10%,transparent)] px-1 text-[10px] leading-4 font-bold text-ink-2">
-          {item.tag}
-        </span>
-      )}
+      {kind !== "event" && <KindIcon item={item} />}
+      {kind !== "event" && <span className="sr-only">{KIND_LABEL[kind]}、</span>}
       <span className={cn("min-w-0 truncate", declined && "line-through")}>{item.title}</span>
       {item.myResponse && item.myResponse !== "accepted" && (
         <span className="sr-only">{responseWord[item.myResponse]}</span>
       )}
+    </button>
+  );
+}
+
+/**
+ * PC のマスの中の、家計簿など金額の項目。色を塗らず、円のアイコンと金額を右寄せにする。数字の幅は tabular-nums でそろえる。0056
+ * 足した直後は膨らんで入り、消す途中は縮んで消える。動かすのは transform と opacity だけ。0044、0048、#98
+ */
+function MoneyChip({ item, onOpen, isLeaving }: { item: ViewItem; onOpen: () => void; isLeaving: boolean }) {
+  const [entering] = useState(() => takeJustAdded(itemKey(item)));
+  return (
+    <button
+      type="button"
+      data-leaving={isLeaving || undefined}
+      className={cn(
+        "flex min-h-6 min-w-0 items-center gap-1.5 overflow-hidden rounded-md px-1.5 py-1 text-left text-xs leading-tight font-medium text-ink-2",
+        entering && "item-enter",
+      )}
+      onClick={onOpen}
+    >
+      <KindIcon item={item} />
+      <span className="sr-only">{KIND_LABEL.expense}、</span>
+      <span className="ml-auto min-w-0 truncate font-semibold text-ink tabular-nums">{item.title}</span>
     </button>
   );
 }

@@ -44,6 +44,7 @@ import { useHomeWidgetVisibility, useVisibleHomeWidgets } from "../home/layout";
 import { HOME_WIDGET_CATALOG, homeWidget } from "../home/widgets";
 import { Onboarding } from "../onboarding/Onboarding";
 import { useCalendar, useMemberVisibility } from "./api";
+import { KindChip, SideKinds, useHiddenKinds } from "./components/KindFilter";
 import { PeopleChip, SideGroup, useOpenGroups } from "./components/PeopleFilter";
 import { RefreshButton } from "./components/RefreshButton";
 import { SearchButton } from "./components/SearchButton";
@@ -133,9 +134,10 @@ export function CalendarPage() {
     (p: Person, hide: boolean) => setVisibility({ userId: p.id, hidden: hide }),
     [setVisibility],
   );
+  const { hidden: hiddenKinds, toggle: toggleKind } = useHiddenKinds();
   const items = useMemo<ViewItem[]>(
-    () => viewItemsOf(calendar.data, allGroups, me.data, hiddenIds, hidden, groupFilter),
-    [calendar.data, allGroups, me.data, hidden, groupFilter, hiddenIds],
+    () => viewItemsOf(calendar.data, allGroups, me.data, hiddenIds, hidden, groupFilter, hiddenKinds),
+    [calendar.data, allGroups, me.data, hidden, groupFilter, hiddenIds, hiddenKinds],
   );
 
   // 動きを減らす設定。日めくりの追従や View Transitions を止め、切り替えるだけにする。0049、#99、#100
@@ -158,8 +160,8 @@ export function CalendarPage() {
   );
 
   const monthNav = useMemo<MonthNav>(
-    () => ({ groupFilter, hiddenIds, deletedKeys: hidden, flipRequest, onChangeMonth, reducedMotion }),
-    [groupFilter, hiddenIds, hidden, flipRequest, onChangeMonth, reducedMotion],
+    () => ({ groupFilter, hiddenIds, hiddenKinds, deletedKeys: hidden, flipRequest, onChangeMonth, reducedMotion }),
+    [groupFilter, hiddenIds, hiddenKinds, hidden, flipRequest, onChangeMonth, reducedMotion],
   );
 
   const addNew = useCallback(
@@ -371,32 +373,38 @@ export function CalendarPage() {
       poolColors={poolColorsOf(allGroups, me.data)}
       poolFocus={focusIndex >= 0 ? focusIndex : null}
       side={
-        <div role="group" aria-label="表示するグループ" className="pr-2" data-tour="group-filter">
-          <SideHeading>表示するグループ</SideHeading>
-          {filters(({ key, pressed, onClick, children }) => {
-            // 共有のグループは、矢印でメンバーを開き、人ごとに出し入れできる。F-20
-            const section = sections.find((s) => s.group.id === key);
-            if (!section) {
+        <div className="flex flex-col gap-3">
+          <div role="group" aria-label="表示するグループ" className="pr-2" data-tour="group-filter">
+            <SideHeading>表示するグループ</SideHeading>
+            {filters(({ key, pressed, onClick, children }) => {
+              // 共有のグループは、矢印でメンバーを開き、人ごとに出し入れできる。F-20
+              const section = sections.find((s) => s.group.id === key);
+              if (!section) {
+                return (
+                  <button key={key} type="button" className={sideItemClass} aria-pressed={pressed} onClick={onClick}>
+                    {children}
+                  </button>
+                );
+              }
               return (
-                <button key={key} type="button" className={sideItemClass} aria-pressed={pressed} onClick={onClick}>
-                  {children}
-                </button>
+                <SideGroup
+                  key={key}
+                  section={section}
+                  label={children}
+                  pressed={pressed}
+                  onFilter={onClick}
+                  open={sideOpen.isOpen(key)}
+                  onOpenChange={(o) => sideOpen.setOpen(key, o)}
+                  hidden={hiddenIds}
+                  onToggle={togglePerson}
+                />
               );
-            }
-            return (
-              <SideGroup
-                key={key}
-                section={section}
-                label={children}
-                pressed={pressed}
-                onFilter={onClick}
-                open={sideOpen.isOpen(key)}
-                onOpenChange={(o) => sideOpen.setOpen(key, o)}
-                hidden={hiddenIds}
-                onToggle={togglePerson}
-              />
-            );
-          })}
+            })}
+          </div>
+          <div>
+            <SideHeading>種類で絞る</SideHeading>
+            <SideKinds hidden={hiddenKinds} onToggle={toggleKind} />
+          </div>
         </div>
       }
     >
@@ -519,6 +527,7 @@ export function CalendarPage() {
             {sections.length > 0 && (
               <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />
             )}
+            <KindChip hidden={hiddenKinds} onToggle={toggleKind} />
           </div>
         </ScrollArea>
       </nav>

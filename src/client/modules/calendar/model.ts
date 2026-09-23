@@ -12,6 +12,32 @@ export type ViewAttendee = {
   avatarUrl: string | null;
 };
 
+/**
+ * 何の記録かを見分ける種類。event は CalendarItem.kind を持たない項目(予定)。0056
+ * 絞り込みの帯の「種類」と、選んだ日の一覧の見出しに使う。
+ */
+export type ItemKind = "event" | "record" | "expense";
+
+/** 種類の名前。見出しと、読み上げで題名の前に添える言葉に使う。0056 */
+export const KIND_LABEL: Record<ItemKind, string> = { event: "予定", record: "思い出", expense: "家計簿" };
+
+/** 種類を出す順。絞り込みの帯と、選んだ日の一覧の見出しの順。0056 */
+export const KIND_ORDER: ItemKind[] = ["event", "record", "expense"];
+
+/** 項目の種類。CalendarItem.kind が無ければ予定として扱う。0056 */
+export function kindOf(item: Pick<CalendarItem, "kind">): ItemKind {
+  return item.kind ?? "event";
+}
+
+/**
+ * 絞り込みで外した種類の項目を除く。絞り込みの帯の「種類」で使う。0056
+ * @param hiddenKinds 出さない種類
+ */
+export function byKind<T extends Pick<CalendarItem, "kind">>(items: T[], hiddenKinds: ReadonlySet<ItemKind>): T[] {
+  if (hiddenKinds.size === 0) return items;
+  return items.filter((i) => !hiddenKinds.has(kindOf(i)));
+}
+
 /** 画面で使うための、色と名前を付けた項目 */
 export type ViewItem = CalendarItem & {
   color: string;
@@ -167,10 +193,11 @@ export function byPeople<T extends Pick<CalendarItem, "createdBy" | "attendees">
 }
 
 /**
- * カレンダーの生データを、画面で使う項目に仕立てる。色を付け、消した人と隠した人を除き、グループで絞る。
+ * カレンダーの生データを、画面で使う項目に仕立てる。色を付け、消した人と隠した人を除き、グループと種類で絞る。
  * CalendarPage の月・週・日の本体と、月送りの日めくり(MonthFlipDeck)が隣の月を仕立てるのに使う。#99
  * @param raw GET /calendar の応答。読み込み中は undefined
  * @param deletedKeys 消す操作の 5 秒の間、画面から隠す項目。itemKey の形
+ * @param hiddenKinds 絞り込みの帯で外した種類。0056
  */
 export function viewItemsOf(
   raw: CalendarItem[] | undefined,
@@ -179,9 +206,10 @@ export function viewItemsOf(
   hiddenIds: Set<string>,
   deletedKeys: Set<string>,
   groupFilter: string | null,
+  hiddenKinds: ReadonlySet<ItemKind> = new Set(),
 ): ViewItem[] {
   if (!raw || !me) return [];
-  return byPeople(decorate(raw, groups, me), hiddenIds).filter(
+  return byKind(byPeople(decorate(raw, groups, me), hiddenIds), hiddenKinds).filter(
     (i) => !deletedKeys.has(itemKey(i)) && (!groupFilter || i.groupId === groupFilter),
   );
 }

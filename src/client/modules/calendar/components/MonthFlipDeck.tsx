@@ -116,7 +116,7 @@ export function MonthFlipDeck({
   onOpenItem: (item: ViewItem) => void;
   monthNav: MonthNav;
 }) {
-  const { groupFilter, hiddenIds, deletedKeys, flipRequest, onChangeMonth, reducedMotion } = monthNav;
+  const { groupFilter, hiddenIds, hiddenKinds, deletedKeys, flipRequest, onChangeMonth, reducedMotion } = monthNav;
   const groups = useGroups();
   const me = useMe();
   const allGroups = groups.data ?? [];
@@ -132,12 +132,12 @@ export function MonthFlipDeck({
   const prevGrid = useMonthGrid(prevAnchor);
   const nextGrid = useMonthGrid(nextAnchor);
   const prevItems = useMemo(
-    () => viewItemsOf(prevGrid.raw, allGroups, me.data, hiddenIds, deletedKeys, groupFilter),
-    [prevGrid.raw, allGroups, me.data, hiddenIds, deletedKeys, groupFilter],
+    () => viewItemsOf(prevGrid.raw, allGroups, me.data, hiddenIds, deletedKeys, groupFilter, hiddenKinds),
+    [prevGrid.raw, allGroups, me.data, hiddenIds, deletedKeys, groupFilter, hiddenKinds],
   );
   const nextItems = useMemo(
-    () => viewItemsOf(nextGrid.raw, allGroups, me.data, hiddenIds, deletedKeys, groupFilter),
-    [nextGrid.raw, allGroups, me.data, hiddenIds, deletedKeys, groupFilter],
+    () => viewItemsOf(nextGrid.raw, allGroups, me.data, hiddenIds, deletedKeys, groupFilter, hiddenKinds),
+    [nextGrid.raw, allGroups, me.data, hiddenIds, deletedKeys, groupFilter, hiddenKinds],
   );
 
   const [peek, setPeek] = useState<{ dir: 1 | -1 } | null>(null);

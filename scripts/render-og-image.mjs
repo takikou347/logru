@@ -116,7 +116,7 @@ body {
   display: flex; align-items: center; justify-content: center;
 }
 .photo {
-  width: 84px; height: 84px; border-radius: 20px; object-fit: cover;
+  width: 120px; height: 120px; border-radius: 24px; object-fit: cover;
   box-shadow: 0 10px 20px -10px rgba(23,32,44,.45);
 }
 .photo-label { font-weight: 500; font-size: 20px; color: #4A5563; }

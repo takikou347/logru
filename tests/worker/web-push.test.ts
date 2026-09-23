@@ -1,4 +1,5 @@
 import { b64url, encryptPayload, fromB64url, vapidAuthorization } from "@server/core/push/web-push";
+import { isKnownPushHost, pushSubscriptionInput } from "@shared/schemas";
 import { describe, expect, it } from "vitest";
 
 /** 端末の側で、RFC 8291 のとおりに解く。送る側の暗号が正しいかを確かめる */
@@ -76,5 +77,33 @@ describe("Web Push", () => {
       new TextEncoder().encode(`${h}.${c}`),
     );
     expect(ok).toBe(true);
+  });
+});
+
+describe("isKnownPushHost。任意の https を送り先に登録させない。0065、#161", () => {
+  it("ブラウザーの会社の送り先は通す", () => {
+    expect(isKnownPushHost("https://fcm.googleapis.com/fcm/send/abc")).toBe(true);
+    expect(isKnownPushHost("https://updates.push.services.mozilla.com/wpush/v2/abc")).toBe(true);
+    expect(isKnownPushHost("https://web.push.apple.com/abc")).toBe(true);
+    expect(isKnownPushHost("https://wns2-xyz.notify.windows.com/w/abc")).toBe(true);
+  });
+
+  it("知らないホストと、壊れた URL は断る", () => {
+    expect(isKnownPushHost("https://push.example/x")).toBe(false);
+    expect(isKnownPushHost("not a url")).toBe(false);
+  });
+});
+
+describe("pushSubscriptionInput。0065、#161", () => {
+  const keys = { p256dh: "p", auth: "a" };
+
+  it("知られたホストの https だけを通す", () => {
+    expect(pushSubscriptionInput.safeParse({ endpoint: "https://fcm.googleapis.com/fcm/send/abc", keys }).success).toBe(
+      true,
+    );
+    expect(pushSubscriptionInput.safeParse({ endpoint: "https://push.example/x", keys }).success).toBe(false);
+    expect(pushSubscriptionInput.safeParse({ endpoint: "http://fcm.googleapis.com/fcm/send/abc", keys }).success).toBe(
+      false,
+    );
   });
 });

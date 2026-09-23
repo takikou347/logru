@@ -11,6 +11,7 @@ import { isFirebaseAuthPath, proxyFirebaseAuth } from "@server/core/auth/firebas
 import { createDb } from "@server/core/db/client";
 import { matchInvitePath, rewriteInviteMeta } from "@server/core/invite-og";
 import { cleanupOldNotifications } from "@server/core/notifications/send";
+import { runAllScheduled } from "@server/core/scheduled";
 import { calendarRoutes } from "@server/modules/calendar/routes";
 import { clientErrorRoutes } from "@server/modules/client-errors/routes";
 import { extensionRoutes } from "@server/modules/group-extensions/routes";
@@ -73,13 +74,17 @@ export default {
     if (inviteToken !== null) return serveInvitePage(request, env, inviteToken);
     return app.fetch(request, env, ctx);
   },
-  /** Cron Triggers。wrangler.jsonc の triggers.crons で 5 分おきに呼ぶ。拡張の定期の処理を順に動かす */
+  /**
+   * Cron Triggers。wrangler.jsonc の triggers.crons で 5 分おきに呼ぶ。拡張の定期の処理を並べて動かす。
+   * どれか 1 つが失敗しても、ほかの処理は最後まで動く。0065、#161
+   */
   async scheduled(_controller, env, ctx) {
     const db = createDb(env.DB);
-    for (const x of serverExtensions) {
-      if (x.scheduled) ctx.waitUntil(x.scheduled(db, env));
-    }
+    const tasks = serverExtensions
+      .filter((x) => x.scheduled)
+      .map((x) => ({ name: x.manifest.key, run: () => x.scheduled!(db, env) }));
     // お知らせの掃除は拡張ではなく土台の仕事。90 日を過ぎた行を消す。#32
-    ctx.waitUntil(cleanupOldNotifications(db));
+    tasks.push({ name: "notifications-cleanup", run: () => cleanupOldNotifications(db) });
+    ctx.waitUntil(runAllScheduled(tasks));
   },
 } satisfies ExportedHandler<Env>;

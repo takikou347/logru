@@ -140,7 +140,12 @@ export const PHOTO_LIMITS = {
   smallChars: 16 * 1024,
   tinyChars: 4096,
   perGroup: 3000,
+  /** 1 人が 1 日に送れる写真の枚数。旅行の 1 日でも十分な余白を持たせる。0065、#161 */
+  perDay: 500,
 } as const;
+
+/** tiny と small の形。JPEG を base64 にした data URL だけを受け付ける。頭の文字だけでなく全体を確かめる。0065、#161 */
+export const PHOTO_DATA_URL_PATTERN = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
 
 export type MemoryInput = z.infer<typeof memoryInput>;
 export type ItemInput = z.infer<typeof itemInput>;

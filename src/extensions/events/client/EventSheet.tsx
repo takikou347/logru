@@ -1,4 +1,4 @@
-import type { DayItem, ItemEditorProps } from "@extensions/client/types";
+import type { DayItem, ItemEditorProps, ItemEditScope } from "@extensions/client/types";
 import type { Attendee, AttendeeResponse, CalendarItem } from "@shared/api-types";
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useCallback, useRef, useState } from "react";
@@ -25,11 +25,16 @@ import {
   toTimeInput,
   withTime,
 } from "@/lib/dates";
+import { vibrateShort } from "@/lib/haptics";
 import { useOnline } from "@/lib/online";
 import { cn } from "@/lib/utils";
+import { markJustAdded } from "@/modules/calendar/recent-items";
+import { itemKey } from "@/modules/calendar/use-undoable-delete";
 import { canDeleteEvent, canEditEvent, canRespond, inviteeIds } from "../shared/permissions";
 import { createEvent, respondToEvent, updateEvent } from "./api";
 import { AttendeeList, InvitePicker, RsvpBar } from "./Invitees";
+import { RepeatFields, repeatDraftFromRule, repeatDraftToInput } from "./RepeatFields";
+import { ScopeDialog } from "./ScopeDialog";
 
 /**
  * 新しい予定の始まりの時刻。今日なら次の正時、ほかの日なら 9 時。
@@ -133,6 +138,11 @@ export function EventSheet({
   const groupId = pickedGroupId || personal?.id || groups[0]?.id || "";
   const chosen = groups.find((g) => g.id === groupId);
   const [memo, setMemo] = useState(editing?.memo ?? "");
+  const [repeat, setRepeat] = useState(() => repeatDraftFromRule(editing?.repeat, new Date(initialStart)));
+  // 繰り返す予定を開いたときだけ、直す・消すときに範囲を挟む。0043
+  const needsScope = Boolean(editing?.repeat);
+  const [scopeAction, setScopeAction] = useState<"edit" | "delete" | null>(null);
+  const [pendingPayload, setPendingPayload] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const online = useOnline();
@@ -233,6 +243,36 @@ export function EventSheet({
     }
   }
 
+  /** 実際に保存する。繰り返す予定を直すときは、範囲(scope)を添える。0043 */
+  async function persist(payload: Record<string, unknown>, scope?: ItemEditScope) {
+    setBusy(true);
+    try {
+      const opts = scope ? { occurrenceAt: editing?.occurrenceAt, scope } : {};
+      const saved = editing ? await updateEvent(editing.id, payload, opts) : await createEvent(payload);
+      // 足された欄の仕事は、予定の保存が済んでから行う。失敗しても予定は保存できている
+      await Promise.all([...afterSaves.current].map((fn) => fn(saved.id).catch((e: Error) => toast.error(e.message))));
+      await qc.invalidateQueries({ queryKey: ["calendar"] });
+      if (!editing) {
+        // 新しく足したチップだけ、膨らんで入る動きにする。直したときは動かさない。0044、0048、#98、#112
+        markJustAdded(itemKey(saved));
+        vibrateShort();
+      }
+      toast(editing ? "予定を保存しました" : "予定を足しました");
+      onClose();
+    } catch (err) {
+      if (editing && err instanceof ApiError && err.status === 404) {
+        await qc.invalidateQueries({ queryKey: ["calendar"] });
+        toast.error("この予定は消されています");
+        onClose();
+        return;
+      }
+      // 入力の誤りでなければ、入れた内容が残っていることも伝える
+      const retryable = err instanceof ApiError && (err.status === 0 || err.status >= 500);
+      setError(retryable ? `保存できませんでした。入れた内容はそのままです。${err.message}` : (err as Error).message);
+      setBusy(false);
+    }
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -251,27 +291,30 @@ export function EventSheet({
       ...when,
       // 共有しない予定は、自分だけ。招待は送らない
       attendeeIds: shared ? [...effectiveInvited] : [],
+      repeat: repeatDraftToInput(repeat),
     };
-    setBusy(true);
-    try {
-      const saved = editing ? await updateEvent(editing.id, payload) : await createEvent(payload);
-      // 足された欄の仕事は、予定の保存が済んでから行う。失敗しても予定は保存できている
-      await Promise.all([...afterSaves.current].map((fn) => fn(saved.id).catch((e: Error) => toast.error(e.message))));
-      await qc.invalidateQueries({ queryKey: ["calendar"] });
-      toast(editing ? "予定を保存しました" : "予定を足しました");
-      onClose();
-    } catch (err) {
-      if (editing && err instanceof ApiError && err.status === 404) {
-        await qc.invalidateQueries({ queryKey: ["calendar"] });
-        toast.error("この予定は消されています");
-        onClose();
-        return;
-      }
-      // 入力の誤りでなければ、入れた内容が残っていることも伝える
-      const retryable = err instanceof ApiError && (err.status === 0 || err.status >= 500);
-      setError(retryable ? `保存できませんでした。入れた内容はそのままです。${err.message}` : (err as Error).message);
-      setBusy(false);
+    // 既に繰り返している予定を直すときは、この回だけ・これ以降・全部を先に選ばせる。0043
+    if (needsScope) {
+      setPendingPayload(payload);
+      setScopeAction("edit");
+      return;
     }
+    void persist(payload);
+  }
+
+  /** 範囲の確認を選んだとき。edit なら保留していた保存を、delete なら消す処理を続きから行う */
+  function confirmScope(scope: ItemEditScope) {
+    const action = scopeAction;
+    setScopeAction(null);
+    if (action === "delete") {
+      if (editing) {
+        onDelete(editing, scope);
+        onClose();
+      }
+      return;
+    }
+    if (action === "edit" && pendingPayload) void persist(pendingPayload, scope);
+    setPendingPayload(null);
   }
 
   return (
@@ -343,6 +386,7 @@ export function EventSheet({
               </Field>
             </>
           )}
+          <RepeatFields value={repeat} onChange={setRepeat} />
           <div className="flex flex-col gap-1.5">
             <span className="text-xs font-medium text-ink-2" id="event-group-label">
               共有
@@ -410,6 +454,10 @@ export function EventSheet({
                 type="button"
                 variant="danger"
                 onClick={() => {
+                  if (needsScope) {
+                    setScopeAction("delete");
+                    return;
+                  }
                   onDelete(editing);
                   onClose();
                 }}
@@ -433,6 +481,16 @@ export function EventSheet({
           </div>
         )}
       </form>
+      {scopeAction && (
+        <ScopeDialog
+          action={scopeAction}
+          onChoose={confirmScope}
+          onClose={() => {
+            setScopeAction(null);
+            setPendingPayload(null);
+          }}
+        />
+      )}
     </ResponsiveSheet>
   );
 }

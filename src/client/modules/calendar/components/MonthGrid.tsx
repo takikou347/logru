@@ -1,9 +1,11 @@
-import { type CSSProperties, useRef } from "react";
+import { type CSSProperties, useRef, useState } from "react";
 import { AvatarStack } from "@/components/parts/Avatars";
 import { dayTone, formatDay, formatTime, holidayName, onDay, sameDay, WEEKDAYS } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { daySpan, hiddenPerDay, isMultiDay, layoutWeek, type SpanSegment } from "../lanes";
 import type { ViewItem } from "../model";
+import { takeJustAdded } from "../recent-items";
+import { itemKey } from "../use-undoable-delete";
 import { toneText } from "./DayItems";
 
 /** スマホのマスに出す点の数 */
@@ -43,6 +45,8 @@ export type MonthGridBodyProps = {
   today: Date;
   selected: Date;
   items: ViewItem[];
+  /** 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98 */
+  leaving?: Set<string>;
   onPressDay: (d: Date) => void;
   onOpenItem: (item: ViewItem) => void;
 };
@@ -64,7 +68,16 @@ export type MonthGridBodyProps = {
  * @param onPressDay 日付のマスか「ほか n 件」を押したとき。長押しも含む
  * @param onOpenItem PC で予定を押したとき
  */
-export function MonthGridBody({ days, month, today, selected, items, onPressDay, onOpenItem }: MonthGridBodyProps) {
+export function MonthGridBody({
+  days,
+  month,
+  today,
+  selected,
+  items,
+  leaving,
+  onPressDay,
+  onOpenItem,
+}: MonthGridBodyProps) {
   const press = useRef<{ timer: number; fired: boolean } | null>(null);
 
   // 長押しで開いたときは、指を離したときの click で 2 回目を開かない
@@ -133,6 +146,8 @@ export function MonthGridBody({ days, month, today, selected, items, onPressDay,
                   className={cn(
                     "relative flex min-h-[52px] touch-manipulation flex-col items-center pt-1.5 select-none [-webkit-touch-callout:none]",
                     "lg:@container lg:items-stretch lg:gap-1 lg:border-t lg:border-line lg:px-1.5 lg:pt-2 lg:pb-1.5",
+                    // 日のマスは、押している間だけ 0.97 倍。:active はボタンを押した間、祖先にも付く。0044、0048、#98
+                    "transition-transform duration-fast ease-in-out active:scale-97",
                   )}
                 >
                   <button
@@ -193,7 +208,12 @@ export function MonthGridBody({ days, month, today, selected, items, onPressDay,
                   </span>
                   <span className="relative z-[2] hidden min-w-0 flex-col gap-[3px] lg:mt-[calc(var(--lanes)*var(--lane))] lg:flex">
                     {mine.slice(0, chipSlots).map((i) => (
-                      <EventChip key={`${i.extension}:${i.id}`} item={i} onOpen={() => onOpenItem(i)} />
+                      <EventChip
+                        key={itemKey(i)}
+                        item={i}
+                        onOpen={() => onOpenItem(i)}
+                        isLeaving={!!leaving?.has(itemKey(i))}
+                      />
                     ))}
                     {moreChips > 0 && (
                       <button
@@ -334,14 +354,19 @@ function SpanMarks({ segment, onOpen }: { segment: SpanSegment<ViewItem>; onOpen
  * PC のマスの中の、1 日だけの予定。左に色の縦線を引く。
  * マスが狭いときは、時刻を隠して予定名を優先する。
  * 返事待ちは塗らずに枠線だけ、参加しないは薄くして取り消し線。#28
+ *
+ * 足した直後は膨らんで入り、消す途中は縮んで消える。動かすのは transform と opacity だけ。0044、0048、#98
  */
-function EventChip({ item, onOpen }: { item: ViewItem; onOpen: () => void }) {
+function EventChip({ item, onOpen, isLeaving }: { item: ViewItem; onOpen: () => void; isLeaving: boolean }) {
   const pending = item.myResponse === "pending";
   const declined = item.myResponse === "declined";
+  // 描いた瞬間に 1 度だけ読む。足した直後の再描画と、月を移る再描画を見分けるため
+  const [entering] = useState(() => takeJustAdded(itemKey(item)));
   return (
     <button
       type="button"
       data-response={item.myResponse}
+      data-leaving={isLeaving || undefined}
       className={cn(
         "flex min-h-6 min-w-0 items-center gap-1.5 overflow-hidden rounded-md px-1.5 py-1 text-left text-xs leading-tight font-medium whitespace-nowrap",
         item.secondary
@@ -350,6 +375,7 @@ function EventChip({ item, onOpen }: { item: ViewItem; onOpen: () => void }) {
             ? "shadow-[inset_0_0_0_1.5px_var(--c)]"
             : "bg-[color-mix(in_srgb,var(--c)_18%,transparent)] before:w-[3px] before:flex-none before:self-stretch before:rounded-xs before:bg-(--c) before:content-['']",
         declined && "opacity-50",
+        entering && "item-enter",
         `c-${item.color}`,
       )}
       onClick={onOpen}

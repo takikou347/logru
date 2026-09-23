@@ -101,6 +101,7 @@ export function MonthFlipDeck({
   today,
   selected,
   items,
+  leaving,
   onPressDay,
   onOpenItem,
   monthNav,
@@ -109,6 +110,8 @@ export function MonthFlipDeck({
   today: Date;
   selected: Date;
   items: ViewItem[];
+  /** 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98 */
+  leaving?: Set<string>;
   onPressDay: (d: Date) => void;
   onOpenItem: (item: ViewItem) => void;
   monthNav: MonthNav;
@@ -302,10 +305,10 @@ export function MonthFlipDeck({
 
   const base =
     peek?.dir === 1
-      ? { days: nextGrid.days, month: nextAnchor.getMonth(), items: nextItems }
+      ? { days: nextGrid.days, month: nextAnchor.getMonth(), items: nextItems, leaving: undefined }
       : peek?.dir === -1
-        ? { days: prevGrid.days, month: prevAnchor.getMonth(), items: prevItems }
-        : { days, month, items };
+        ? { days: prevGrid.days, month: prevAnchor.getMonth(), items: prevItems, leaving: undefined }
+        : { days, month, items, leaving };
 
   return (
     <section
@@ -324,6 +327,7 @@ export function MonthFlipDeck({
           today={today}
           selected={selected}
           items={base.items}
+          leaving={base.leaving}
           onPressDay={onPressDay}
           onOpenItem={onOpenItem}
         />
@@ -340,6 +344,7 @@ export function MonthFlipDeck({
               today={today}
               selected={selected}
               items={items}
+              leaving={leaving}
               onPressDay={onPressDay}
               onOpenItem={onOpenItem}
             />

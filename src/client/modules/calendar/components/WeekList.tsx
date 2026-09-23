@@ -13,6 +13,7 @@ export function WeekList({
   today,
   selected,
   items,
+  leaving,
   onSelect,
   onOpen,
 }: {
@@ -20,6 +21,7 @@ export function WeekList({
   today: Date;
   selected: Date;
   items: ViewItem[];
+  leaving?: Set<string>;
   onSelect: (d: Date) => void;
   onOpen: (i: ViewItem) => void;
 }) {
@@ -58,7 +60,7 @@ export function WeekList({
                 {hol ? ` ${hol}` : ""}
               </span>
             </button>
-            <ItemList items={items.filter((i) => onDay(i, d))} onOpen={onOpen} empty="予定なし" />
+            <ItemList items={items.filter((i) => onDay(i, d))} onOpen={onOpen} leaving={leaving} empty="予定なし" />
           </div>
         );
       })}

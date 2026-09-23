@@ -34,6 +34,8 @@ export type CalendarHomeValue = {
   days: Date[];
   items: ViewItem[];
   upcoming: ViewItem[];
+  /** 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98 */
+  leaving: Set<string>;
   open: (item: ViewItem) => void;
   /** 月の表で日付を押したとき。その日を選び、新しく作るシートを開く */
   onPressDay: (day: Date) => void;

@@ -5,6 +5,7 @@
 import { eventsClient } from "@extensions/events/client/index";
 import { externalCalendarsClient } from "@extensions/external-calendars/client/index";
 import { kakeiboClient } from "@extensions/kakeibo/client/index";
+import { listsClient } from "@extensions/lists/client/index";
 import { memoriesClient } from "@extensions/memories/client/index";
 import { weatherClient } from "@extensions/weather/client/index";
 import type { ClientExtension } from "./types";
@@ -15,6 +16,7 @@ export const clientExtensions: ClientExtension[] = [
   externalCalendarsClient,
   memoriesClient,
   kakeiboClient,
+  listsClient,
   weatherClient,
 ];
 

@@ -5,6 +5,7 @@
 import { eventsServer } from "@extensions/events/server/index";
 import { externalCalendarsServer } from "@extensions/external-calendars/server/index";
 import { kakeiboServer } from "@extensions/kakeibo/server/index";
+import { listsServer } from "@extensions/lists/server/index";
 import { memoriesServer } from "@extensions/memories/server/index";
 import { weatherServer } from "@extensions/weather/server/index";
 import type { ServerExtension } from "./types";
@@ -15,6 +16,7 @@ export const serverExtensions: ServerExtension[] = [
   externalCalendarsServer,
   memoriesServer,
   kakeiboServer,
+  listsServer,
   weatherServer,
 ];
 

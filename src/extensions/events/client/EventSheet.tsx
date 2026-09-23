@@ -55,7 +55,7 @@ function defaultStart(date: Date): number {
 function DayItemList({ day, items, onOpen }: { day: Date; items: DayItem[]; onOpen: (item: CalendarItem) => void }) {
   const heading = `${day.getMonth() + 1}月${day.getDate()}日の予定`;
   return (
-    <section aria-label={heading} className="-mt-1 rounded-2xl bg-field px-3.5 py-2">
+    <section aria-label={heading} className="rounded-2xl bg-field px-3.5 py-2">
       <h3 className="pt-0.5 text-xs font-bold text-ink-2">{heading}</h3>
       <ul className="flex min-w-0 flex-col">
         {items.map((i) => (
@@ -329,7 +329,7 @@ export function EventSheet({
           onRespond={respond}
         />
       )}
-      {!canEdit && <Notice className="-mt-1">この予定は見るだけです。直せるのは、作った人と招待された人です。</Notice>}
+      {!canEdit && <Notice>この予定は見るだけです。直せるのは、作った人と招待された人です。</Notice>}
       <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         {/* 見るだけのときは、入力をまとめて押せなくする */}
         <fieldset disabled={!canEdit} className="contents">

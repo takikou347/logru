@@ -87,6 +87,32 @@ describe("expandOccurrences。F-36", () => {
     expect(out.map(iso)).toEqual(["2024-02-29T00:00:00.000Z", "2028-02-29T00:00:00.000Z"]);
   });
 
+  it("毎月の日にちは日本時間で数える。始まりが日本時間 9 時より前でも UTC の前日にずれない。0068", () => {
+    // 2026-11-01 07:00 は日本時間で 11 月 1 日。UTC では前日 10 月 31 日 22:00 になる
+    const startsAt = new Date("2026-10-31T22:00:00.000Z");
+    const rule = { freq: "monthly" as const, daysOfWeek: null, until: null, count: null };
+    const out = expandOccurrences(startsAt, rule, Date.UTC(2026, 9, 1), Date.UTC(2027, 1, 15));
+    expect(out.map(iso)).toEqual([
+      "2026-10-31T22:00:00.000Z", // 11/1 7:00 JST。始まり自身がその回に入る
+      "2026-11-30T22:00:00.000Z", // 12/1 7:00 JST。UTC の暦のままなら 11 月は無い日として飛ばされていた
+      "2026-12-31T22:00:00.000Z", // 1/1 7:00 JST(2027)
+      "2027-01-31T22:00:00.000Z", // 2/1 7:00 JST
+    ]);
+  });
+
+  it("毎年の月日は日本時間で数える。始まりが日本時間 9 時より前でも UTC の前日にずれない。0068", () => {
+    // 2027-01-01 07:00 は日本時間で 1 月 1 日。UTC では前年 12 月 31 日 22:00 になる
+    const startsAt = new Date("2026-12-31T22:00:00.000Z");
+    const rule = { freq: "yearly" as const, daysOfWeek: null, until: null, count: null };
+    const out = expandOccurrences(startsAt, rule, Date.UTC(2026, 0, 1), Date.UTC(2030, 0, 1));
+    expect(out.map(iso)).toEqual([
+      "2026-12-31T22:00:00.000Z", // 2027/1/1 7:00 JST。始まり自身がその回に入る
+      "2027-12-31T22:00:00.000Z", // 2028/1/1 7:00 JST
+      "2028-12-31T22:00:00.000Z", // 2029/1/1 7:00 JST
+      "2029-12-31T22:00:00.000Z", // 2030/1/1 7:00 JST
+    ]);
+  });
+
   it("終わりの日付までで打ち切る。その日は含む", () => {
     const startsAt = new Date("2026-10-05T01:00:00.000Z");
     const rule = { freq: "daily" as const, daysOfWeek: null, until: new Date(Date.UTC(2026, 9, 7)), count: null };

@@ -4,7 +4,7 @@ import { Field } from "@/components/parts/Field";
 import { Segmented } from "@/components/parts/Segmented";
 import { Input } from "@/components/ui/input";
 import { dateKey, parseDateKey } from "@/lib/dates";
-import { isoWeekdayInTokyo } from "../shared/weekday";
+import { isoWeekdayInTokyo } from "../shared/tokyo";
 
 const FREQ_OPTIONS = [
   { value: "none", label: "なし" },

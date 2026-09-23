@@ -6,7 +6,10 @@
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/__/auth/*"]
+    // 招待リンクは、OG タグを書き換えるために Worker を通す。#93
+    "run_worker_first": ["/api/*", "/__/auth/*", "/invite/*"],
+    // Worker から index.html を読み直し、OG タグだけ書き換えて返すための束縛。#93
+    "binding": "ASSETS"
   },
   "d1_databases": [
     {

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { addExtension, signUp } from "./helpers";
+import { addExtension, addMemories, signUp } from "./helpers";
 
 // 写真は Unsplash License のフリー写真を小さくしたもの。出どころは develop-docs の docs/logru/extensions/memories/images/photos/sources.txt
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
@@ -29,7 +29,7 @@ test("思い出を作り、写真付きで記録し、いいねを付け、カ�
   await sheet.getByRole("link", { name: /思い出/ }).click();
 
   // 今日の日帰りの思い出を作ると、その 1 日が開く
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("箱根 日帰り");
   await create.getByRole("button", { name: "作る" }).click();
@@ -77,7 +77,7 @@ test("しおりにやること、持ち物を足して済みにできる。思�
   await signUp(page, { name: "こた" });
   await enableMemories(page);
   await page.goto("/memories");
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("金沢 2 泊");
   await create.getByRole("button", { name: "作る" }).click();

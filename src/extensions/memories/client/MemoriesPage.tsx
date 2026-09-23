@@ -1,21 +1,22 @@
 import type { Me } from "@shared/api-types";
-import { Camera, Plus } from "lucide-react";
+import { BookOpen, Camera } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Dock } from "@/components/parts/Dock";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
 import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
-import { Button } from "@/components/ui/button";
+import type { Addable } from "@/components/parts/PrimaryAddButton";
+import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { DEFAULT_TIME_ZONE, dayKeyIn } from "../shared/days";
 import type { Memory, MemoryRecord } from "../shared/types";
 import { useMemoryGroups, useMemoryList } from "./api";
 import { CoverOpen } from "./Book";
-import { Dock } from "./Dock";
 import { MemorySheet } from "./MemorySheet";
 import { formatClock, formatSpan, GroupLabel, PhotoImg } from "./parts";
 import { RecordSheet } from "./RecordSheet";
@@ -53,7 +54,8 @@ function daysUntil(memory: Memory, now: number): number {
 /**
  * 思い出の一覧。これからの思い出を上に、済んだ思い出を年ごとに新しい順で、表紙のカードで並べる。F-102
  * すべて、自分だけ、グループで絞る。絞り込みは端末に覚える。
- * 下の操作で、記録する、思い出を作る。`?record=1` で開くと、記録のシートを出す。
+ * 下の「+」を押すと、記録する・思い出を作るを選ぶシートが開く。0062
+ * `?record=1` で開くと、記録のシートを出す。
  */
 export function MemoriesPage() {
   const me = useMe();
@@ -83,6 +85,11 @@ export function MemoriesPage() {
   const data = me.data;
   const empty = list.data && list.data.memories.length === 0 && list.data.recent.length === 0;
   const filterOptions = groupFilterOptions({ groups, me: data, value: group, onChange: setGroup });
+  // 足せるものが 2 つ。「+」は小さなシートを開き、アイコンと名前から選ぶ。issue #150
+  const addables: Addable[] = [
+    { key: "record", label: "記録する", icon: Camera, onClick: () => setParams((p) => (p.set("record", "1"), p)) },
+    { key: "memory", label: "思い出を作る", icon: BookOpen, onClick: () => setCreating(true) },
+  ];
 
   return (
     <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
@@ -107,14 +114,7 @@ export function MemoriesPage() {
           <Shelf key={year} year={year} title="過去の思い出" memories={ms} me={data} />
         ))}
         <Dock label="思い出の操作">
-          <Button variant="secondary" onClick={() => setParams((p) => (p.set("record", "1"), p))}>
-            <Camera className="size-5" />
-            記録する
-          </Button>
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="size-5" />
-            思い出を作る
-          </Button>
+          <PrimaryAddButton label="思い出を足す" addables={addables} />
         </Dock>
       </Page>
       {creating && <MemorySheet groups={groups} me={data} defaultGroupId={group} onClose={() => setCreating(false)} />}

@@ -80,8 +80,25 @@ Auth エミュレーターが動いていなければ、テストの間だけ立
 | `develop` | 本番の手前。既定のブランチ | CI が通った後、staging の `logru-staging` に出る |
 | 作業のブランチ | 1 つの変更 | 何も出ない。PR の CI だけが走る |
 | `hotfix/*` | 本番の急ぎの直し | 何も出ない。main へ直接 PR を出せる |
-| `release/<年>-w<週>` | 毎週の本番へ出す候補。月曜 0 時に Claude が develop から切る | 何も出ない。main へ直接 PR を出せる |
+| `release/<年>-w<週>` | 毎週の本番へ出す候補。Claude がその週の分を入れた後に develop から切る | 何も出ない。main へ直接 PR を出せる |
 | `claude/*` | Claude の作業 | 何も出ない。PR の CI だけが走る |
+
+### 毎週の流れ
+
+毎週月曜 0 時に、Claude が改善を実装して `develop` まで入れる。本番へは、kota が release の PR をレビューして入れる。
+
+| 順 | だれ | すること |
+| --- | --- | --- |
+| 1 | Claude | issue を実装し、CI が通った PR を `develop` へ入れる。staging に出る |
+| 2 | Claude | `release/<年>-w<週>` を切り、`main` への PR を出す。本文に見た目の前と後の画像、移行、判断が要ることを集める |
+| 3 | kota | staging で触って、動きを確かめる |
+| 4 | kota | release の PR を読み、良ければマージする。本番に出る |
+| 5 | kota | その週の develop-docs の文書の PR をマージする |
+
+`.github/workflows` を触る PR だけは、Claude が入れずに kota が読んでから入れる。
+決めた理由は develop-docs の `docs/logru/decisions/0038-weekly-improvement.md` にある。
+
+### 手で出すとき
 
 1. `develop` からブランチを切り、`develop` へ PR を出す
 2. CI が通ったらマージする。staging に出るので、`logru-staging` で動きを確かめる
@@ -90,7 +107,6 @@ Auth エミュレーターが動いていなければ、テストの間だけ立
 
 `main` と `develop` は保護している。直接の push はできず、PR の CI の `check` と `branch-rule` が通らないとマージできない。
 `branch-rule` は、`main` への PR が `develop`、`hotfix/*`、`release/*` のどれかから来ているかを見る。
-毎週の流れは develop-docs の `docs/logru/decisions/0038-weekly-improvement.md` にある。
 
 出す処理は `.github/workflows/ci.yml` の `deploy` にある。組み立て、移行を当て、Worker を置き換える。
 出し直すときは、Actions の CI を「Run workflow」で `main` か `develop` を選んで流す。

@@ -3,6 +3,7 @@ import { type AppEnv, createRouter, HttpError, validationHook } from "@server/co
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
 import { groupMembers, notifications } from "@server/core/db/schema";
+import { enforceRateLimit } from "@server/core/rate-limit";
 import { and, asc, count, desc, eq, inArray, isNull, max, sql } from "drizzle-orm";
 import type { Context } from "hono";
 import { addDaysToKey, dayKeyIn, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
@@ -172,6 +173,7 @@ export const memoryRoutes = createRouter()
   .post("/photos", async (c) => {
     const db = c.get("db");
     const me = c.get("user");
+    await enforceRateLimit(c.env.PHOTO_RATE_LIMIT, me.id);
     const form = await c.req.formData().catch(() => null);
     if (!form) throw new HttpError(400, "写真を送り直してください。");
     const groupId = String(form.get("groupId") ?? "");

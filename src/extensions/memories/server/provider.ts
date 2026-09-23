@@ -1,11 +1,27 @@
 import type { DB } from "@server/core/db/client";
 import type { CalendarItem } from "@shared/api-types";
-import { and, gt, gte, inArray, lt } from "drizzle-orm";
+import { and, gt, gte, inArray, like, lt, or } from "drizzle-orm";
 import { DAY_MS, DEFAULT_TIME_ZONE, dayKeyIn, startOfDayIn } from "../shared/days";
-import { memories, memoryRecords } from "./schema";
+import { type MemoryRow, memories, memoryRecords } from "./schema";
 
 /** カレンダーの項目の ID の頭。思い出と、日ごとにまとめた記録を見分ける */
 const ITEM_PREFIX = { memory: "m:", records: "r:" } as const;
+
+/** 思い出の 1 行を、カレンダーの項目の形にする。期間にかかるものは終日の帯として出す */
+function toCalendarItem(m: MemoryRow): CalendarItem {
+  return {
+    extension: "memories",
+    id: `${ITEM_PREFIX.memory}${m.id}`,
+    groupId: m.groupId,
+    createdBy: m.createdBy,
+    startsAt: m.startsAt.getTime(),
+    endsAt: m.endsAt.getTime(),
+    allDay: true,
+    title: m.title,
+    tag: "思い出",
+    ...(m.place ? { place: m.place } : {}),
+  };
+}
 
 /**
  * カレンダーに渡す項目。0008
@@ -50,18 +66,7 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
   }
 
   return [
-    ...rows.map<CalendarItem>((m) => ({
-      extension: "memories",
-      id: `${ITEM_PREFIX.memory}${m.id}`,
-      groupId: m.groupId,
-      createdBy: m.createdBy,
-      startsAt: m.startsAt.getTime(),
-      endsAt: m.endsAt.getTime(),
-      allDay: true,
-      title: m.title,
-      tag: "思い出",
-      ...(m.place ? { place: m.place } : {}),
-    })),
+    ...rows.map(toCalendarItem),
     ...[...counts.values()].map<CalendarItem>((c) => {
       const start = startOfDayIn(c.day, DEFAULT_TIME_ZONE);
       return {
@@ -78,4 +83,20 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
       };
     }),
   ];
+}
+
+/**
+ * 思い出の題名と場所を探す。0046
+ * しおりや記録の中身は対象にしない。まとまった 1 冊としての思い出だけを探す
+ * @param db D1 を包んだ Drizzle
+ * @param groupIds 呼んでよいグループ
+ * @param query 探す文字列
+ */
+export async function searchMemories(db: DB, groupIds: string[], query: string): Promise<CalendarItem[]> {
+  const pattern = `%${query}%`;
+  const rows = await db
+    .select()
+    .from(memories)
+    .where(and(inArray(memories.groupId, groupIds), or(like(memories.title, pattern), like(memories.place, pattern))));
+  return rows.map(toCalendarItem);
 }

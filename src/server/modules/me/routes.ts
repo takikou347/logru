@@ -23,6 +23,7 @@ import {
   users,
 } from "@server/core/db/schema";
 import { vapidKeys } from "@server/core/push/send";
+import { enforceRateLimit } from "@server/core/rate-limit";
 import { myGroupIds, sharesGroup } from "@server/modules/groups/membership";
 import type { HomeLayout, Me, PushInfo } from "@shared/api-types";
 import { toHomeWidgetEntry } from "@shared/home";
@@ -285,6 +286,7 @@ export const meRoutes = createRouter()
   .post("/avatar", async (c) => {
     const db = c.get("db");
     const me = c.get("user");
+    await enforceRateLimit(c.env.PHOTO_RATE_LIMIT, me.id);
     const form = await c.req.formData().catch(() => null);
     const file = form?.get("photo");
     if (!(file instanceof File)) throw new HttpError(400, "写真を送り直してください。");

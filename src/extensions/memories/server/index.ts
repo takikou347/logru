@@ -3,7 +3,7 @@ import type { DB } from "@server/core/db/client";
 import { and, eq } from "drizzle-orm";
 import { memoriesManifest } from "../manifest";
 import { notifyKoma } from "./koma";
-import { listMemoryItems } from "./provider";
+import { listMemoryItems, searchMemories } from "./provider";
 import { memoryRoutes } from "./routes";
 import { cleanUpPhotos } from "./scheduled";
 import * as schema from "./schema";
@@ -23,6 +23,7 @@ export const memoriesServer: ServerExtension = {
   manifest: memoriesManifest,
   schema,
   listCalendarItems: listMemoryItems,
+  search: searchMemories,
   routes: { basePath: "/memories", router: memoryRoutes },
   scheduled: async (db, env) => {
     await notifyKoma(db, env);

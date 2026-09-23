@@ -1,6 +1,6 @@
 import { clientExtension, defaultExtension } from "@extensions/client/registry";
 import type { EditorTarget } from "@extensions/client/types";
-import type { GroupSummary, HomeWidgetEntry } from "@shared/api-types";
+import type { CalendarItem, GroupSummary, HomeWidgetEntry } from "@shared/api-types";
 import { defaultHomeLayout, mergeHomeLayout, visibleHomeLayout } from "@shared/home";
 import { ChevronLeft, ChevronRight, LayoutGrid, Pencil, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -45,6 +45,7 @@ import { Onboarding } from "../onboarding/Onboarding";
 import { useCalendar, useMemberVisibility } from "./api";
 import { PeopleChip, SideGroup, useOpenGroups } from "./components/PeopleFilter";
 import { RefreshButton } from "./components/RefreshButton";
+import { SearchButton } from "./components/SearchButton";
 import {
   byPeople,
   decorate,
@@ -161,6 +162,14 @@ export function CalendarPage() {
   );
 
   const open = useCallback((item: ViewItem) => setEditor({ mode: "edit", item }), []);
+  // 探した結果を押したとき。その日を表示し、項目を出した拡張の編集のシートを開く。F-38、0046
+  const openSearchResult = useCallback(
+    (item: CalendarItem) => {
+      update({ date: new Date(item.startsAt), view: "day" });
+      setEditor({ mode: "edit", item });
+    },
+    [update],
+  );
   const onPressDay = useCallback(
     (d: Date) => {
       update({ date: d });
@@ -266,6 +275,21 @@ export function CalendarPage() {
       cancelled = true;
     };
   }, [openExt, openId, setParams]);
+
+  // ホーム画面のアイコンの近道「予定を足す」から開いたとき。開いたら消す。#110
+  const shortcutNew = params.get("new");
+  useEffect(() => {
+    if (!shortcutNew) return;
+    addNew(today);
+    setParams(
+      (p) => {
+        const q = new URLSearchParams(p);
+        q.delete("new");
+        return q;
+      },
+      { replace: true },
+    );
+  }, [shortcutNew, today, addNew, setParams]);
 
   // PC のキー。左右で移る、T で今日、N で予定を足す。0012
   useEffect(() => {
@@ -415,6 +439,7 @@ export function CalendarPage() {
               </Button>
               {addButton()}
             </div>
+            {me.data && <SearchButton groups={allGroups} me={me.data} onOpen={openSearchResult} />}
             <NotificationBell />
             <AccountMenu />
           </div>

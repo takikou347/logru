@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "46177507-3037-4782-830d-af9fe69ca722",
+  "id": "908e6414-d497-49b7-95a5-e7c9bc3f06b0",
   "prevId": "3e4b8493-426f-46a0-b776-428d1f0068b6",
   "tables": {
     "color_prefs": {
@@ -910,94 +910,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "event_occurrence_edits": {
-      "name": "event_occurrence_edits",
-      "columns": {
-        "event_id": {
-          "name": "event_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "occurrence_at": {
-          "name": "occurrence_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "cancelled": {
-          "name": "cancelled",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
-        },
-        "starts_at": {
-          "name": "starts_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "ends_at": {
-          "name": "ends_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "all_day": {
-          "name": "all_day",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "memo": {
-          "name": "memo",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "event_occurrence_edits_event_idx": {
-          "name": "event_occurrence_edits_event_idx",
-          "columns": ["event_id"],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "event_occurrence_edits_event_id_events_id_fk": {
-          "name": "event_occurrence_edits_event_id_events_id_fk",
-          "tableFrom": "event_occurrence_edits",
-          "tableTo": "events",
-          "columnsFrom": ["event_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "event_occurrence_edits_event_id_occurrence_at_pk": {
-          "columns": ["event_id", "occurrence_at"],
-          "name": "event_occurrence_edits_event_id_occurrence_at_pk"
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "events": {
       "name": "events",
       "columns": {
@@ -1054,34 +966,6 @@
         "memo": {
           "name": "memo",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "repeat_freq": {
-          "name": "repeat_freq",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "repeat_days_of_week": {
-          "name": "repeat_days_of_week",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "repeat_until": {
-          "name": "repeat_until",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "repeat_count": {
-          "name": "repeat_count",
-          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -1318,6 +1202,106 @@
           "name": "external_events_calendar_id_uid_occurrence_pk"
         }
       },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "kakeibo_expenses": {
+      "name": "kakeibo_expenses",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "memo": {
+          "name": "memo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        }
+      },
+      "indexes": {
+        "kakeibo_expenses_group_date_idx": {
+          "name": "kakeibo_expenses_group_date_idx",
+          "columns": ["group_id", "date"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "kakeibo_expenses_group_id_groups_id_fk": {
+          "name": "kakeibo_expenses_group_id_groups_id_fk",
+          "tableFrom": "kakeibo_expenses",
+          "tableTo": "groups",
+          "columnsFrom": ["group_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "kakeibo_expenses_created_by_users_id_fk": {
+          "name": "kakeibo_expenses_created_by_users_id_fk",
+          "tableFrom": "kakeibo_expenses",
+          "tableTo": "users",
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },

@@ -20,22 +20,34 @@ export type Addable = {
  * @param label 読み上げの名前。画面ごとに「予定を足す」「支出を記録する」のように付ける
  * @param addables 足せるものの一覧
  * @param sheetTitle 2 つ以上のときに開く、選ぶシートの見出し。無ければ label を使う
+ * @param disabled いま押せないとき。足せるものが 1 つの画面だけで使う(例はまだ来ていない日の記録)
+ * @param disabledLabel 押せないときの読み上げの名前。渡さなければ label のまま
  */
 export function PrimaryAddButton({
   label,
   addables,
   sheetTitle,
+  disabled,
+  disabledLabel,
 }: {
   label: string;
   addables: Addable[];
   sheetTitle?: string;
+  disabled?: boolean;
+  disabledLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   if (addables.length === 0) return null;
   if (addables.length === 1) {
     const only = addables[0]!;
     return (
-      <Button type="button" aria-label={label} onClick={only.onClick} className="size-14 rounded-full p-0">
+      <Button
+        type="button"
+        aria-label={disabled ? (disabledLabel ?? label) : label}
+        onClick={only.onClick}
+        disabled={disabled}
+        className="size-14 rounded-full p-0"
+      >
         <Plus className="size-6" aria-hidden="true" />
       </Button>
     );

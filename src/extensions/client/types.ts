@@ -142,7 +142,7 @@ export type ClientExtension = {
   ) => Promise<void>;
   /**
    * 設定の、この拡張の詳細に出す欄。登録や細かい調整の画面を置くのに使う。無ければ省く。
-   * 「自分で使う」「使うグループ」の下に置く。決まり: 拡張の設定はここに置く。issue #102
+   * 「自分に足す」「足すグループ」の下に置く。決まり: 拡張の設定はここに置く。issue #102
    */
   SettingsSection?: ComponentType;
   /**

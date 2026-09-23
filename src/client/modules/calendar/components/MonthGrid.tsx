@@ -105,7 +105,11 @@ export function MonthGridBody({
   }
 
   const multi = items.filter(isMultiDay);
-  const singles = items.filter((i) => !isMultiDay(i));
+  // マスに出す順は、予定を先に、拡張の項目をあとにする。はみ出す分だけ「+n」にする。0056、#3
+  // sort は安定なので、同じ形の中では元の時刻順のまま
+  const singles = items
+    .filter((i) => !isMultiDay(i))
+    .sort((a, b) => Number(kindOf(a) !== "event") - Number(kindOf(b) !== "event"));
   const weeks = Array.from({ length: Math.ceil(days.length / 7) }, (_, w) => days.slice(w * 7, w * 7 + 7));
 
   return (

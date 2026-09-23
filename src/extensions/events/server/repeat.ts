@@ -1,9 +1,9 @@
 /**
  * 予定の繰り返しを開く。決まった 4 種類(毎日・毎週・毎月・毎年)だけを持ち、RRULE のような書式は使わない。0043
  *
- * 利用者の時間帯は持たないので、UTC の暦で日付・曜日を数える。端末の時間帯と暦がずれる利用者では、
- * 深夜をまたぐ予定の回が 1 日ずれることがある。既存の全部の日付計算と同じ、この拡張の中だけの制約。
+ * 曜日・月日は Asia/Tokyo の暦で数える。0068
  */
+import { isoWeekdayInTokyo, tokyoFieldsOf, utcFromTokyoFields } from "../shared/tokyo";
 
 /** 繰り返しの周期 */
 export type RepeatFreq = "daily" | "weekly" | "monthly" | "yearly";
@@ -35,43 +35,19 @@ export const DAY_MS = 24 * 60 * 60 * 1000;
 /** 果てしなく回るのを防ぐ安全弁。実際の終わりはもっと早く来る */
 const SAFETY_MAX = 10_000;
 
-/** UTC の曜日。月を 1、日を 7 とした数 */
-function isoWeekday(d: Date): number {
-  const w = d.getUTCDay();
-  return w === 0 ? 7 : w;
+/** n か月後の同じ日。日本時間で数える。その月に無ければ null(例: 2 月 31 日は無い)。0068 */
+function addMonthsInTokyo(base: Date, n: number): Date | null {
+  const f = tokyoFieldsOf(base);
+  const wantMonth = (((f.month + n) % 12) + 12) % 12;
+  const target = new Date(utcFromTokyoFields({ ...f, month: f.month + n }));
+  return tokyoFieldsOf(target).month === wantMonth ? target : null;
 }
 
-/** n か月後の同じ日。その月に無ければ null(例: 2 月 31 日は無い) */
-function addMonthsUtc(base: Date, n: number): Date | null {
-  const wantMonth = (((base.getUTCMonth() + n) % 12) + 12) % 12;
-  const target = new Date(
-    Date.UTC(
-      base.getUTCFullYear(),
-      base.getUTCMonth() + n,
-      base.getUTCDate(),
-      base.getUTCHours(),
-      base.getUTCMinutes(),
-      base.getUTCSeconds(),
-      base.getUTCMilliseconds(),
-    ),
-  );
-  return target.getUTCMonth() === wantMonth ? target : null;
-}
-
-/** n 年後の同じ月日。無ければ null(例: 2 月 29 日で、その年がうるう年でない) */
-function addYearsUtc(base: Date, n: number): Date | null {
-  const target = new Date(
-    Date.UTC(
-      base.getUTCFullYear() + n,
-      base.getUTCMonth(),
-      base.getUTCDate(),
-      base.getUTCHours(),
-      base.getUTCMinutes(),
-      base.getUTCSeconds(),
-      base.getUTCMilliseconds(),
-    ),
-  );
-  return target.getUTCMonth() === base.getUTCMonth() ? target : null;
+/** n 年後の同じ月日。日本時間で数える。無ければ null(例: 2 月 29 日で、その年がうるう年でない)。0068 */
+function addYearsInTokyo(base: Date, n: number): Date | null {
+  const f = tokyoFieldsOf(base);
+  const target = new Date(utcFromTokyoFields({ ...f, year: f.year + n }));
+  return tokyoFieldsOf(target).month === f.month ? target : null;
 }
 
 /** その日の UTC の終わり(23:59:59.999) */
@@ -90,8 +66,8 @@ function* occurrenceDates(startsAt: Date, rule: RepeatRule): Generator<Date> {
   if (rule.freq === "daily") {
     for (let n = 0; ; n++) yield new Date(startsAt.getTime() + n * DAY_MS);
   } else if (rule.freq === "weekly") {
-    const days = (rule.daysOfWeek?.length ? [...rule.daysOfWeek] : [isoWeekday(startsAt)]).sort((a, b) => a - b);
-    const pointers = days.map((d) => startsAt.getTime() + ((d - isoWeekday(startsAt) + 7) % 7) * DAY_MS);
+    const days = (rule.daysOfWeek?.length ? [...rule.daysOfWeek] : [isoWeekdayInTokyo(startsAt)]).sort((a, b) => a - b);
+    const pointers = days.map((d) => startsAt.getTime() + ((d - isoWeekdayInTokyo(startsAt) + 7) % 7) * DAY_MS);
     while (true) {
       let idx = 0;
       for (let i = 1; i < pointers.length; i++) if (pointers[i]! < pointers[idx]!) idx = i;
@@ -100,12 +76,12 @@ function* occurrenceDates(startsAt: Date, rule: RepeatRule): Generator<Date> {
     }
   } else if (rule.freq === "monthly") {
     for (let n = 0; ; n++) {
-      const d = addMonthsUtc(startsAt, n);
+      const d = addMonthsInTokyo(startsAt, n);
       if (d) yield d;
     }
   } else {
     for (let n = 0; ; n++) {
-      const d = addYearsUtc(startsAt, n);
+      const d = addYearsInTokyo(startsAt, n);
       if (d) yield d;
     }
   }

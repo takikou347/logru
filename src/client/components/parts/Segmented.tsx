@@ -37,7 +37,8 @@ export function Segmented<T extends string>({
           key={o.value}
           value={o.value}
           className={cn(
-            "min-h-10 min-w-12 rounded-full! border-0 px-3 text-sm font-medium text-ink-2 shadow-none",
+            // 指の目安 44px。#22
+            "min-h-11 min-w-12 rounded-full! border-0 px-3 text-sm font-medium text-ink-2 shadow-none",
             "data-[state=on]:bg-white data-[state=on]:text-ink data-[state=on]:shadow-[0_2px_6px_-2px_rgba(0,0,0,.3)]",
             "dark:data-[state=on]:bg-field-strong",
             full && "flex-1 text-[13px]",

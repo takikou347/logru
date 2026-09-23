@@ -198,7 +198,8 @@ export function CalendarPage() {
     (v: CalendarView) => withViewTransition(reducedMotion, () => update({ view: v })),
     [update, reducedMotion],
   );
-  const upcoming = useMemo(() => items.filter((i) => i.startsAt >= Date.now()).slice(0, 5), [items]);
+  // 天気などの secondary な項目は、予定の一覧には出さない。日のカードでは出す。0056、#5
+  const upcoming = useMemo(() => items.filter((i) => i.startsAt >= Date.now() && !i.secondary).slice(0, 5), [items]);
 
   // ホームのウィジェットの並び。PC とスマホで別に持つ。0029
   const form = useMediaQuery("(min-width: 1024px)") ? "desktop" : "mobile";
@@ -412,7 +413,8 @@ export function CalendarPage() {
             <span className="text-[17px] font-bold">月</span>
             <Link
               to={`/spiral/${selected.getFullYear()}`}
-              className="ml-2 rounded-md text-[17px] font-medium text-ink-2 underline decoration-dotted underline-offset-4"
+              // 押せる範囲を指の目安 44px に広げる。文字の大きさは変えない。#22
+              className="-my-2.5 ml-2 inline-flex min-h-11 items-center rounded-md px-2 text-[17px] font-medium text-ink-2 underline decoration-dotted underline-offset-4"
               aria-label={`${selected.getFullYear()} 年を、らせんで見る`}
             >
               {selected.getFullYear()}

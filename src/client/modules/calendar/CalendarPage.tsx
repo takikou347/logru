@@ -4,7 +4,7 @@ import type { CalendarItem, GroupSummary, HomeWidgetEntry } from "@shared/api-ty
 import { defaultHomeLayout, mergeHomeLayout, visibleHomeLayout } from "@shared/home";
 import { ChevronLeft, ChevronRight, LayoutGrid, Pencil, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useGroups, useMe } from "@/api/common";
 import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components/layout/AppLayout";
@@ -412,7 +412,13 @@ export function CalendarPage() {
               {selected.getMonth() + 1}
             </span>
             <span className="text-[17px] font-bold">月</span>
-            <span className="ml-2 text-[17px] font-medium text-ink-2">{selected.getFullYear()}</span>
+            <Link
+              to={`/spiral/${selected.getFullYear()}`}
+              className="ml-2 rounded-md text-[17px] font-medium text-ink-2 underline decoration-dotted underline-offset-4"
+              aria-label={`${selected.getFullYear()} 年を、らせんで見る`}
+            >
+              {selected.getFullYear()}
+            </Link>
           </h1>
           <div className="flex w-full shrink-0 items-center justify-end gap-0.5 lg:ml-auto lg:w-auto lg:gap-1">
             {showTodayButton && (

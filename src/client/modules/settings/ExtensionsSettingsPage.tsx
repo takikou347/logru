@@ -4,8 +4,8 @@ import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
+import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
-import { Empty } from "@/components/parts/Panel";
 import { ScreenTour } from "@/components/parts/ScreenTour";
 import { BASE_TOURS } from "@/lib/tours";
 import { poolColorsOf } from "../calendar/model";
@@ -56,11 +56,11 @@ export function ExtensionsSettingsPage() {
         <LoadFailure what="機能の一覧" error={overview.error} onRetry={() => void overview.refetch()} />
       )}
       {list.length === 0 && ALWAYS_AVAILABLE.length === 0 && !overview.error && (
-        <Empty>
+        <EmptyState pose="compass" action={{ label: "カレンダーを見る", to: "/" }}>
           足せる機能はまだありません。
           <br />
           予定は、いつも使えます。
-        </Empty>
+        </EmptyState>
       )}
       {list.map((x) => {
         const pending =

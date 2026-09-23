@@ -16,6 +16,7 @@ import {
   useNotificationList,
   useUnreadCount,
 } from "@/modules/notifications/api";
+import { EmptyState } from "./EmptyState";
 import { ResponsiveSheet } from "./ResponsiveSheet";
 
 /** 何分前かなどの、ざっくりした時刻。1 分未満は「今」 */
@@ -81,7 +82,19 @@ function NotificationList({ onClose }: { onClose: () => void }) {
       {list.isLoading ? (
         <p className="py-6 text-center text-sm text-ink-2">読み込んでいます…</p>
       ) : items.length === 0 ? (
-        <p className="py-6 text-center text-sm text-ink-2">お知らせはまだありません。</p>
+        <EmptyState
+          pose="bell"
+          bordered={false}
+          action={{
+            label: "グループを見る",
+            onClick: () => {
+              onClose();
+              navigate("/groups");
+            },
+          }}
+        >
+          お知らせはまだありません。
+        </EmptyState>
       ) : (
         <ul className="flex flex-col gap-0.5">
           {items.map((item) => (

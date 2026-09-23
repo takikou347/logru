@@ -5,8 +5,8 @@ import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
-import { Empty } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { poolColorsOf } from "@/modules/calendar/model";
@@ -95,11 +95,11 @@ export function MemoriesPage() {
         )}
         {list.isPending && <Loading />}
         {empty && (
-          <Empty>
+          <EmptyState pose="camera" action={{ label: "最初の思い出を作ってみる", onClick: () => setCreating(true) }}>
             思い出はまだありません。
             <br />
             旅行やお出かけの前に作ると、しおりを作れます。日々のできごとは「記録する」から残せます。
-          </Empty>
+          </EmptyState>
         )}
         {upcoming.map((m, i) => (i === 0 ? <Upcoming key={m.id} memory={m} me={data} now={now} /> : null))}
         {list.data && list.data.recent.length > 0 && <Recent records={list.data.recent} me={data} />}

@@ -42,6 +42,10 @@ const routes: RouteObject[] = [
     children: [
       { path: "/agree", element: <AgreePage /> },
       { path: "/", lazy: async () => ({ Component: (await import("@/modules/calendar/CalendarPage")).CalendarPage }) },
+      {
+        path: "/spiral/:year",
+        lazy: async () => ({ Component: (await import("@/modules/calendar/spiral/SpiralPage")).SpiralPage }),
+      },
       { path: "/groups", lazy: async () => ({ Component: (await import("@/modules/groups/GroupsPage")).GroupsPage }) },
       {
         path: "/groups/:id",

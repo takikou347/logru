@@ -19,7 +19,7 @@ export type HomeWidgetCatalogEntry = {
 };
 
 /**
- * 保存した 1 件から key だけを取り出す。前に保存した並びは大きさ(size)も持つが、読まない。0037
+ * 保存した 1 件から key だけを取り出す。古い画面が大きさ(size)を付けて送ってきても捨てる。0037
  */
 export function toHomeWidgetEntry(entry: HomeWidgetEntry): HomeWidgetEntry {
   return { key: entry.key };

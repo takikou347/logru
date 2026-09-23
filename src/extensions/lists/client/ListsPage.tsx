@@ -12,7 +12,7 @@ import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { useLists, useListsGroups } from "./api";
 import { CreateListSheet } from "./CreateListSheet";
-import { formatShortDate } from "./parts";
+import { formatShortDate, GroupLabel } from "./parts";
 
 /**
  * リストの一覧。F-202
@@ -62,22 +62,28 @@ export function ListsPage() {
             <Empty>リストを作ると、ここに並びます。</Empty>
           ) : (
             <ul className="flex flex-col">
-              {rows.map((l) => (
-                <li key={l.id} className="border-line not-first:border-t">
-                  <Link
-                    to={`/lists/${l.id}`}
-                    className="grid min-h-14 grid-cols-[1fr_auto] items-center gap-2 py-2 text-ink no-underline"
-                  >
-                    <span className="flex min-w-0 flex-col">
-                      <b className="truncate text-[15px]">{l.title}</b>
-                      {l.date && <time className="text-xs text-ink-2">{formatShortDate(l.date)}</time>}
-                    </span>
-                    <span className="text-sm text-ink-2">
-                      {l.itemCount === 0 ? "空" : `残り ${l.remainingCount} / ${l.itemCount}`}
-                    </span>
-                  </Link>
-                </li>
-              ))}
+              {rows.map((l) => {
+                const group = groups.find((g) => g.id === l.groupId);
+                return (
+                  <li key={l.id} className="border-line not-first:border-t">
+                    <Link
+                      to={`/lists/${l.id}`}
+                      className="grid min-h-14 grid-cols-[1fr_auto] items-center gap-2 py-2 text-ink no-underline"
+                    >
+                      <span className="flex min-w-0 flex-col gap-0.5">
+                        <b className="truncate text-[15px]">{l.title}</b>
+                        <span className="flex items-center gap-2">
+                          <GroupLabel group={group} me={data} />
+                          {l.date && <time className="text-xs text-ink-2">{formatShortDate(l.date)}</time>}
+                        </span>
+                      </span>
+                      <span className="text-sm text-ink-2">
+                        {l.itemCount === 0 ? "空" : `残り ${l.remainingCount} / ${l.itemCount}`}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Panel>

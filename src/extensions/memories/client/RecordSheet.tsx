@@ -341,7 +341,14 @@ export function RecordSheet({
       <div>
         {/* 写真を選んだ後も共有先を変えられる。保存のとき、送った本人の写真だけを選んだ共有先に書き換える。#158 */}
         {!record && (
-          <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} usualDefault={usualDefault} />
+          <SharePickerRow
+            groups={groups}
+            me={me}
+            value={groupId}
+            onChange={setGroupId}
+            usualDefault={usualDefault}
+            extensionLabel="思い出"
+          />
         )}
         <PanelRow>
           <label htmlFor="record-time">時刻</label>

@@ -44,6 +44,13 @@ test("いつもの場所を選ぶと、7 日分の天気がカレンダーに出
   await expect(sheet).toContainText("渋谷区");
   await expect(sheet).toContainText("気象データ: Open-Meteo.com");
   await expect(sheet.getByRole("button", { name: /消す|保存/ })).toHaveCount(0);
+  // 場所を変える道が、設定の「天気」への近道として出る。issue #17
+  await sheet.getByRole("link", { name: "場所を変える" }).click();
+  await expect(page).toHaveURL(/\/settings\/extensions\/weather$/);
+  await expect(page.getByRole("region", { name: "天気" })).toBeVisible();
+
+  await page.goto("/");
+  await badge.click();
   // 「閉じる」のボタンは、下の明示のボタンと、右上の X の読み上げ名がどちらも「閉じる」なので先頭を取る
   await sheet.getByRole("button", { name: "閉じる" }).first().click();
 

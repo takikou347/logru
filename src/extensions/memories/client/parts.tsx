@@ -12,7 +12,7 @@ import type { MemoryRecord, Photo } from "../shared/types";
 import { useLike } from "./api";
 
 /**
- * 一覧に出す小さな画像。D1 に持つ small を使い、往復が要らない。この形に変える前の写真は small が無いので、
+ * 72 px ほどの小さな所に出す画像。D1 に持つ small を使い、往復が要らない。この形に変える前の写真は small が無いので、
  * R2 に残る thumb の署名付き URL を使う。0021、#158
  */
 export function smallSrc(photo: Photo): string {
@@ -20,28 +20,38 @@ export function smallSrc(photo: Photo): string {
 }
 
 /**
- * 写真。読み込むまでは 32 px の写真を広げて出し、画面に入ってから本物を読む。0024
- * @param size thumb は一覧、full は大きく見る画面
+ * 表紙やカードなど大きく出す画像。R2 の full を読む。この形に変える前の写真は、full より軽い thumb があればそちらを使う。
+ * 一覧の表紙や「その日」の写真に small(160 px)を引き伸ばすと荒く見えるため、small とは別に読む。0021、#164
+ */
+export function largeSrc(photo: Photo): string {
+  return photo.thumbUrl ?? photo.fullUrl;
+}
+
+/**
+ * 写真。読み込むまでは small を広げて下に敷き、ぼやけた絵から本物へ替わる。0024、#164
+ * @param size small は 72 px ほどの小さな所、large は表紙やカードなど大きく出す所、full は大きく見る画面
  */
 export function PhotoImg({
   photo,
-  size = "thumb",
+  size = "small",
   className,
   alt = "",
 }: {
   photo: Photo;
-  size?: "thumb" | "full";
+  size?: "small" | "large" | "full";
   className?: string;
   alt?: string;
 }) {
   const [loaded, setLoaded] = useState(false);
+  const src = size === "small" ? smallSrc(photo) : size === "large" ? largeSrc(photo) : photo.fullUrl;
+  const placeholder = size === "small" ? photo.tiny : smallSrc(photo);
   return (
     <span
       className={cn("relative block overflow-hidden bg-cover bg-center", className)}
-      style={{ backgroundImage: `url(${photo.tiny})` }}
+      style={{ backgroundImage: `url(${placeholder})` }}
     >
       <img
-        src={size === "full" ? photo.fullUrl : smallSrc(photo)}
+        src={src}
         alt={alt}
         loading="lazy"
         decoding="async"
@@ -126,7 +136,7 @@ function PhotoGrid({ photos, onOpen, big = false }: { photos: Photo[]; onOpen?: 
       onClick={() => onOpen?.(p)}
       aria-label={`写真 ${i + 1} を大きく見る`}
     >
-      <PhotoImg photo={p} className="size-full" />
+      <PhotoImg photo={p} size="large" className="size-full" />
       {rest > 0 && i === shown.length - 1 && (
         <span className="absolute inset-0 grid place-items-center bg-black/40 text-lg font-bold text-white">
           +{rest}

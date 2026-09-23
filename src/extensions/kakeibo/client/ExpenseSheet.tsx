@@ -148,8 +148,8 @@ export function ExpenseSheet({
             value={groupId}
             onChange={setGroupId}
             disabled={!canEdit}
-            noneLabel="自分だけ"
             usualDefault={usualDefault}
+            extensionLabel="家計簿"
           />
           <Field label="メモ">
             {(p) => (

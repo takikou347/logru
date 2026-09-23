@@ -76,10 +76,10 @@ test("共有のグループが 1 つのとき、いつもの共有先にする�
   await page.reload();
   await expect(page.getByRole("status", { name: "いつもの共有先の案内" })).toHaveCount(0);
 
-  // 断ったので、いつもの共有先は「共有しない」のまま
+  // 断ったので、いつもの共有先は「共有しない」のまま。行では「自分だけ」と出す。0059、#164
   await page.goto("/settings/account");
   const section = page.getByRole("region", { name: "いつもの共有先" });
-  await expect(section.getByRole("button", { name: /^共有/ })).toContainText("共有しない");
+  await expect(section.getByRole("button", { name: /^共有/ })).toContainText("自分だけ");
 });
 
 test("聞かれて「する」を選ぶと、そのグループが次に足す予定の既定になる。0063、F-40", async ({ page }) => {

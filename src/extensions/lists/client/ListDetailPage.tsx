@@ -1,6 +1,7 @@
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
+import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { LoadFailure } from "@/components/parts/Failure";
@@ -11,9 +12,9 @@ import { Input } from "@/components/ui/input";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { cn } from "@/lib/utils";
 import type { ListItem } from "./api";
-import { useAddItem, useDeleteItem, useListDetail, useToggleItem } from "./api";
+import { useAddItem, useDeleteItem, useListDetail, useListsGroups, useToggleItem } from "./api";
 import { EditListSheet } from "./EditListSheet";
-import { formatShortDate } from "./parts";
+import { formatShortDate, GroupLabel } from "./parts";
 
 /**
  * 項目を足す欄。1 行打って Enter を押すと足し、入力欄は空のまま次の項目を打てる。F-203
@@ -90,6 +91,8 @@ function ItemRow({ item, listId, onRemove }: { item: ListItem; listId: string; o
 export function ListDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [params, setParams] = useSearchParams();
+  const me = useMe();
+  const { groups } = useListsGroups();
   const detail = useListDetail(id ?? null);
   const deleteItem = useDeleteItem(id ?? "");
   const { pending, remove } = useUndoableDelete("項目を消しました");
@@ -102,7 +105,7 @@ export function ListDetailPage() {
   }, []);
 
   if (!id) return null;
-  if (detail.isPending) return <Loading />;
+  if (detail.isPending || !me.data) return <Loading />;
   if (detail.error || !detail.data) {
     return (
       <Page>
@@ -116,6 +119,7 @@ export function ListDetailPage() {
   const items = [...list.items].filter((i) => !pending.has(i.id)).sort((a, b) => Number(a.checked) - Number(b.checked));
   const removeItem = (item: ListItem) =>
     remove(item.id, ({ keepalive }) => deleteItem.mutateAsync({ id: item.id, keepalive }));
+  const group = groups.find((g) => g.id === list.groupId);
 
   return (
     <AppLayout poolColors={[]}>
@@ -123,11 +127,14 @@ export function ListDetailPage() {
         <PageBar title={list.title} back="/lists" />
         <Panel>
           <div className="flex items-center justify-between gap-2">
-            <span className="flex min-w-0 flex-col">
+            <span className="flex min-w-0 flex-col gap-0.5">
               <b className="truncate text-[17px]">{list.title}</b>
-              {list.date && (
-                <time className="text-xs text-ink-2">{formatShortDate(list.date)} のカレンダーに出ています</time>
-              )}
+              <span className="flex items-center gap-2">
+                <GroupLabel group={group} me={me.data} />
+                {list.date && (
+                  <time className="text-xs text-ink-2">{formatShortDate(list.date)} のカレンダーに出ています</time>
+                )}
+              </span>
             </span>
             <Button
               type="button"

@@ -58,9 +58,10 @@ test("リストを作り、項目を足す、チェックする、消す。日�
   const rows = page.locator("li", { has: page.getByRole("checkbox") });
   await expect(rows.last()).toContainText("にんじん");
 
-  // 消せる。F-205
+  // 消せる。5 秒だけ元に戻せるので、実際に消えるまで待つ。F-205、issue #12
   await page.getByRole("button", { name: "たまねぎ を消す" }).click();
   await expect(page.getByText("たまねぎ")).toBeHidden();
+  await page.waitForTimeout(6_000);
 
   // ホームの「リスト」のウィジェットに反映される
   await page.goto("/");

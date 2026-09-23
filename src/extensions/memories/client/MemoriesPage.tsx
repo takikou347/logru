@@ -12,6 +12,7 @@ import { FeatureSheet } from "@/components/parts/FeatureSheet";
 import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { DEFAULT_TIME_ZONE, dayKeyIn } from "../shared/days";
@@ -87,17 +88,25 @@ export function MemoriesPage() {
   const data = me.data;
   const empty = list.data && list.data.memories.length === 0 && list.data.recent.length === 0;
   const filterOptions = groupFilterOptions({ groups, me: data, value: group, onChange: setGroup });
-  // 足せるものが 2 つ。「+」は小さなシートを開き、アイコンと名前から選ぶ。issue #150
+  // 足せるものは記録する 1 つだけ。「+」を押すと記録のシートを直に開く。思い出を作るのは見出しの右のボタンから。0062、#164
   const addables: Addable[] = [
     { key: "record", label: "記録する", icon: Camera, onClick: () => setParams((p) => (p.set("record", "1"), p)) },
-    { key: "memory", label: "思い出を作る", icon: BookOpen, onClick: () => setCreating(true) },
   ];
 
   return (
     <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
       <Page>
         {/* 見出しを押すと機能のシートが開き、ほかの拡張の画面へ近道できる。issue #26 */}
-        <PageBar title="思い出" onTitleClick={() => setFeatures(true)} />
+        <PageBar
+          title="思い出"
+          onTitleClick={() => setFeatures(true)}
+          action={
+            <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
+              <BookOpen className="size-4" aria-hidden="true" />
+              思い出を作る
+            </Button>
+          }
+        />
         <GroupFilterBand options={filterOptions} />
         {list.error && !list.data && (
           <LoadFailure what="思い出" error={list.error} onRetry={() => void list.refetch()} />
@@ -117,7 +126,7 @@ export function MemoriesPage() {
           <Shelf key={year} year={year} title="過去の思い出" memories={ms} me={data} />
         ))}
         <Dock label="思い出の操作">
-          <PrimaryAddButton label="思い出を足す" addables={addables} />
+          <PrimaryAddButton label="記録する" addables={addables} />
         </Dock>
       </Page>
       {creating && <MemorySheet groups={groups} me={data} defaultGroupId={group} onClose={() => setCreating(false)} />}
@@ -142,7 +151,7 @@ function Upcoming({ memory, me, now }: { memory: Memory; me: Me; now: number }) 
       ariaLabel={`${memory.title}、${during ? "期間中" : `出発まで ${days} 日`}`}
     >
       {memory.cover ? (
-        <PhotoImg photo={memory.cover} className="h-[180px] rounded-[22px]" />
+        <PhotoImg photo={memory.cover} size="large" className="h-[180px] rounded-[22px]" />
       ) : (
         <div className={`h-[120px] rounded-[22px] bg-(--c) opacity-70 c-${group?.color ?? "nezumi"}`} />
       )}
@@ -231,7 +240,7 @@ function Shelf({ title, year, memories, me }: { title: string; year?: number; me
                 className="glass flex flex-col rounded-[22px] p-1.5 no-underline"
               >
                 {m.cover ? (
-                  <PhotoImg photo={m.cover} className="h-[108px] rounded-[17px]" />
+                  <PhotoImg photo={m.cover} size="large" className="h-[108px] rounded-[17px]" />
                 ) : (
                   <div className={`h-[108px] rounded-[17px] bg-(--c) opacity-60 c-${group?.color ?? "nezumi"}`} />
                 )}

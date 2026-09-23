@@ -246,7 +246,14 @@ export function MemorySheet({
             : "終わりの日は始まりの日以降にしてください。"}
         </FieldMessage>
         {!memory && (
-          <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} usualDefault={usualDefault} />
+          <SharePickerRow
+            groups={groups}
+            me={me}
+            value={groupId}
+            onChange={setGroupId}
+            usualDefault={usualDefault}
+            extensionLabel="思い出"
+          />
         )}
         {events.length > 0 && (
           <fieldset className="flex flex-col gap-1">

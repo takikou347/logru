@@ -178,28 +178,32 @@ export function AccountMenu({ wide = false }: { wide?: boolean }) {
  * @param backMobileOnly back を渡しつつ、PC では隠す。PC に別の道順(設定の目次など)が既にある画面で使う
  * @param onTitleClick 渡すと見出しがボタンになる。拡張の画面どうしの行き来を近くするため、
  *   機能のシートを開くのに使う。スマホで下の帯が無い画面(設定など)でも同じ道が開ける。issue #26
+ * @param action 見出しの右に置く、その画面だけの操作。1 つだけ。下の帯の「+」とは別の、頻度の低い操作に使う。issue #150
  */
 export function PageBar({
   title,
   back,
   backMobileOnly,
   onTitleClick,
+  action,
 }: {
   title: string;
   back?: string;
   backMobileOnly?: boolean;
   onTitleClick?: () => void;
+  action?: ReactNode;
 }) {
   const hideOnDesktop = !back || backMobileOnly;
+  const titleClass = cn("min-w-0 flex-1 truncate pl-2 text-[17px] font-bold", hideOnDesktop && "lg:pl-3");
   return (
-    <header className="glass flex min-h-[58px] items-center gap-1 rounded-full py-1.5 pr-4.5 pl-1.5">
+    <header className="glass flex min-h-[58px] items-center gap-1 rounded-full py-1.5 pr-2.5 pl-1.5">
       <Button asChild variant="ghost" size="icon" className={cn(hideOnDesktop && "lg:hidden")}>
         <Link to={back ?? "/"} aria-label="戻る">
           <ChevronLeft className="size-5" />
         </Link>
       </Button>
       {onTitleClick ? (
-        <h1 className={cn("pl-2 text-[17px] font-bold", hideOnDesktop && "lg:pl-3")}>
+        <h1 className={titleClass}>
           <button type="button" className="flex items-center gap-1" onClick={onTitleClick}>
             {title}
             <ChevronDown className="size-4 text-ink-2" aria-hidden="true" />
@@ -207,8 +211,9 @@ export function PageBar({
           </button>
         </h1>
       ) : (
-        <h1 className={cn("pl-2 text-[17px] font-bold", hideOnDesktop && "lg:pl-3")}>{title}</h1>
+        <h1 className={titleClass}>{title}</h1>
       )}
+      {action}
     </header>
   );
 }

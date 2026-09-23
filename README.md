@@ -72,6 +72,40 @@ Auth エミュレーターが動いていなければ、テストの間だけ立
 `E2E_PORT` を変えれば、別のフォルダで同時にテストを流せる。例は git worktree で作業を並べるとき。
 ただし、同時に流すと Mac が重くなり、時間切れで落ちることがある。落ちたファイルだけを 1 つずつ流し直して、通るかを確かめる。
 
+## 画面を撮る
+
+release の PR に、本番(前)と release(後)の主な画面を並べるために使う。`pnpm e2e` には入らない。
+`e2e/shots/seed.shots.ts` が同じデータ(予定、思い出と写真、家計簿、共有リスト、天気、グループ 2 つ、アバター)を入れ、
+`e2e/shots/release.shots.ts` が 1 画面ずつ撮る。撮る画面、幅、明るさは `release.shots.ts` の `screens` の表で決める。
+スマホ 390 × 844 のダークは全部、ライトと PC 1440 × 900 は一部だけ撮る。名前は `<番号>-<画面>-<幅>-<明るさ>.png`。
+
+```bash
+# 後(このフォルダ)。画像は test-results/shots/after に出る
+E2E_PORT=4210 pnpm shots
+
+# 前(main の worktree)。仕組みのファイルを写して流し、終わったら消す。main には入れない
+cp playwright.shots.config.ts <main>/ && cp -R e2e/shots <main>/e2e/
+SHOTS_OUT=test-results/shots/before E2E_PORT=4211 pnpm -C <main> exec playwright test -c playwright.shots.config.ts
+rm -r <main>/playwright.shots.config.ts <main>/e2e/shots
+
+# 表の下書きと、名前を変えた画像を作る。画像は develop-docs の evidence.sh で置く
+node scripts/shots-table.mjs <main>/test-results/shots/before test-results/shots/after <置き場> \
+  https://raw.githubusercontent.com/takikou347/logru/refs/heads/evidence/release-<年>-w<週> > table.md
+<develop-docs>/scripts/evidence.sh logru release-<年>-w<週> <置き場>/*.png
+```
+
+表の「変わったこと」「見ること」「確かめた結果」は空で出るので、画像を見て手で埋める。
+
+| 出るもの | 中身 |
+| --- | --- |
+| `notes.tsv` | 撮れなかった画面と理由。前に無い機能は「本番には無い」と書く |
+| `failed/` | 落ちた画面の、落ちたときの画像 |
+| `seed.json`、`fresh.json` | 撮るのに使った試しの利用者。Auth エミュレーターの中だけにいる |
+| `titles.tsv` | 表の「画面」の列に出す名前 |
+
+1 画面が落ちても、ほかは撮り続ける。本番に無い画面は飛ばす。画面の形が版で違うところは、
+`e2e/shots/common.ts` の関数が新しい形を先に試し、無ければ古い形を試す。画面を足すときは `screens` に 1 つ足す。
+
 ## ブランチと出し方
 
 | ブランチ | 役割 | 入ると |

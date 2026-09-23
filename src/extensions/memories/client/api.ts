@@ -207,3 +207,13 @@ export function useDeleteRecord() {
     mutationFn: (id: string) => api(`/memories/records/${id}`, { method: "DELETE", keepalive: true }),
   });
 }
+
+/**
+ * 使わなかった写真をすぐ消す。写真を外したときや、記録のシートを保存せずに閉じたときに呼ぶ。
+ * 送った本人の、まだ記録に付いていない写真だけ消せる。シートを閉じた後も送り切るよう keepalive を付ける。#158
+ */
+export function useDiscardPhoto() {
+  return useMutation({
+    mutationFn: (photoId: string) => api(`/memories/photos/${photoId}`, { method: "DELETE", keepalive: true }),
+  });
+}

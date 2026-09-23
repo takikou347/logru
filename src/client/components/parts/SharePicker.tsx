@@ -56,7 +56,7 @@ function ShareRow({
  * @param groups 選べるグループ。自分だけのグループを含む
  * @param value いま選んでいるグループの ID
  * @param onChange 選んだとき。選ぶと同時にシートを閉じる
- * @param disabled 押せなくするとき。写真を足した後は共有先を変えられない(記録のシート)など
+ * @param disabled 押せなくするとき。作った本人しか共有先を変えられない予定・家計簿の記録など
  * @param disabledReason 押せない理由。行の下に小さく出す。disabled のときだけ意味を持つ
  * @param noneLabel 自分だけのグループの文言。既定は「共有しない」
  * @param usualDefault いまの選択が、いつもの共有先から選ばれたものなら true。行に小さく添える。0063、F-40

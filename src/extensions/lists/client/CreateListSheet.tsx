@@ -7,6 +7,7 @@ import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { SharePickerRow } from "@/components/parts/SharePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { defaultShareGroupId } from "@/lib/share-default";
 import { useCreateList } from "./api";
 
 /**
@@ -27,11 +28,16 @@ export function CreateListSheet({
 }) {
   const navigate = useNavigate();
   const createList = useCreateList();
-  const personal = groups.find((g) => g.isPersonal);
 
   const [groupId, setGroupId] = useState(
-    groups.some((g) => g.id === defaultGroupId) ? defaultGroupId! : (personal?.id ?? groups[0]?.id ?? ""),
+    defaultShareGroupId(groups, defaultGroupId, {
+      groupId: me.settings.usualShareGroupId,
+      extensionKey: "lists",
+      alwaysOn: false,
+    }),
   );
+  // いつもの共有先から選ばれたことが分かる印を出す。0063、F-40
+  const usualDefault = groupId === me.settings.usualShareGroupId;
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +75,14 @@ export function CreateListSheet({
             />
           )}
         </Field>
-        <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} noneLabel="自分だけ" />
+        <SharePickerRow
+          groups={groups}
+          me={me}
+          value={groupId}
+          onChange={setGroupId}
+          noneLabel="自分だけ"
+          usualDefault={usualDefault}
+        />
         <Field label="日付" hint="付けると、その日のカレンダーに出ます。省けます">
           {(p) => <Input {...p} type="date" value={date} onChange={(e) => setDate(e.target.value)} />}
         </Field>

@@ -40,7 +40,7 @@ export function RsvpBar({
       aria-label="招待への返事"
       data-response={response}
       className={cn(
-        "-mt-1 flex flex-col gap-2.5 rounded-2xl px-3.5 py-3 transition-colors motion-reduce:transition-none",
+        "flex flex-col gap-2.5 rounded-2xl px-3.5 py-3 transition-colors motion-reduce:transition-none",
         `c-${color}`,
         response === "pending" && "shadow-[inset_0_0_0_1.5px_var(--c)]",
         response === "accepted" && "bg-[color-mix(in_srgb,var(--c)_16%,transparent)]",

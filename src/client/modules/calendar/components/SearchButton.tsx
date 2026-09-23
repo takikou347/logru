@@ -7,6 +7,7 @@
 import type { CalendarItem, GroupSummary, Me } from "@shared/api-types";
 import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { EmptyState } from "@/components/parts/EmptyState";
 import { Dot } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
@@ -91,7 +92,19 @@ function SearchDialog({
       ) : results.isLoading ? (
         <p className="py-6 text-center text-sm text-ink-2">探しています…</p>
       ) : items.length === 0 ? (
-        <p className="py-6 text-center text-sm text-ink-2">見つかりませんでした。</p>
+        <EmptyState
+          pose="search"
+          bordered={false}
+          action={{
+            label: "文字を消す",
+            onClick: () => {
+              setText("");
+              inputRef.current?.focus();
+            },
+          }}
+        >
+          見つかりませんでした。
+        </EmptyState>
       ) : (
         <ul className="flex max-h-[50vh] flex-col gap-0.5 overflow-y-auto">
           {items.map((item) => (

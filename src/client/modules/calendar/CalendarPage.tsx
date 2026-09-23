@@ -2,7 +2,7 @@ import { clientExtension, defaultExtension } from "@extensions/client/registry";
 import type { EditorTarget } from "@extensions/client/types";
 import type { CalendarItem, HomeWidgetEntry } from "@shared/api-types";
 import { defaultHomeLayout, mergeHomeLayout, visibleHomeLayout } from "@shared/home";
-import { ChevronLeft, ChevronRight, LayoutGrid, Pencil, Plus } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight, LayoutGrid, Pencil } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -13,6 +13,8 @@ import { FeatureSheet } from "@/components/parts/FeatureSheet";
 import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import { InstallBanner } from "@/components/parts/InstallBanner";
 import { NotificationBell } from "@/components/parts/NotificationBell";
+import type { Addable } from "@/components/parts/PrimaryAddButton";
+import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { ScreenTour } from "@/components/parts/ScreenTour";
 import { Segmented } from "@/components/parts/Segmented";
 import { ShortcutBand } from "@/components/parts/ShortcutBand";
@@ -175,7 +177,10 @@ export function CalendarPage() {
     },
     [update],
   );
-  const onPressDay = useCallback(
+  // 日付を押したとき。その日を選ぶだけ。その日の中身は日のカード(または右の列)に出る。#148、0061
+  const onPressDay = useCallback((d: Date) => update({ date: d }), [update]);
+  // 日のカードの「+」、PC のマスに乗せたときの「+」から。その日を選び、その日の予定を足すシートを開く。#148、0061
+  const onAddNewDay = useCallback(
     (d: Date) => {
       update({ date: d });
       addNew(d);
@@ -340,18 +345,10 @@ export function CalendarPage() {
     personalLabel: "自分だけの予定",
   });
 
-  /**
-   * 予定を足すボタン。
-   * @param narrow 狭い幅では言葉を隠し、＋の印だけにする。下の操作の帯を折り返さずに収めるため
-   */
-  const addButton = (narrow = false) => (
-    <Button onClick={() => addNew(selected)} aria-label="予定を足す" className={narrow ? "px-4" : undefined}>
-      <Plus className="size-5" />
-      <span aria-hidden="true" className={narrow ? "hidden min-[380px]:inline" : undefined}>
-        予定を足す
-      </span>
-    </Button>
-  );
+  // 足せるものは予定だけ。「+」を押すと選んでいる日で直接シートが開く。issue #150、拡張のものは拡張の画面が持つ。0019
+  const eventAddables: Addable[] = [
+    { key: "event", label: "予定を足す", icon: CalendarPlus, onClick: () => addNew(selected) },
+  ];
 
   return (
     <AppLayout
@@ -458,7 +455,7 @@ export function CalendarPage() {
                 <Pencil className="size-4" />
                 ホームを編集
               </Button>
-              {addButton()}
+              <PrimaryAddButton label="予定を足す" addables={eventAddables} />
             </div>
             {me.data && <SearchButton groups={allGroups} me={me.data} onOpen={openSearchResult} />}
             <NotificationBell />
@@ -520,7 +517,20 @@ export function CalendarPage() {
 
       <div className={calendar.error && (!calendar.data || calendar.isPlaceholderData) ? "hidden" : "contents"}>
         <CalendarHomeProvider
-          value={{ view, today, selected, days, items, upcoming, leaving, open, onPressDay, onSelectWeekDay, monthNav }}
+          value={{
+            view,
+            today,
+            selected,
+            days,
+            items,
+            upcoming,
+            leaving,
+            open,
+            onPressDay,
+            onAddNewDay,
+            onSelectWeekDay,
+            monthNav,
+          }}
         >
           {layoutError ? (
             <LoadFailure what="ホームの並び" error={layoutError} onRetry={refetchLayout} />
@@ -547,7 +557,7 @@ export function CalendarPage() {
             <LayoutGrid className="size-5" />
           </Button>
           <Segmented label="表示の単位" value={view} options={VIEWS} onChange={changeView} compact />
-          {addButton(true)}
+          <PrimaryAddButton label="予定を足す" addables={eventAddables} />
         </div>
       )}
 

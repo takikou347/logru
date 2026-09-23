@@ -16,6 +16,27 @@ export function uniqueEmail(prefix = "user"): string {
 
 export const PASSWORD = "correct-horse-42";
 
+/**
+ * 日本時間の今日から、指定した日数だけ進んだ日の年・月・日と `yyyy-mm-dd` の形をまとめて返す。
+ * CI は UTC で動くため、素の Date の getFullYear などを使うと、日本時間の「今日」とずれることがある
+ */
+export function tokyoDateParts(offsetDays = 0): { year: number; month: number; day: number; key: string } {
+  const at = new Date(Date.now() + offsetDays * 86_400_000);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(at);
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    key: `${map.year}-${map.month}-${map.day}`,
+  };
+}
+
 type OobCode = { email: string; requestType: "VERIFY_EMAIL" | "PASSWORD_RESET"; oobCode: string; oobLink: string };
 
 /**
@@ -214,4 +235,12 @@ export async function addEvent(page: Page, title: string, group?: string) {
   if (group) await pickShare(page, sheet, group);
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("予定を足しました")).toBeVisible();
+}
+
+/**
+ * 思い出の画面の「+」を押し、開いた選ぶシートから「記録する」か「思い出を作る」を選ぶ。issue #150
+ */
+export async function addMemories(page: Page, option: "記録する" | "思い出を作る") {
+  await page.getByRole("button", { name: "思い出を足す" }).click();
+  await page.getByRole("dialog", { name: "思い出を足す" }).getByRole("button", { name: option }).click();
 }

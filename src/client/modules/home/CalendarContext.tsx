@@ -39,8 +39,10 @@ export type CalendarHomeValue = {
   /** 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98 */
   leaving: Set<string>;
   open: (item: ViewItem) => void;
-  /** 月の表で日付を押したとき。その日を選び、新しく作るシートを開く */
+  /** 月の表で日付を押したとき。その日を選ぶだけ。中身は日のカード(または右の列)に出る。#148、0061 */
   onPressDay: (day: Date) => void;
+  /** 日のカードの「+」、PC のマスに乗せたときの「+」。その日を選び、その日に予定を足すシートを開く。#148、0061 */
+  onAddNewDay: (day: Date) => void;
   /** 週の一覧で日を選んだとき。日の表示に切り替える */
   onSelectWeekDay: (day: Date) => void;
   monthNav: MonthNav;

@@ -54,6 +54,18 @@ describe("expandOccurrences。F-36", () => {
     ]);
   });
 
+  it("毎週の曜日は日本時間で数える。始まりが日本時間 9 時より前でも UTC の前日にずれない。0068", () => {
+    // 2026-09-24 07:00 は日本時間で木曜。UTC では 1 時間早い暦の前日、水曜 22:00 になる
+    const startsAt = new Date("2026-09-23T22:00:00.000Z");
+    const rule = { freq: "weekly" as const, daysOfWeek: [4], until: null, count: null };
+    const out = expandOccurrences(startsAt, rule, Date.UTC(2026, 8, 20), Date.UTC(2026, 9, 10));
+    expect(out.map(iso)).toEqual([
+      "2026-09-23T22:00:00.000Z", // 木、9/24 7:00 JST。始まり自身がその回に入る
+      "2026-09-30T22:00:00.000Z", // 木、10/1 7:00 JST
+      "2026-10-07T22:00:00.000Z", // 木、10/8 7:00 JST
+    ]);
+  });
+
   it("毎週の既定は、始まりの日の曜日だけ", () => {
     const startsAt = new Date("2026-10-05T01:00:00.000Z");
     const rule = { freq: "weekly" as const, daysOfWeek: null, until: null, count: null };

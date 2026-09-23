@@ -5,7 +5,7 @@
 import type { HomeWidget, HomeWidgetProps } from "@extensions/client/types";
 import { HOME_CALENDAR_WIDGET_KEY } from "@shared/home";
 import type { ReactNode } from "react";
-import { DayPanel, ItemList } from "../calendar/components/DayItems";
+import { DayPanel, UpcomingList } from "../calendar/components/DayItems";
 import { MonthFlipDeck } from "../calendar/components/MonthFlipDeck";
 import { WeekList } from "../calendar/components/WeekList";
 import { useCalendarHome } from "./CalendarContext";
@@ -71,14 +71,15 @@ function DayPanelWidget({ editing }: HomeWidgetProps) {
 /**
  * このあと。近い順に 5 件。週・日の表示では隠す
  * スマホの下の操作の帯に近い位置に出るので、面の余白を少し詰め、隠れる範囲を減らす。issue #119
+ * 日が変わる所に見出しを入れる。どの日のことかが分かるようにする。#5
  */
 function UpcomingWidget({ editing }: HomeWidgetProps) {
-  const { upcoming, leaving, open } = useCalendarHome();
+  const { upcoming, today, leaving, open } = useCalendarHome();
   return (
     <OnlyInMonthView editing={editing}>
       <section className="glass rounded-panel px-4.5 py-3" aria-label="このあとの予定">
         <h2 className="mb-0.5 text-xs font-bold text-ink-2">このあと</h2>
-        <ItemList items={upcoming} leaving={leaving} onOpen={open} empty="近い予定はありません。" />
+        <UpcomingList items={upcoming} today={today} leaving={leaving} onOpen={open} empty="近い予定はありません。" />
       </section>
     </OnlyInMonthView>
   );

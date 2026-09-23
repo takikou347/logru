@@ -4,6 +4,7 @@ import { Field } from "@/components/parts/Field";
 import { Segmented } from "@/components/parts/Segmented";
 import { Input } from "@/components/ui/input";
 import { dateKey, parseDateKey } from "@/lib/dates";
+import { isoWeekdayInTokyo } from "../shared/weekday";
 
 const FREQ_OPTIONS = [
   { value: "none", label: "なし" },
@@ -44,18 +45,9 @@ export type RepeatDraft = {
   count: string;
 };
 
-/**
- * その日の、月を 1、日を 7 とした曜日の数。サーバーは利用者の時間帯を持たず、UTC の暦で曜日を数える。0043
- * 既定の選択がサーバーの計算とずれ、始まり自身がその回に入らなくなることがないよう、ここも UTC で数える。
- */
-function isoWeekdayOf(d: Date): number {
-  const w = d.getUTCDay();
-  return w === 0 ? 7 : w;
-}
-
-/** 繰り返さない下書き。毎週を選んだときの既定の曜日だけ、始まりの日に合わせて持つ */
+/** 繰り返さない下書き。毎週を選んだときの既定の曜日だけ、始まりの日に合わせて持つ。0068 */
 function defaultRepeatDraft(startDate: Date): RepeatDraft {
-  return { freq: "none", daysOfWeek: [isoWeekdayOf(startDate)], end: "none", until: "", count: "" };
+  return { freq: "none", daysOfWeek: [isoWeekdayInTokyo(startDate)], end: "none", until: "", count: "" };
 }
 
 /** 予定の repeat から、下書きを作る。無ければ繰り返さない下書き */
@@ -63,7 +55,7 @@ export function repeatDraftFromRule(rule: RepeatRule | null | undefined, startDa
   if (!rule) return defaultRepeatDraft(startDate);
   return {
     freq: rule.freq,
-    daysOfWeek: rule.daysOfWeek?.length ? rule.daysOfWeek : [isoWeekdayOf(startDate)],
+    daysOfWeek: rule.daysOfWeek?.length ? rule.daysOfWeek : [isoWeekdayInTokyo(startDate)],
     end: rule.until != null ? "until" : rule.count != null ? "count" : "none",
     until: rule.until != null ? dateKey(new Date(rule.until)) : "",
     count: rule.count != null ? String(rule.count) : "",
@@ -105,11 +97,13 @@ export function RepeatFields({ value, onChange }: { value: RepeatDraft; onChange
         options={FREQ_OPTIONS}
       />
       {value.freq === "weekly" && (
-        <fieldset className="m-0 flex flex-wrap gap-2 border-0 p-0">
+        // 7 つを均等に割る。390px でも折り返さない。#20
+        <fieldset className="m-0 grid grid-cols-7 gap-1.5 border-0 p-0">
           <legend className="sr-only">繰り返す曜日</legend>
           {WEEKDAY_CHIPS.map((w) => (
             <Chip
               key={w.iso}
+              className="min-w-0 justify-center px-0"
               aria-pressed={value.daysOfWeek.includes(w.iso)}
               onClick={() => {
                 const has = value.daysOfWeek.includes(w.iso);

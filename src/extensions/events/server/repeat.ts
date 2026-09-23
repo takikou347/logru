@@ -1,9 +1,10 @@
 /**
  * 予定の繰り返しを開く。決まった 4 種類(毎日・毎週・毎月・毎年)だけを持ち、RRULE のような書式は使わない。0043
  *
- * 利用者の時間帯は持たないので、UTC の暦で日付・曜日を数える。端末の時間帯と暦がずれる利用者では、
- * 深夜をまたぐ予定の回が 1 日ずれることがある。既存の全部の日付計算と同じ、この拡張の中だけの制約。
+ * 毎週の曜日は Asia/Tokyo の暦で数える。0068
+ * 毎月・毎年の月日は、いまも UTC の暦で数える。日本時間の深夜をまたぐ予定は、月日の判定が 1 日ずれることがある。
  */
+import { isoWeekdayInTokyo } from "../shared/weekday";
 
 /** 繰り返しの周期 */
 export type RepeatFreq = "daily" | "weekly" | "monthly" | "yearly";
@@ -34,12 +35,6 @@ export const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** 果てしなく回るのを防ぐ安全弁。実際の終わりはもっと早く来る */
 const SAFETY_MAX = 10_000;
-
-/** UTC の曜日。月を 1、日を 7 とした数 */
-function isoWeekday(d: Date): number {
-  const w = d.getUTCDay();
-  return w === 0 ? 7 : w;
-}
 
 /** n か月後の同じ日。その月に無ければ null(例: 2 月 31 日は無い) */
 function addMonthsUtc(base: Date, n: number): Date | null {
@@ -90,8 +85,8 @@ function* occurrenceDates(startsAt: Date, rule: RepeatRule): Generator<Date> {
   if (rule.freq === "daily") {
     for (let n = 0; ; n++) yield new Date(startsAt.getTime() + n * DAY_MS);
   } else if (rule.freq === "weekly") {
-    const days = (rule.daysOfWeek?.length ? [...rule.daysOfWeek] : [isoWeekday(startsAt)]).sort((a, b) => a - b);
-    const pointers = days.map((d) => startsAt.getTime() + ((d - isoWeekday(startsAt) + 7) % 7) * DAY_MS);
+    const days = (rule.daysOfWeek?.length ? [...rule.daysOfWeek] : [isoWeekdayInTokyo(startsAt)]).sort((a, b) => a - b);
+    const pointers = days.map((d) => startsAt.getTime() + ((d - isoWeekdayInTokyo(startsAt) + 7) % 7) * DAY_MS);
     while (true) {
       let idx = 0;
       for (let i = 1; i < pointers.length; i++) if (pointers[i]! < pointers[idx]!) idx = i;

@@ -1,7 +1,7 @@
 import { dayTone, holidayName, onDay, sameDay, WEEKDAYS } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import type { ViewItem } from "../model";
-import { ItemList, toneText } from "./DayItems";
+import { FlatItemList, toneText } from "./DayItems";
 
 /**
  * 週と日の表示。日ごとに予定を並べる。今日の行は、欄の左の縁に縦のしおりを立てて示す。大きさは月の表の今日のしおりを縦にしたもの。0012
@@ -60,7 +60,7 @@ export function WeekList({
                 {hol ? ` ${hol}` : ""}
               </span>
             </button>
-            <ItemList items={items.filter((i) => onDay(i, d))} onOpen={onOpen} leaving={leaving} empty="予定なし" />
+            <FlatItemList items={items.filter((i) => onDay(i, d))} onOpen={onOpen} leaving={leaving} empty="予定なし" />
           </div>
         );
       })}

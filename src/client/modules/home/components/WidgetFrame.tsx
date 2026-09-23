@@ -8,7 +8,11 @@ import { cn } from "@/lib/utils";
  * 並べ替えが主な操作なので、上へ・下へは押せる範囲 44px の目に見えるボタンにする。
  * キーボードと読み上げでも操作できるよう、並べ替えはドラッグだけでなくボタンでもできる。
  *
+ * ドラッグは持ち手の Pointer Events だけで起こす。指でもマウスでも動く。持ち手に touch-action: none を
+ * 付け、画面のスクロールとぶつからないようにする。0029、#121
+ *
  * @param removable false ならカレンダーの本体。外すボタンを出さない
+ * @param dragOffset ドラッグしている間、持ち手を押した場所からの指のずれ。枠をその分だけ動かして追わせる
  */
 export function WidgetFrame({
   widget,
@@ -16,40 +20,41 @@ export function WidgetFrame({
   total,
   removable,
   dragging,
+  dragOffset,
   onMoveUp,
   onMoveDown,
   onRemove,
-  onDragStart,
-  onDragEnd,
+  onHandlePointerDown,
 }: {
   widget: HomeWidget;
   index: number;
   total: number;
   removable: boolean;
   dragging: boolean;
+  dragOffset: { x: number; y: number } | null;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onRemove: () => void;
-  onDragStart: (e: React.DragEvent) => void;
-  onDragEnd: () => void;
+  onHandlePointerDown: (e: React.PointerEvent<HTMLElement>) => void;
 }) {
   return (
     <div
       data-testid="widget-frame"
       data-widget-key={widget.key}
+      data-dragging={dragging || undefined}
       className={cn(
         "glass flex flex-col gap-2.5 rounded-panel border border-dashed border-(--glass-edge) p-2.5",
-        dragging && "opacity-40",
+        dragging && "relative z-20 opacity-95 shadow-lg",
       )}
+      style={dragOffset ? { transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)` } : undefined}
     >
       <div className="flex items-center gap-2">
         {/* 並べ替えの持ち手。ここだけをドラッグの元にし、枠の中のボタンの押しやすさを保つ */}
         <span
-          draggable
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
+          data-testid="widget-handle"
+          onPointerDown={onHandlePointerDown}
           aria-hidden="true"
-          className="flex size-11 flex-none cursor-grab touch-none items-center justify-center rounded-xl bg-field text-ink-2"
+          className="flex size-11 flex-none cursor-grab touch-none items-center justify-center rounded-xl bg-field text-ink-2 active:cursor-grabbing"
         >
           <GripVertical className="size-5" />
         </span>

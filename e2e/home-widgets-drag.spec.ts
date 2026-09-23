@@ -43,3 +43,33 @@ test("スマホで、持ち手を指で引いてウィジェットを並べ替�
   await page.getByRole("button", { name: "ホームを編集" }).click();
   await expect(frames.nth(0)).toHaveAttribute("data-widget-key", "home.upcoming");
 });
+
+test("動きを減らす設定でも、持ち手を指で引いてウィジェットを並べ替えられる。#121", async ({ page }) => {
+  // 枠が指に付いてくる移動は付けないが、ドラッグそのものは止めない
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.reload();
+  await page.getByRole("button", { name: "ホームを編集" }).click();
+
+  const grid = page.getByTestId("widget-grid");
+  const frames = grid.getByTestId("widget-frame");
+  await expect(frames).toHaveCount(3);
+  await expect(frames.nth(0)).toHaveAttribute("data-widget-key", "home.calendar");
+  await expect(frames.nth(2)).toHaveAttribute("data-widget-key", "home.upcoming");
+
+  const upcomingHandle = grid.locator('[data-widget-key="home.upcoming"]').getByTestId("widget-handle");
+  const calendarFrame = grid.locator('[data-widget-key="home.calendar"]');
+
+  await upcomingHandle.scrollIntoViewIfNeeded();
+  const from = await upcomingHandle.boundingBox();
+  const to = await calendarFrame.boundingBox();
+  if (!from || !to) throw new Error("枠の位置が取れなかった");
+
+  await touchDrag(
+    page,
+    { x: from.x + from.width / 2, y: from.y + from.height / 2 },
+    { x: to.x + to.width / 2, y: to.y + 8 },
+  );
+
+  await expect(frames.nth(0)).toHaveAttribute("data-widget-key", "home.upcoming");
+  await expect(frames.nth(1)).toHaveAttribute("data-widget-key", "home.calendar");
+});

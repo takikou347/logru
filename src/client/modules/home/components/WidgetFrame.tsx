@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
  * 付け、画面のスクロールとぶつからないようにする。0029、#121
  *
  * @param removable false ならカレンダーの本体。外すボタンを出さない
- * @param dragOffset ドラッグしている間、持ち手を押した場所からの指のずれ。枠をその分だけ動かして追わせる
+ * @param dragOffset ドラッグしている間、持ち手を押した場所からの指のずれ。枠をその分だけ動かして追わせる。
+ *   動きを減らす設定では、呼び出し側が null を渡し、枠は動かさない。#121
  */
 export function WidgetFrame({
   widget,

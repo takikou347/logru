@@ -24,7 +24,8 @@ type DragStart = { index: number; pointerId: number };
  *
  * 持ち手の pointerdown から始め、pointer capture で指を追う。並べ替え先は、各枠の中心と指の距離が
  * いちばん近いものにする。画面の端に来たら window を自動でスクロールする。
- * disabled が true の間はドラッグを始めない。並べ替えのボタンは呼び出し側で別に用意する
+ * disabled が true の間はドラッグを始めない。並べ替えのボタンは呼び出し側で別に用意する。
+ * dx・dy は常に返す。枠を指に付いて動かすかどうか(動きを減らす設定への応え方)は呼び出し側が決める。#121
  */
 export function usePointerReorder(count: number, disabled: boolean, onReorder: (from: number, to: number) => void) {
   // start はドラッグの開始と終了だけで変わる。位置の更新は live に持ち、window のイベント購読を張り直さない

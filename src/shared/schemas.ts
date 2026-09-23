@@ -5,6 +5,7 @@
 
 import { ACCENT_COLOR_KEYS, GROUP_COLOR_KEYS } from "@shared/colors";
 import { isValidHomeLayout } from "@shared/home";
+import { TOUR_ID_PATTERN } from "@shared/tours";
 import { z } from "zod";
 
 /** グループの色と、自分の色の名前 */
@@ -63,6 +64,9 @@ export const pushSubscriptionInput = z.object({
   keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
   userAgent: z.string().max(200).optional(),
 });
+
+/** `PUT /api/me/tours/:id` の id。案内を見た画面。F-33 */
+export const tourIdParam = z.object({ id: z.string().max(60).regex(TOUR_ID_PATTERN) });
 
 /** `PUT /api/groups/:id/extensions/:key` */
 export const extensionToggleInput = z.object({ enabled: z.boolean() });

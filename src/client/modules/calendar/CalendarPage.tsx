@@ -11,8 +11,10 @@ import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components
 import { Chip } from "@/components/parts/Chip";
 import { LoadFailure } from "@/components/parts/Failure";
 import { FeatureSheet } from "@/components/parts/FeatureSheet";
+import { InstallBanner } from "@/components/parts/InstallBanner";
 import { NotificationBell } from "@/components/parts/NotificationBell";
 import { Dot } from "@/components/parts/Panel";
+import { ScreenTour } from "@/components/parts/ScreenTour";
 import { Segmented } from "@/components/parts/Segmented";
 import { ShortcutBand } from "@/components/parts/ShortcutBand";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,7 @@ import {
   weekDays,
 } from "@/lib/dates";
 import { useEnabledExtensions } from "@/lib/extensions";
+import { BASE_TOURS } from "@/lib/tours";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useSaveHomeLayout } from "../home/api";
 import { CalendarHomeProvider, type CalendarView } from "../home/CalendarContext";
@@ -329,7 +332,7 @@ export function CalendarPage() {
       poolColors={poolColorsOf(allGroups, me.data)}
       poolFocus={focusIndex >= 0 ? focusIndex : null}
       side={
-        <div role="group" aria-label="表示するグループ" className="pr-2">
+        <div role="group" aria-label="表示するグループ" className="pr-2" data-tour="group-filter">
           <SideHeading>表示するグループ</SideHeading>
           {filters(({ key, pressed, onClick, children }) => {
             // 共有のグループは、矢印でメンバーを開き、人ごとに出し入れできる。F-20
@@ -401,7 +404,12 @@ export function CalendarPage() {
             <RefreshButton />
             <div className="ml-2 hidden gap-2.5 lg:flex">
               <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} />
-              <Button variant="secondary" disabled={layoutLoading || !!layoutError} onClick={startEdit}>
+              <Button
+                variant="secondary"
+                disabled={layoutLoading || !!layoutError}
+                onClick={startEdit}
+                data-tour="edit-home"
+              >
                 <Pencil className="size-4" />
                 ホームを編集
               </Button>
@@ -413,12 +421,21 @@ export function CalendarPage() {
         </header>
       )}
 
+      {/* ホーム画面に追加する案内。上の帯のすぐ下に並べる。F-34 */}
+      {!editingHome && <InstallBanner className="-order-1" />}
+
       {/* 近道の帯。スマホは上の帯のすぐ下、PC は左の列。F-26、0037 */}
       {!editingHome && <ShortcutBand className="lg:hidden" />}
 
       {!editingHome && (
         <div className="-mb-1 lg:hidden">
-          <Button variant="secondary" className="w-full" disabled={layoutLoading || !!layoutError} onClick={startEdit}>
+          <Button
+            variant="secondary"
+            className="w-full"
+            disabled={layoutLoading || !!layoutError}
+            onClick={startEdit}
+            data-tour="edit-home"
+          >
             <Pencil className="size-4" />
             ホームを編集
           </Button>
@@ -437,7 +454,7 @@ export function CalendarPage() {
       )}
 
       {/* グループが多いときは横に流れる。流せることが分かるよう、下にいつもバーを出す。F-25 */}
-      <nav className="-mx-4 lg:hidden" aria-label="グループで絞る">
+      <nav className="-mx-4 lg:hidden" aria-label="グループで絞る" data-tour="group-filter">
         <ScrollArea
           orientation="horizontal"
           className="px-4"
@@ -499,6 +516,8 @@ export function CalendarPage() {
       )}
 
       {features && <FeatureSheet onClose={() => setFeatures(false)} />}
+
+      {!editingHome && !editor && !features && <ScreenTour id="calendar" steps={BASE_TOURS.calendar} />}
 
       {me.data && <Onboarding me={me.data} paused={editor !== null} onAddEvent={() => addNew(today)} />}
 

@@ -21,7 +21,9 @@ import { AvatarSection } from "./AvatarSection";
 import { useUpdateName, useUpdateSettings } from "./api";
 import { DeleteAccountSheet } from "./components/DeleteAccountSheet";
 import { HelpSection } from "./components/HelpSection";
+import { InstallGuideButton } from "./components/InstallGuideButton";
 import { PushSection } from "./components/PushSection";
+import { ResetToursButton } from "./components/ResetToursButton";
 
 const MODES = [
   { value: "system", label: "端末と同じ" },
@@ -149,7 +151,10 @@ export function SettingsPage() {
 
         <PushSection />
 
-        <HelpSection />
+        <HelpSection>
+          <ResetToursButton />
+          <InstallGuideButton />
+        </HelpSection>
 
         <Panel title="アカウント">
           <div>

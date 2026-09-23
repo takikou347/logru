@@ -13,6 +13,8 @@
  * サーバーだけの型は types.server.ts に、画面だけの型は types.client.ts にある。
  */
 
+import type { TourStep } from "@shared/tours";
+
 /** 拡張の名前と説明。画面のグループ設定に出る */
 export type ExtensionManifest = {
   /** 拡張を見分ける名前。英小文字。group_extensions.extension_key と CalendarItem.extension に入る */
@@ -32,4 +34,9 @@ export type ExtensionManifest = {
    * 画面の describeNotification が出せない kind を数えて、一覧は空なのに数字が出ることを防ぐ
    */
   notificationKinds?: string[];
+  /**
+   * 拡張の画面を初めて開いたときに出す案内。1 枚から 3 枚。F-33
+   * 無ければ案内は出ない。見たかは `ext.<この key>` の ID で持つ
+   */
+  tour?: TourStep[];
 };

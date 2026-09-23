@@ -40,6 +40,8 @@ export const userSettings = sqliteTable("user_settings", {
   updatedAt: updatedAt(),
   /** はじめての案内を見終えたか、飛ばした日時。空なら次にカレンダーを開いたとき出す。F-32、0035 */
   onboardedAt: integer("onboarded_at", { mode: "timestamp_ms" }),
+  /** 案内を見た画面の ID。F-33 */
+  toursSeen: text("tours_seen", { mode: "json" }).$type<string[]>().notNull().default([]),
 });
 
 /** 規約に同意した版。最新の版の行が無ければ同意を取り直す。F-16 */

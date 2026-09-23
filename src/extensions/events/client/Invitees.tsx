@@ -1,5 +1,7 @@
 import type { AttendeeResponse } from "@shared/api-types";
 import { Check, X } from "lucide-react";
+// EventSheet の toPerson が名前・色・アイコンの URL を引いた済みの人を受け取る。返事の状態も持つので
+// 人の ID からではなく InitialAvatar を直に使う。0064
 import { type AvatarPerson, InitialAvatar } from "@/components/parts/Avatars";
 import { Chip } from "@/components/parts/Chip";
 import { FieldMessage } from "@/components/parts/Panel";

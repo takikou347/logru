@@ -104,7 +104,38 @@
               "level": "error",
               "options": {
                 "paths": {
-                  "@/api/client": "画面(*Page.tsx、*Sheet.tsx)から直接読めない。機能ごとの api.ts からだけ import する"
+                  "@/api/client": "画面(*Page.tsx、*Sheet.tsx)から直接読めない。機能ごとの api.ts からだけ import する",
+                  "@/components/parts/Avatars": {
+                    "importNames": ["InitialAvatar", "AvatarStack"],
+                    "message": "InitialAvatar と AvatarStack を直に使わない。人の ID から UserAvatar か UserAvatarStack を使う。0064"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "**/*.tsx",
+        "!**/*Page.tsx",
+        "!**/*Sheet.tsx",
+        "!src/client/components/parts/Avatars.tsx",
+        "!src/client/modules/calendar/components/MonthGrid.tsx",
+        "!src/extensions/events/client/Invitees.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@/components/parts/Avatars": {
+                    "importNames": ["InitialAvatar", "AvatarStack"],
+                    "message": "InitialAvatar と AvatarStack を直に使わない。人の ID から UserAvatar か UserAvatarStack を使う。0064"
+                  }
                 }
               }
             }

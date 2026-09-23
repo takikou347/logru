@@ -58,7 +58,8 @@ export function AccountSettingsPage() {
 
       {list.length > 0 && <UsualShareSection me={data} groups={list} />}
 
-      <Button variant="danger" className="self-start" onClick={() => setDeleting(true)}>
+      {/* ページの背景に直に置くので、ガラスの面より少し濃い朱にして比を保つ。issue #154、0034 */}
+      <Button variant="danger" className="self-start text-(--sun-deep)" onClick={() => setDeleting(true)}>
         アカウントを消す
       </Button>
 

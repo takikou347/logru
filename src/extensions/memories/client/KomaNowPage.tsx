@@ -6,12 +6,11 @@ import { toast } from "sonner";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { InitialAvatar } from "@/components/parts/Avatars";
+import { UserAvatar } from "@/components/parts/Avatars";
 import { LoadFailure } from "@/components/parts/Failure";
 import { FieldMessage } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { memberColor } from "@/lib/colors";
 import { auth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
@@ -242,11 +241,7 @@ export function KomaNowPage() {
                   return (
                     <li key={o.userId} className="flex items-center gap-2 text-xs text-ink-2">
                       <PhotoImg photo={o.photo} className="h-10 w-[30px] flex-none rounded-lg" />
-                      {m && (
-                        <InitialAvatar
-                          person={{ id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.data.colorPrefs) }}
-                        />
-                      )}
+                      {m && <UserAvatar userId={m.id} groups={groups} me={me.data} />}
                       {m?.name ?? "メンバー"} が撮りました
                     </li>
                   );

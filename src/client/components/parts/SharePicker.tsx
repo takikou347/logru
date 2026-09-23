@@ -8,10 +8,10 @@
 import type { GroupSummary, Me } from "@shared/api-types";
 import { Check } from "lucide-react";
 import { useState } from "react";
-import { AvatarStack } from "@/components/parts/Avatars";
+import { UserAvatarStack } from "@/components/parts/Avatars";
 import { Dot, FieldMessage, RowButton } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
-import { groupColor, memberColor } from "@/lib/colors";
+import { groupColor } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 
 /** 一覧の 1 行の見た目。44 px 以上、色の点、名前、メンバーの小さなアバター、選んでいる印 */
@@ -28,12 +28,6 @@ function ShareRow({
   checked: boolean;
   onSelect: () => void;
 }) {
-  const people = group.members.map((m) => ({
-    id: m.id,
-    name: m.name,
-    color: memberColor(m.id, m.userColor, me.colorPrefs),
-    avatarUrl: m.avatarUrl,
-  }));
   return (
     <button
       type="button"
@@ -44,7 +38,9 @@ function ShareRow({
     >
       <Dot color={groupColor(group, me.colorPrefs)} />
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {!group.isPersonal && people.length > 0 && <AvatarStack people={people} max={4} size={18} />}
+      {!group.isPersonal && group.members.length > 0 && (
+        <UserAvatarStack userIds={group.members.map((m) => m.id)} groups={[group]} me={me} max={4} size={18} />
+      )}
       {checked && <Check className="size-4 flex-none text-primary" aria-hidden="true" />}
     </button>
   );

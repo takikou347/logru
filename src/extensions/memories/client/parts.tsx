@@ -3,9 +3,9 @@
 import type { GroupSummary, Me } from "@shared/api-types";
 import { Heart } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { AvatarStack, InitialAvatar } from "@/components/parts/Avatars";
+import { personOf, UserAvatar, UserAvatarStack } from "@/components/parts/Avatars";
 import { Dot } from "@/components/parts/Panel";
-import { groupColor, memberColor } from "@/lib/colors";
+import { groupColor } from "@/lib/colors";
 import { vibrateShort } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 import type { MemoryRecord, Photo } from "../shared/types";
@@ -68,12 +68,9 @@ export function Ambient({ photo }: { photo: Photo | null }) {
   );
 }
 
-/** 記録を書いた人の名前と色。グループにいなければ「退会した人」 */
+/** 記録を書いた人。名前・色・アイコンの URL は personOf が引く。グループにいなければ「退会した人」。#152 */
 export function authorOf(record: MemoryRecord, groups: GroupSummary[], me: Me) {
-  const group = groups.find((g) => g.id === record.groupId);
-  const m = group?.members.find((x) => x.id === record.createdBy);
-  if (!m) return { id: record.createdBy ?? "gone", name: "退会した人", color: "nezumi" };
-  return { id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs) };
+  return personOf(record.createdBy ?? "gone", groups, me);
 }
 
 /**
@@ -84,11 +81,6 @@ function LikeButton({ record, groups, me }: { record: MemoryRecord; groups: Grou
   const like = useLike();
   const on = record.likes.includes(me.user.id);
   const [bounce, setBounce] = useState(false);
-  const group = groups.find((g) => g.id === record.groupId);
-  const people = record.likes.flatMap((id) => {
-    const m = group?.members.find((x) => x.id === id);
-    return m ? [{ id, name: m.name, color: memberColor(id, m.userColor, me.colorPrefs) }] : [];
-  });
   return (
     <div className="flex items-center gap-2">
       <button
@@ -116,7 +108,7 @@ function LikeButton({ record, groups, me }: { record: MemoryRecord; groups: Grou
         />
         {record.likes.length}
       </button>
-      {people.length > 0 && <AvatarStack people={people} size={20} />}
+      {record.likes.length > 0 && <UserAvatarStack userIds={record.likes} groups={groups} me={me} size={20} />}
     </div>
   );
 }
@@ -194,7 +186,7 @@ export function RecordBody({
     <article className="flex flex-col gap-1 py-2" aria-label={`${author.name} の記録`}>
       <PhotoGrid photos={record.photos} onOpen={onOpenPhoto} big={big} />
       <div className="flex items-center gap-1.5 pt-1.5 text-xs font-bold">
-        <InitialAvatar person={author} size={22} />
+        <UserAvatar userId={author.id} groups={groups} me={me} size={22} />
         {author.name}
         {record.kind === "koma" && (
           <span className="rounded-full bg-field px-1.5 text-[10px] text-ink-2">ひとコマ</span>

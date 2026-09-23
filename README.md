@@ -80,14 +80,17 @@ Auth エミュレーターが動いていなければ、テストの間だけ立
 | `develop` | 本番の手前。既定のブランチ | CI が通った後、staging の `logru-staging` に出る |
 | 作業のブランチ | 1 つの変更 | 何も出ない。PR の CI だけが走る |
 | `hotfix/*` | 本番の急ぎの直し | 何も出ない。main へ直接 PR を出せる |
+| `release/<年>-w<週>` | 毎週の本番へ出す候補。月曜 0 時に Claude が develop から切る | 何も出ない。main へ直接 PR を出せる |
+| `claude/*` | Claude の作業 | 何も出ない。PR の CI だけが走る |
 
 1. `develop` からブランチを切り、`develop` へ PR を出す
 2. CI が通ったらマージする。staging に出るので、`logru-staging` で動きを確かめる
-3. 本番に出すときは、`develop` から `main` へ PR を出し、「Create a merge commit」でマージする。squash や rebase にすると、develop と main の履歴がずれる
-4. `hotfix/*` を `main` に入れたら、`main` を `develop` にもマージして戻す
+3. 本番に出すときは、`develop` か `release/*` から `main` へ PR を出し、「Create a merge commit」でマージする。squash や rebase にすると、develop と main の履歴がずれる
+4. `hotfix/*` や、直しを積んだ `release/*` を `main` に入れたら、`main` を `develop` にもマージして戻す
 
 `main` と `develop` は保護している。直接の push はできず、PR の CI の `check` と `branch-rule` が通らないとマージできない。
-`branch-rule` は、`main` への PR が `develop` か `hotfix/*` から来ているかを見る。
+`branch-rule` は、`main` への PR が `develop`、`hotfix/*`、`release/*` のどれかから来ているかを見る。
+毎週の流れは develop-docs の `docs/logru/decisions/0038-weekly-improvement.md` にある。
 
 出す処理は `.github/workflows/ci.yml` の `deploy` にある。組み立て、移行を当て、Worker を置き換える。
 出し直すときは、Actions の CI を「Run workflow」で `main` か `develop` を選んで流す。

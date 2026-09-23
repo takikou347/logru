@@ -3,8 +3,9 @@ import { useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
-import { Empty, Panel, PanelRow } from "@/components/parts/Panel";
+import { Panel, PanelRow } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { kakeiboCategoryLabel } from "../shared/categories";
@@ -100,7 +101,16 @@ export function KakeiboPage() {
 
         <Panel title="記録">
           {records.length === 0 ? (
-            <Empty>この月の記録はまだありません。</Empty>
+            <EmptyState
+              pose="coin"
+              bordered={false}
+              action={{
+                label: "この月の記録をする",
+                onClick: () => setParams((p) => (p.set("record", "1"), p), { replace: true }),
+              }}
+            >
+              この月の記録はまだありません。
+            </EmptyState>
           ) : (
             <ul className="flex flex-col">
               {records.map((r) => (

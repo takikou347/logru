@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { EmptyState } from "@/components/parts/EmptyState";
 import { Dot } from "@/components/parts/Panel";
 import { dayTone, formatTime, holidayName, onDay, sameDay, WEEKDAYS } from "@/lib/dates";
 import { useDeviceTilt } from "@/lib/use-device-tilt";
@@ -164,6 +165,7 @@ function ItemRow({
  * 今日だけ、端末の傾きで中身(数字と予定)を最大 6px ずらして奥行きを出す。ガラスの面自体は動かさない。
  * iOS は、初めて触ったときに 1 度だけ許可を求める。動きを減らしているときは止める。0044、0048、#112
  * @param leaving 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98
+ * @param onAddNew この日に予定を足す。空のときのマスコットのボタンから呼ぶ。0053
  */
 export function DayPanel({
   day,
@@ -171,12 +173,14 @@ export function DayPanel({
   items,
   onOpen,
   leaving,
+  onAddNew,
 }: {
   day: Date;
   today: Date;
   items: ViewItem[];
   onOpen: (i: ViewItem) => void;
   leaving?: Set<string>;
+  onAddNew: () => void;
 }) {
   const tone = dayTone(day);
   const hol = holidayName(day);
@@ -210,14 +214,20 @@ export function DayPanel({
           {hol && <div className="mt-0.5 text-[11px] text-ink">{hol}</div>}
         </div>
       </div>
-      <div style={tiltStyle} className={cn(isToday && "transition-transform duration-fast ease-out")}>
-        <ItemList
-          items={mine}
-          onOpen={onOpen}
-          leaving={leaving}
-          empty="予定はありません。日付を押すと、その日の予定を足せます。"
-        />
-      </div>
+      {mine.length === 0 ? (
+        <EmptyState
+          pose="calendar"
+          bordered={false}
+          className="items-start py-2 text-left"
+          action={{ label: "この日の予定を作る", onClick: onAddNew, variant: "default" }}
+        >
+          この日の予定はありません。
+        </EmptyState>
+      ) : (
+        <div style={tiltStyle} className={cn(isToday && "transition-transform duration-fast ease-out")}>
+          <ItemList items={mine} onOpen={onOpen} leaving={leaving} empty="この日の予定はありません。" />
+        </div>
+      )}
     </section>
   );
 }

@@ -1,8 +1,8 @@
 import type { DB } from "@server/core/db/client";
 import type { CalendarItem } from "@shared/api-types";
-import { and, gt, gte, inArray, like, lt, or } from "drizzle-orm";
+import { and, asc, gt, gte, inArray, like, lt, or } from "drizzle-orm";
 import { DAY_MS, DEFAULT_TIME_ZONE, dayKeyIn, startOfDayIn } from "../shared/days";
-import { type MemoryRow, memories, memoryRecords } from "./schema";
+import { type MemoryRow, memories, memoryPhotos, memoryRecords } from "./schema";
 
 /** カレンダーの項目の ID の頭。思い出と、日ごとにまとめた記録を見分ける */
 const ITEM_PREFIX = { memory: "m:", records: "r:" } as const;
@@ -29,6 +29,9 @@ function toCalendarItem(m: MemoryRow): CalendarItem {
  * - 思い出: 期間にかかるものを 1 件 1 項目で返す。終日の帯になる
  * - 記録: グループと日ごとに 1 項目にまとめる。題名は「記録 3」。日は日本時間で数える
  *
+ * 記録の項目には、その日でいちばん遅い時刻の koma 種の記録が持つ写真の tiny を thumb として乗せる。
+ * 1 年をらせんで見る画面が使う。0051
+ *
  * @param db D1 を包んだ Drizzle
  * @param groupIds 呼んでよいグループ。思い出の拡張が有効なものだけ
  * @param from 期間の始まり
@@ -46,7 +49,12 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
       ),
     );
   const records = await db
-    .select({ groupId: memoryRecords.groupId, occurredAt: memoryRecords.occurredAt })
+    .select({
+      id: memoryRecords.id,
+      groupId: memoryRecords.groupId,
+      occurredAt: memoryRecords.occurredAt,
+      kind: memoryRecords.kind,
+    })
     .from(memoryRecords)
     .where(
       and(
@@ -57,18 +65,41 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
     );
 
   const counts = new Map<string, { groupId: string; day: string; n: number }>();
+  // 日ごとに、いちばん遅い koma 種の記録を覚えておく。thumb に使う写真を 1 枚だけ選ぶため
+  const latestKoma = new Map<string, { recordId: string; occurredAt: number }>();
   for (const r of records) {
     const day = dayKeyIn(r.occurredAt.getTime(), DEFAULT_TIME_ZONE);
     const key = `${r.groupId}:${day}`;
     const c = counts.get(key) ?? { groupId: r.groupId, day, n: 0 };
     c.n += 1;
     counts.set(key, c);
+    if (r.kind === "koma") {
+      const ms = r.occurredAt.getTime();
+      const current = latestKoma.get(key);
+      if (!current || ms > current.occurredAt) latestKoma.set(key, { recordId: r.id, occurredAt: ms });
+    }
+  }
+
+  const komaRecordIds = [...latestKoma.values()].map((v) => v.recordId);
+  const thumbByRecordId = new Map<string, string>();
+  if (komaRecordIds.length > 0) {
+    const photos = await db
+      .select({ recordId: memoryPhotos.recordId, tiny: memoryPhotos.tiny })
+      .from(memoryPhotos)
+      .where(inArray(memoryPhotos.recordId, komaRecordIds))
+      .orderBy(asc(memoryPhotos.sortOrder));
+    for (const p of photos) {
+      if (p.recordId && !thumbByRecordId.has(p.recordId)) thumbByRecordId.set(p.recordId, p.tiny);
+    }
   }
 
   return [
     ...rows.map(toCalendarItem),
     ...[...counts.values()].map<CalendarItem>((c) => {
+      const key = `${c.groupId}:${c.day}`;
       const start = startOfDayIn(c.day, DEFAULT_TIME_ZONE);
+      const komaRecordId = latestKoma.get(key)?.recordId;
+      const thumb = komaRecordId ? thumbByRecordId.get(komaRecordId) : undefined;
       return {
         extension: "memories",
         id: `${ITEM_PREFIX.records}${c.groupId}:${c.day}`,
@@ -80,6 +111,7 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
         title: `記録 ${c.n}`,
         tag: "記録",
         secondary: true,
+        ...(thumb ? { thumb } : {}),
       };
     }),
   ];

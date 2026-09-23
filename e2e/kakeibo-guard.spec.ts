@@ -161,3 +161,28 @@ test("自分で使わないと決めると、グループで有効でも家計�
   });
   expect(res.status()).toBe(404);
 });
+
+test("メモを探すと、見つかった日の合計が土台の探す(0046)に出る", async ({ request }) => {
+  const a = await kakeiboUser(request);
+  await request.post("/api/kakeibo", {
+    headers: a.headers,
+    data: { groupId: a.groupId, date: "2026-09-05", amount: 1200, category: "food", memo: "湯本のスーパー" },
+  });
+  await request.post("/api/kakeibo", {
+    headers: a.headers,
+    data: { groupId: a.groupId, date: "2026-09-05", amount: 300, category: "hobby" },
+  });
+  await request.post("/api/kakeibo", {
+    headers: a.headers,
+    data: { groupId: a.groupId, date: "2026-09-19", amount: 500, category: "transport", memo: "電車" },
+  });
+
+  const found = await (await request.get("/api/search?q=スーパー", { headers: a.headers })).json();
+  expect(found.items).toHaveLength(1);
+  // その日の記録すべての合計を返す。メモの無い記録も含む
+  expect(found.items[0].title).toBe("¥1,500");
+  expect(found.items[0].extension).toBe("kakeibo");
+
+  const none = await (await request.get("/api/search?q=見つからない", { headers: a.headers })).json();
+  expect(none.items).toHaveLength(0);
+});

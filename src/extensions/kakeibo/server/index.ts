@@ -1,6 +1,6 @@
 import type { ServerExtension } from "@extensions/server/types";
 import { kakeiboManifest } from "../manifest";
-import { listKakeiboItems } from "./provider";
+import { listKakeiboItems, searchKakeibo } from "./provider";
 import { kakeiboRoutes } from "./routes";
 import * as schema from "./schema";
 
@@ -12,5 +12,6 @@ export const kakeiboServer: ServerExtension = {
   manifest: kakeiboManifest,
   schema,
   listCalendarItems: listKakeiboItems,
+  search: searchKakeibo,
   routes: { basePath: "/kakeibo", router: kakeiboRoutes },
 };

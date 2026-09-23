@@ -1,4 +1,4 @@
-import type { GroupMember, GroupSummary } from "@shared/api-types";
+import type { GroupMember, GroupSummary, Me } from "@shared/api-types";
 import { GROUP_COLORS } from "@shared/colors";
 import { type FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useColorPref, useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
-import { InitialAvatar } from "@/components/parts/Avatars";
+import { UserAvatar } from "@/components/parts/Avatars";
 import { ColorSheet } from "@/components/parts/ColorSheet";
 import { ColorSwatches } from "@/components/parts/ColorSwatches";
 import { ExtensionToggleRow } from "@/components/parts/ExtensionToggleRow";
@@ -176,6 +176,8 @@ export function GroupDetailPage() {
               <MemberRow
                 key={m.id}
                 member={m}
+                me={me.data}
+                group={group}
                 isMe={m.id === myId}
                 color={memberColor(m.id, m.userColor, prefs)}
                 canManage={admin && !(m.role === "admin" && adminCount === 1)}
@@ -292,6 +294,8 @@ export function GroupDetailPage() {
  */
 function MemberRow({
   member,
+  me,
+  group,
   isMe,
   color,
   canManage,
@@ -299,6 +303,8 @@ function MemberRow({
   onRole,
 }: {
   member: GroupMember;
+  me: Me;
+  group: GroupSummary;
   isMe: boolean;
   color: string;
   canManage: boolean;
@@ -308,7 +314,7 @@ function MemberRow({
   return (
     <div className="flex min-h-12 items-center gap-3 border-b border-line text-[15px] last:border-b-0">
       <span className="relative inline-flex flex-none">
-        <InitialAvatar person={{ id: member.id, name: member.name, color, avatarUrl: member.avatarUrl }} size={40} />
+        <UserAvatar userId={member.id} groups={[group]} me={me} size={40} />
         <button
           type="button"
           className={`absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full bg-(--c) shadow-[0_0_0_2px_var(--glass-flat)] c-${color}`}

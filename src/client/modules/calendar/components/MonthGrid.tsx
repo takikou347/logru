@@ -1,4 +1,6 @@
 import { type CSSProperties, useRef, useState } from "react";
+// item.people(ViewAttendee)は model.ts の attendeeViews が名前・色・アイコンの URL を引いた済み。
+// 返事の状態も持つので、人の ID からではなく AvatarStack を直に使う。0064
 import { AvatarStack } from "@/components/parts/Avatars";
 import { dayTone, formatDay, formatTime, holidayName, onDay, sameDay, WEEKDAYS } from "@/lib/dates";
 import { extensionLabel } from "@/lib/extension-visuals";

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
 import { useMe } from "@/api/common";
 import { signOut } from "@/app/auth";
-import { InitialAvatar } from "@/components/parts/Avatars";
+import { UserAvatar } from "@/components/parts/Avatars";
 import { OfflineBand } from "@/components/parts/Failure";
 import { Button } from "@/components/ui/button";
 import {
@@ -124,14 +124,10 @@ export const sideItemClass = navItem;
 export function AccountMenu({ wide = false }: { wide?: boolean }) {
   const me = useMe();
   const doSignOut = useSignOut();
-  const name = me.data?.user.name ?? "";
-  const email = me.data?.user.email ?? "";
-  const avatar = (
-    <InitialAvatar
-      person={{ id: "me", name, color: me.data?.settings.userColor ?? "wakatake", avatarUrl: me.data?.user.avatarUrl }}
-      size={34}
-    />
-  );
+  // ログイン済みの画面はこの枠を通る前に me を読み終えている。app/guards.tsx
+  if (!me.data) return null;
+  const { name, email } = me.data.user;
+  const avatar = <UserAvatar userId={me.data.user.id} me={me.data} size={34} />;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

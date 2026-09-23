@@ -1,12 +1,11 @@
 import type { GroupSummary, Me } from "@shared/api-types";
 import { Plus, Trash2 } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
-import { InitialAvatar } from "@/components/parts/Avatars";
+import { UserAvatar } from "@/components/parts/Avatars";
 import { Chip } from "@/components/parts/Chip";
 import { Empty, Panel } from "@/components/parts/Panel";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { memberColor } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 import { useCalendar } from "@/modules/calendar/api";
 import { dayKeyIn, memoryDays } from "../shared/days";
@@ -57,9 +56,11 @@ function Shiori({ detail, me, group }: ShellProps) {
         <p className="flex items-center gap-2 text-xs text-ink-2">
           <span className="flex">
             {(group?.members ?? []).slice(0, 4).map((m, i) => (
-              <InitialAvatar
+              <UserAvatar
                 key={m.id}
-                person={{ id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs) }}
+                userId={m.id}
+                groups={group ? [group] : []}
+                me={me}
                 className={cn(i > 0 && "-ml-2")}
               />
             ))}
@@ -261,9 +262,7 @@ function ItemRows({
             </span>
             <span className="flex items-center gap-1">
               {who ? (
-                <InitialAvatar
-                  person={{ id: who.id, name: who.name, color: memberColor(who.id, who.userColor, me.colorPrefs) }}
-                />
+                <UserAvatar userId={who.id} groups={group ? [group] : []} me={me} />
               ) : (
                 assigneeName(item, group) && <span className="text-[11px] text-ink-2">{assigneeName(item, group)}</span>
               )}

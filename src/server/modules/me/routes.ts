@@ -143,6 +143,7 @@ export const meRoutes = createRouter()
       provider: me.provider,
       colorPrefs: prefs.map((p) => ({ targetType: p.targetType, targetId: p.targetId, color: p.color })),
       hiddenMembers: hidden.map((h) => h.id),
+      onboardedAt: settings.onboardedAt?.getTime() ?? null,
     };
     return c.json(body);
   })
@@ -227,6 +228,16 @@ export const meRoutes = createRouter()
       accentColor: row.accentColor,
       userColor: row.userColor,
     });
+  })
+  // はじめての案内を見終えたか飛ばした。別の端末でも、もう出さない。F-32、0035
+  .put("/onboarding", async (c) => {
+    const values = { onboardedAt: new Date(), updatedAt: new Date() };
+    await c
+      .get("db")
+      .insert(userSettings)
+      .values({ userId: c.get("user").id, ...values })
+      .onConflictDoUpdate({ target: userSettings.userId, set: values });
+    return c.json({ onboardedAt: values.onboardedAt.getTime() });
   })
   .put("/home-layout", zValidator("json", homeLayoutInput, validationHook), async (c) => {
     const { form, widgets } = c.req.valid("json");

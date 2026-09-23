@@ -38,6 +38,7 @@ import { HomeEditBar } from "../home/components/HomeEditBar";
 import { WidgetGrid } from "../home/components/WidgetGrid";
 import { useHomeWidgetVisibility, useVisibleHomeWidgets } from "../home/layout";
 import { HOME_WIDGET_CATALOG, homeWidget } from "../home/widgets";
+import { Onboarding } from "../onboarding/Onboarding";
 import { useCalendar, useMemberVisibility } from "./api";
 import { PeopleChip, SideGroup, useOpenGroups } from "./components/PeopleFilter";
 import { RefreshButton } from "./components/RefreshButton";
@@ -267,7 +268,7 @@ export function CalendarPage() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (editor || features || editingHome || e.metaKey || e.ctrlKey || e.altKey) return;
-      if ((e.target as HTMLElement).closest("input, textarea, select, [contenteditable]")) return;
+      if ((e.target as HTMLElement).closest("input, textarea, select, [contenteditable], [role=dialog]")) return;
       if (e.key === "ArrowLeft") move(-1);
       else if (e.key === "ArrowRight") move(1);
       else if (e.key === "t" || e.key === "T") update({ date: today });
@@ -498,6 +499,8 @@ export function CalendarPage() {
       )}
 
       {features && <FeatureSheet onClose={() => setFeatures(false)} />}
+
+      {me.data && <Onboarding me={me.data} paused={editor !== null} onAddEvent={() => addNew(today)} />}
 
       {addSheet && (
         <AddWidgetSheet

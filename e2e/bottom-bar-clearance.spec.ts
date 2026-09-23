@@ -70,6 +70,17 @@ test("思い出: 棚がいくつあっても、下の帯より上に見える", 
   expect(shelf!.y + shelf!.height).toBeLessThanOrEqual(toolbar!.y);
 });
 
+test("家計簿: 記録が無い月でも、空の表示が下の帯より上に見える", async ({ page }) => {
+  await addExtension(page, "家計簿");
+  await page.goto("/kakeibo");
+  await scrollToBottom(page);
+  const toolbar = await page.getByRole("toolbar", { name: "家計簿の操作" }).boundingBox();
+  const panel = await page.getByRole("region", { name: "記録" }).boundingBox();
+  expect(toolbar).toBeTruthy();
+  expect(panel).toBeTruthy();
+  expect(panel!.y + panel!.height).toBeLessThanOrEqual(toolbar!.y);
+});
+
 test("家計簿: 記録がいくつあっても、下の帯より上に見える", async ({ page }) => {
   await addExtension(page, "家計簿");
   await page.goto("/kakeibo");

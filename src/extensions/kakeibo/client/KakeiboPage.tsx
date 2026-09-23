@@ -11,6 +11,7 @@ import { Panel, PanelRow } from "@/components/parts/Panel";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
+import { formatShortDate } from "@/lib/dates";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
@@ -116,7 +117,7 @@ export function KakeiboPage() {
               pose="coin"
               bordered={false}
               action={{
-                label: "この月の記録をする",
+                label: "支出を記録する",
                 onClick: () => setParams((p) => (p.set("record", "1"), p), { replace: true }),
               }}
             >
@@ -124,25 +125,35 @@ export function KakeiboPage() {
             </EmptyState>
           ) : (
             <ul className="flex flex-col">
-              {records.map((r) => (
-                <li key={r.id} className="border-line not-first:border-t">
-                  <button
-                    type="button"
-                    className="grid w-full grid-cols-[52px_1fr_auto] items-center gap-2 py-2 text-left"
-                    onClick={() => setParams((p) => (p.set("edit", r.id), p), { replace: true })}
-                  >
-                    <time className="text-xs text-ink-2">{r.date.slice(5).replace("-", ".")}</time>
-                    <span className="flex min-w-0 flex-col">
-                      <span className="text-sm font-medium">{kakeiboCategoryLabel(r.category)}</span>
-                      {r.memo && <span className="truncate text-xs text-ink-2">{r.memo}</span>}
-                    </span>
-                    <span className="font-bold">{formatYen(r.amount)}</span>
-                  </button>
-                </li>
-              ))}
+              {records.map((r) => {
+                const recordGroup = groups.find((g) => g.id === r.groupId);
+                const groupLabel = recordGroup ? (recordGroup.isPersonal ? "自分だけ" : recordGroup.name) : "";
+                return (
+                  <li key={r.id} className="border-line not-first:border-t">
+                    <button
+                      type="button"
+                      className="grid min-h-11 w-full grid-cols-[46px_1fr] items-center gap-1 py-1 text-left"
+                      onClick={() => setParams((p) => (p.set("edit", r.id), p), { replace: true })}
+                    >
+                      <time className="text-sm font-medium text-ink-2">{formatShortDate(r.date)}</time>
+                      <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                        <span className="min-w-0 truncate">{kakeiboCategoryLabel(r.category)}</span>
+                        {r.memo && <span className="min-w-0 truncate text-xs font-normal text-ink-2">{r.memo}</span>}
+                        <span className="ml-auto flex flex-none items-baseline gap-1.5">
+                          <span className="text-[11px] font-normal text-ink-2">{groupLabel}</span>
+                          <span className="font-bold text-ink tabular-nums">{formatYen(r.amount)}</span>
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Panel>
+
+        {/* 空の月は中身が短く、浮いた「+」が中身に重なるので、下の帯と同じ高さの余白を足す。issue #24 */}
+        <div className="h-[var(--dock-clearance)] lg:hidden" aria-hidden="true" />
 
         <Dock label="家計簿の操作">
           <PrimaryAddButton label="支出を記録する" addables={addables} />

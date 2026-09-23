@@ -62,7 +62,8 @@ function KindHeading({ id, label, total }: { id: string; label: string; total?: 
 
 /**
  * 予定の一覧。色だけで見分けさせず、グループ名も出す。0012
- * 項目を出した拡張ごとの見出しで分ける。金額の項目(kind が expense)があれば、見出しにその日の合計を出す。0056
+ * 項目を出した拡張ごとの見出しで分ける。金額の項目(kind が expense)が 2 件以上あれば、見出しにその日の合計を出す。
+ * 1 件だけなら、行の金額と同じ数字が並ぶだけなので出さない。0056、0059
  * @param empty 1 件も無いときに出す文
  * @param leaving 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98
  */
@@ -85,7 +86,7 @@ export function ItemList({
         const groupItems = items.filter((i) => i.extension === key);
         if (groupItems.length === 0) return null;
         const moneyItems = groupItems.filter((i) => kindOf(i) === "expense");
-        const total = moneyItems.length > 0 ? moneyItems.reduce((sum, i) => sum + (i.amount ?? 0), 0) : undefined;
+        const total = moneyItems.length > 1 ? moneyItems.reduce((sum, i) => sum + (i.amount ?? 0), 0) : undefined;
         const id = `${headingId}-${key}`;
         return (
           <div key={key} role="group" aria-labelledby={id}>
@@ -109,6 +110,7 @@ export function ItemList({
 /**
  * 一覧の 1 行。予定ではない項目は、色の点の隣に拡張のアイコンを付ける。色は誰の記録か、アイコンは何の記録かを表す。0056
  * 足した直後は膨らんで入り、消す途中は縮んで消える。動かすのは transform と opacity だけ。0044、0048、#98
+ * 天気は共有するものではないので、右にグループ名を出さない。issue #17
  */
 function ItemRow({
   item: i,
@@ -143,7 +145,9 @@ function ItemRow({
           {Icon && <Icon className="size-3.5 flex-none text-ink-2" aria-hidden="true" />}
           {kind !== "event" && <span className="sr-only">{extensionLabel(i.extension)}、</span>}
           <ItemTitle item={i} />
-          <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
+          {i.extension !== "weather" && (
+            <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
+          )}
         </span>
       </button>
     </li>

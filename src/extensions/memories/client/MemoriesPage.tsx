@@ -13,6 +13,7 @@ import { poolColorsOf } from "@/modules/calendar/model";
 import { DEFAULT_TIME_ZONE, dayKeyIn } from "../shared/days";
 import type { Memory, MemoryRecord } from "../shared/types";
 import { useMemoryGroups, useMemoryList } from "./api";
+import { CoverOpen } from "./Book";
 import { Dock } from "./Dock";
 import { MemorySheet } from "./MemorySheet";
 import { formatClock, formatSpan, GroupFilter, GroupLabel, PhotoImg, SideGroupFilter } from "./parts";
@@ -130,10 +131,12 @@ function Upcoming({ memory, me, now }: { memory: Memory; me: Me; now: number }) 
   const days = daysUntil(memory, now);
   const during = memory.startsAt <= now;
   return (
-    <Link
+    <CoverOpen
       to={`/memories/${memory.id}`}
+      cover={memory.cover}
+      tone={group?.color ?? "nezumi"}
       className="glass flex flex-col rounded-panel p-2 no-underline"
-      aria-label={`${memory.title}、${during ? "期間中" : `出発まで ${days} 日`}`}
+      ariaLabel={`${memory.title}、${during ? "期間中" : `出発まで ${days} 日`}`}
     >
       {memory.cover ? (
         <PhotoImg photo={memory.cover} className="h-[180px] rounded-[22px]" />
@@ -157,7 +160,7 @@ function Upcoming({ memory, me, now }: { memory: Memory; me: Me; now: number }) 
           ・{formatSpan(memory.startsAt, memory.endsAt, memory.timeZone)}
         </GroupLabel>
       </div>
-    </Link>
+    </CoverOpen>
   );
 }
 
@@ -218,7 +221,12 @@ function Shelf({ title, year, memories, me }: { title: string; year?: number; me
           const group = groups.find((g) => g.id === m.groupId);
           return (
             <li key={m.id}>
-              <Link to={`/memories/${m.id}`} className="glass flex flex-col rounded-[22px] p-1.5 no-underline">
+              <CoverOpen
+                to={`/memories/${m.id}`}
+                cover={m.cover}
+                tone={group?.color ?? "nezumi"}
+                className="glass flex flex-col rounded-[22px] p-1.5 no-underline"
+              >
                 {m.cover ? (
                   <PhotoImg photo={m.cover} className="h-[108px] rounded-[17px]" />
                 ) : (
@@ -230,7 +238,7 @@ function Shelf({ title, year, memories, me }: { title: string; year?: number; me
                     ・{formatSpan(m.startsAt, m.endsAt, m.timeZone)}・{m.photoCount} 枚
                   </GroupLabel>
                 </span>
-              </Link>
+              </CoverOpen>
             </li>
           );
         })}

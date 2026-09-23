@@ -19,10 +19,15 @@ const LIMIT = 30;
  * @param query 探す文字列
  * @param userId 探す人
  */
-async function search(db: DB, groupIds: string[], query: string, userId: string): Promise<CalendarItem[]> {
+async function search(
+  db: DB,
+  groupIds: string[],
+  query: string,
+  ctx: { userId: string; env: Env; requestUrl: string },
+): Promise<CalendarItem[]> {
   if (groupIds.length === 0) return [];
-  const byExt = await loadExtensionAccess(db, groupIds, userId);
-  const items = await callExtensions(byExt, (x, ids) => x.search(db, ids, query, { userId }));
+  const byExt = await loadExtensionAccess(db, groupIds, ctx.userId);
+  const items = await callExtensions(byExt, (x, ids) => x.search(db, ids, query, ctx));
   return items.sort((a, b) => b.startsAt - a.startsAt).slice(0, LIMIT);
 }
 
@@ -33,5 +38,6 @@ export const searchRoutes = createRouter()
     const db = c.get("db");
     const me = c.get("user");
     const mine = await myGroupIds(db, me.id);
-    return c.json({ items: await search(db, mine, c.req.valid("query").q, me.id) });
+    const ctx = { userId: me.id, env: c.env, requestUrl: c.req.url };
+    return c.json({ items: await search(db, mine, c.req.valid("query").q, ctx) });
   });

@@ -5,11 +5,31 @@
  * 拡張はこの中から選ぶ。item.icon が無ければ、項目を出した拡張が登録したアイコンを使う。
  * カレンダー本体はどの拡張がどの名前を使うかを知らない。0001、0002
  */
-import { Camera, type LucideIcon, Timer } from "lucide-react";
+import {
+  Camera,
+  Cloud,
+  CloudFog,
+  CloudLightning,
+  CloudRain,
+  CloudSnow,
+  type LucideIcon,
+  Sun,
+  Timer,
+} from "lucide-react";
 import { extensionIcon } from "@/lib/extension-visuals";
 
 /** item.icon に使える名前と、対応するアイコン */
-const ITEM_ICONS: Record<string, LucideIcon> = { camera: Camera, timer: Timer };
+const ITEM_ICONS: Record<string, LucideIcon> = {
+  camera: Camera,
+  timer: Timer,
+  // 天気の種類の見分け。0055
+  sun: Sun,
+  cloud: Cloud,
+  fog: CloudFog,
+  rain: CloudRain,
+  snow: CloudSnow,
+  storm: CloudLightning,
+};
 
 /**
  * 項目の形に使うアイコン。予定(kind が無い項目)は色の点のままなので呼ばない。

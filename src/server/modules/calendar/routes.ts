@@ -44,5 +44,6 @@ export const calendarRoutes = createRouter()
     const mine = await myGroupIds(db, c.get("user").id);
     // ほかの人のグループを指定されても、入っているグループだけに絞る
     const wanted = group ? group.split(",").filter((g) => mine.includes(g)) : mine;
-    return c.json({ items: await listCalendarItems(db, wanted, from, to, { userId: c.get("user").id }) });
+    const ctx = { userId: c.get("user").id, env: c.env, requestUrl: c.req.url };
+    return c.json({ items: await listCalendarItems(db, wanted, from, to, ctx) });
   });

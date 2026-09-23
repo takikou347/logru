@@ -120,6 +120,20 @@
       "when": 1790147759716,
       "tag": "0016_event_repeat",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1790156434848,
+      "tag": "0017_skinny_maverick",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1790159617105,
+      "tag": "0018_weather",
+      "breakpoints": true
     }
   ]
 }

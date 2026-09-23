@@ -32,7 +32,9 @@ describe("rewriteInviteMeta", () => {
   it("招待リンク用の文言に書き換え、グループの名前は入れない", () => {
     const out = rewriteInviteMeta(html, "https://logru-staging.tkkwkut-400.workers.dev", "abc123");
     expect(out).toContain('<meta property="og:title" content="Logru への招待" />');
-    expect(out).toContain('<meta property="og:description" content="Logru への招待が届いています。" />');
+    expect(out).toContain(
+      '<meta property="og:description" content="Logru で、いっしょに予定を分け合いませんか。リンクから参加できます。" />',
+    );
     expect(out).toContain(
       '<meta property="og:url" content="https://logru-staging.tkkwkut-400.workers.dev/invite/abc123" />',
     );

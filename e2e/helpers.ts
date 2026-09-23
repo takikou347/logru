@@ -134,6 +134,22 @@ export async function resetPassword(request: APIRequestContext, oobCode: string,
 export const dayPanel = (page: Page) => page.getByTestId("day-panel");
 
 /**
+ * 指で押して引いて離す。CDP の Input.dispatchTouchEvent を直に呼ぶ。持ち手のドラッグは
+ * Pointer Events の pointer capture を使うため、DOM に合成イベントを投げるだけでは
+ * ブラウザが「押されている指」を認識せず捕まらない。実の入力として扱わせるため CDP を使う。#121
+ */
+export async function touchDrag(page: Page, from: { x: number; y: number }, to: { x: number; y: number }, steps = 8) {
+  const client = await page.context().newCDPSession(page);
+  await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: from.x, y: from.y }] });
+  for (let i = 1; i <= steps; i++) {
+    const x = from.x + ((to.x - from.x) * i) / steps;
+    const y = from.y + ((to.y - from.y) * i) / steps;
+    await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y }] });
+  }
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+}
+
+/**
  * カレンダーの下の操作から、予定を 1 件足す。
  * @param group 共有するグループの名前。無ければ「共有しない」のまま保存する
  */

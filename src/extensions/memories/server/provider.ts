@@ -31,8 +31,8 @@ function toCalendarItem(m: MemoryRow): CalendarItem {
  * - 記録、ひとコマ: グループと日と kind(note、koma)ごとに 1 項目にまとめる。題名は「記録 3」「ひとコマ 3」。
  *   日は日本時間で数える。種類を見分けるアイコンを付ける。0056
  *
- * ひとコマの項目には、その日でいちばん遅い時刻の記録が持つ写真の tiny を thumb として乗せる。
- * 1 年をらせんで見る画面が使う。0051、0056
+ * ひとコマの項目には、その日でいちばん遅い時刻の記録が持つ写真の small(無ければ tiny)を thumb として乗せる。
+ * 1 年をらせんで見る画面が使う。0051、0056、#158
  *
  * @param db D1 を包んだ Drizzle
  * @param groupIds 呼んでよいグループ。思い出の拡張が有効なものだけ
@@ -86,12 +86,12 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
   const thumbByRecordId = new Map<string, string>();
   if (komaRecordIds.length > 0) {
     const photos = await db
-      .select({ recordId: memoryPhotos.recordId, tiny: memoryPhotos.tiny })
+      .select({ recordId: memoryPhotos.recordId, tiny: memoryPhotos.tiny, small: memoryPhotos.small })
       .from(memoryPhotos)
       .where(inArray(memoryPhotos.recordId, komaRecordIds))
       .orderBy(asc(memoryPhotos.sortOrder));
     for (const p of photos) {
-      if (p.recordId && !thumbByRecordId.has(p.recordId)) thumbByRecordId.set(p.recordId, p.tiny);
+      if (p.recordId && !thumbByRecordId.has(p.recordId)) thumbByRecordId.set(p.recordId, p.small ?? p.tiny);
     }
   }
 

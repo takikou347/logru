@@ -12,6 +12,14 @@ import type { MemoryRecord, Photo } from "../shared/types";
 import { useLike } from "./api";
 
 /**
+ * 一覧に出す小さな画像。D1 に持つ small を使い、往復が要らない。この形に変える前の写真は small が無いので、
+ * R2 に残る thumb の署名付き URL を使う。0021、#158
+ */
+export function smallSrc(photo: Photo): string {
+  return photo.small ?? photo.thumbUrl ?? photo.fullUrl;
+}
+
+/**
  * 写真。読み込むまでは 32 px の写真を広げて出し、画面に入ってから本物を読む。0024
  * @param size thumb は一覧、full は大きく見る画面
  */
@@ -33,7 +41,7 @@ export function PhotoImg({
       style={{ backgroundImage: `url(${photo.tiny})` }}
     >
       <img
-        src={size === "full" ? photo.fullUrl : photo.thumbUrl}
+        src={size === "full" ? photo.fullUrl : smallSrc(photo)}
         alt={alt}
         loading="lazy"
         decoding="async"

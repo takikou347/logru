@@ -18,7 +18,7 @@ async function leaveKomaDays(db: DB, groupId: string, userId: string) {
     .where(and(eq(schema.memoryKomaDays.groupId, groupId), eq(schema.memoryKomaDays.userId, userId)));
 }
 
-/** 写真の full と thumb の合計バイト数。R2 の合計の上限を測るのに使う。R2 には聞かず、D1 の bytes の列だけで測る。0066 */
+/** 写真の full の合計バイト数。R2 の合計の上限を測るのに使う。R2 には聞かず、D1 の bytes の列だけで測る。0066、#158 */
 async function totalPhotoBytes(db: DB): Promise<number> {
   const row = await db
     .select({ total: sql<number>`coalesce(sum(${schema.memoryPhotos.bytes}), 0)` })

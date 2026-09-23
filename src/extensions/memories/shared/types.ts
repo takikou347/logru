@@ -8,7 +8,10 @@ export type Photo = {
   takenAt: number | null;
   /** 32 px の JPEG の data URL。読み込むまでの仮の絵と、奥の色に使う */
   tiny: string;
-  thumbUrl: string;
+  /** 160 px の JPEG の data URL。一覧、ひとコマ、1 年のらせんで使う。この形に変える前の写真は無い。#158 */
+  small: string | null;
+  /** この形に変える前の写真だけが持つ、R2 の thumb への署名付き URL。small があれば使わない。#158 */
+  thumbUrl: string | null;
   fullUrl: string;
 };
 

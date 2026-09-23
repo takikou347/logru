@@ -12,17 +12,22 @@ import { auth } from "@/lib/firebase";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { cn } from "@/lib/utils";
 import type { MemoryItem, MemoryRecord, Photo } from "../shared/types";
-import { memoryKeys, useDeleteRecord, useInvalidateMemories, useSaveRecord } from "./api";
+import { memoryKeys, useDeleteRecord, useDiscardPhoto, useInvalidateMemories, useSaveRecord } from "./api";
 import { preparePhoto, uploadPhoto } from "./image";
 import { PhotoImg } from "./parts";
 
-/** 写真の欄の 1 つ。送っている途中か、送り終えたか、失敗したか */
+/** 写真の欄の 1 つ。送っている途中か、送り終えたか、失敗したか。fp は同じ写真を 2 回選んだのを見分ける印。#158 */
 type Slot =
-  | { key: string; state: "sending"; preview: string; progress: number; file: File }
-  | { key: string; state: "failed"; preview: string; error: string; file: File }
-  | { key: string; state: "done"; photo: Photo };
+  | { key: string; state: "sending"; preview: string; progress: number; file: File; fp: string }
+  | { key: string; state: "failed"; preview: string; error: string; file: File; fp: string }
+  | { key: string; state: "done"; photo: Photo; fp: string };
 
 const MAX_PHOTOS = 10;
+
+/** 選んだ File を見分ける印。同じ写真を 2 回選んだかは、名前と大きさと更新時刻で見分ける。#158 */
+function fingerprintOf(file: File): string {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
 
 /** `datetime-local` の値。端末の時間帯で書く */
 function toLocalInput(ms: number): string {
@@ -64,6 +69,7 @@ export function RecordSheet({
   const invalidate = useInvalidateMemories();
   const saveRecord = useSaveRecord();
   const deleteRecord = useDeleteRecord();
+  const discardPhoto = useDiscardPhoto();
   const [groupId, setGroupId] = useState(
     record?.groupId ??
       defaultShareGroupId(groups, defaultGroupId, {
@@ -75,7 +81,7 @@ export function RecordSheet({
   // 新しく残すときだけ、いつもの共有先から選ばれたことが分かる印を出す。0063、F-40
   const usualDefault = !record && groupId === me.settings.usualShareGroupId;
   const [slots, setSlots] = useState<Slot[]>(() =>
-    (record?.photos ?? []).map((p) => ({ key: p.id, state: "done" as const, photo: p })),
+    (record?.photos ?? []).map((p) => ({ key: p.id, state: "done" as const, photo: p, fp: p.id })),
   );
   const [body, setBody] = useState(record?.body ?? "");
   const [time, setTime] = useState<string | null>(record ? toLocalInput(record.occurredAt) : null);
@@ -84,6 +90,14 @@ export function RecordSheet({
   const [saving, setSaving] = useState(false);
   const camera = useRef<HTMLInputElement>(null);
   const picker = useRef<HTMLInputElement>(null);
+  // このシートを開いてから新しく送った写真の ID。保存せずに外すか閉じたら、すぐ消す。F-117、#158
+  const uploaded = useRef<Set<string>>(new Set());
+
+  /** 保存に含めない、送った写真をすぐ消す */
+  function discardUploaded(photoId: string) {
+    if (!uploaded.current.delete(photoId)) return;
+    discardPhoto.mutate(photoId);
+  }
 
   const sending = slots.some((s) => s.state === "sending");
   const done = slots.filter((s): s is Extract<Slot, { state: "done" }> => s.state === "done");
@@ -102,23 +116,43 @@ export function RecordSheet({
       const prepared = await preparePhoto(file);
       const token = await auth.currentUser?.getIdToken();
       const photo = await uploadPhoto(groupId, prepared, token, (progress) => update({ state: "sending", progress }));
-      setSlots((all) => all.map((s) => (s.key === slotKey ? { key: slotKey, state: "done", photo } : s)));
+      uploaded.current.add(photo.id);
+      setSlots((all) => all.map((s) => (s.key === slotKey ? { key: slotKey, state: "done", photo, fp: s.fp } : s)));
     } catch (e) {
       update({ state: "failed", error: (e as Error).message });
     }
   }
 
+  /** 同じ写真を 2 回選んだら、2 回目は送らない。#158 */
   function addFiles(files: FileList | null) {
     if (!files) return;
     const room = MAX_PHOTOS - slots.length;
-    const list = [...files].slice(0, Math.max(0, room));
-    if (files.length > room) toast.error(`写真は 1 回に ${MAX_PHOTOS} 枚までです。`);
-    const added = list.map((file) => ({
+    const seen = new Set(slots.map((s) => s.fp));
+    const picked: { file: File; fp: string }[] = [];
+    let over = false;
+    let dupe = false;
+    for (const file of files) {
+      const fp = fingerprintOf(file);
+      if (seen.has(fp)) {
+        dupe = true;
+        continue;
+      }
+      if (picked.length >= room) {
+        over = true;
+        break;
+      }
+      seen.add(fp);
+      picked.push({ file, fp });
+    }
+    if (over) toast.error(`写真は 1 回に ${MAX_PHOTOS} 枚までです。`);
+    else if (dupe) toast.error("同じ写真は 1 回だけ選べます。");
+    const added = picked.map(({ file, fp }) => ({
       key: crypto.randomUUID(),
       state: "sending" as const,
       preview: URL.createObjectURL(file),
       progress: 0,
       file,
+      fp,
     }));
     setSlots((all) => [...all, ...added]);
     for (const s of added) void send(s.key, s.file);
@@ -153,6 +187,8 @@ export function RecordSheet({
         });
         toast("記録しました");
       }
+      // 送った写真は記録に付いたので、閉じるときにもう消さない
+      uploaded.current.clear();
       await invalidate();
       onClose();
     } catch (e) {
@@ -162,9 +198,22 @@ export function RecordSheet({
     }
   }
 
+  /** まだ記録に付いていない、送った写真をすべてすぐ消す */
+  function discardAllUploaded() {
+    for (const id of uploaded.current) discardPhoto.mutate(id);
+    uploaded.current.clear();
+  }
+
+  /** 保存せずに閉じる。まだ記録に付いていない、送った写真はすぐ消す。F-117、#158 */
+  function close() {
+    discardAllUploaded();
+    onClose();
+  }
+
   /** 消す。すぐ画面から外し、5 秒のあいだ「元に戻す」を出してから送る。F-117 */
   function remove() {
     if (!record) return;
+    discardAllUploaded();
     onClose();
     qc.setQueriesData<MemoryRecord[]>({ queryKey: ["memories", "records"] }, (old) =>
       old?.filter((r) => r.id !== record.id),
@@ -193,7 +242,7 @@ export function RecordSheet({
   }
 
   return (
-    <ResponsiveSheet title={record ? "記録を編集" : "記録する"} onClose={onClose}>
+    <ResponsiveSheet title={record ? "記録を編集" : "記録する"} onClose={close}>
       <input
         ref={camera}
         type="file"
@@ -266,7 +315,11 @@ export function RecordSheet({
                   type="button"
                   aria-label={`写真 ${i + 1} を外す`}
                   className="absolute top-0.5 right-0.5 grid size-7 place-items-center rounded-full bg-black/55 text-white"
-                  onClick={() => setSlots((all) => all.filter((x) => x.key !== s.key))}
+                  onClick={() => {
+                    // 外した写真が、まだ記録に付いていなければ、すぐ消す。F-117、#158
+                    if (s.state === "done") discardUploaded(s.photo.id);
+                    setSlots((all) => all.filter((x) => x.key !== s.key));
+                  }}
                 >
                   <X className="size-3.5" />
                 </button>
@@ -286,16 +339,9 @@ export function RecordSheet({
       />
 
       <div>
+        {/* 写真を選んだ後も共有先を変えられる。保存のとき、送った本人の写真だけを選んだ共有先に書き換える。#158 */}
         {!record && (
-          <SharePickerRow
-            groups={groups}
-            me={me}
-            value={groupId}
-            onChange={setGroupId}
-            disabled={slots.length > 0}
-            disabledReason="写真を追加した後は、共有先を変えられません。"
-            usualDefault={usualDefault}
-          />
+          <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} usualDefault={usualDefault} />
         )}
         <PanelRow>
           <label htmlFor="record-time">時刻</label>
@@ -336,7 +382,7 @@ export function RecordSheet({
             削除
           </Button>
         ) : (
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={close}>
             やめる
           </Button>
         )}

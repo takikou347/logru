@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { cn } from "@/lib/utils";
 import type { Photo } from "../shared/types";
 import { prefersReducedMotion } from "./motion";
+import { smallSrc } from "./parts";
 
 type Rect = { top: number; left: number; width: number; height: number };
 type Anim = { rect: Rect; dx: number; dy: number; sx: number; sy: number };
@@ -83,9 +84,9 @@ export function CoverOpen({
     "absolute inset-0 overflow-hidden rounded-[22px] bg-cover bg-center",
     !cover && `c-${tone} bg-(--c) opacity-70`,
   );
-  // 奥の色は 0024 のとおり縮小画像(tiny)を広げる。表紙そのものは、一覧の表紙と同じ本物の写真(thumbUrl)で見せる
+  // 奥の色は 0024 のとおり縮小画像(tiny)を広げる。表紙そのものは、一覧の表紙と同じ small(#158)で見せる
   const insideStyle = cover ? { backgroundImage: `url(${cover.tiny})` } : undefined;
-  const coverStyle = cover ? { backgroundImage: `url(${cover.thumbUrl})` } : undefined;
+  const coverStyle = cover ? { backgroundImage: `url(${smallSrc(cover)})` } : undefined;
 
   return (
     <>

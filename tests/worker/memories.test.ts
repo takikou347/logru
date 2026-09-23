@@ -1,6 +1,6 @@
 import { expiryFor, isJpeg, PhotoSigner, photoKey, verifyPhotoUrl } from "@extensions/memories/server/photos";
 import { addDaysToKey, dayIndexOf, dayKeyIn, hourIn, memoryDays, startOfDayIn } from "@extensions/memories/shared/days";
-import { memoryInput, recordInput, TINY_DATA_URL_PATTERN } from "@extensions/memories/shared/schemas";
+import { memoryInput, PHOTO_DATA_URL_PATTERN, recordInput } from "@extensions/memories/shared/schemas";
 import { describe, expect, it } from "vitest";
 
 describe("思い出の日付", () => {
@@ -98,10 +98,10 @@ describe("写真の URL", () => {
   });
 
   it("tiny は data URL の全体を確かめる。頭だけの一致では通さない。0065、#161", () => {
-    expect(TINY_DATA_URL_PATTERN.test("data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==")).toBe(true);
-    expect(TINY_DATA_URL_PATTERN.test("data:image/jpeg;base64,")).toBe(false);
-    expect(TINY_DATA_URL_PATTERN.test("data:image/jpeg;base64,ok<script>")).toBe(false);
-    expect(TINY_DATA_URL_PATTERN.test("data:image/png;base64,iVBORw0KGgo=")).toBe(false);
+    expect(PHOTO_DATA_URL_PATTERN.test("data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==")).toBe(true);
+    expect(PHOTO_DATA_URL_PATTERN.test("data:image/jpeg;base64,")).toBe(false);
+    expect(PHOTO_DATA_URL_PATTERN.test("data:image/jpeg;base64,ok<script>")).toBe(false);
+    expect(PHOTO_DATA_URL_PATTERN.test("data:image/png;base64,iVBORw0KGgo=")).toBe(false);
   });
 });
 

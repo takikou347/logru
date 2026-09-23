@@ -132,18 +132,20 @@ export const recordsQuery = z
     message: "期間が正しくありません。",
   });
 
-/** 写真の大きさの上限。0021 */
+/** 写真の大きさの上限。0021、#158 */
 export const PHOTO_LIMITS = {
-  fullBytes: 3 * 1024 * 1024,
-  thumbBytes: 200 * 1024,
+  /** R2 に置く 1 枚だけの JPEG。目安は 450 KB */
+  fullBytes: 1.5 * 1024 * 1024,
+  /** 一覧、ひとコマ、1 年のらせんで使う data URL の文字数。目安は 8 KB */
+  smallChars: 16 * 1024,
   tinyChars: 4096,
   perGroup: 3000,
   /** 1 人が 1 日に送れる写真の枚数。旅行の 1 日でも十分な余白を持たせる。0065、#161 */
   perDay: 500,
 } as const;
 
-/** tiny の形。JPEG を base64 にした data URL だけを受け付ける。頭の文字だけでなく全体を確かめる。0065、#161 */
-export const TINY_DATA_URL_PATTERN = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
+/** tiny と small の形。JPEG を base64 にした data URL だけを受け付ける。頭の文字だけでなく全体を確かめる。0065、#161 */
+export const PHOTO_DATA_URL_PATTERN = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
 
 export type MemoryInput = z.infer<typeof memoryInput>;
 export type ItemInput = z.infer<typeof itemInput>;

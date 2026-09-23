@@ -2,7 +2,7 @@ import { Plus } from "lucide-react";
 import { useId, useState } from "react";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { Dot } from "@/components/parts/Panel";
-import { dayTone, formatTime, holidayName, onDay, sameDay, WEEKDAYS } from "@/lib/dates";
+import { addDays, dateKey, dayTone, formatTime, holidayName, onDay, sameDay, startOfDay, WEEKDAYS } from "@/lib/dates";
 import { extensionGroups, extensionLabel } from "@/lib/extension-visuals";
 import { useDeviceTilt } from "@/lib/use-device-tilt";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -22,7 +22,7 @@ export const toneText = { sun: "text-sun", sat: "text-sat" } as const;
 function ItemTitle({ item }: { item: Pick<ViewItem, "title" | "myResponse" | "color"> }) {
   if (item.myResponse === "declined") {
     return (
-      <span className="truncate line-through decoration-ink-2">
+      <span className="min-w-0 flex-1 truncate line-through decoration-ink-2">
         {item.title}
         <span className="sr-only">（参加しない）</span>
       </span>
@@ -30,7 +30,7 @@ function ItemTitle({ item }: { item: Pick<ViewItem, "title" | "myResponse" | "co
   }
   return (
     <>
-      <span className="truncate">{item.title}</span>
+      <span className="min-w-0 flex-1 truncate">{item.title}</span>
       {item.myResponse === "pending" && (
         <span
           className={cn(
@@ -91,15 +91,124 @@ export function ItemList({
         return (
           <div key={key} role="group" aria-labelledby={id}>
             <KindHeading id={id} label={label} total={total} />
-            <ul className="flex min-w-0 flex-col">
-              {groupItems.map((i) =>
-                kindOf(i) === "expense" ? (
-                  <MoneyRow key={itemKey(i)} item={i} onOpen={onOpen} isLeaving={!!leaving?.has(itemKey(i))} />
-                ) : (
-                  <ItemRow key={itemKey(i)} item={i} onOpen={onOpen} isLeaving={!!leaving?.has(itemKey(i))} />
-                ),
-              )}
-            </ul>
+            <ItemRows items={groupItems} onOpen={onOpen} leaving={leaving} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * 一覧の行の並び。金額の項目(kind が expense)は MoneyRow、それ以外は ItemRow。
+ * ItemList(拡張ごとの見出し)、FlatItemList、UpcomingList が共通で使う。
+ */
+function ItemRows({
+  items,
+  onOpen,
+  leaving,
+}: {
+  items: ViewItem[];
+  onOpen: (i: ViewItem) => void;
+  leaving?: Set<string>;
+}) {
+  return (
+    <ul className="flex min-w-0 flex-col">
+      {items.map((i) =>
+        kindOf(i) === "expense" ? (
+          <MoneyRow key={itemKey(i)} item={i} onOpen={onOpen} isLeaving={!!leaving?.has(itemKey(i))} />
+        ) : (
+          <ItemRow key={itemKey(i)} item={i} onOpen={onOpen} isLeaving={!!leaving?.has(itemKey(i))} />
+        ),
+      )}
+    </ul>
+  );
+}
+
+/**
+ * 週・日の表示の 1 日ぶんの一覧。拡張ごとに見出しを分けず、含まれる拡張の名前を 1 行にまとめる。
+ * 予定を先に、拡張の項目をあとに並べる。今日の中身が拡張ごとの見出しで縦に伸び、他の日が隠れるのを防ぐ。#14
+ * @param empty 1 件も無いときに出す文
+ * @param leaving 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98
+ */
+export function FlatItemList({
+  items,
+  onOpen,
+  empty,
+  leaving,
+}: {
+  items: ViewItem[];
+  onOpen: (i: ViewItem) => void;
+  empty: string;
+  leaving?: Set<string>;
+}) {
+  if (items.length === 0) return <p className="py-2.5 text-[13px] leading-relaxed text-ink-2">{empty}</p>;
+  const present = extensionGroups().filter((g) => items.some((i) => i.extension === g.key));
+  const ordered = [...items].sort((a, b) => Number(kindOf(a) !== "event") - Number(kindOf(b) !== "event"));
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      {present.length > 1 && (
+        <p className="px-0.5 text-xs font-bold text-ink-2">{present.map((g) => g.label).join("・")}</p>
+      )}
+      <ItemRows items={ordered} onOpen={onOpen} leaving={leaving} />
+    </div>
+  );
+}
+
+/** 「このあと」の日の見出し。今日は出さず、明日は「明日」、それ以降は `9/27(日)` の形。#5 */
+function upcomingDayHeading(day: Date, today: Date): string | null {
+  if (sameDay(day, today)) return null;
+  if (sameDay(day, addDays(today, 1))) return "明日";
+  return `${day.getMonth() + 1}/${day.getDate()}(${WEEKDAYS[day.getDay()]})`;
+}
+
+/** 項目を、始まりの日ごとにまとめる。items は時刻の早い順である前提 */
+function groupByDay(items: ViewItem[]): { day: Date; items: ViewItem[] }[] {
+  const out: { key: string; day: Date; items: ViewItem[] }[] = [];
+  for (const item of items) {
+    const day = startOfDay(new Date(item.startsAt));
+    const key = dateKey(day);
+    const last = out[out.length - 1];
+    if (last?.key === key) last.items.push(item);
+    else out.push({ key, day, items: [item] });
+  }
+  return out;
+}
+
+/**
+ * 「このあと」の一覧。日が変わる所に見出しを入れる。天気のような secondary な項目は呼び出す側で除く。#5
+ * @param today 今日の 0 時。見出しを「明日」にするかどうかに使う
+ * @param empty 1 件も無いときに出す文
+ * @param leaving 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98
+ */
+export function UpcomingList({
+  items,
+  today,
+  onOpen,
+  empty,
+  leaving,
+}: {
+  items: ViewItem[];
+  today: Date;
+  onOpen: (i: ViewItem) => void;
+  empty: string;
+  leaving?: Set<string>;
+}) {
+  const headingId = useId();
+  if (items.length === 0) return <p className="py-2.5 text-[13px] leading-relaxed text-ink-2">{empty}</p>;
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      {groupByDay(items).map(({ day, items: dayItems }) => {
+        const heading = upcomingDayHeading(day, today);
+        const id = `${headingId}-${dateKey(day)}`;
+        return (
+          <div key={dateKey(day)} role="group" aria-labelledby={heading ? id : undefined}>
+            {heading && (
+              <p id={id} className="mb-1 px-0.5 text-xs font-bold text-ink-2">
+                {heading}
+              </p>
+            )}
+            <ItemRows items={dayItems} onOpen={onOpen} leaving={leaving} />
           </div>
         );
       })}
@@ -145,8 +254,10 @@ function ItemRow({
           {Icon && <Icon className="size-3.5 flex-none text-ink-2" aria-hidden="true" />}
           {kind !== "event" && <span className="sr-only">{extensionLabel(i.extension)}、</span>}
           <ItemTitle item={i} />
+          {/* グループ名は題名のすぐ右に置く。幅の広い週の表で、遠く離れないようにする。#14
+              天気は共有するものではないので出さない。issue #17 */}
           {i.extension !== "weather" && (
-            <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
+            <span className="flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
           )}
         </span>
       </button>

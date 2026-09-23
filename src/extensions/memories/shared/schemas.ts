@@ -132,10 +132,12 @@ export const recordsQuery = z
     message: "期間が正しくありません。",
   });
 
-/** 写真の大きさの上限。0021 */
+/** 写真の大きさの上限。0021、#158 */
 export const PHOTO_LIMITS = {
-  fullBytes: 3 * 1024 * 1024,
-  thumbBytes: 200 * 1024,
+  /** R2 に置く 1 枚だけの JPEG。目安は 450 KB */
+  fullBytes: 1.5 * 1024 * 1024,
+  /** 一覧、ひとコマ、1 年のらせんで使う data URL の文字数。目安は 8 KB */
+  smallChars: 16 * 1024,
   tinyChars: 4096,
   perGroup: 3000,
 } as const;

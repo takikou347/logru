@@ -74,15 +74,22 @@ export class PhotoSigner {
     return `/api/memories/photos/${photoId}/${size}?e=${this.expires}&s=${toBase64Url(sig)}`;
   }
 
-  /** 表の 1 行を、画面に返す形にする */
+  /**
+   * 表の 1 行を、画面に返す形にする。
+   * small が無ければ、この形に変える前の写真。R2 に置いたままの thumb を URL にして代わりに使う。#158
+   */
   async photo(row: MemoryPhotoRow): Promise<Photo> {
-    const [thumbUrl, fullUrl] = await Promise.all([this.url(row.id, "thumb"), this.url(row.id, "full")]);
+    const [thumbUrl, fullUrl] = await Promise.all([
+      row.small === null ? this.url(row.id, "thumb") : Promise.resolve(null),
+      this.url(row.id, "full"),
+    ]);
     return {
       id: row.id,
       width: row.width,
       height: row.height,
       takenAt: row.takenAt?.getTime() ?? null,
       tiny: row.tiny,
+      small: row.small,
       thumbUrl,
       fullUrl,
     };

@@ -179,25 +179,25 @@ export const memoryRoutes = createRouter()
     const groupId = String(form.get("groupId") ?? "");
     await requireMemoriesGroup(db, me.id, groupId);
     const full = form.get("full");
-    const thumb = form.get("thumb");
+    const small = String(form.get("small") ?? "");
     const tiny = String(form.get("tiny") ?? "");
     const width = Number(form.get("width"));
     const height = Number(form.get("height"));
     const takenAtRaw = Number(form.get("takenAt"));
-    if (!(full instanceof File) || !(thumb instanceof File)) throw new HttpError(400, "写真を送り直してください。");
+    if (!(full instanceof File)) throw new HttpError(400, "写真を送り直してください。");
     if (
       full.size > PHOTO_LIMITS.fullBytes ||
-      thumb.size > PHOTO_LIMITS.thumbBytes ||
+      small.length > PHOTO_LIMITS.smallChars ||
       tiny.length > PHOTO_LIMITS.tinyChars
     ) {
       return c.json({ error: "写真が大きすぎます。" }, 413);
     }
-    if (!tiny.startsWith("data:image/jpeg;base64,")) throw new HttpError(400, "写真を送り直してください。");
+    if (!tiny.startsWith("data:image/jpeg;base64,") || !small.startsWith("data:image/jpeg;base64,"))
+      throw new HttpError(400, "写真を送り直してください。");
     if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1)
       throw new HttpError(400, "写真を送り直してください。");
-    const [fullBytes, thumbBytes] = await Promise.all([full.arrayBuffer(), thumb.arrayBuffer()]);
-    if (!isJpeg(new Uint8Array(fullBytes)) || !isJpeg(new Uint8Array(thumbBytes)))
-      throw new HttpError(400, "JPEG の写真だけを受け付けます。");
+    const fullBytes = await full.arrayBuffer();
+    if (!isJpeg(new Uint8Array(fullBytes))) throw new HttpError(400, "JPEG の写真だけを受け付けます。");
     const total = await db.select({ n: count() }).from(memoryPhotos).where(eq(memoryPhotos.groupId, groupId)).get();
     if ((total?.n ?? 0) >= PHOTO_LIMITS.perGroup) {
       throw new HttpError(
@@ -206,28 +206,58 @@ export const memoryRoutes = createRouter()
       );
     }
     const id = crypto.randomUUID();
-    await Promise.all([
-      c.env.MEMORIES_BUCKET.put(photoKey(id, "full"), fullBytes, { httpMetadata: { contentType: "image/jpeg" } }),
-      c.env.MEMORIES_BUCKET.put(photoKey(id, "thumb"), thumbBytes, { httpMetadata: { contentType: "image/jpeg" } }),
-    ]);
+    // R2 には full だけを置く。1 枚に 1 つの鍵。#158
+    await c.env.MEMORIES_BUCKET.put(photoKey(id, "full"), fullBytes, { httpMetadata: { contentType: "image/jpeg" } });
     await db.insert(memoryPhotos).values({
       id,
       groupId,
       createdBy: me.id,
       width,
       height,
-      bytes: fullBytes.byteLength + thumbBytes.byteLength,
+      bytes: fullBytes.byteLength,
       takenAt: Number.isFinite(takenAtRaw) && takenAtRaw > 0 ? new Date(takenAtRaw) : null,
       tiny,
+      small,
     });
     const row = (await db.select().from(memoryPhotos).where(eq(memoryPhotos.id, id)).get())!;
     return c.json(await signer(c).photo(row), 201);
+  })
+  /**
+   * 使わなかった写真をすぐ消す。シートを閉じたときや、写真を外したときに呼ぶ。#158
+   * 送った本人の、まだ記録に付いていない写真だけ消せる。ほかの人の写真や、既に付いた写真は 403。
+   */
+  .delete("/photos/:photoId", async (c) => {
+    const db = c.get("db");
+    const me = c.get("user");
+    const row = await db
+      .select()
+      .from(memoryPhotos)
+      .where(eq(memoryPhotos.id, c.req.param("photoId")))
+      .get();
+    if (!row) return c.body(null, 204);
+    if (row.createdBy !== me.id || row.recordId !== null) throw new HttpError(403, "この写真は削除できません。");
+    await db.delete(memoryPhotos).where(eq(memoryPhotos.id, row.id));
+    return c.body(null, 204);
   })
   .post("/records", zValidator("json", recordInput, validationHook), async (c) => {
     const db = c.get("db");
     const me = c.get("user");
     const input = c.req.valid("json");
     await requireMemoriesGroup(db, me.id, input.groupId);
+    // 写真を選んだ後に共有先を変えても付けられるよう、送った本人の、まだ記録に付いていない写真だけ
+    // 選んだ共有先に書き換える。ほかの人の写真や、既に記録に付いた写真は書き換えない。#158
+    if (input.photoIds.length) {
+      await db
+        .update(memoryPhotos)
+        .set({ groupId: input.groupId })
+        .where(
+          and(
+            inArray(memoryPhotos.id, input.photoIds),
+            eq(memoryPhotos.createdBy, me.id),
+            isNull(memoryPhotos.recordId),
+          ),
+        );
+    }
     const photos = (await requirePhotos(db, me.id, input.groupId, input.photoIds)) ?? [];
     const firstTaken = input.photoIds.map((id) => photos.find((p) => p.id === id)?.takenAt).find(Boolean);
     const occurredAt = new Date(Math.min(input.occurredAt ?? firstTaken?.getTime() ?? Date.now(), Date.now()));

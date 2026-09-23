@@ -9,14 +9,9 @@ import { addEvent, addExtension, logOut, signUp } from "./helpers";
  * 見つかったものは別の issue に自動で立てる運用にする(0038)。ここでは重大なものだけを守る。
  */
 
-/**
- * critical・serious のときだけ落とす。moderate・minor は名前だけコンソールに出す
- * @param exclude 分かっていて、まだ直していない違反の場所。直したら消すこと。issue #154
- */
-async function checkA11y(page: Page, label: string, exclude: readonly string[] = []) {
-  let builder = new AxeBuilder({ page });
-  for (const sel of exclude) builder = builder.exclude(sel);
-  const results = await builder.analyze();
+/** critical・serious のときだけ落とす。moderate・minor は名前だけコンソールに出す */
+async function checkA11y(page: Page, label: string) {
+  const results = await new AxeBuilder({ page }).analyze();
   const severe = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
   const minor = results.violations.filter((v) => v.impact !== "critical" && v.impact !== "serious");
   if (minor.length > 0) {
@@ -48,18 +43,25 @@ test("予定のシートに重大な違反が無い", async ({ page }) => {
 });
 
 test("設定の各節に重大な違反が無い", async ({ page }) => {
-  for (const [path, title, exclude] of [
-    ["/settings/appearance", "見た目", []],
-    ["/settings/notifications", "通知", []],
-    ["/settings/extensions", "機能", []],
-    ["/settings/usage", "使い方", []],
-    // 「アカウントを消す」の明暗の比が足りない。分かっていて、まだ直していない。issue #154
-    ["/settings/account", "アカウント", ['[data-variant="danger"]']],
+  for (const [path, title] of [
+    ["/settings/appearance", "見た目"],
+    ["/settings/notifications", "通知"],
+    ["/settings/extensions", "機能"],
+    ["/settings/usage", "使い方"],
+    ["/settings/account", "アカウント"],
   ] as const) {
     await page.goto(path);
     await expect(page.getByRole("heading", { name: title, level: 1 })).toBeVisible();
-    await checkA11y(page, `設定・${title}`, exclude);
+    await checkA11y(page, `設定・${title}`);
   }
+});
+
+test("グループの詳しい画面に重大な違反が無い", async ({ page }) => {
+  await page.goto("/groups");
+  await page.getByLabel("グループの名前").fill("テスト");
+  await page.getByRole("button", { name: "作る" }).click();
+  await expect(page.getByRole("heading", { name: "テスト", level: 1 })).toBeVisible();
+  await checkA11y(page, "グループの詳しい画面");
 });
 
 test("機能を足す画面に重大な違反が無い", async ({ page }) => {

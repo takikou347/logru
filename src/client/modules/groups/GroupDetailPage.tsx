@@ -250,7 +250,8 @@ export function GroupDetailPage() {
           )}
         </Panel>
 
-        <Button variant="danger" className="self-start" onClick={() => setConfirmLeave(true)}>
+        {/* ページの背景に直に置くので、ガラスの面より少し濃い朱にして比を保つ。issue #154、0034 */}
+        <Button variant="danger" className="self-start text-(--sun-deep)" onClick={() => setConfirmLeave(true)}>
           グループを抜ける
         </Button>
       </Page>

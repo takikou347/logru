@@ -10,6 +10,7 @@ type ListRowForItem = Pick<ListRow, "id" | "groupId" | "createdBy" | "title" | "
 /**
  * リストをカレンダーの項目の形にする。0008、0054
  * 日付が無いリストは、探す(0046)の結果でだけ使う。作った時刻を仮の日として並べる。
+ * kind は record にする。アイコンは指定せず、拡張が登録したもの(nav.icon)をカレンダーが使う。0056
  * @param row リストの表の 1 行
  */
 function toCalendarItem(row: ListRowForItem): CalendarItem {
@@ -24,7 +25,7 @@ function toCalendarItem(row: ListRowForItem): CalendarItem {
     endsAt: hasDate ? start + DAY_MS : null,
     allDay: hasDate,
     title: row.title,
-    tag: "リスト",
+    kind: "record",
   };
 }
 

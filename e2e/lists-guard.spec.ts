@@ -141,7 +141,7 @@ test("日付を付けたリストは、その日の探す(0046)に出る", async
   expect(found.items).toHaveLength(1);
   expect(found.items[0].title).toBe("旅行の持ち物");
   expect(found.items[0].extension).toBe("lists");
-  expect(found.items[0].tag).toBe("リスト");
+  expect(found.items[0].kind).toBe("record");
 
   const none = await (await request.get("/api/search?q=見つからない", { headers: a.headers })).json();
   expect(none.items).toHaveLength(0);

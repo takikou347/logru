@@ -44,7 +44,8 @@ test("いつもの場所を選ぶと、7 日分の天気がカレンダーに出
   await expect(sheet).toContainText("渋谷区");
   await expect(sheet).toContainText("気象データ: Open-Meteo.com");
   await expect(sheet.getByRole("button", { name: /消す|保存/ })).toHaveCount(0);
-  await sheet.getByRole("button", { name: "閉じる" }).click();
+  // 「閉じる」のボタンは、下の明示のボタンと、右上の X の読み上げ名がどちらも「閉じる」なので先頭を取る
+  await sheet.getByRole("button", { name: "閉じる" }).first().click();
 
   // いつもの場所を消すと、天気はカレンダーから出なくなる。F-402、F-409
   await page.goto("/settings/extensions/weather");

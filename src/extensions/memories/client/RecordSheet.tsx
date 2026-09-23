@@ -341,7 +341,7 @@ export function RecordSheet({
           </Button>
         )}
         <Button className="flex-1" onClick={save} disabled={sending || saving}>
-          {sending ? "写真を送信しています" : "保存する"}
+          {sending ? "写真を送っています" : "保存する"}
         </Button>
       </div>
     </ResponsiveSheet>

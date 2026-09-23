@@ -67,14 +67,17 @@ function DayPanelWidget({ editing }: HomeWidgetProps) {
   );
 }
 
-/** このあと。近い順に 5 件。週・日の表示では隠す */
+/**
+ * このあと。近い順に 5 件。週・日の表示では隠す
+ * スマホの下の操作の帯に近い位置に出るので、面の余白を少し詰め、隠れる範囲を減らす。issue #119
+ */
 function UpcomingWidget({ editing }: HomeWidgetProps) {
   const { upcoming, leaving, open } = useCalendarHome();
   return (
     <OnlyInMonthView editing={editing}>
-      <section className="glass rounded-panel px-4.5 py-4" aria-label="このあとの予定">
-        <h2 className="mb-1 text-xs font-bold text-ink-2">このあと</h2>
-        <ItemList items={upcoming} leaving={leaving} onOpen={open} empty="この期間に、このあとの予定はありません。" />
+      <section className="glass rounded-panel px-4.5 py-3" aria-label="このあとの予定">
+        <h2 className="mb-0.5 text-xs font-bold text-ink-2">このあと</h2>
+        <ItemList items={upcoming} leaving={leaving} onOpen={open} empty="近い予定はありません。" />
       </section>
     </OnlyInMonthView>
   );

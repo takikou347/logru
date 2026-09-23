@@ -5,10 +5,13 @@ import { apiUser } from "./helpers";
 
 test("ホームの OG タグに、アプリの一行説明が入る", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "Logru");
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+    "content",
+    "Logru(ログる)予定も思い出も、ひとつのカレンダーに",
+  );
   await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
     "content",
-    "カレンダーを土台に、使いたい機能だけを足して使うアプリ。",
+    "家族や恋人と予定を分け合えるカレンダー。旅の思い出や毎日の写真、家計簿も同じ日に残せます。",
   );
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", /\/og-image\.png$/);
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
@@ -26,7 +29,9 @@ test("招待リンクの OG タグは、グループの名前を出さずに招�
   const res = await request.get(new URL(url).pathname);
   const html = await res.text();
   expect(html).toContain('<meta property="og:title" content="Logru への招待" />');
-  expect(html).toContain('<meta property="og:description" content="Logru への招待が届いています。" />');
+  expect(html).toContain(
+    '<meta property="og:description" content="Logru で、いっしょに予定を分け合いませんか。リンクから参加できます。" />',
+  );
   expect(html).toContain(`<meta property="og:url" content="${url}" />`);
   expect(html).toMatch(/<meta property="og:image" content="[^"]+\/og-image\.png" \/>/);
   expect(html).not.toContain("ひみつのグループ名");

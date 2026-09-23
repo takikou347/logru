@@ -1,6 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { createRouter, isLocalDev, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import { enforceRateLimit } from "@server/core/rate-limit";
 import { eq } from "drizzle-orm";
 import { weatherLocationInput, weatherSearchQuery } from "../shared/schemas";
 import { placeKeyOf, upsertDaily } from "./cache";
@@ -47,6 +48,8 @@ export const weatherRoutes = createRouter()
     const db = c.get("db");
     const userId = c.get("user").id;
     const input = c.req.valid("json");
+    // 場所の保存も Open-Meteo を呼ぶので、検索や過去の天気と同じ枠で数える。0065、#161
+    await enforceRateLimit(c.env.WEATHER_RATE_LIMIT, userId);
     await db
       .insert(weatherLocations)
       .values({ userId, name: input.name, latitude: input.latitude, longitude: input.longitude })
@@ -73,6 +76,7 @@ export const weatherRoutes = createRouter()
   })
   .get("/search", zValidator("query", weatherSearchQuery, validationHook), async (c) => {
     const { q } = c.req.valid("query");
+    await enforceRateLimit(c.env.WEATHER_RATE_LIMIT, c.get("user").id);
     try {
       const results = await fetchGeocode(q, c.env, c.req.url);
       return c.json({ results });

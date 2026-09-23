@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useSearch } from "@/modules/search/api";
-import { decorate, type ViewItem } from "../model";
+import { kindIconOf } from "../kind-icon";
+import { decorate, KIND_LABEL, kindOf, type ViewItem } from "../model";
 
 /** 探す文字を止めてから API を呼ぶまでの間。連打のたびに探させない */
 const DEBOUNCE_MS = 300;
@@ -26,6 +27,8 @@ function formatResultDate(ms: number): string {
 }
 
 function ResultRow({ item, onOpen }: { item: ViewItem; onOpen: (item: ViewItem) => void }) {
+  const kind = kindOf(item);
+  const Icon = kind !== "event" ? kindIconOf(item) : null;
   return (
     <li className="border-line not-first:border-t">
       <button
@@ -35,11 +38,8 @@ function ResultRow({ item, onOpen }: { item: ViewItem; onOpen: (item: ViewItem) 
       >
         <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <Dot color={item.color} />
-          {item.tag && (
-            <span className="flex-none rounded-[5px] bg-[color-mix(in_srgb,var(--ink)_10%,transparent)] px-1 text-[10px] leading-4 font-bold text-ink-2">
-              {item.tag}
-            </span>
-          )}
+          {Icon && <Icon className="size-3.5 flex-none text-ink-2" aria-hidden="true" />}
+          {kind !== "event" && <span className="sr-only">{KIND_LABEL[kind]}、</span>}
           <span className="truncate">{item.title}</span>
         </span>
         <span className="truncate text-xs text-ink-2">

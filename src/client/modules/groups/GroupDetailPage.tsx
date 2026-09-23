@@ -36,7 +36,7 @@ type Invite = { url: string; expiresAt: number };
 type ColorTarget = { type: "group" | "user"; id: string; title: string; fallback: string };
 
 /**
- * グループの詳しい画面。名前、色、メンバー、招待、拡張機能、抜ける。F-10〜F-15、F-19
+ * グループの詳しい画面。名前、色、メンバー、招待、機能、抜ける。F-10〜F-15、F-19
  * 名前とグループの色と招待と拡張の切り替えは、管理者だけが変えられる。
  * 自分だけのグループを開いたら、一覧へ戻す。0009
  */
@@ -222,7 +222,7 @@ export function GroupDetailPage() {
           </Panel>
         )}
 
-        <Panel title="拡張機能">
+        <Panel title="機能">
           <PanelRow>
             <span>予定</span>
             <Switch checked disabled aria-label="予定。いつも使えます" />
@@ -241,7 +241,7 @@ export function GroupDetailPage() {
             ))
           ) : (
             <Empty>
-              足せる拡張はまだありません。
+              足せる機能はまだありません。
               <br />
               予定はいつも使えます。
             </Empty>

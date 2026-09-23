@@ -103,11 +103,12 @@ test("グループの色を、自分の画面の中だけで変え、元に戻�
   await page.getByRole("button", { name: /ふたり/ }).click();
   const sheet = page.getByRole("dialog", { name: "ふたり の色" });
   await sheet.getByRole("radio", { name: "柿" }).click();
-  await sheet.getByRole("button", { name: "閉じる" }).click();
+  // 「閉じる」のボタンは、下の明示のボタンと、右上の X の読み上げ名がどちらも「閉じる」なので先頭を取る
+  await sheet.getByRole("button", { name: "閉じる" }).first().click();
   await expect(page.getByRole("button", { name: /ふたり.*自分だけ変えた/ })).toBeVisible();
   await page.getByRole("button", { name: /ふたり/ }).click();
   await page.getByRole("dialog", { name: "ふたり の色" }).getByRole("button", { name: "元の色に戻す" }).click();
-  await page.getByRole("dialog", { name: "ふたり の色" }).getByRole("button", { name: "閉じる" }).click();
+  await page.getByRole("dialog", { name: "ふたり の色" }).getByRole("button", { name: "閉じる" }).first().click();
   await expect(page.getByRole("button", { name: /ふたり.*グループの色のまま/ })).toBeVisible();
 });
 

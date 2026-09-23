@@ -143,7 +143,8 @@ test("招待された人は予定を直せ、直した内容は作った人に�
   await expect(readOnly.getByRole("button", { name: "予定を消す" })).toHaveCount(0);
   await expect(readOnly.getByRole("group", { name: "招待する人" })).toHaveCount(0);
   await expect(readOnly.getByRole("region", { name: "参加者" })).toContainText("みか");
-  await readOnly.getByRole("button", { name: "閉じる" }).click();
+  // 「閉じる」のボタンは、下の明示のボタンと、右上の X の読み上げ名がどちらも「閉じる」なので先頭を取る
+  await readOnly.getByRole("button", { name: "閉じる" }).first().click();
   await expect(readOnly).toHaveCount(0);
 });
 

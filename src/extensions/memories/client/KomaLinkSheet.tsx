@@ -1,11 +1,10 @@
 import type { GroupSummary, Me } from "@shared/api-types";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Chip } from "@/components/parts/Chip";
-import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
+import { FieldMessage, PanelRow } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
+import { SharePickerRow } from "@/components/parts/SharePicker";
 import { Button } from "@/components/ui/button";
-import { groupColor } from "@/lib/colors";
 import { startOfDayIn } from "../shared/days";
 import { useInvalidateMemories, useMemoryList } from "./api";
 import { deviceTimeZone, useSaveKomaDay } from "./koma-api";
@@ -69,29 +68,16 @@ export function KomaLinkSheet({
       description={current ? undefined : "今日の 7 時から 22 時台まで、1 時間に 1 枚ずつ写真を残せます。"}
       onClose={onClose}
     >
-      <PanelRow>
-        <span>共有</span>
-        <span
-          className="flex max-w-[70%] flex-wrap justify-end gap-1.5"
-          role="radiogroup"
-          aria-label="共有するグループ"
-        >
-          {groups.map((g) => (
-            <Chip
-              key={g.id}
-              role="radio"
-              aria-checked={groupId === g.id}
-              onClick={() => {
-                setGroupId(g.id);
-                setMemoryId(null);
-              }}
-            >
-              <Dot color={groupColor(g, me.colorPrefs)} />
-              {g.isPersonal ? "自分だけ" : g.name}
-            </Chip>
-          ))}
-        </span>
-      </PanelRow>
+      <SharePickerRow
+        groups={groups}
+        me={me}
+        value={groupId}
+        onChange={(id) => {
+          setGroupId(id);
+          setMemoryId(null);
+        }}
+        noneLabel="自分だけ"
+      />
       <PanelRow>
         <label htmlFor="koma-memory">思い出</label>
         <select

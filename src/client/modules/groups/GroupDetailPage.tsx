@@ -9,6 +9,7 @@ import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
 import { InitialAvatar } from "@/components/parts/Avatars";
 import { ColorSheet } from "@/components/parts/ColorSheet";
 import { ColorSwatches } from "@/components/parts/ColorSwatches";
+import { ExtensionToggleRow } from "@/components/parts/ExtensionToggleRow";
 import { FailurePanel, LoadFailure } from "@/components/parts/Failure";
 import { Field } from "@/components/parts/Field";
 import { Dot, Empty, FieldMessage, Panel, PanelRow, RowButton } from "@/components/parts/Panel";
@@ -228,19 +229,15 @@ export function GroupDetailPage() {
           </PanelRow>
           {extensions.data && extensions.data.length > 0 ? (
             extensions.data.map((x) => (
-              <PanelRow key={x.key}>
-                <span className="py-2">
-                  {x.label}
-                  <br />
-                  <span className="text-xs text-ink-2">{x.description}</span>
-                </span>
-                <Switch
-                  checked={x.enabled}
-                  aria-label={x.label}
-                  disabled={!admin}
-                  onCheckedChange={(enabled) => run(() => toggleExtension.mutateAsync({ key: x.key, enabled }))}
-                />
-              </PanelRow>
+              <ExtensionToggleRow
+                key={x.key}
+                label={x.label}
+                sub={x.description}
+                checked={x.enabled}
+                canToggle={admin}
+                pending={toggleExtension.isPending && toggleExtension.variables?.key === x.key}
+                onToggle={(enabled) => run(() => toggleExtension.mutateAsync({ key: x.key, enabled }))}
+              />
             ))
           ) : (
             <Empty>

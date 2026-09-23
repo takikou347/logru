@@ -152,7 +152,7 @@ export function OnboardingSheet({
             <Button variant="secondary" className="ml-auto" onClick={() => onDone()}>
               あとで
             </Button>
-            <Button onClick={() => onDone("/extensions")}>機能の一覧へ</Button>
+            <Button onClick={() => onDone("/settings/extensions")}>機能の一覧へ</Button>
           </>
         ) : (
           <Button className="ml-auto min-w-28" onClick={next}>

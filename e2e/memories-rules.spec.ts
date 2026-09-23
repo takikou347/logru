@@ -14,7 +14,7 @@ async function groupWithMemories(page: import("@playwright/test").Page, name: st
 test("自分で思い出を使わないにすると、グループで有効でも入口も設定も出ない。0019", async ({ page }) => {
   await signUp(page);
   await groupWithMemories(page, "ふたり");
-  await page.goto("/extensions");
+  await page.goto("/settings/extensions");
   const toggle = page.getByRole("switch", { name: "思い出を使う" });
   await expect(toggle).toBeChecked();
   await toggle.click();
@@ -27,10 +27,10 @@ test("自分で思い出を使わないにすると、グループで有効で�
   await expect(sheet.getByRole("link", { name: /思い出/ })).toHaveCount(0);
   await expect(sheet.getByRole("link", { name: /記録する/ })).toHaveCount(0);
 
-  await page.goto("/settings");
+  await page.goto("/settings/notifications");
   await expect(page.getByRole("region", { name: "この端末の通知" })).toHaveCount(0);
   await page.goto("/memories");
-  await expect(page).toHaveURL(/\/extensions$/);
+  await expect(page).toHaveURL(/\/settings\/extensions$/);
 });
 
 test("記録はいつでも「共有しない」を選べる", async ({ page }) => {

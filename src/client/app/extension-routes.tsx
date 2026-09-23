@@ -17,8 +17,8 @@ function ExtensionGate({ manifest, Page }: { manifest: ExtensionManifest; Page: 
   const groups = useGroups();
   if (groups.isPending) return <Loading />;
   const on = enabledKeys(clientExtensions, groups.data ?? []).has(manifest.key);
-  // 近道などから、使っていない拡張の画面を開こうとしたとき。機能の一覧へ案内する。#110
-  if (!on) return <Navigate to={`/extensions?off=${encodeURIComponent(manifest.label)}`} replace />;
+  // 近道などから、使っていない拡張の画面を開こうとしたとき。設定の「機能」へ案内する。#110
+  if (!on) return <Navigate to={`/settings/extensions?off=${encodeURIComponent(manifest.label)}`} replace />;
   return (
     <>
       <Page />

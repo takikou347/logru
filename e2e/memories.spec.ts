@@ -8,7 +8,7 @@ const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/
 
 /** 機能の一覧で、思い出を自分だけで使えるようにする */
 async function enableMemories(page: import("@playwright/test").Page) {
-  await page.goto("/extensions");
+  await page.goto("/settings/extensions");
   const toggle = page.getByRole("switch", { name: "思い出を使う" });
   await toggle.click();
   await expect(toggle).toBeChecked();
@@ -17,7 +17,7 @@ async function enableMemories(page: import("@playwright/test").Page) {
 test("使えるようにする前は、思い出の画面は開けない", async ({ page }) => {
   await signUp(page);
   await page.goto("/memories");
-  await expect(page).toHaveURL(/\/extensions$/);
+  await expect(page).toHaveURL(/\/settings\/extensions$/);
 });
 
 test("思い出を作り、写真付きで記録し、いいねを付け、カレンダーに出る", async ({ page }) => {

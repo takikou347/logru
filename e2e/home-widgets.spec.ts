@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
 
 /** 機能の一覧で、思い出を使うかを切り替える */
 async function setMemories(page: Page, on: boolean) {
-  await page.goto("/extensions");
+  await page.goto("/settings/extensions");
   const toggle = page.getByRole("switch", { name: "思い出を使う" });
   if ((await toggle.isChecked()) !== on) await toggle.click();
   await expect(toggle).toBeChecked({ checked: on });

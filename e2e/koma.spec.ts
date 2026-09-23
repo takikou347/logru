@@ -15,7 +15,7 @@ const inKomaHours = () => hourInTokyo() >= 7 && hourInTokyo() <= 22;
 test("思い出が無い日でも、今日をひとコマで始め、近道の帯から撮れる。F-121、F-126、F-127", async ({ page }) => {
   test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
   await signUp(page, { name: "こた" });
-  await page.goto("/extensions");
+  await page.goto("/settings/extensions");
   await page.getByRole("switch", { name: "思い出を使う" }).click();
 
   // 機能のシートの「ひとコマ」から確認画面へ。今日を始める
@@ -53,7 +53,7 @@ test("思い出が無い日でも、今日をひとコマで始め、近道の�
 test("ひとコマは思い出を消しても残り、つなぎ直せる。F-128、F-129", async ({ page, request }) => {
   test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
   await signUp(page, { name: "こた" });
-  await page.goto("/extensions");
+  await page.goto("/settings/extensions");
   await page.getByRole("switch", { name: "思い出を使う" }).click();
 
   // 今日の日帰りの思い出を、ひとコマを有効にして作る

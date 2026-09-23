@@ -22,6 +22,8 @@ export type Me = {
   colorPrefs: { targetType: "group" | "user"; targetId: string; color: string }[];
   /** カレンダーに出さない人の ID。自分の画面だけの設定。F-20 */
   hiddenMembers: string[];
+  /** はじめての案内を見終えたか飛ばした日時。null ならカレンダーで案内を出す。F-32 */
+  onboardedAt: number | null;
 };
 
 /** グループのメンバー */

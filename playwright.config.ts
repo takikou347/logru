@@ -3,6 +3,8 @@ import { defineConfig, devices } from "@playwright/test";
 // 並べて流すときは、E2E_PORT で番号を変える。例は E2E_PORT=4174 pnpm e2e
 const PORT = Number(process.env.E2E_PORT ?? 4173);
 const baseURL = `http://localhost:${PORT}`;
+/** src/client/modules/onboarding/model.ts の E2E_SKIP_KEY と同じ値 */
+const E2E_SKIP_ONBOARDING = "logru-e2e-skip-onboarding";
 
 /**
  * 本番と同じ形に組み立てたものに向けて流す。ブラウザは入っている Chrome を使う。
@@ -21,6 +23,11 @@ export default defineConfig({
     channel: "chrome",
     locale: "ja-JP",
     timezoneId: "Asia/Tokyo",
+    // はじめての案内は、それを確かめるテスト(onboarding.spec.ts)でだけ出す。ほかのテストの操作を塞がないように。F-32
+    storageState: {
+      cookies: [],
+      origins: [{ origin: baseURL, localStorage: [{ name: E2E_SKIP_ONBOARDING, value: "1" }] }],
+    },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

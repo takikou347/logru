@@ -20,6 +20,7 @@ import { poolColorsOf } from "../calendar/model";
 import { AvatarSection } from "./AvatarSection";
 import { useUpdateName, useUpdateSettings } from "./api";
 import { DeleteAccountSheet } from "./components/DeleteAccountSheet";
+import { HelpSection } from "./components/HelpSection";
 import { PushSection } from "./components/PushSection";
 
 const MODES = [
@@ -147,6 +148,8 @@ export function SettingsPage() {
         {clientExtensions.map((x) => x.SettingsSection && <x.SettingsSection key={x.manifest.key} />)}
 
         <PushSection />
+
+        <HelpSection />
 
         <Panel title="アカウント">
           <div>

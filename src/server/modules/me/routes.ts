@@ -25,6 +25,7 @@ import {
 import { vapidKeys } from "@server/core/push/send";
 import { myGroupIds, sharesGroup } from "@server/modules/groups/membership";
 import type { HomeLayout, Me, PushInfo } from "@shared/api-types";
+import { toHomeWidgetEntry } from "@shared/home";
 import { LEGAL_VERSIONS, type LegalDocument } from "@shared/legal";
 import {
   agreementsInput,
@@ -164,7 +165,8 @@ export const meRoutes = createRouter()
       .from(homeLayouts)
       .where(and(eq(homeLayouts.userId, c.get("user").id), eq(homeLayouts.form, form)))
       .get();
-    const body: HomeLayout = { widgets: row?.widgets ?? null };
+    // 前に保存した並びは大きさも持つが、key だけを返す。0037
+    const body: HomeLayout = { widgets: row?.widgets.map(toHomeWidgetEntry) ?? null };
     return c.json(body);
   })
   .get("/deletion", async (c) => {

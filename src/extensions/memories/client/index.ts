@@ -2,7 +2,7 @@ import type { ClientExtension } from "@extensions/client/types";
 import { BookOpen, Camera, Timer } from "lucide-react";
 import { memoriesManifest } from "../manifest";
 import { describeMemoriesNotification } from "../shared/notifications";
-import { MemoriesHomeWidget } from "./HomeWidget";
+import { KomaHomeWidget, RecordHomeWidget } from "./HomeWidget";
 import { MemoryItemSheet } from "./MemoryItemSheet";
 import { MemoryLinkField } from "./MemoryLinkField";
 import { useKomaShortcut } from "./shortcut";
@@ -23,15 +23,21 @@ export const memoriesClient: ClientExtension = {
   notifies: "ひとコマの時間",
   describeNotification: describeMemoriesNotification,
   itemAddons: [{ extension: "events", Component: MemoryLinkField }],
+  // 前の「思い出の近道」(memories.shortcut)は、この 2 つに置き換えた。移行の 0013 が並びを書き換える。0037
   widgets: [
     {
-      key: "memories.shortcut",
-      label: "思い出の近道",
-      description: "近道の帯と同じ、いま押してほしい思い出の操作。ひとコマの時間などをお知らせします。",
-      sizes: ["small", "medium"],
-      defaultSize: "small",
+      key: "memories.koma",
+      label: "ひとコマ",
+      description: "ひとコマの画面を開きます。1 時間に 1 枚、いまの写真を残せます。",
       defaultPlaced: true,
-      Component: MemoriesHomeWidget,
+      Component: KomaHomeWidget,
+    },
+    {
+      key: "memories.record",
+      label: "記録する",
+      description: "記録のシートを開きます。写真と一言を残せます。",
+      defaultPlaced: true,
+      Component: RecordHomeWidget,
     },
   ],
   pages: [

@@ -149,7 +149,7 @@ export const homeLayouts = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     form: text("form", { enum: ["desktop", "mobile"] }).notNull(),
-    /** key と大きさの並び。ウィジェットの中身は持たない */
+    /** key の並び。ウィジェットの中身は持たない。前に保存した行は大きさ(size)も持つが、読まない。0037 */
     widgets: text("widgets", { mode: "json" }).$type<HomeWidgetEntry[]>().notNull(),
     updatedAt: updatedAt(),
   },

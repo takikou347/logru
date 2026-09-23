@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react";
 import { type CSSProperties, useRef, useState } from "react";
 // item.people(ViewAttendee)は model.ts の attendeeViews が名前・色・アイコンの URL を引いた済み。
 // 返事の状態も持つので、人の ID からではなく AvatarStack を直に使う。0064
@@ -52,6 +53,8 @@ export type MonthGridBodyProps = {
   /** 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98 */
   leaving?: Set<string>;
   onPressDay: (d: Date) => void;
+  /** PC で、マスに乗せたときに出る小さな「+」を押したとき。その日を選び、直接シートを開く。#148、0061 */
+  onAddNewDay: (d: Date) => void;
   onOpenItem: (item: ViewItem) => void;
 };
 
@@ -60,7 +63,8 @@ export type MonthGridBodyProps = {
  *
  * スマホは、マスに色の点だけを出す。何日も続く予定は、点の代わりに、かかる日をつなぐ細い線にする。
  * PC は、マスに予定の名前まで出す。何日も続く予定は、週の行ごとに 1 本の帯にする。
- * どちらの幅でも、日付を押すと、その日の予定を足すシートが開く。長押しでも同じ。0012
+ * どちらの幅でも、日付を押すと、その日を選ぶ。長押しでも同じ。PC はマスに乗せると小さな「+」が出て、
+ * 押すとその日で直接シートが開く。#148、0061
  *
  * 今日は丸で囲まず、マスを板にして、上端にしおりを垂らす。
  *
@@ -69,7 +73,8 @@ export type MonthGridBodyProps = {
  *
  * @param days 表に並べる日。週の頭から、7 日ずつ
  * @param month いまの月。前後の月の日は薄くする
- * @param onPressDay 日付のマスか「ほか n 件」を押したとき。長押しも含む
+ * @param onPressDay 日付のマスか「ほか n 件」を押したとき。長押しも含む。その日を選ぶだけ。#148、0061
+ * @param onAddNewDay PC で、マスに乗せたときに出る小さな「+」を押したとき。#148、0061
  * @param onOpenItem PC で予定を押したとき
  */
 export function MonthGridBody({
@@ -80,6 +85,7 @@ export function MonthGridBody({
   items,
   leaving,
   onPressDay,
+  onAddNewDay,
   onOpenItem,
 }: MonthGridBodyProps) {
   const press = useRef<{ timer: number; fired: boolean } | null>(null);
@@ -148,7 +154,7 @@ export function MonthGridBody({
                     viewTransitionName: isSelected ? "selected-day" : undefined,
                   }}
                   className={cn(
-                    "relative flex min-h-[52px] touch-manipulation flex-col items-center pt-1.5 select-none [-webkit-touch-callout:none]",
+                    "group relative flex min-h-[52px] touch-manipulation flex-col items-center pt-1.5 select-none [-webkit-touch-callout:none]",
                     "lg:@container lg:items-stretch lg:gap-1 lg:border-t lg:border-line lg:px-1.5 lg:pt-2 lg:pb-1.5",
                     // 日のマスは、押している間だけ 0.97 倍。:active はボタンを押した間、祖先にも付く。0044、0048、#98
                     "transition-transform duration-fast ease-in-out active:scale-97",
@@ -175,6 +181,21 @@ export function MonthGridBody({
                       onPressDay(d);
                     }}
                   />
+                  {/*
+                    PC で、マスに乗せる(またはキーボードで移る)と出る小さな「+」。押すとその日で直接シートが開く。
+                    ふだんは透明にして、日付を押すだけの操作と見分けやすくする。#148、0061
+                  */}
+                  <button
+                    type="button"
+                    className="absolute top-1 right-1 z-[4] hidden size-6 items-center justify-center rounded-full border border-(--glass-edge) bg-field text-ink-2 opacity-0 transition-opacity duration-fast ease-out group-hover:opacity-100 hover:bg-field-strong focus-visible:opacity-100 lg:flex"
+                    aria-label={`${d.getMonth() + 1}月${d.getDate()}日に足す`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddNewDay(d);
+                    }}
+                  >
+                    <Plus className="size-3.5" aria-hidden="true" />
+                  </button>
                   {isToday && (
                     <span
                       className="absolute top-0 left-1/2 z-[3] h-[5px] w-4 -translate-x-1/2 rounded-b-[3px] bg-primary lg:left-3.5 lg:w-[22px] lg:translate-x-0"

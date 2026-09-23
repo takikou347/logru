@@ -214,6 +214,18 @@ export function ExtensionTileGrid({ onNavigate }: { onNavigate?: () => void }) {
   };
   const { drag, registerSlot, onHandlePointerDown } = usePointerReorder(removable.length, !editing, move);
 
+  // 足した機能は、グループを読み終えるまで分からない。先に並びを出すと、固定のタイルだけが並んで後から増える。
+  // 読み終えるまでは、同じ大きさの淡い丸を並べて待つ
+  if (!groups.data) {
+    return (
+      <div data-testid="extension-tile-grid-loading" aria-busy="true" className="grid grid-cols-4 gap-x-2 gap-y-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="mx-auto size-16 rounded-full bg-field" />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2.5">
       {(editing || removable.length > 0) && (

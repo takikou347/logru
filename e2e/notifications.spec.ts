@@ -1,5 +1,5 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
-import { addExtension, dayPanel, pickShare, signUp } from "./helpers";
+import { addExtension, addMemories, dayPanel, pickShare, signUp } from "./helpers";
 
 /**
  * 「ふたり」のグループを作り、ほかの人を招待リンクで入れる。invitations.spec.ts と同じ作り方。
@@ -133,11 +133,12 @@ test("いいねを外して付け直しても、お知らせは 1 件のまま�
   await enableMemoriesForGroup(page, "ふたり");
   await enableMemoriesForSelf(mika!);
 
-  // こたが思い出を作り、記録する
+  // こたが思い出を作り、記録する。既定は共有しないなので、「ふたり」を選ぶ。0063
   await page.goto("/memories");
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("箱根 日帰り");
+  await pickShare(page, create, "ふたり");
   await create.getByRole("button", { name: "作る" }).click();
   await expect(page.getByRole("heading", { name: "箱根 日帰り" })).toBeVisible();
 

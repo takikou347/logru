@@ -1,12 +1,14 @@
+import type { GroupSummary, Me } from "@shared/api-types";
 import { profileInput } from "@shared/schemas";
 import { Check, Pencil, X } from "lucide-react";
 import { type FormEvent, type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
-import { useGroups, useMe } from "@/api/common";
+import { useGroups, useMe, useSetUsualShare } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { useSignOut } from "@/components/layout/AppLayout";
 import { FieldMessage, Panel, PanelRow } from "@/components/parts/Panel";
+import { SharePickerRow } from "@/components/parts/SharePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { poolColorsOf } from "../calendar/model";
@@ -17,7 +19,10 @@ import { SettingsShell } from "./components/SettingsShell";
 /** ログインに使った手段の、画面での名前 */
 const PROVIDER_LABELS: Record<string, string> = { "google.com": "Google", password: "メールとパスワード" };
 
-/** 設定の「アカウント」。表示名、メールアドレス、ログインの方法、規約、ログアウト、アカウントを消す。F-16、F-17 */
+/**
+ * 設定の「アカウント」。表示名、メールアドレス、ログインの方法、いつもの共有先、規約、ログアウト、アカウントを消す。
+ * F-16、F-17、0063、F-40
+ */
 export function AccountSettingsPage() {
   const me = useMe();
   const groups = useGroups();
@@ -26,9 +31,10 @@ export function AccountSettingsPage() {
 
   if (!me.data) return <Loading />;
   const data = me.data;
+  const list = groups.data ?? [];
 
   return (
-    <SettingsShell title="アカウント" poolColors={poolColorsOf(groups.data ?? [], data)}>
+    <SettingsShell title="アカウント" poolColors={poolColorsOf(list, data)}>
       <Panel title="アカウント">
         <div>
           <NameRow current={data.user.name} />
@@ -50,6 +56,8 @@ export function AccountSettingsPage() {
         </Button>
       </Panel>
 
+      {list.length > 0 && <UsualShareSection me={data} groups={list} />}
+
       {/* ページの背景に直に置くので、ガラスの面より少し濃い朱にして比を保つ。issue #154、0034 */}
       <Button variant="danger" className="self-start text-(--sun-deep)" onClick={() => setDeleting(true)}>
         アカウントを消す
@@ -57,6 +65,28 @@ export function AccountSettingsPage() {
 
       {deleting && <DeleteAccountSheet provider={data.provider} onClose={() => setDeleting(false)} />}
     </SettingsShell>
+  );
+}
+
+/**
+ * いつもの共有先。予定や思い出などを足すときに、最初から選んでおくグループ。0063、F-40
+ * 選べるのは「共有しない」と、入っているグループ。押してすぐ画面に効かせる
+ */
+function UsualShareSection({ me, groups }: { me: Me; groups: GroupSummary[] }) {
+  const setUsual = useSetUsualShare();
+  const personal = groups.find((g) => g.isPersonal);
+  const value = me.settings.usualShareGroupId ?? personal?.id ?? "";
+
+  return (
+    <Panel title="いつもの共有先">
+      <FieldMessage>予定や思い出などを足すとき、最初から選んでおくグループです。</FieldMessage>
+      <SharePickerRow
+        groups={groups}
+        me={me}
+        value={value}
+        onChange={(id) => setUsual.mutate(personal && id === personal.id ? null : id)}
+      />
+    </Panel>
   );
 }
 

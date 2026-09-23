@@ -8,6 +8,7 @@ import { kakeiboServer } from "@extensions/kakeibo/server/index";
 import { listsServer } from "@extensions/lists/server/index";
 import { memoriesServer } from "@extensions/memories/server/index";
 import { weatherServer } from "@extensions/weather/server/index";
+import type { DB } from "@server/core/db/client";
 import type { ServerExtension } from "./types";
 
 /** すべての拡張。並びはカレンダーの項目の並びに影響しない */
@@ -31,4 +32,10 @@ export function toggleableExtensions(): ServerExtension[] {
 /** すべての拡張が notify() で積む kind の一覧。`/api/notifications/unread-count` が数える範囲を絞るのに使う。#32 */
 export function knownNotificationKinds(): string[] {
   return serverExtensions.flatMap((x) => x.manifest.notificationKinds ?? []);
+}
+
+/** すべての拡張が R2 に置いているものの合計バイト数。storageBytes を持たない拡張は 0 として数える。0066 */
+export async function totalExtensionStorageBytes(db: DB): Promise<number> {
+  const totals = await Promise.all(serverExtensions.map((x) => x.storageBytes?.(db) ?? Promise.resolve(0)));
+  return totals.reduce((sum, n) => sum + n, 0);
 }

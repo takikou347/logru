@@ -68,6 +68,12 @@
   --dur-fast: 150ms;
   --dur-base: 220ms;
   --dur-slow: 320ms;
+
+  /*
+   * 画面の上の、ノッチなどにかかる安全な余白。CSS の変数越しに使うのは、シートの高さの上限の計算に
+   * env() をそのまま書くと、Playwright では値を作れず確かめられないため。E2E はこの変数だけ書き換える。#149
+   */
+  --safe-top: env(safe-area-inset-top);
 }
 
 :root[data-theme="dark"] {

@@ -11,6 +11,13 @@
 :root {
   /* 角丸。コンポーネントの scale。ガラスの面の scale は tokens.css の --r-panel、--r-field。0044 */
   --radius: 14px;
+  /*
+   * 下に浮かぶ帯(Dock、カレンダーの下の操作)に中身が隠れないよう空ける、下の余白。
+   * 帯の画面下からの高さ(主な「+」56px、上下の余白 12px、帯の画面下からの余白 24px を足した 94px)
+   * に、息継ぎ 12px と端末の安全な余白を足す。0062
+   * AppLayout がこの1か所だけで使う。画面ごとに数値を書かない
+   */
+  --dock-clearance: calc(94px + 12px + env(safe-area-inset-bottom));
   --background: var(--ground);
   --foreground: var(--ink);
   --card: var(--glass-flat);

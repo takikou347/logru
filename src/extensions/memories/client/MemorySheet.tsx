@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { dateKey, formatTime } from "@/lib/dates";
+import { defaultShareGroupId } from "@/lib/share-default";
 import { useCalendar } from "@/modules/calendar/api";
 import { addDaysToKey, dayKeyIn, daysBetween, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
 import { memoryOfEvent, overlaps } from "../shared/links";
@@ -55,8 +56,6 @@ export function MemorySheet({
   const invalidate = useInvalidateMemories();
   const linkEvent = useLinkEventToMemory();
   const deleteMemory = useDeleteMemory();
-  const shared = groups.filter((g) => !g.isPersonal);
-  const personal = groups.find((g) => g.isPersonal);
   const tz = memory?.timeZone ?? deviceTimeZone();
   const start = memory ? dayKeyIn(memory.startsAt, tz) : dateKey(defaultDay ?? new Date());
   const [title, setTitle] = useState(memory?.title ?? "");
@@ -65,8 +64,14 @@ export function MemorySheet({
   const [lastDay, setLastDay] = useState(memory ? dayKeyIn(memory.endsAt - 1, tz) : start);
   const [groupId, setGroupId] = useState(
     memory?.groupId ??
-      (groups.some((g) => g.id === defaultGroupId) ? defaultGroupId! : (shared[0]?.id ?? personal?.id ?? "")),
+      defaultShareGroupId(groups, defaultGroupId, {
+        groupId: me.settings.usualShareGroupId,
+        extensionKey: "memories",
+        alwaysOn: false,
+      }),
   );
+  // 新しく作るときだけ、いつもの共有先から選ばれたことが分かる印を出す。0063、F-40
+  const usualDefault = !memory && groupId === me.settings.usualShareGroupId;
   const [komaEnabled, setKomaEnabled] = useState(memory?.komaEnabled ?? false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
@@ -240,7 +245,9 @@ export function MemorySheet({
               : `${length - 1} 泊 ${length} 日`
             : "終わりの日は始まりの日以降にしてください。"}
         </FieldMessage>
-        {!memory && <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} />}
+        {!memory && (
+          <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} usualDefault={usualDefault} />
+        )}
         {events.length > 0 && (
           <fieldset className="flex flex-col gap-1">
             <legend className="mb-1 text-xs font-medium text-ink-2">入れる予定</legend>

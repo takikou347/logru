@@ -1,7 +1,17 @@
 import { HttpError } from "@server/core/app";
+import type { Context } from "hono";
 
 /** 上限に当たったときの文言。「少し待ってから」のトーンで出す。0025、0045 */
 const RATE_LIMIT_MESSAGE = "少し待ってから、もう一度試してください。";
+
+/**
+ * 送ってきた人の IP アドレス。ログイン前にも呼べる入り口で、利用者の ID の代わりに key にする。
+ * Cloudflare が付ける CF-Connecting-IP を読むだけで、自分で確かめ直さない。0065、#161
+ * @returns 無ければ "unknown"。手元の開発と E2E はいつもこれで、束縛も無いので数えない
+ */
+export function clientIp(c: Context): string {
+  return c.req.header("CF-Connecting-IP") ?? "unknown";
+}
 
 /**
  * 利用者ごとの回数を数え、上限を超えていたら 429 を投げる。

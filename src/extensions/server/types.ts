@@ -58,6 +58,13 @@ type ScheduledTask = (db: DB, env: Env) => Promise<void>;
  */
 type MemberLeaveTask = (db: DB, groupId: string, userId: string) => Promise<void>;
 
+/**
+ * その拡張が R2 に置いているものの合計バイト数。D1 の bytes の列から測り、R2 には聞かない。
+ * 写真とアバターの合計に上限を置くために使う。0066、#162
+ * @param db D1 を包んだ Drizzle
+ */
+type StorageBytesTask = (db: DB) => Promise<number>;
+
 /** サーバー側の拡張 */
 export type ServerExtension = {
   manifest: ExtensionManifest;
@@ -71,4 +78,6 @@ export type ServerExtension = {
   scheduled?: ScheduledTask;
   /** 人がグループを抜けたときの片付け。無ければ省く。予定の拡張は、その人を予定の参加者から外す */
   onMemberLeave?: MemberLeaveTask;
+  /** R2 に置いているものの合計バイト数。無ければ省く。持つのは思い出の拡張だけ。0066 */
+  storageBytes?: StorageBytesTask;
 };

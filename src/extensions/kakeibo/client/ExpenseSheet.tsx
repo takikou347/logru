@@ -9,6 +9,7 @@ import { SharePickerRow } from "@/components/parts/SharePicker";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { dateKey } from "@/lib/dates";
+import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_CATEGORIES, type KakeiboCategory } from "../shared/categories";
 import type { KakeiboExpense } from "./api";
 import { useDeleteExpense, useSaveExpense } from "./api";
@@ -39,12 +40,17 @@ export function ExpenseSheet({
   const saveExpense = useSaveExpense();
   const deleteExpense = useDeleteExpense();
   const canEdit = !expense || expense.createdBy === me.user.id;
-  const personal = groups.find((g) => g.isPersonal);
 
   const [groupId, setGroupId] = useState(
     expense?.groupId ??
-      (groups.some((g) => g.id === defaultGroupId) ? defaultGroupId! : (personal?.id ?? groups[0]?.id ?? "")),
+      defaultShareGroupId(groups, defaultGroupId, {
+        groupId: me.settings.usualShareGroupId,
+        extensionKey: "kakeibo",
+        alwaysOn: false,
+      }),
   );
+  // 新しく記録するときだけ、いつもの共有先から選ばれたことが分かる印を出す。0063、F-40
+  const usualDefault = !expense && groupId === me.settings.usualShareGroupId;
   const [date, setDate] = useState(expense?.date ?? dateKey(new Date()));
   const [amount, setAmount] = useState(expense ? String(expense.amount) : "");
   const [category, setCategory] = useState<KakeiboCategory | null>(expense?.category ?? null);
@@ -143,6 +149,7 @@ export function ExpenseSheet({
             onChange={setGroupId}
             disabled={!canEdit}
             noneLabel="自分だけ"
+            usualDefault={usualDefault}
           />
           <Field label="メモ">
             {(p) => (

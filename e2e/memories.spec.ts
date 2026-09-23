@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { addExtension, signUp } from "./helpers";
+import { addExtension, addMemories, signUp } from "./helpers";
 
 // 写真は Unsplash License のフリー写真を小さくしたもの。出どころは develop-docs の docs/logru/extensions/memories/images/photos/sources.txt
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
@@ -29,7 +29,7 @@ test("思い出を作り、写真付きで記録し、いいねを付け、カ�
   await sheet.getByRole("link", { name: /思い出/ }).click();
 
   // 今日の日帰りの思い出を作ると、その 1 日が開く
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("箱根 日帰り");
   await create.getByRole("button", { name: "作る" }).click();
@@ -77,7 +77,7 @@ test("しおりにやること、持ち物を足して済みにできる。思�
   await signUp(page, { name: "こた" });
   await enableMemories(page);
   await page.goto("/memories");
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("金沢 2 泊");
   await create.getByRole("button", { name: "作る" }).click();
@@ -109,4 +109,31 @@ test("しおりにやること、持ち物を足して済みにできる。思�
   await page.getByRole("dialog", { name: "思い出を削除しますか" }).getByRole("button", { name: "削除する" }).click();
   await expect(page).toHaveURL(/\/memories$/);
   await expect(page.getByRole("region", { name: "最近の記録" }).getByText("出発")).toBeVisible();
+});
+
+test("同じ写真を2回選んでも1回しか送らない。外すとすぐ消す要求を送る。#158", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableMemories(page);
+  await page.goto("/memories");
+  await addMemories(page, "思い出を作る");
+  const create = page.getByRole("dialog", { name: "思い出を作る" });
+  await create.getByLabel("題名").fill("テスト旅行");
+  await create.getByRole("button", { name: "作る" }).click();
+  await expect(page).toHaveURL(/\/days\/0$/);
+
+  await page.getByRole("toolbar", { name: "1 日の操作" }).getByRole("button", { name: "記録する" }).click();
+  const record = page.getByRole("dialog", { name: "記録する" });
+  // 1 回の選択で同じ写真を 2 枚指定しても、送るのは 1 枚だけ。F-117、#158
+  await record.locator('input[type="file"][multiple]').setInputFiles([PHOTO, PHOTO]);
+  await expect(page.getByText("同じ写真は 1 回だけ選べます。")).toBeVisible();
+  await expect(record.getByRole("listitem")).toHaveCount(1);
+  await expect(record.getByRole("button", { name: "保存する" })).toBeEnabled({ timeout: 15_000 });
+
+  // 送った写真を外すと、まだ記録に付いていないので、その場で消す要求を送る。#158
+  const discard = page.waitForRequest(
+    (req) => req.method() === "DELETE" && /\/api\/memories\/photos\/[^/]+$/.test(req.url()),
+  );
+  await record.getByRole("button", { name: /写真 1 を外す/ }).click();
+  await discard;
+  await expect(record.getByRole("listitem")).toHaveCount(0);
 });

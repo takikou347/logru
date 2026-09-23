@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { removeExtension, signUp } from "./helpers";
+import { addMemories, removeExtension, signUp, tokyoDateParts } from "./helpers";
 
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
 
@@ -52,25 +52,33 @@ test("記録はいつでも「共有しない」を選べる", async ({ page }) 
   await expect(page.getByText("記録しました")).toBeVisible();
 });
 
-test("写真を足した後は、共有の行を押せず、理由が下に出る。0057", async ({ page }) => {
+test("写真を足した後も共有先を変えられる。保存すると選んだ共有先に付く。0057、#158", async ({ page }) => {
   await signUp(page);
   await groupWithMemories(page, "ふたり");
   await page.goto("/memories?record=1");
   const sheet = page.getByRole("dialog", { name: "記録する" });
   const shareRow = sheet.getByRole("button", { name: /^共有/ });
-  await expect(shareRow).toBeEnabled();
-  await expect(sheet.getByText("写真を追加した後は、共有先を変えられません。")).toHaveCount(0);
+  await expect(shareRow).toContainText("共有しない");
 
   await sheet.locator('input[type="file"][multiple]').setInputFiles(PHOTO);
-  await expect(shareRow).toBeDisabled({ timeout: 15_000 });
-  await expect(sheet.getByText("写真を追加した後は、共有先を変えられません。")).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "保存する" })).toBeEnabled({ timeout: 15_000 });
+  // 写真を足した後も、共有の行はそのまま押せる
+  await expect(shareRow).toBeEnabled();
+
+  await shareRow.click();
+  const picker = page.getByRole("dialog", { name: "共有する相手" });
+  await picker.getByRole("radio", { name: "ふたり" }).click();
+  await expect(shareRow).toContainText("ふたり");
+
+  await sheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
 });
 
 test("カレンダーの思い出は、その場で編集でき、思い出を開ける。記録は予定の一覧に混ざらない", async ({ page }) => {
   await signUp(page);
   await groupWithMemories(page, "ふたり");
   await page.goto("/memories");
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   await page.getByRole("dialog", { name: "思い出を作る" }).getByLabel("題名").fill("鎌倉 散歩");
   await page.getByRole("dialog", { name: "思い出を作る" }).getByRole("button", { name: "作る" }).click();
   await expect(page.getByRole("heading", { name: "鎌倉 散歩" })).toBeVisible();
@@ -103,8 +111,7 @@ test("予定を足すシートで日付を変えると、その日の予定に�
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill("明日の用事");
-  const tomorrow = new Date(Date.now() + 86_400_000);
-  const key = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+  const { key, month, day } = tokyoDateParts(1);
   await sheet.getByLabel("日付").fill(key);
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("予定を足しました")).toBeVisible();
@@ -113,9 +120,5 @@ test("予定を足すシートで日付を変えると、その日の予定に�
   const again = page.getByRole("dialog", { name: "新しい予定" });
   await expect(again.getByRole("region", { name: /の予定$/ })).toHaveCount(0);
   await again.getByLabel("日付").fill(key);
-  await expect(
-    again
-      .getByRole("region", { name: `${tomorrow.getMonth() + 1}月${tomorrow.getDate()}日の予定` })
-      .getByText("明日の用事"),
-  ).toBeVisible();
+  await expect(again.getByRole("region", { name: `${month}月${day}日の予定` }).getByText("明日の用事")).toBeVisible();
 });

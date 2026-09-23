@@ -19,6 +19,7 @@ const me: Me = {
     avatarKind: "initial",
     toursSeen: [],
     extensionOrder: [],
+    usualShareGroupId: null,
   },
   needsAgreement: [],
   provider: "password",
@@ -26,6 +27,7 @@ const me: Me = {
   hiddenMembers: [],
   onboardedAt: null,
   showLab: false,
+  usualShareAskedAt: null,
 };
 
 const group = (id: string, members: [string, string][], isPersonal = false): GroupSummary => ({

@@ -52,9 +52,10 @@ function ShareRow({
  * @param groups 選べるグループ。自分だけのグループを含む
  * @param value いま選んでいるグループの ID
  * @param onChange 選んだとき。選ぶと同時にシートを閉じる
- * @param disabled 押せなくするとき。写真を足した後は共有先を変えられない(記録のシート)など
+ * @param disabled 押せなくするとき。作った本人しか共有先を変えられない予定・家計簿の記録など
  * @param disabledReason 押せない理由。行の下に小さく出す。disabled のときだけ意味を持つ
  * @param noneLabel 自分だけのグループの文言。既定は「共有しない」
+ * @param usualDefault いまの選択が、いつもの共有先から選ばれたものなら true。行に小さく添える。0063、F-40
  */
 export function SharePickerRow({
   groups,
@@ -64,6 +65,7 @@ export function SharePickerRow({
   disabled = false,
   disabledReason,
   noneLabel = "共有しない",
+  usualDefault = false,
 }: {
   groups: GroupSummary[];
   me: Me;
@@ -72,6 +74,7 @@ export function SharePickerRow({
   disabled?: boolean;
   disabledReason?: string;
   noneLabel?: string;
+  usualDefault?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const personal = groups.find((g) => g.isPersonal);
@@ -93,6 +96,7 @@ export function SharePickerRow({
           <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-ink-2">
             <Dot color={groupColor(chosen, me.colorPrefs)} />
             <span className="min-w-0 truncate">{chosen.isPersonal ? noneLabel : chosen.name}</span>
+            {usualDefault && <span className="flex-none text-[11px] text-ink-3">(いつもの共有先)</span>}
           </span>
         )}
       </RowButton>

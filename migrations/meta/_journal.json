@@ -134,6 +134,20 @@
       "when": 1790159617105,
       "tag": "0018_weather",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1790178454826,
+      "tag": "0021_notifications_avatar_bytes",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1790246400000,
+      "tag": "0022_memory_photos_small",
+      "breakpoints": true
     }
   ]
 }

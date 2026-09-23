@@ -103,6 +103,7 @@ export function MonthFlipDeck({
   items,
   leaving,
   onPressDay,
+  onAddNewDay,
   onOpenItem,
   monthNav,
 }: {
@@ -113,6 +114,8 @@ export function MonthFlipDeck({
   /** 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98 */
   leaving?: Set<string>;
   onPressDay: (d: Date) => void;
+  /** PC のマスに乗せたときの小さな「+」。#148、0061 */
+  onAddNewDay: (d: Date) => void;
   onOpenItem: (item: ViewItem) => void;
   monthNav: MonthNav;
 }) {
@@ -329,6 +332,7 @@ export function MonthFlipDeck({
           items={base.items}
           leaving={base.leaving}
           onPressDay={onPressDay}
+          onAddNewDay={onAddNewDay}
           onOpenItem={onOpenItem}
         />
         {peek && (
@@ -346,6 +350,7 @@ export function MonthFlipDeck({
               items={items}
               leaving={leaving}
               onPressDay={onPressDay}
+              onAddNewDay={onAddNewDay}
               onOpenItem={onOpenItem}
             />
             <div ref={shadeRef} className="pointer-events-none absolute inset-0 bg-black opacity-0" />

@@ -175,7 +175,10 @@ export function CalendarPage() {
     },
     [update],
   );
-  const onPressDay = useCallback(
+  // 日付を押したとき。その日を選ぶだけ。その日の中身は日のカード(または右の列)に出る。#148、0061
+  const onPressDay = useCallback((d: Date) => update({ date: d }), [update]);
+  // 日のカードの「+」、PC のマスに乗せたときの「+」から。その日を選び、その日の予定を足すシートを開く。#148、0061
+  const onAddNewDay = useCallback(
     (d: Date) => {
       update({ date: d });
       addNew(d);
@@ -520,7 +523,20 @@ export function CalendarPage() {
 
       <div className={calendar.error && (!calendar.data || calendar.isPlaceholderData) ? "hidden" : "contents"}>
         <CalendarHomeProvider
-          value={{ view, today, selected, days, items, upcoming, leaving, open, onPressDay, onSelectWeekDay, monthNav }}
+          value={{
+            view,
+            today,
+            selected,
+            days,
+            items,
+            upcoming,
+            leaving,
+            open,
+            onPressDay,
+            onAddNewDay,
+            onSelectWeekDay,
+            monthNav,
+          }}
         >
           {layoutError ? (
             <LoadFailure what="ホームの並び" error={layoutError} onRetry={refetchLayout} />

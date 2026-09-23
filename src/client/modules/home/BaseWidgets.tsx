@@ -12,7 +12,7 @@ import { useCalendarHome } from "./CalendarContext";
 
 /** カレンダー本体。月の表(日めくりの 3D 送り。#99)か週の一覧を出す */
 function CalendarBodyWidget() {
-  const { view, days, today, selected, items, leaving, onPressDay, onSelectWeekDay, open, monthNav } =
+  const { view, days, today, selected, items, leaving, onPressDay, onAddNewDay, onSelectWeekDay, open, monthNav } =
     useCalendarHome();
   return (
     <div data-testid="widget-calendar">
@@ -24,6 +24,7 @@ function CalendarBodyWidget() {
           items={items}
           leaving={leaving}
           onPressDay={onPressDay}
+          onAddNewDay={onAddNewDay}
           onOpenItem={open}
           monthNav={monthNav}
         />
@@ -52,7 +53,7 @@ function OnlyInMonthView({ editing, children }: { editing: boolean; children: Re
 
 /** 選んだ日の予定。大きな日付と、その日の予定。週・日の表示では、同じ予定が一覧に出るので隠す */
 function DayPanelWidget({ editing }: HomeWidgetProps) {
-  const { today, selected, items, leaving, open, onPressDay } = useCalendarHome();
+  const { today, selected, items, leaving, open, onAddNewDay } = useCalendarHome();
   return (
     <OnlyInMonthView editing={editing}>
       <DayPanel
@@ -61,7 +62,7 @@ function DayPanelWidget({ editing }: HomeWidgetProps) {
         items={items}
         leaving={leaving}
         onOpen={open}
-        onAddNew={() => onPressDay(selected)}
+        onAddNew={() => onAddNewDay(selected)}
       />
     </OnlyInMonthView>
   );

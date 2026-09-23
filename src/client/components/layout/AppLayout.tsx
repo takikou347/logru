@@ -83,10 +83,12 @@ export function AppLayout({
             <Users className="size-4" aria-hidden="true" />
             グループ
           </NavLink>
-          <NavLink className={cn(navItem, "min-h-9 text-xs text-ink-2")} to="/settings/extensions">
+          {/* 設定の目次(SettingsToc)にも「機能」があり、同じ行き先を選ばれた色で二重に見せないよう、
+              ここは NavLink ではなく Link にして「いま開いている場所」の印を持たせない。issue #13 */}
+          <Link className={cn(navItem, "min-h-9 text-xs text-ink-2")} to="/settings/extensions">
             <SlidersHorizontal className="size-4" aria-hidden="true" />
             機能を足す、外す
-          </NavLink>
+          </Link>
         </nav>
         <ShortcutBand compact />
         {side ? <ScrollArea className="min-h-0 flex-1 -mr-1.5">{side}</ScrollArea> : <div className="flex-1" />}

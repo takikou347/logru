@@ -1,7 +1,7 @@
 import type { ClientExtension } from "@extensions/client/types";
 import { BadgeJapaneseYen, Wallet } from "lucide-react";
 import { kakeiboManifest } from "../manifest";
-import { MonthTotalWidget, RecordHomeWidget } from "./HomeWidget";
+import { MonthTotalWidget, RecordHomeWidget, useMonthTotalHint } from "./HomeWidget";
 import { KakeiboItemSheet } from "./KakeiboItemSheet";
 
 /**
@@ -17,6 +17,7 @@ export const kakeiboClient: ClientExtension = {
   icon: BadgeJapaneseYen,
   nav: { label: "家計簿", icon: Wallet, path: "/kakeibo", description: "支出の記録と合計" },
   actions: [{ label: "記録する", icon: Wallet, path: "/kakeibo?record=1", hint: "金額とカテゴリ" }],
+  useTileHint: useMonthTotalHint,
   widgets: [
     {
       key: "kakeibo.record",

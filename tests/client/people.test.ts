@@ -18,6 +18,7 @@ const me: Me = {
     userColor: "wakatake",
     avatarKind: "initial",
     toursSeen: [],
+    extensionOrder: [],
   },
   needsAgreement: [],
   provider: "password",

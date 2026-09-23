@@ -1,5 +1,6 @@
 import { clientExtensions } from "@extensions/client/registry";
 import { Link, useParams } from "react-router";
+import { toast } from "sonner";
 import { useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { ExtensionToggleRow } from "@/components/parts/ExtensionToggleRow";
@@ -67,14 +68,20 @@ export function ExtensionDetailPage() {
       {toggleable && (
         <Panel title="自分で使う">
           <ExtensionToggleRow
-            label={`${manifest.label}を使う`}
+            label={manifest.label}
             checked={personalChecked}
             canToggle={Boolean(personal)}
             pending={personalPending}
-            onToggle={(enabled) => personal && setEnabled.mutate({ groupId: personal.id, key, enabled })}
+            onToggle={(enabled) =>
+              personal &&
+              setEnabled.mutate(
+                { groupId: personal.id, key, enabled },
+                { onSuccess: () => toast(enabled ? "足しました" : "外しました") },
+              )
+            }
           />
           <FieldMessage>
-            使うと、共有しない記録はいつでも残せます。グループで共有するには、下でそのグループを選びます。
+            足すと、共有しない記録はいつでも残せます。グループで共有するには、下でそのグループに足します。
           </FieldMessage>
         </Panel>
       )}
@@ -96,7 +103,12 @@ export function ExtensionDetailPage() {
                     checked={checked}
                     canToggle={g.role === "admin"}
                     pending={pending}
-                    onToggle={(enabled) => setEnabled.mutate({ groupId: g.id, key, enabled })}
+                    onToggle={(enabled) =>
+                      setEnabled.mutate(
+                        { groupId: g.id, key, enabled },
+                        { onSuccess: () => toast(enabled ? "足しました" : "外しました") },
+                      )
+                    }
                   />
                 );
               })}

@@ -169,6 +169,31 @@ export async function touchDrag(page: Page, from: { x: number; y: number }, to: 
 }
 
 /**
+ * 「機能を足す」画面で、指定した機能を自分だけで使えるようにする。issue #145
+ * @param label 拡張の manifest.label(カードの見出し)
+ */
+export async function addExtension(page: Page, label: string) {
+  await page.goto("/settings/extensions/add");
+  await page.getByRole("region", { name: label }).getByRole("button", { name: "足す" }).click();
+  await expect(page).toHaveURL(/\/settings\/extensions$/);
+}
+
+/**
+ * 設定の「機能」で、並びを変える状態にしてから指定した機能を外す。issue #145
+ * @param label タイルの名前(nav の名前、無ければ manifest の名前)
+ */
+export async function removeExtension(page: Page, label: string) {
+  await page.goto("/settings/extensions");
+  await page.getByRole("button", { name: "並びを変える" }).click();
+  await page.getByRole("button", { name: `${label}を外す` }).click();
+  const confirm = page.getByRole("dialog", { name: `${label}を外しますか` });
+  await confirm.getByRole("button", { name: "外す" }).click();
+  // 外した知らせが出るまで待ち、サーバーの書き込みが終わってから戻す
+  await expect(page.getByText(`${label}を外しました`)).toBeVisible();
+  await expect(confirm).toBeHidden();
+}
+
+/**
  * 「共有」の選ぶ行を押し、開いた「共有する相手」の一覧から選ぶ。0057
  * @param host シートかダイアログ。行を探す範囲
  * @param name 選ぶ相手の名前。「共有しない」「自分だけ」も使える

@@ -1,14 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { addEvent, pickShare, signUp } from "./helpers";
 
-/** グループを作り、そのグループで思い出を有効にする */
+/** グループを作り、そのグループで思い出を足す */
 async function groupWithMemories(page: import("@playwright/test").Page, name: string) {
   await page.goto("/groups");
   await page.getByLabel("グループの名前").fill(name);
   await page.getByRole("button", { name: "作る" }).click();
   await expect(page.getByRole("heading", { name })).toBeVisible();
-  await page.getByRole("switch", { name: "思い出" }).click();
-  await expect(page.getByRole("switch", { name: "思い出" })).toBeChecked();
+  await page.getByRole("button", { name: "思い出を足す" }).click();
+  await expect(page.getByRole("button", { name: "思い出を外す" })).toBeVisible();
 }
 
 test("思い出を作るとき、期間の予定が最初から入り、外した予定は思い出に出ない。0020", async ({ page }) => {

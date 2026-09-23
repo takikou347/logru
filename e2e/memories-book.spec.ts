@@ -1,12 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { addExtension, signUp } from "./helpers";
 
 /** 機能の一覧で、思い出を自分だけで使えるようにする */
 async function enableMemories(page: import("@playwright/test").Page) {
-  await page.goto("/extensions");
-  const toggle = page.getByRole("switch", { name: "思い出を使う" });
-  await toggle.click();
-  await expect(toggle).toBeChecked();
+  await addExtension(page, "思い出");
 }
 
 /** 日本時間の今日から、指定した日数だけ進んだ日を `yyyy-mm-dd` で返す */

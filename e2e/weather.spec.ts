@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { dayPanel, signUp } from "./helpers";
+import { addExtension, dayPanel, signUp } from "./helpers";
 
 /** 日本時間の今日から、指定した日数だけ進んだ日を `yyyy-mm-dd` で返す */
 function tokyoDateKey(offsetDays: number): string {
@@ -61,10 +61,7 @@ test("しおりの過去の日に、その日の天気が自動で残る。F-406
   await pickPlace(page, "渋谷");
   await expect(page.getByText("渋谷区 をいつもの場所にしました")).toBeVisible();
 
-  await page.goto("/extensions");
-  const toggle = page.getByRole("switch", { name: "思い出を使う" });
-  await toggle.click();
-  await expect(toggle).toBeChecked();
+  await addExtension(page, "思い出");
 
   // 昨日だけの日帰りの思い出を作る。しおりの 1 日は、その日の過去の天気を Open-Meteo から 1 度だけ取る
   await page.goto("/memories");

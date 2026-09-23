@@ -2,6 +2,13 @@ import { ChevronRight, ListChecks } from "lucide-react";
 import { Link } from "react-router";
 import { useLists } from "./api";
 
+/** 機能のタイルに出す短い字。いちばん新しいリストの残りの数。使っていないときは読み込まない。0058 */
+export function useLatestListHint(enabled: boolean): string | null {
+  const lists = useLists(null, enabled);
+  const latest = (lists.data ?? [])[0];
+  return enabled && latest ? `残り ${latest.remainingCount}` : null;
+}
+
 /**
  * 「リスト」。いちばん新しいリストの名前と、残りの項目の数を出す。押すとそのリストへ移る。F-209
  * リストが無ければ、作るよう促し、押すと一覧へ移る。

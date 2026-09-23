@@ -1,3 +1,4 @@
+import { toggleableExtensions } from "@extensions/server/registry";
 import { zValidator } from "@hono/zod-validator";
 import { type AppEnv, createRouter, HttpError, showLab, validationHook } from "@server/core/app";
 import { missingAgreements, requireAgreement, requireUser } from "@server/core/auth/middleware";
@@ -32,6 +33,7 @@ import {
   agreementsInput,
   colorPrefInput,
   deleteAccountInput,
+  extensionOrderInput,
   homeLayoutInput,
   homeLayoutQuery,
   memberVisibilityInput,
@@ -142,6 +144,7 @@ export const meRoutes = createRouter()
         userColor: settings.userColor,
         avatarKind: settings.avatarKind,
         toursSeen: settings.toursSeen,
+        extensionOrder: settings.extensionOrder,
       },
       needsAgreement: await missingAgreements(db, me.id),
       provider: me.provider,
@@ -269,6 +272,23 @@ export const meRoutes = createRouter()
       .values({ userId: c.get("user").id, ...values })
       .onConflictDoUpdate({ target: userSettings.userId, set: values });
     return c.json({ toursSeen: values.toursSeen });
+  })
+  // 足した機能のタイルの並び。知らない key、重なる key は取り除く。0058
+  .put("/extension-order", zValidator("json", extensionOrderInput, validationHook), async (c) => {
+    const known = new Set(toggleableExtensions().map((x) => x.manifest.key));
+    const seen = new Set<string>();
+    const order = c.req.valid("json").order.filter((key) => {
+      if (!known.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const values = { extensionOrder: order, updatedAt: new Date() };
+    await c
+      .get("db")
+      .insert(userSettings)
+      .values({ userId: c.get("user").id, ...values })
+      .onConflictDoUpdate({ target: userSettings.userId, set: values });
+    return c.json({ extensionOrder: order });
   })
   .put("/home-layout", zValidator("json", homeLayoutInput, validationHook), async (c) => {
     const { form, widgets } = c.req.valid("json");

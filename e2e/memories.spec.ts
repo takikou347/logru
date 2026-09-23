@@ -1,20 +1,17 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { addExtension, signUp } from "./helpers";
 
 // 写真は Unsplash License のフリー写真を小さくしたもの。出どころは develop-docs の docs/logru/extensions/memories/images/photos/sources.txt
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
 
 /** 機能の一覧で、思い出を自分だけで使えるようにする */
 async function enableMemories(page: import("@playwright/test").Page) {
-  await page.goto("/settings/extensions");
-  const toggle = page.getByRole("switch", { name: "思い出を使う" });
-  await toggle.click();
-  await expect(toggle).toBeChecked();
+  await addExtension(page, "思い出");
 }
 
-test("使えるようにする前は、思い出の画面は開けない", async ({ page }) => {
+test("足す前は、思い出の画面は開けない", async ({ page }) => {
   await signUp(page);
   await page.goto("/memories");
   await expect(page).toHaveURL(/\/settings\/extensions$/);

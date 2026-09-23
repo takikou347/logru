@@ -21,6 +21,8 @@ export type Me = {
     avatarKind: AvatarKind;
     /** 案内を見た画面の ID。F-33 */
     toursSeen: string[];
+    /** 足した機能のタイルの並び。key の配列。0058 */
+    extensionOrder: string[];
   };
   /** 同意を取り直す文書。空なら同意済み */
   needsAgreement: LegalDocument[];

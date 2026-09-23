@@ -71,6 +71,9 @@ export const tourIdParam = z.object({ id: z.string().max(60).regex(TOUR_ID_PATTE
 /** `PUT /api/groups/:id/extensions/:key` */
 export const extensionToggleInput = z.object({ enabled: z.boolean() });
 
+/** `PUT /api/me/extension-order`。足した機能のタイルの並び。0058 */
+export const extensionOrderInput = z.object({ order: z.array(z.string().min(1).max(80)).max(60) });
+
 /** カレンダーで 1 回に読める期間の上限。100 日 */
 const MAX_RANGE_MS = 100 * 24 * 60 * 60 * 1000;
 

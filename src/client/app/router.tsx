@@ -76,6 +76,10 @@ const routes: RouteObject[] = [
         }),
       },
       {
+        path: "/settings/extensions/add",
+        lazy: async () => ({ Component: (await import("@/modules/settings/ExtensionAddPage")).ExtensionAddPage }),
+      },
+      {
         path: "/settings/extensions/:key",
         lazy: async () => ({ Component: (await import("@/modules/settings/ExtensionDetailPage")).ExtensionDetailPage }),
       },

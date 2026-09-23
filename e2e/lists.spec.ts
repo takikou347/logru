@@ -1,18 +1,15 @@
 import { expect, type Page, test } from "@playwright/test";
-import { dayPanel, signUp } from "./helpers";
+import { addExtension, dayPanel, signUp } from "./helpers";
 
 /** 機能の一覧で、リストを自分だけで使えるようにする */
 async function enableLists(page: Page) {
-  await page.goto("/extensions");
-  const toggle = page.getByRole("switch", { name: "リストを使う" });
-  await toggle.click();
-  await expect(toggle).toBeChecked();
+  await addExtension(page, "リスト");
 }
 
-test("使えるようにする前は、リストの画面は開けない", async ({ page }) => {
+test("足す前は、リストの画面は開けない", async ({ page }) => {
   await signUp(page);
   await page.goto("/lists");
-  await expect(page).toHaveURL(/\/extensions$/);
+  await expect(page).toHaveURL(/\/settings\/extensions$/);
 });
 
 test("リストを作り、項目を足す、チェックする、消す。日付を付けるとカレンダーに出る。F-201〜F-208", async ({ page }) => {
@@ -24,7 +21,7 @@ test("リストを作り、項目を足す、チェックする、消す。日�
   await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
   const sheet = page.getByRole("dialog", { name: "機能" });
   await expect(sheet.getByRole("link", { name: /リストに足す/ })).toBeVisible();
-  await expect(sheet.getByRole("list", { name: "画面" }).getByRole("link", { name: /リスト/ })).toBeVisible();
+  await expect(sheet.getByTestId("extension-tile-lists")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(sheet).toBeHidden();
 

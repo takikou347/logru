@@ -1,7 +1,7 @@
 import type { ClientExtension } from "@extensions/client/types";
 import { ListChecks } from "lucide-react";
 import { listsManifest } from "../manifest";
-import { LatestListWidget } from "./HomeWidget";
+import { LatestListWidget, useLatestListHint } from "./HomeWidget";
 import { ListItemSheet } from "./ListItemSheet";
 
 /**
@@ -13,6 +13,7 @@ export const listsClient: ClientExtension = {
   Editor: ListItemSheet,
   nav: { label: "リスト", icon: ListChecks, path: "/lists", description: "買い物や持ち物を共有する" },
   actions: [{ label: "リストに足す", icon: ListChecks, path: "/lists/latest", hint: "いちばん新しいリストに" }],
+  useTileHint: useLatestListHint,
   widgets: [
     {
       key: "lists.latest",

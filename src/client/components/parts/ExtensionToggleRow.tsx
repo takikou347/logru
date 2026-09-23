@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import { PanelRow } from "@/components/parts/Panel";
-import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 
 /**
- * 拡張の切り替えの 1 行。グループ設定の「機能」タブと、機能の設定の「使うグループ」が同じ部品を使う。0019、#102
+ * 拡張の足す・外すの 1 行。グループ設定の「機能」タブと、機能の詳細の「使うグループ」が同じ部品を使う。0019、#102、0058
  *
- * 切り替えられるのは、その場所の管理者だけ。管理者でなければ切り替えを出さず、状態だけを見せる。
+ * 切り替えられるのは、その場所の管理者だけ。管理者でなければボタンを出さず、状態だけを見せる。
+ * トグルではなく「足す」「外す」のボタンにする。issue #145
  */
 export function ExtensionToggleRow({
   icon,
@@ -39,9 +40,19 @@ export function ExtensionToggleRow({
         </span>
       </span>
       {canToggle ? (
-        <Switch checked={checked} aria-label={label} disabled={pending} onCheckedChange={onToggle} />
+        <Button
+          type="button"
+          variant={checked ? "secondary" : "default"}
+          size="sm"
+          aria-label={`${label}を${checked ? "外す" : "足す"}`}
+          aria-pressed={checked}
+          disabled={pending}
+          onClick={() => onToggle(!checked)}
+        >
+          {checked ? "外す" : "足す"}
+        </Button>
       ) : (
-        <span className="text-xs text-ink-2">{checked ? "使っています" : "使っていません"}</span>
+        <span className="text-xs text-ink-2">{checked ? "足しています" : "足していません"}</span>
       )}
     </PanelRow>
   );

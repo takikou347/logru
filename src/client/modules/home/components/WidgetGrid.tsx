@@ -1,9 +1,9 @@
 import type { HomeForm, HomeWidgetEntry } from "@shared/api-types";
 import { HOME_CALENDAR_WIDGET_KEY } from "@shared/home";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { usePointerReorder } from "@/lib/use-pointer-reorder";
 import { cn } from "@/lib/utils";
 import type { HomeWidgetSlot } from "../layout";
-import { usePointerReorder } from "../use-pointer-reorder";
 import { WidgetFrame } from "./WidgetFrame";
 
 /**

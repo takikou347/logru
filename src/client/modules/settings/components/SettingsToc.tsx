@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 export const SETTINGS_SECTIONS = [
   { path: "/settings/appearance", label: "見た目", description: "明るさ、色、アバター", icon: Palette },
   { path: "/settings/notifications", label: "通知", description: "この端末の通知", icon: Bell },
-  { path: "/settings/extensions", label: "機能", description: "使う機能を選ぶ", icon: SlidersHorizontal },
+  { path: "/settings/extensions", label: "機能", description: "足す機能を選ぶ", icon: SlidersHorizontal },
   { path: "/settings/usage", label: "使い方", description: "案内、よくある質問", icon: HelpCircle },
   { path: "/settings/account", label: "アカウント", description: "表示名、ログインの方法", icon: UserRound },
 ] as const;

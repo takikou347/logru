@@ -26,7 +26,7 @@ test("思い出が無い日でも、今日をひとコマで始め、近道の�
     .click();
   await page.getByRole("button", { name: "今日のひとコマを始める" }).click();
   const start = page.getByRole("dialog", { name: "今日のひとコマを始める" });
-  await expect(start.getByRole("radio", { name: "自分だけ" })).toHaveAttribute("aria-checked", "true");
+  await expect(start.getByRole("button", { name: /^共有/ })).toContainText("自分だけ");
   await start.getByRole("button", { name: "始める" }).click();
   await expect(page.getByText("今日のひとコマを始めました")).toBeVisible();
 

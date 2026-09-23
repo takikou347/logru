@@ -10,8 +10,12 @@ import type { CalendarItem } from "@shared/api-types";
 import type { Hono } from "hono";
 import type { ExtensionManifest } from "../types";
 
-/** 項目を呼ぶ人。利用者ごとの拡張が、本人の項目だけを返すのに使う */
-export type CalendarContext = { userId: string };
+/**
+ * 項目を呼ぶ人。利用者ごとの拡張が、本人の項目だけを返すのに使う。
+ * env と requestUrl は、外の API を呼ぶ拡張が、手元の開発と E2E で自分自身の見本の道へ
+ * 向け直すのに使う。任意なので、要らない拡張は無視してよい。天気の拡張が使う。0055
+ */
+export type CalendarContext = { userId: string; env?: Env; requestUrl?: string };
 
 /**
  * カレンダーに項目を渡す口。カレンダーは拡張の中身を知らず、これを呼ぶだけ。

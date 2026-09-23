@@ -6,30 +6,25 @@ import { Loading } from "@/app/guards";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
-import { extensionIcon, extensionTileColor } from "@/lib/extension-visuals";
+import { extensionIcon } from "@/lib/extension-visuals";
 import { useAddableExtensions } from "@/lib/extensions";
 import { vibrateShort } from "@/lib/haptics";
 import { markExtensionJustAdded } from "@/lib/recent-extension-adds";
-import { cn } from "@/lib/utils";
 import { poolColorsOf } from "../calendar/model";
 import { SettingsShell } from "./components/SettingsShell";
 import { useSetExtensionEnabled } from "./extensions-api";
 
-/** 1 件のカード。見本の画像は無いので、拡張の色とアイコンで代える。0052 */
+/**
+ * 1 件のカード。見本の画像は無いので、アイコンで代える。0052
+ * 色は拡張ごとに変えない。色はグループだけに使う決まり(0056)のため、テーマカラー 1 色にそろえる。issue #15
+ */
 function AddableExtensionCard({ ext, pending, onAdd }: { ext: ClientExtension; pending: boolean; onAdd: () => void }) {
   const Icon = extensionIcon(ext.manifest.key);
-  const color = extensionTileColor(ext.manifest.key);
   return (
     <Panel aria-label={ext.manifest.label}>
       <div className="flex items-center gap-3">
-        <span
-          className={cn(
-            "grid size-14 flex-none place-items-center rounded-2xl bg-[color-mix(in_srgb,var(--c)_18%,transparent)]",
-            `c-${color}`,
-          )}
-          aria-hidden="true"
-        >
-          <Icon className="size-6 text-(--c)" />
+        <span className="grid size-14 flex-none place-items-center rounded-2xl bg-primary/15" aria-hidden="true">
+          <Icon className="size-6 text-primary" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="text-[17px] font-bold">{ext.manifest.label}</span>

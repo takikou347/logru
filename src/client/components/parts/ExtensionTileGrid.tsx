@@ -5,7 +5,7 @@ import { Link } from "react-router";
 import { toast } from "sonner";
 import { useGroups, useSetExtensionOrder } from "@/api/common";
 import { Button } from "@/components/ui/button";
-import { extensionIcon, extensionTileColor } from "@/lib/extension-visuals";
+import { extensionIcon } from "@/lib/extension-visuals";
 import { permanentExtensionTiles, useExtensionTileHints, useOrderedEnabledExtensions } from "@/lib/extensions";
 import { takeExtensionJustAdded } from "@/lib/recent-extension-adds";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -26,29 +26,21 @@ function tileLabel(ext: ClientExtension): string {
 }
 
 /**
- * タイルの見た目。丸いガラスの面に、拡張の色のアイコンを置く。0010、issue #145
+ * タイルの見た目。丸いガラスの面に、拡張のアイコンを置く。0010、issue #145
+ *
+ * 色は拡張ごとに変えない。色はグループだけに使う決まり(0056)と、カレンダーで「ふたりの記録」などに
+ * 使う色がぶつかっていたため、タイルはテーマカラー 1 色にそろえる。issue #15
  * hint は拡張の約束に任意で足す短い字。例は家計簿の今月の合計
  */
 function TileFace({ extKey, hint }: { extKey: string; hint?: string }) {
   const Icon = extensionIcon(extKey);
-  const color = extensionTileColor(extKey);
   return (
     <span className="glass relative grid size-16 shrink-0 place-items-center rounded-full" aria-hidden="true">
-      <span
-        className={cn(
-          "grid size-10 place-items-center rounded-full bg-[color-mix(in_srgb,var(--c)_18%,transparent)]",
-          `c-${color}`,
-        )}
-      >
-        <Icon className="size-5 text-(--c)" />
+      <span className="grid size-10 place-items-center rounded-full bg-primary/15">
+        <Icon className="size-5 text-primary" />
       </span>
       {hint && (
-        <span
-          className={cn(
-            "absolute -bottom-1 max-w-[92%] truncate rounded-full bg-(--c) px-1.5 py-0.5 text-[9px] font-bold text-on-accent",
-            `c-${color}`,
-          )}
-        >
+        <span className="absolute -bottom-1 max-w-[92%] truncate rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground">
           {hint}
         </span>
       )}

@@ -9,6 +9,7 @@
  * 部品は shadcn の名前で色を指し、値はライトとダークで tokens.css が変える。
  */
 :root {
+  /* 角丸。コンポーネントの scale。ガラスの面の scale は tokens.css の --r-panel、--r-field。0044 */
   --radius: 14px;
   --background: var(--ground);
   --foreground: var(--ink);
@@ -37,6 +38,20 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-panel: var(--r-panel);
+
+  /*
+   * 動きの時間。値は tokens.css の --dur-*。Tailwind の duration-* は --transition-duration-* を見るので、
+   * その名前で結ぶ。0044
+   */
+  --transition-duration-fast: var(--dur-fast);
+  --transition-duration-base: var(--dur-base);
+  --transition-duration-slow: var(--dur-slow);
+  /*
+   * 緩急は 2 種だけ。抜ける動きは ease-out、行って戻る動きは ease-in-out。
+   * 値は Tailwind の既定と同じにして、見た目を変えない。ライト・ダークで変わらないのでここで直に持つ。0044
+   */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);

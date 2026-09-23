@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { removeExtension, signUp } from "./helpers";
+import { addMemories, removeExtension, signUp } from "./helpers";
 
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
 
@@ -70,7 +70,7 @@ test("カレンダーの思い出は、その場で編集でき、思い出を�
   await signUp(page);
   await groupWithMemories(page, "ふたり");
   await page.goto("/memories");
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   await page.getByRole("dialog", { name: "思い出を作る" }).getByLabel("題名").fill("鎌倉 散歩");
   await page.getByRole("dialog", { name: "思い出を作る" }).getByRole("button", { name: "作る" }).click();
   await expect(page.getByRole("heading", { name: "鎌倉 散歩" })).toBeVisible();

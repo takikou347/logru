@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addExtension, signUp } from "./helpers";
+import { addExtension, addMemories, signUp } from "./helpers";
 
 /** 機能の一覧で、思い出を自分だけで使えるようにする */
 async function enableMemories(page: import("@playwright/test").Page) {
@@ -16,7 +16,7 @@ test("思い出の表紙を押すと本の演出の後に開く。動きを減�
   await signUp(page, { name: "こた" });
   await enableMemories(page);
   await page.goto("/memories");
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("那須 日帰り");
   await create.getByRole("button", { name: "作る" }).click();
@@ -41,7 +41,7 @@ test("しおりの 1 日を、横に指でめくって隣の日へ移れる。00
   await signUp(page, { name: "こた" });
   await enableMemories(page);
   await page.goto("/memories");
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("那須 2 泊");
   await create.getByLabel("終わりの日").fill(tokyoDateKey(2));

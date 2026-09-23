@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { addExtension, signUp } from "./helpers";
+import { addExtension, addMemories, signUp } from "./helpers";
 
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
 
@@ -56,7 +56,7 @@ test("ひとコマは思い出を消しても残り、つなぎ直せる。F-128
 
   // 今日の日帰りの思い出を、ひとコマを有効にして作る
   await page.goto("/memories");
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("鎌倉 散歩");
   await create.getByRole("switch", { name: "ひとコマを使う" }).click();

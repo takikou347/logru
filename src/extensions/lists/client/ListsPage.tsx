@@ -1,12 +1,14 @@
-import { Plus } from "lucide-react";
+import { ListChecks } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Dock } from "@/components/parts/Dock";
 import { LoadFailure } from "@/components/parts/Failure";
 import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import { Empty, Panel } from "@/components/parts/Panel";
-import { Button } from "@/components/ui/button";
+import type { Addable } from "@/components/parts/PrimaryAddButton";
+import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { useLists, useListsGroups } from "./api";
 import { CreateListSheet } from "./CreateListSheet";
@@ -34,6 +36,15 @@ export function ListsPage() {
   const data = me.data;
   const rows = lists.data ?? [];
   const filterOptions = groupFilterOptions({ groups, me: data, value: filterGroup, onChange: setGroup });
+  // 足せるものはリストだけ。「+」を押すと直接シートが開く。issue #150
+  const addables: Addable[] = [
+    {
+      key: "list",
+      label: "リストを作る",
+      icon: ListChecks,
+      onClick: () => setParams((p) => (p.set("create", "1"), p), { replace: true }),
+    },
+  ];
 
   return (
     <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
@@ -71,12 +82,9 @@ export function ListsPage() {
           )}
         </Panel>
 
-        <div className="flex justify-end">
-          <Button onClick={() => setParams((p) => (p.set("create", "1"), p), { replace: true })}>
-            <Plus className="size-5" />
-            リストを作る
-          </Button>
-        </div>
+        <Dock label="リストの操作">
+          <PrimaryAddButton label="リストを作る" addables={addables} />
+        </Dock>
       </Page>
       {creating && <CreateListSheet groups={groups} me={data} defaultGroupId={filterGroup} onClose={closeCreate} />}
     </AppLayout>

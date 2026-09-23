@@ -1,12 +1,15 @@
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Coins } from "lucide-react";
 import { useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Dock } from "@/components/parts/Dock";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
 import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import { Panel, PanelRow } from "@/components/parts/Panel";
+import type { Addable } from "@/components/parts/PrimaryAddButton";
+import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { kakeiboCategoryLabel } from "../shared/categories";
@@ -48,6 +51,15 @@ export function KakeiboPage() {
   const data = me.data;
   const records = summary.data?.records ?? [];
   const filterOptions = groupFilterOptions({ groups, me: data, value: group, onChange: setGroup });
+  // 足せるものは支出だけ。「+」を押すと直接シートが開く。issue #150
+  const addables: Addable[] = [
+    {
+      key: "expense",
+      label: "支出を記録する",
+      icon: Coins,
+      onClick: () => setParams((p) => (p.set("record", "1"), p), { replace: true }),
+    },
+  ];
 
   return (
     <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
@@ -132,12 +144,9 @@ export function KakeiboPage() {
           )}
         </Panel>
 
-        <div className="flex justify-end">
-          <Button onClick={() => setParams((p) => (p.set("record", "1"), p), { replace: true })}>
-            <Plus className="size-5" />
-            記録する
-          </Button>
-        </div>
+        <Dock label="家計簿の操作">
+          <PrimaryAddButton label="支出を記録する" addables={addables} />
+        </Dock>
       </Page>
       {recording && <ExpenseSheet groups={groups} me={data} defaultGroupId={group} onClose={closeRecord} />}
       {editing && <ExpenseSheet groups={groups} me={data} expense={editing} onClose={closeEdit} />}

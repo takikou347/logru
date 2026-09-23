@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addEvent, pickShare, signUp } from "./helpers";
+import { addEvent, addMemories, pickShare, signUp } from "./helpers";
 
 /** グループを作り、そのグループで思い出を足す */
 async function groupWithMemories(page: import("@playwright/test").Page, name: string) {
@@ -19,7 +19,7 @@ test("思い出を作るとき、期間の予定が最初から入り、外し�
   await addEvent(page, "歯医者", "ふたり");
 
   await page.goto("/memories");
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("箱根 日帰り");
   await pickShare(page, create, "ふたり");
@@ -44,7 +44,7 @@ test("予定を足すとき、重なる思い出に入れるか選べる。0020"
   await signUp(page);
   await groupWithMemories(page, "ふたり");
   await page.goto("/memories");
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("鎌倉 散歩");
   await pickShare(page, create, "ふたり");

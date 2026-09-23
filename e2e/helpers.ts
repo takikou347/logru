@@ -215,3 +215,11 @@ export async function addEvent(page: Page, title: string, group?: string) {
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("予定を足しました")).toBeVisible();
 }
+
+/**
+ * 思い出の画面の「+」を押し、開いた選ぶシートから「記録する」か「思い出を作る」を選ぶ。issue #150
+ */
+export async function addMemories(page: Page, option: "記録する" | "思い出を作る") {
+  await page.getByRole("button", { name: "思い出を足す" }).click();
+  await page.getByRole("dialog", { name: "思い出を足す" }).getByRole("button", { name: option }).click();
+}

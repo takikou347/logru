@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addExtension, dayPanel, signUp } from "./helpers";
+import { addExtension, addMemories, dayPanel, signUp } from "./helpers";
 
 /** 日本時間の今日から、指定した日数だけ進んだ日を `yyyy-mm-dd` で返す */
 function tokyoDateKey(offsetDays: number): string {
@@ -65,7 +65,7 @@ test("しおりの過去の日に、その日の天気が自動で残る。F-406
 
   // 昨日だけの日帰りの思い出を作る。しおりの 1 日は、その日の過去の天気を Open-Meteo から 1 度だけ取る
   await page.goto("/memories");
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("渋谷 日帰り");
   await create.getByLabel("始まりの日").fill(tokyoDateKey(-1));

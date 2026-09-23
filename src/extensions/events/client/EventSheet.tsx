@@ -307,43 +307,41 @@ export function EventSheet({
             <span>終日</span>
             <Switch checked={allDay} onCheckedChange={setAllDay} aria-label="終日" disabled={!canEdit} />
           </PanelRow>
-          <div className="flex gap-2.5 *:min-w-0 *:flex-1">
-            <Field label={allDay ? "始まりの日" : "日付"} hint={hol ?? undefined}>
+          <Field label={allDay ? "始まりの日" : "日付"} hint={hol ?? undefined}>
+            {(p) => (
+              <Input
+                {...p}
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  if (endDate < e.target.value) setEndDate(e.target.value);
+                }}
+              />
+            )}
+          </Field>
+          {allDay && (
+            <Field label="終わりの日">
               {(p) => (
                 <Input
                   {...p}
                   type="date"
-                  value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value);
-                    if (endDate < e.target.value) setEndDate(e.target.value);
-                  }}
+                  value={endDate}
+                  min={startDate}
+                  onChange={(e) => setEndDate(e.target.value)}
                 />
               )}
             </Field>
-            {allDay && (
-              <Field label="終わりの日">
-                {(p) => (
-                  <Input
-                    {...p}
-                    type="date"
-                    value={endDate}
-                    min={startDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                  />
-                )}
-              </Field>
-            )}
-          </div>
+          )}
           {!allDay && (
-            <div className="flex gap-2.5 *:min-w-0 *:flex-1">
+            <>
               <Field label="始まり">
                 {(p) => <Input {...p} type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />}
               </Field>
               <Field label="終わり">
                 {(p) => <Input {...p} type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />}
               </Field>
-            </div>
+            </>
           )}
           <div className="flex flex-col gap-1.5">
             <span className="text-xs font-medium text-ink-2" id="event-group-label">

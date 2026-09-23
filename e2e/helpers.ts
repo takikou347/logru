@@ -16,6 +16,27 @@ export function uniqueEmail(prefix = "user"): string {
 
 export const PASSWORD = "correct-horse-42";
 
+/**
+ * 日本時間の今日から、指定した日数だけ進んだ日の年・月・日と `yyyy-mm-dd` の形をまとめて返す。
+ * CI は UTC で動くため、素の Date の getFullYear などを使うと、日本時間の「今日」とずれることがある
+ */
+export function tokyoDateParts(offsetDays = 0): { year: number; month: number; day: number; key: string } {
+  const at = new Date(Date.now() + offsetDays * 86_400_000);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(at);
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    key: `${map.year}-${map.month}-${map.day}`,
+  };
+}
+
 type OobCode = { email: string; requestType: "VERIFY_EMAIL" | "PASSWORD_RESET"; oobCode: string; oobLink: string };
 
 /**

@@ -89,8 +89,9 @@ function ExtensionLinkTile({
 /**
  * 編集の状態の 1 タイル。持ち手で並べ替え、`−` で外す。0058
  *
- * 押せる範囲は、丸いガラスの面と同じ大きさにはできない(4 列に収める幅の制約)。決定 0012 の 44px は、
- * 高さだけそろえ、幅はタイル 1 つ分(2 つのボタンで分ける)にとどめる
+ * 見た目の丸いボタン(高さ 36px)は変えず、押せる範囲だけ `::before` で 44px に広げる。決定 0012。issue #119
+ * 幅は 4 列に収める制約で、隣のボタンとの隙間(4px)までしか広げられない。決定 0058 の「困ること」のとおり、
+ * 幅は 44px に届かないが、高さと、届く範囲の幅は広げる
  */
 function EditableTile({
   ext,
@@ -122,7 +123,7 @@ function EditableTile({
           data-testid="tile-drag-handle"
           aria-label={`${label}を並べ替える`}
           onPointerDown={onHandlePointerDown}
-          className="flex h-9 flex-1 touch-none items-center justify-center rounded-full bg-field text-ink-2 active:cursor-grabbing"
+          className="relative flex h-9 flex-1 touch-none items-center justify-center rounded-full bg-field text-ink-2 before:absolute before:-inset-y-1 before:inset-x-[-2px] before:content-[''] active:cursor-grabbing"
         >
           <GripVertical className="size-3.5" aria-hidden="true" />
         </button>
@@ -130,7 +131,7 @@ function EditableTile({
           type="button"
           aria-label={`${label}を外す`}
           onClick={onRemove}
-          className="flex h-9 flex-1 items-center justify-center rounded-full bg-field text-sun"
+          className="relative flex h-9 flex-1 items-center justify-center rounded-full bg-field text-sun before:absolute before:-inset-y-1 before:inset-x-[-2px] before:content-['']"
         >
           <Minus className="size-3.5" aria-hidden="true" />
         </button>

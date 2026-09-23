@@ -1,29 +1,26 @@
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { removeExtension, signUp } from "./helpers";
 
-/** グループを作り、そのグループで思い出を有効にする。有効にした人は、自分でも使うことになる */
+/** グループを作り、そのグループで思い出を足す。足した人は、自分でも使うことになる */
 async function groupWithMemories(page: import("@playwright/test").Page, name: string) {
   await page.goto("/groups");
   await page.getByLabel("グループの名前").fill(name);
   await page.getByRole("button", { name: "作る" }).click();
   await expect(page.getByRole("heading", { name })).toBeVisible();
-  await page.getByRole("switch", { name: "思い出" }).click();
-  await expect(page.getByRole("switch", { name: "思い出" })).toBeChecked();
+  await page.getByRole("button", { name: "思い出を足す" }).click();
+  await expect(page.getByRole("button", { name: "思い出を外す" })).toBeVisible();
 }
 
-test("自分で思い出を使わないにすると、グループで有効でも入口も設定も出ない。0019", async ({ page }) => {
+test("自分で思い出を外すと、グループでは足していても入口も設定も出ない。0019", async ({ page }) => {
   await signUp(page);
   await groupWithMemories(page, "ふたり");
-  await page.goto("/settings/extensions");
-  const toggle = page.getByRole("switch", { name: "思い出を使う" });
-  await expect(toggle).toBeChecked();
-  await toggle.click();
-  await expect(toggle).not.toBeChecked();
+  await removeExtension(page, "思い出");
+  await expect(page.getByText("外しました")).toBeVisible();
 
   await page.goto("/");
   await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
   const sheet = page.getByRole("dialog", { name: "機能" });
-  await expect(sheet.getByRole("link", { name: /機能を足す、外す/ })).toBeVisible();
+  await expect(sheet.getByRole("link", { name: "機能を足す" })).toBeVisible();
   await expect(sheet.getByRole("link", { name: /思い出/ })).toHaveCount(0);
   await expect(sheet.getByRole("link", { name: /記録する/ })).toHaveCount(0);
 

@@ -1,16 +1,20 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addEvent, dayPanel, signUp } from "./helpers";
+import { addEvent, addExtension, dayPanel, removeExtension, signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
 });
 
-/** 機能の一覧で、思い出を使うかを切り替える */
+/** 機能の一覧で、思い出を足すか外すかを切り替える */
 async function setMemories(page: Page, on: boolean) {
   await page.goto("/settings/extensions");
-  const toggle = page.getByRole("switch", { name: "思い出を使う" });
-  if ((await toggle.isChecked()) !== on) await toggle.click();
-  await expect(toggle).toBeChecked({ checked: on });
+  // 読み込み中は 0 件に見える。グリッドが出るまで待ってから数える
+  const grid = page.getByTestId("extension-tile-grid");
+  await expect(grid).toBeVisible();
+  const already = (await grid.getByTestId("extension-tile-memories").count()) > 0;
+  if (already === on) return;
+  if (on) await addExtension(page, "思い出");
+  else await removeExtension(page, "思い出");
 }
 
 test("ホームを編集して並べ替え、外す。保存すると読み直しても同じで、最初の並びに戻せる。#49、#76", async ({ page }) => {

@@ -1,5 +1,5 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
-import { dayPanel, signUp } from "./helpers";
+import { addExtension, dayPanel, signUp } from "./helpers";
 
 /**
  * 「ふたり」のグループを作り、ほかの人を招待リンクで入れる。invitations.spec.ts と同じ作り方。
@@ -49,23 +49,17 @@ function bellButton(page: Page) {
   return page.getByRole("button", { name: /お知らせ/ }).filter({ visible: true });
 }
 
-/** グループの設定で思い出を有効にする。groups.spec.ts と同じ、グループの詳細に入って切り替える作り方 */
+/** グループの設定で思い出を足す。groups.spec.ts と同じ、グループの詳細に入って切り替える作り方 */
 async function enableMemoriesForGroup(page: Page, groupName: string) {
   await page.goto("/groups");
   await page.getByRole("link", { name: new RegExp(groupName) }).click();
-  const toggle = page.getByRole("switch", { name: "思い出" });
-  await toggle.click();
-  await expect(toggle).toBeChecked();
+  await page.getByRole("button", { name: "思い出を足す" }).click();
+  await expect(page.getByRole("button", { name: "思い出を外す" })).toBeVisible();
 }
 
-/** 自分でも思い出を使うにする。グループで有効でも、これをしないと入口が出ない。0019 */
+/** 自分でも思い出を足す。グループで足していても、これをしないと入口が出ない。0019 */
 async function enableMemoriesForSelf(page: Page) {
-  await page.goto("/settings/extensions");
-  const toggle = page.getByRole("switch", { name: "思い出を使う" });
-  // 自分だけのグループの ID を読み終えるまで、切り替えは disabled のまま
-  await expect(toggle).toBeEnabled();
-  await toggle.click();
-  await expect(toggle).toBeChecked();
+  await addExtension(page, "思い出");
 }
 
 test("招待に参加すると招待した人にお知らせが出る。押すと予定が開き、既読になる。#32", async ({ page, browser }) => {

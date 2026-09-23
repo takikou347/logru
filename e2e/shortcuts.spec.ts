@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { addExtension, signUp } from "./helpers";
 
 /**
  * ホーム画面のアイコンを長押しした近道。#110
@@ -30,18 +30,17 @@ test("予定を足すの近道の URL を開くと、新しい予定のシート
 
 test("ひとコマの近道の URL を開くと、撮る画面が開いた状態で始まる", async ({ page }) => {
   await signUp(page, { name: "こた" });
-  await page.goto("/settings/extensions");
-  await page.getByRole("switch", { name: "思い出を使う" }).click();
-  await expect(page.getByText("使えるようにしました")).toBeVisible();
+  await addExtension(page, "思い出");
+  await expect(page.getByText("足しました")).toBeVisible();
 
   await page.goto("/memories/koma/now");
   await expect(page).toHaveURL(/\/memories\/koma\/now$/);
   await expect(page.getByRole("heading", { name: "ひとコマ", level: 1 })).toBeVisible();
 });
 
-test("思い出を使っていない人がひとコマの近道を開くと、機能の一覧へ案内する", async ({ page }) => {
+test("思い出を足していない人がひとコマの近道を開くと、機能の一覧へ案内する", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await page.goto("/memories/koma/now");
   await expect(page).toHaveURL(/\/settings\/extensions$/);
-  await expect(page.getByText("思い出は使っていません")).toBeVisible();
+  await expect(page.getByText("思い出はまだ足していません")).toBeVisible();
 });

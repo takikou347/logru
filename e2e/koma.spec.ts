@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { addExtension, signUp } from "./helpers";
 
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
 
@@ -15,8 +15,7 @@ const inKomaHours = () => hourInTokyo() >= 7 && hourInTokyo() <= 22;
 test("思い出が無い日でも、今日をひとコマで始め、近道の帯から撮れる。F-121、F-126、F-127", async ({ page }) => {
   test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
   await signUp(page, { name: "こた" });
-  await page.goto("/settings/extensions");
-  await page.getByRole("switch", { name: "思い出を使う" }).click();
+  await addExtension(page, "思い出");
 
   // 機能のシートの「ひとコマ」から確認画面へ。今日を始める
   await page.goto("/");
@@ -53,8 +52,7 @@ test("思い出が無い日でも、今日をひとコマで始め、近道の�
 test("ひとコマは思い出を消しても残り、つなぎ直せる。F-128、F-129", async ({ page, request }) => {
   test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
   await signUp(page, { name: "こた" });
-  await page.goto("/settings/extensions");
-  await page.getByRole("switch", { name: "思い出を使う" }).click();
+  await addExtension(page, "思い出");
 
   // 今日の日帰りの思い出を、ひとコマを有効にして作る
   await page.goto("/memories");
@@ -92,8 +90,7 @@ test("動きを減らす設定では、ひとコマを保存すると現像も�
   test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await signUp(page, { name: "こた" });
-  await page.goto("/extensions");
-  await page.getByRole("switch", { name: "思い出を使う" }).click();
+  await addExtension(page, "思い出");
   await page.goto("/memories/koma");
   await page.getByRole("button", { name: "今日のひとコマを始める" }).click();
   await page.getByRole("dialog", { name: "今日のひとコマを始める" }).getByRole("button", { name: "始める" }).click();

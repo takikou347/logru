@@ -1,18 +1,15 @@
 import { expect, type Page, test } from "@playwright/test";
-import { dayPanel, signUp } from "./helpers";
+import { addExtension, dayPanel, signUp } from "./helpers";
 
 /** 機能の一覧で、家計簿を自分だけで使えるようにする */
 async function enableKakeibo(page: Page) {
-  await page.goto("/extensions");
-  const toggle = page.getByRole("switch", { name: "家計簿を使う" });
-  await toggle.click();
-  await expect(toggle).toBeChecked();
+  await addExtension(page, "家計簿");
 }
 
-test("使えるようにする前は、家計簿の画面は開けない", async ({ page }) => {
+test("足す前は、家計簿の画面は開けない", async ({ page }) => {
   await signUp(page);
   await page.goto("/kakeibo");
-  await expect(page).toHaveURL(/\/extensions$/);
+  await expect(page).toHaveURL(/\/settings\/extensions$/);
 });
 
 test("ホームの「記録する」から 3 タップと金額の入力 1 回で記録でき、今月の合計とカレンダーに出る。F-301、F-304、F-305、F-306", async ({

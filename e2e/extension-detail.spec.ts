@@ -2,38 +2,42 @@ import { expect, test } from "@playwright/test";
 import { signUp } from "./helpers";
 
 /**
- * 機能の一覧はカードにし、拡張ごとの詳細に「自分で使う」「使うグループ」「その拡張の設定」を集める。issue #102
- * 決まり: 拡張の設定は、その拡張の詳細に置く。
+ * 機能の一覧はアイコンのタイルで並べ、拡張ごとの詳細に「自分で使う」「使うグループ」「その拡張の設定」を集める。
+ * issue #102、issue #145、0058
+ * 決まり: 拡張の設定は、その拡張の詳細に置く。トグルではなく「足す」「外す」のボタンにする。
  */
 
-test("カードは一覧に並び、いつでも使える拡張には「使う」の切り替えを出さない", async ({ page }) => {
+test("タイルの並びには、いつも足された拡張が先頭に出る。まだ足していない拡張のタイルは出ない", async ({ page }) => {
   await signUp(page);
   await page.goto("/settings/extensions");
-  const memories = page.getByRole("region", { name: "思い出" });
-  await expect(memories.getByRole("switch", { name: "思い出を使う" })).not.toBeChecked();
-  const external = page.getByRole("region", { name: "外部のカレンダー" });
-  await expect(external.getByText("いつでも使えます")).toBeVisible();
-  await expect(external.getByRole("switch")).toHaveCount(0);
+  const grid = page.getByTestId("extension-tile-grid");
+  await expect(grid.getByTestId("extension-tile-external")).toBeVisible();
+  await expect(grid.getByTestId("extension-tile-memories")).toHaveCount(0);
+  await expect(grid.getByRole("link", { name: "機能を足す" })).toBeVisible();
 });
 
-test("カードから拡張の詳細へ移り、自分で使うを切り替えられる。切り替えは一覧にも反映する", async ({ page }) => {
+test("拡張の詳細で自分で使うを切り替えられる。足すとタイルの並びに出て、外すとまた消える", async ({ page }) => {
   await signUp(page);
-  await page.goto("/settings/extensions");
-  await page.getByRole("link", { name: /^思い出/ }).click();
-  await expect(page).toHaveURL(/\/settings\/extensions\/memories$/);
-  await expect(page.getByRole("heading", { name: "思い出" })).toBeVisible();
+  await page.goto("/settings/extensions/memories");
+  await expect(page.getByRole("heading", { name: "思い出", level: 1 })).toBeVisible();
 
   const own = page.getByRole("region", { name: "自分で使う" });
-  const toggle = own.getByRole("switch", { name: "思い出を使う" });
-  await expect(toggle).not.toBeChecked();
-  await toggle.click();
-  await expect(page.getByText("使えるようにしました")).toBeVisible();
-  await expect(toggle).toBeChecked();
+  const addButton = own.getByRole("button", { name: "思い出を足す" });
+  await addButton.click();
+  await expect(page.getByText("足しました")).toBeVisible();
+  const removeButton = own.getByRole("button", { name: "思い出を外す" });
+  await expect(removeButton).toBeVisible();
 
   await page.goto("/settings/extensions");
-  await expect(
-    page.getByRole("region", { name: "思い出" }).getByRole("switch", { name: "思い出を使う" }),
-  ).toBeChecked();
+  await expect(page.getByTestId("extension-tile-grid").getByTestId("extension-tile-memories")).toBeVisible();
+
+  await page.goto("/settings/extensions/memories");
+  await own.getByRole("button", { name: "思い出を外す" }).click();
+  await expect(page.getByText("外しました")).toBeVisible();
+  await expect(own.getByRole("button", { name: "思い出を足す" })).toBeVisible();
+
+  await page.goto("/settings/extensions");
+  await expect(page.getByTestId("extension-tile-grid").getByTestId("extension-tile-memories")).toHaveCount(0);
 });
 
 test("使うグループは、管理者だけが切り替えられ、管理者でなければ状態だけを見せる", async ({ page, browser }) => {
@@ -46,21 +50,21 @@ test("使うグループは、管理者だけが切り替えられ、管理者�
 
   await page.goto("/settings/extensions/memories");
   const shared = page.getByRole("region", { name: "使うグループ" });
-  const row = shared.getByRole("switch", { name: "ふたり" });
-  await expect(row).not.toBeChecked();
-  await row.click();
-  await expect(page.getByText("使えるようにしました")).toBeVisible();
-  await expect(row).toBeChecked();
+  const addButton = shared.getByRole("button", { name: "ふたりを足す" });
+  await addButton.click();
+  await expect(page.getByText("足しました")).toBeVisible();
+  await expect(shared.getByRole("button", { name: "ふたりを外す" })).toBeVisible();
 
-  // メンバーとして入った人には、切り替えではなく状態だけが出る
+  // メンバーとして入った人には、ボタンではなく状態だけが出る
   const other = await (await browser.newContext()).newPage();
   await signUp(other, { name: "みか", next: new URL(inviteUrl).pathname });
   await other.getByRole("button", { name: "参加する" }).click();
+  await expect(other).toHaveURL(/group=/);
   await other.goto("/settings/extensions/memories");
   const otherShared = other.getByRole("region", { name: "使うグループ" });
   await expect(otherShared.getByText("ふたり")).toBeVisible();
-  await expect(otherShared.getByText("使っています")).toBeVisible();
-  await expect(otherShared.getByRole("switch", { name: "ふたり" })).toHaveCount(0);
+  await expect(otherShared.getByText("足しています")).toBeVisible();
+  await expect(otherShared.getByRole("button", { name: /^ふたりを/ })).toHaveCount(0);
 });
 
 test("外部のカレンダーの詳細には、自分で使う・使うグループは出ず、その拡張の設定だけが出る", async ({ page }) => {

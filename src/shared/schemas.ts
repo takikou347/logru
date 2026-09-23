@@ -100,6 +100,12 @@ export const extensionToggleInput = z.object({ enabled: z.boolean() });
 /** `PUT /api/me/extension-order`。足した機能のタイルの並び。0058 */
 export const extensionOrderInput = z.object({ order: z.array(z.string().min(1).max(80)).max(60) });
 
+/**
+ * `PUT /api/me/usual-share`。いつもの共有先。null は「共有しない」を決めたことを表す。0063、F-40
+ * 送るたびに、1 回だけ聞く問いは「もう聞いた」ことになる
+ */
+export const usualShareInput = z.object({ groupId: z.string().min(1).max(64).nullable() });
+
 /** カレンダーで 1 回に読める期間の上限。100 日 */
 const MAX_RANGE_MS = 100 * 24 * 60 * 60 * 1000;
 

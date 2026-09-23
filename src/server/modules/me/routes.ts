@@ -42,6 +42,7 @@ import {
   pushSubscriptionInput,
   settingsInput,
   tourIdParam,
+  usualShareInput,
 } from "@shared/schemas";
 import { addTourSeen } from "@shared/tours";
 import { and, eq, inArray, ne } from "drizzle-orm";
@@ -147,6 +148,7 @@ export const meRoutes = createRouter()
         avatarKind: settings.avatarKind,
         toursSeen: settings.toursSeen,
         extensionOrder: settings.extensionOrder,
+        usualShareGroupId: settings.usualShareGroupId,
       },
       needsAgreement: await missingAgreements(db, me.id),
       provider: me.provider,
@@ -154,6 +156,7 @@ export const meRoutes = createRouter()
       hiddenMembers: hidden.map((h) => h.id),
       onboardedAt: settings.onboardedAt?.getTime() ?? null,
       showLab: showLab(c.env.ENVIRONMENT),
+      usualShareAskedAt: settings.usualShareAskedAt?.getTime() ?? null,
     };
     return c.json(body);
   })
@@ -291,6 +294,24 @@ export const meRoutes = createRouter()
       .values({ userId: c.get("user").id, ...values })
       .onConflictDoUpdate({ target: userSettings.userId, set: values });
     return c.json({ extensionOrder: order });
+  })
+  /**
+   * いつもの共有先を決める。null は「共有しない」を決めたことを表す。0063、F-40
+   * 「いつもの共有先にしますか」の問いへの答えも、ここを呼ぶ。送るたびに、もう聞いたことにする
+   */
+  .put("/usual-share", zValidator("json", usualShareInput, validationHook), async (c) => {
+    const db = c.get("db");
+    const me = c.get("user");
+    const { groupId } = c.req.valid("json");
+    if (groupId !== null && !(await myGroupIds(db, me.id)).includes(groupId)) {
+      throw new HttpError(404, "グループが見つかりません。");
+    }
+    const values = { usualShareGroupId: groupId, usualShareAskedAt: new Date(), updatedAt: new Date() };
+    await db
+      .insert(userSettings)
+      .values({ userId: me.id, ...values })
+      .onConflictDoUpdate({ target: userSettings.userId, set: values });
+    return c.json({ usualShareGroupId: groupId, usualShareAskedAt: values.usualShareAskedAt.getTime() });
   })
   .put("/home-layout", zValidator("json", homeLayoutInput, validationHook), async (c) => {
     const { form, widgets } = c.req.valid("json");

@@ -49,6 +49,16 @@ export const userSettings = sqliteTable("user_settings", {
    * 移行 0019
    */
   extensionOrder: text("extension_order", { mode: "json" }).$type<string[]>().notNull().default([]),
+  /**
+   * いつもの共有先のグループ。予定・思い出・記録・家計簿・共有リストを足すときの既定に使う。
+   * 空なら決めていない。グループが消えたら空に戻す。0063、F-40。移行 0020
+   */
+  usualShareGroupId: text("usual_share_group_id").references(() => groups.id, { onDelete: "set null" }),
+  /**
+   * いつもの共有先にするか 1 回だけ聞いた日時。聞いたあとは、断っていても二度と聞かない。0063、F-40
+   * 移行 0020
+   */
+  usualShareAskedAt: integer("usual_share_asked_at", { mode: "timestamp_ms" }),
 });
 
 /** 規約に同意した版。最新の版の行が無ければ同意を取り直す。F-16 */

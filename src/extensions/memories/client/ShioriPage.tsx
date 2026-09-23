@@ -392,7 +392,7 @@ function AddRow({
       </div>
       <div className="flex justify-end gap-2">
         <button type="button" className="min-h-10 px-3 text-sm text-ink-2" onClick={() => setOpen(false)}>
-          キャンセル
+          やめる
         </button>
         <button
           type="submit"

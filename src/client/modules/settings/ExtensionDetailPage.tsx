@@ -15,7 +15,7 @@ import { useSetExtensionEnabled } from "./extensions-api";
 /**
  * 拡張の詳細。設定の「機能」から移る。issue #102
  *
- * 決まり: 拡張の設定は、その拡張の詳細に置く。切り替えられる拡張は「自分で使う」と「使うグループ」を、
+ * 決まり: 拡張の設定は、その拡張の詳細に置く。切り替えられる拡張は「自分に足す」と「足すグループ」を、
  * 設定の欄(SettingsSection)を持つ拡張は「この機能の設定」を出す。無い節は出さない。
  */
 export function ExtensionDetailPage() {
@@ -66,7 +66,7 @@ export function ExtensionDetailPage() {
       backMobileOnly={false}
     >
       {toggleable && (
-        <Panel title="自分で使う">
+        <Panel title="自分に足す">
           <ExtensionToggleRow
             label={manifest.label}
             checked={personalChecked}
@@ -87,7 +87,7 @@ export function ExtensionDetailPage() {
       )}
 
       {toggleable && (
-        <Panel title="使うグループ">
+        <Panel title="足すグループ">
           {shared.length === 0 ? (
             <Empty>まだ共有のグループがありません。</Empty>
           ) : (

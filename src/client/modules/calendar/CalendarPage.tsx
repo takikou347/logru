@@ -35,6 +35,7 @@ import {
 } from "@/lib/dates";
 import { useEnabledExtensions } from "@/lib/extensions";
 import { BASE_TOURS } from "@/lib/tours";
+import { useRecordScreen } from "@/lib/use-back";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useUndoableDelete as useSharedUndoableDelete } from "@/lib/use-undoable-delete";
 import { withViewTransition } from "@/lib/view-transition";
@@ -174,6 +175,8 @@ function useCalendarDelete() {
  * 項目は拡張から集めたもの。押すと、その項目を出した拡張の編集のシートを開く。
  */
 export function CalendarPage() {
+  // ほかの画面から「‹」で戻ったとき、選んだ日や表示の単位を含めてここへ戻れるよう記録する。0070
+  useRecordScreen();
   const [params, setParams] = useSearchParams();
   const today = useToday();
   const me = useMe();

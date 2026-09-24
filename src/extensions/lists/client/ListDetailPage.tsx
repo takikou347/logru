@@ -10,19 +10,13 @@ import { Empty, Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { formatDay, parseDateKey } from "@/lib/dates";
+import { formatShortDate } from "@/lib/dates";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { cn } from "@/lib/utils";
 import type { ListItem } from "./api";
 import { useAddItem, useDeleteItem, useListDetail, useListsGroups, useToggleItem, useUpdateItemText } from "./api";
 import { EditListSheet } from "./EditListSheet";
 import { GroupLabel } from "./parts";
-
-/** `2026-09-25` を、文中で使う `9月25日 木曜` の形にする。一覧の行ではないので短い形にしない。決定 0059 */
-function formatDateSentence(dateKey: string): string {
-  const d = parseDateKey(dateKey);
-  return d ? formatDay(d) : dateKey;
-}
 
 /**
  * 項目を足す欄。1 行打って Enter か右の「足す」を押すと足し、入力欄は空のまま次の項目を打てる。F-203
@@ -206,7 +200,7 @@ export function ListDetailPage() {
               <span className="flex items-center gap-2">
                 <GroupLabel group={group} me={me.data} />
                 {list.date && (
-                  <time className="text-xs text-ink-2">{formatDateSentence(list.date)} のカレンダーに出ています</time>
+                  <time className="text-xs text-ink-2">{formatShortDate(list.date)} のカレンダーに出ています</time>
                 )}
               </span>
             </span>

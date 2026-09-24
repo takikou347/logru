@@ -8,7 +8,7 @@ import { Dock } from "@/components/parts/Dock";
 import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
-import { formatDay, parseDateKey } from "@/lib/dates";
+import { formatDay, formatSpan, parseDateKey } from "@/lib/dates";
 import { useCalendar } from "@/modules/calendar/api";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { DAY_MS, DEFAULT_TIME_ZONE, startOfDayIn } from "../shared/days";
@@ -16,7 +16,7 @@ import type { MemoryRecord } from "../shared/types";
 import { useMemoryGroups, useMemoryList, useRecords } from "./api";
 import { Flow } from "./Flow";
 import { entriesOf, Lightbox } from "./Lightbox";
-import { Ambient, formatSpan, PhotoImg } from "./parts";
+import { Ambient, PhotoImg } from "./parts";
 import { RecordSheet } from "./RecordSheet";
 
 /**

@@ -14,14 +14,14 @@ import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { formatShortDate } from "@/lib/dates";
+import { formatShortDate, formatSpan } from "@/lib/dates";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { DEFAULT_TIME_ZONE, dayKeyIn } from "../shared/days";
 import type { Memory, MemoryRecord } from "../shared/types";
 import { useMemoryGroups, useMemoryList } from "./api";
 import { CoverOpen } from "./Book";
 import { MemorySheet } from "./MemorySheet";
-import { formatClock, formatSpan, GroupLabel, PhotoImg } from "./parts";
+import { formatClock, GroupLabel, PhotoImg } from "./parts";
 import { RecordSheet } from "./RecordSheet";
 
 const FILTER_KEY = "logru-memories-group";

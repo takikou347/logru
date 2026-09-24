@@ -166,7 +166,7 @@ export function FlatItemList({
   );
 }
 
-/** 「このあと」の日の見出し。今日は出さず、明日は「明日」、それ以降は `9月27日 日曜` の形。#5、決定 0059 */
+/** 「このあと」の日の見出し。今日は出さず、明日は「明日」、それ以降は `9月27日` の形。#5、決定 0059 */
 function upcomingDayHeading(day: Date, today: Date): string | null {
   if (sameDay(day, today)) return null;
   if (sameDay(day, addDays(today, 1))) return "明日";
@@ -351,7 +351,7 @@ export function DayPanel({
     <section
       data-testid="day-panel"
       className="glass grid grid-cols-[auto_1fr] items-start gap-4 rounded-panel px-4.5 py-4 xl:grid-cols-1"
-      aria-label={`${day.getMonth() + 1}月${day.getDate()}日の予定`}
+      aria-label={`${formatDay(day)}の予定`}
       onPointerDown={isToday ? requestOnce : undefined}
     >
       <div

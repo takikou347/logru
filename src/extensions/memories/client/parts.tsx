@@ -231,18 +231,6 @@ export function GroupLabel({ group, me, children }: { group: GroupSummary | unde
   );
 }
 
-/** 期間の見出し。`9.19 土 — 9.20 日` */
-export function formatSpan(startsAt: number, endsAt: number, timeZone: string): string {
-  const f = new Intl.DateTimeFormat("ja-JP", { timeZone, month: "numeric", day: "numeric", weekday: "short" });
-  const a = f.formatToParts(startsAt);
-  const b = f.formatToParts(endsAt - 1);
-  const s = (p: Intl.DateTimeFormatPart[]) =>
-    `${p.find((x) => x.type === "month")?.value}.${p.find((x) => x.type === "day")?.value} ${p.find((x) => x.type === "weekday")?.value}`;
-  const first = s(a);
-  const last = s(b);
-  return first === last ? first : `${first} — ${last}`;
-}
-
 /** 時刻。`14:08` */
 export function formatClock(ms: number, timeZone?: string): string {
   return new Intl.DateTimeFormat("ja-JP", { timeZone, hour: "numeric", minute: "2-digit" }).format(ms);

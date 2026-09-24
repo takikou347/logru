@@ -58,12 +58,12 @@ test("ホームの「記録する」から 3 タップと金額の入力 1 回�
   await signUp(page, { name: "こた" });
   await enableKakeibo(page);
 
-  // 機能のシートに入口と「記録する」が出る
+  // 機能のシートに入口が出る。記録の動線はホームのウィジェットへ移した
   await page.goto("/");
   await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
   const sheet = page.getByRole("dialog", { name: "機能" });
-  await expect(sheet.getByRole("link", { name: /記録する/ })).toBeVisible();
   await expect(sheet.getByRole("link", { name: /家計簿/ })).toBeVisible();
+  await expect(sheet.getByRole("link", { name: /記録する/ })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(sheet).toBeHidden();
 

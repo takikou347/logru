@@ -12,6 +12,7 @@ import { FieldMessage } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { auth } from "@/lib/firebase";
+import { useBack } from "@/lib/use-back";
 import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { useInvalidateMemories, useMemoryGroups } from "./api";
@@ -41,6 +42,7 @@ export function KomaNowPage() {
   const now = useKomaNow();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const goBack = useBack("/memories/koma");
   const invalidate = useInvalidateMemories();
   const saveKomaNow = useSaveKomaNow();
   const saveKomaDay = useSaveKomaDay();
@@ -140,7 +142,7 @@ export function KomaNowPage() {
       <div className="flex w-full max-w-[560px] flex-col gap-3">
         <header className="glass flex min-h-[58px] items-center gap-1 rounded-full px-1.5 py-1.5">
           <Button asChild variant="ghost" size="icon">
-            <Link to="/memories/koma" aria-label="ひとコマの確認へ">
+            <Link to={goBack.to} aria-label="ひとコマの確認へ" onClick={goBack.onClick}>
               <ChevronLeft className="size-5" />
             </Link>
           </Button>

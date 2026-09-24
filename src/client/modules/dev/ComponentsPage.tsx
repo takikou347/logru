@@ -6,7 +6,7 @@ import { Chip } from "@/components/parts/Chip";
 import { ColorSwatches } from "@/components/parts/ColorSwatches";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { Field } from "@/components/parts/Field";
-import type { MascotPose } from "@/components/parts/Mascot";
+import { MASCOT_POSES } from "@/components/parts/Mascot";
 import { Dot, Empty, Panel, PanelRow } from "@/components/parts/Panel";
 import { Pools } from "@/components/parts/Pools";
 import { Segmented } from "@/components/parts/Segmented";
@@ -113,7 +113,7 @@ export function ComponentsPage() {
       </Panel>
       <Panel title="マスコット">
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-          {(["calendar", "camera", "coin", "compass", "bell", "search", "list"] as MascotPose[]).map((pose) => (
+          {MASCOT_POSES.map((pose) => (
             <EmptyState key={pose} pose={pose} action={{ label: "試す", onClick: () => toast(pose) }}>
               {pose}
             </EmptyState>

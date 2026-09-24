@@ -5,6 +5,7 @@ import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "rea
 import { Notice } from "@/components/layout/AuthShell";
 import { ColorSwatches } from "@/components/parts/ColorSwatches";
 import { Field } from "@/components/parts/Field";
+import { Mascot } from "@/components/parts/Mascot";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,6 +93,8 @@ export function OnboardingSheet({
       >
         {step === 0 && (
           <>
+            {/* 手を振るメクリで迎える。0053、#179 */}
+            <Mascot pose="wave" className="self-center" />
             <p>Logru はカレンダーが土台です。要る機能だけを足して使います。</p>
             <p>はじめに、表示名と自分の色を決めましょう。あとから設定で変えられます。</p>
             <Field label="表示名" error={nameError}>

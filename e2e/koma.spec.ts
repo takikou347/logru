@@ -17,13 +17,9 @@ test("思い出が無い日でも、今日をひとコマで始め、近道の�
   await signUp(page, { name: "こた" });
   await addExtension(page, "思い出");
 
-  // 機能のシートの「ひとコマ」から確認画面へ。今日を始める
+  // ホームの「ひとコマ」のウィジェットから確認画面へ。今日を始める
   await page.goto("/");
-  await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
-  await page
-    .getByRole("dialog", { name: "機能" })
-    .getByRole("link", { name: /ひとコマ/ })
-    .click();
+  await page.getByTestId("widget-koma").click();
   await page.getByRole("button", { name: "今日のひとコマを始める" }).click();
   const start = page.getByRole("dialog", { name: "今日のひとコマを始める" });
   await expect(start.getByRole("button", { name: /^共有/ })).toContainText("自分だけ");

@@ -59,10 +59,18 @@ describe("項目の入力。F-203、F-204", () => {
     expect(listItemInput.safeParse({ text: "あ".repeat(201) }).success).toBe(false);
   });
 
-  it("チェックの有無は真偽値だけを通す", () => {
+  it("チェックの有無は真偽値だけを通す。文字だけを送っても直せる。両方省くのは断る", () => {
     expect(listItemPatchInput.safeParse({ checked: true }).success).toBe(true);
     expect(listItemPatchInput.safeParse({ checked: false }).success).toBe(true);
     expect(listItemPatchInput.safeParse({}).success).toBe(false);
     expect(listItemPatchInput.safeParse({ checked: "true" }).success).toBe(false);
+  });
+
+  it("項目の文字を直す入力は、足すときと同じ形で確かめる。F-203", () => {
+    expect(listItemPatchInput.safeParse({ text: "大根" }).success).toBe(true);
+    expect(listItemPatchInput.safeParse({ text: "" }).success).toBe(false);
+    expect(listItemPatchInput.safeParse({ text: "  " }).success).toBe(false);
+    expect(listItemPatchInput.safeParse({ text: "あ".repeat(201) }).success).toBe(false);
+    expect(listItemPatchInput.safeParse({ checked: true, text: "大根" }).success).toBe(true);
   });
 });

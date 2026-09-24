@@ -10,6 +10,29 @@ export function useLatestListHint(enabled: boolean): string | null {
 }
 
 /**
+ * 「リストに足す」。押すといちばん新しいリストの画面が、入力欄にカーソルが入った状態で開く。F-209
+ * 前は機能のシートの `actions` にあった近道。ホームのウィジェットへ移した。既定では並べない。
+ */
+export function AddToListWidget() {
+  return (
+    <Link
+      to="/lists/latest"
+      data-testid="widget-lists-add"
+      className="glass grid min-h-16 grid-cols-[44px_1fr_auto] items-center gap-3 rounded-panel py-2.5 pr-3 pl-2.5 text-ink no-underline"
+    >
+      <span className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+        <ListChecks className="size-5" aria-hidden="true" />
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <b className="truncate text-[15px]">リストに足す</b>
+        <small className="truncate text-xs text-ink-2">いちばん新しいリストに</small>
+      </span>
+      <ChevronRight className="size-5 text-ink-2" aria-hidden="true" />
+    </Link>
+  );
+}
+
+/**
  * 「リスト」。いちばん新しいリストの名前と、残りの項目の数を出す。押すとそのリストへ移る。F-209
  * リストが無ければ、作るよう促し、押すと一覧へ移る。
  */

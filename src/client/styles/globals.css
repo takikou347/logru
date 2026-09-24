@@ -313,6 +313,26 @@
 }
 
 /*
+ * マスコットのメクリが、ゆっくり上下にゆれる。0053、#179
+ * 待つ間ずっと続く動きなので、0044 の 3 段の時間の外にある。まばたきを待つ間と同じ扱い。
+ * 動きを減らす設定では、上の 0.01ms の決まりで細かく震えるのを避けるため、そもそも付けない。
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .mascot-bob {
+    animation: mascot-bob 3.2s ease-in-out infinite;
+  }
+}
+@keyframes mascot-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/*
  * ひとコマの現像。送った直後、白からいろへ 1.2 秒で色づく。0044 の 3 段の時間の外にある
  * 一回限りの動きで、写真の img 要素だけに filter を使う例外にする。動きを減らす設定では
  * KomaNowPage.tsx 側でこの動きを起こさない。#101

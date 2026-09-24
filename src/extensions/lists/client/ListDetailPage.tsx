@@ -1,6 +1,7 @@
-import { Pencil, Plus, Trash2 } from "lucide-react";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
+import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
+import { toast } from "sonner";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { Page, PageBar } from "@/components/layout/AppLayout";
@@ -10,21 +11,29 @@ import { Empty, Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { formatDay, parseDateKey } from "@/lib/dates";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { cn } from "@/lib/utils";
 import type { ListItem } from "./api";
-import { useAddItem, useDeleteItem, useListDetail, useListsGroups, useToggleItem } from "./api";
+import { useAddItem, useDeleteItem, useListDetail, useListsGroups, useToggleItem, useUpdateItemText } from "./api";
 import { EditListSheet } from "./EditListSheet";
-import { formatShortDate, GroupLabel } from "./parts";
+import { GroupLabel } from "./parts";
+
+/** `2026-09-25` を、文中で使う `9月25日 木曜` の形にする。一覧の行ではないので短い形にしない。決定 0059 */
+function formatDateSentence(dateKey: string): string {
+  const d = parseDateKey(dateKey);
+  return d ? formatDay(d) : dateKey;
+}
 
 /**
- * 項目を足す欄。1 行打って Enter を押すと足し、入力欄は空のまま次の項目を打てる。F-203
+ * 項目を足す欄。1 行打って Enter か右の「足す」を押すと足し、入力欄は空のまま次の項目を打てる。F-203
  * `autoFocus` は、いちばん新しいリストへの近道 `?add=1` から開いたときに使う。F-209
  */
 function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean }) {
   const addItem = useAddItem(listId);
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const canSubmit = text.trim().length > 0;
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
@@ -42,9 +51,6 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
 
   return (
     <form className="flex items-center gap-2 border-t border-line pt-2.5" onSubmit={submit}>
-      <span className="grid size-[22px] flex-none place-items-center rounded-[7px] border-2 border-dashed border-ink-3 text-ink-3">
-        <Plus className="size-3.5" />
-      </span>
       <Input
         ref={inputRef}
         value={text}
@@ -53,6 +59,9 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
         aria-label="項目を足す"
         onChange={(e) => setText(e.target.value)}
       />
+      <Button type="submit" variant="secondary" className="flex-none" disabled={!canSubmit || addItem.isPending}>
+        足す
+      </Button>
     </form>
   );
 }
@@ -60,9 +69,51 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
 /**
  * 項目の行。チェックすると下へ寄り、字が薄くなる。F-204、F-205
  * 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
+ *
+ * 文字を押すと、その場で入力欄になって直せる。Enter か欄の外を押すと保存、Esc か空にすると元に戻す。
+ * チェックの押せる範囲(左)、文字を直す範囲(中)、消す範囲(右)は重ならない。F-203
  */
 function ItemRow({ item, listId, onRemove }: { item: ListItem; listId: string; onRemove: (item: ListItem) => void }) {
   const toggleItem = useToggleItem(listId);
+  const updateText = useUpdateItemText(listId);
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(item.text);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  function startEdit() {
+    setText(item.text);
+    setEditing(true);
+  }
+
+  async function commit() {
+    const value = text.trim();
+    setEditing(false);
+    if (!value || value === item.text) return;
+    try {
+      await updateText.mutateAsync({ id: item.id, text: value });
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setText(item.text);
+      setEditing(false);
+    }
+  }
+
   return (
     <li className="grid min-h-[52px] grid-cols-[34px_1fr_auto] items-center gap-1 border-t border-line text-sm">
       <Checkbox
@@ -71,7 +122,30 @@ function ItemRow({ item, listId, onRemove }: { item: ListItem; listId: string; o
         onCheckedChange={(v) => toggleItem.mutate({ id: item.id, checked: v === true })}
         className="size-[22px] rounded-[7px]"
       />
-      <span className={cn("truncate py-1 font-medium", item.checked && "text-ink-2 line-through")}>{item.text}</span>
+      {editing ? (
+        <Input
+          ref={inputRef}
+          value={text}
+          maxLength={200}
+          aria-label={`${item.text} を直す`}
+          className="h-9 px-2 py-1 text-sm"
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={onKeyDown}
+        />
+      ) : (
+        <button
+          type="button"
+          className={cn(
+            "truncate rounded-(--r-field) py-1 text-left font-medium",
+            item.checked && "text-ink-2 line-through",
+          )}
+          aria-label={`${item.text} を直す`}
+          onClick={startEdit}
+        >
+          {item.text}
+        </button>
+      )}
       <button
         type="button"
         className="grid size-9 place-items-center text-ink-3"
@@ -135,7 +209,7 @@ export function ListDetailPage() {
               <span className="flex items-center gap-2">
                 <GroupLabel group={group} me={me.data} />
                 {list.date && (
-                  <time className="text-xs text-ink-2">{formatShortDate(list.date)} のカレンダーに出ています</time>
+                  <time className="text-xs text-ink-2">{formatDateSentence(list.date)} のカレンダーに出ています</time>
                 )}
               </span>
             </span>

@@ -10,6 +10,7 @@ import { LoadFailure } from "@/components/parts/Failure";
 import { Empty } from "@/components/parts/Panel";
 import { Segmented } from "@/components/parts/Segmented";
 import { Button } from "@/components/ui/button";
+import { useBack } from "@/lib/use-back";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { dayIndexOf } from "../shared/days";
 import type { MemoryDetail } from "../shared/types";
@@ -39,6 +40,7 @@ export function MemoryShell({ face, children }: { face: Face; children: (p: Shel
   const { groups, ready } = useMemoryGroups();
   const detail = useMemory(id);
   const navigate = useNavigate();
+  const goBack = useBack("/memories");
   const [editing, setEditing] = useState(false);
   useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
 
@@ -68,7 +70,7 @@ export function MemoryShell({ face, children }: { face: Face; children: (p: Shel
       <div className="flex w-full max-w-[760px] flex-col gap-3">
         <header className="glass flex min-h-[58px] items-center gap-1 rounded-full px-1.5 py-1.5">
           <Button asChild variant="ghost" size="icon">
-            <Link to="/memories" aria-label="思い出の一覧へ戻る">
+            <Link to={goBack.to} aria-label="思い出の一覧へ戻る" onClick={goBack.onClick}>
               <ChevronLeft className="size-5" />
             </Link>
           </Button>

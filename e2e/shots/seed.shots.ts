@@ -161,7 +161,8 @@ test("同じデータを入れる", async ({ page }) => {
   if (features.kakeibo)
     await step("家計簿", async () => {
       await page.goto("/kakeibo");
-      await page.getByRole("button", { name: "支出を記録する" }).click();
+      // 空の月は、下の帯の「+」と空の枠のボタンの 2 つがある。どちらも同じシートを開く
+      await page.getByRole("button", { name: "支出を記録する" }).first().click();
       const create = page.getByRole("dialog", { name: "記録する" });
       await create.getByLabel("金額").fill(DATA.expense);
       await create.getByRole("radio", { name: "食費" }).click();
@@ -179,7 +180,8 @@ test("同じデータを入れる", async ({ page }) => {
       await pickShare(page, create, DATA.pair);
       await create.getByRole("button", { name: "作る" }).click();
       await expect(page).toHaveURL(/\/lists\/.+/);
-      const input = page.getByLabel("項目を追加");
+      // 2026-w39 に「項目を追加」から「項目を足す」へ変わった。前の版でも撮れるよう両方を試す
+      const input = page.getByLabel(/^項目を(足す|追加)$/);
       for (const item of DATA.items) {
         await input.fill(item);
         await input.press("Enter");

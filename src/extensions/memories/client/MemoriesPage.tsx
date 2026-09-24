@@ -14,6 +14,7 @@ import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatShortDate } from "@/lib/dates";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { DEFAULT_TIME_ZONE, dayKeyIn } from "../shared/days";
 import type { Memory, MemoryRecord } from "../shared/types";
@@ -203,7 +204,7 @@ function Recent({ records, me }: { records: MemoryRecord[]; me: Me }) {
                     <GroupLabel group={group} me={me} />
                   </small>
                   <small className="block text-[11px] text-ink-2">
-                    {day.slice(5).replace("-", ".")} {formatClock(r.occurredAt)}
+                    {formatShortDate(day)} {formatClock(r.occurredAt)}
                   </small>
                 </Link>
               </li>

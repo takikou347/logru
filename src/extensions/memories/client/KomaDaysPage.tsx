@@ -9,6 +9,7 @@ import { LoadFailure } from "@/components/parts/Failure";
 import { Dot, Empty } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { groupColor } from "@/lib/colors";
+import { formatShortDate } from "@/lib/dates";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { startOfDayIn } from "../shared/days";
 import type { KomaDay, MemoryRecord } from "../shared/types";
@@ -54,7 +55,7 @@ export function KomaDaysPage() {
         {list.length === 0 && <Empty>まだひとコマはありません。</Empty>}
         {list.map((d) => {
           const group = groups.find((g) => g.id === d.groupId);
-          const label = `${d.day.slice(5).replace("-", ".")} ${new Intl.DateTimeFormat("ja-JP", { weekday: "short", timeZone: "UTC" }).format(Date.parse(d.day))}`;
+          const label = formatShortDate(d.day);
           return (
             <KomaStrip
               key={d.day}

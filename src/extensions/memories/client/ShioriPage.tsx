@@ -6,6 +6,7 @@ import { Chip } from "@/components/parts/Chip";
 import { Empty, Panel } from "@/components/parts/Panel";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { formatShortDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { useCalendar } from "@/modules/calendar/api";
 import { dayKeyIn, memoryDays } from "../shared/days";
@@ -130,8 +131,7 @@ function Wishes({ detail, group, me }: ListProps) {
         return (
           <Panel key={day} aria-label={`${day} のしおり`}>
             <h2 className="flex items-baseline gap-2 text-sm font-bold">
-              <span className="text-xl font-extrabold tracking-[-0.02em]">{day.slice(5).replace("-", ".")}</span>
-              {new Intl.DateTimeFormat("ja-JP", { weekday: "short", timeZone: "UTC" }).format(Date.parse(day))}
+              <span className="text-xl font-extrabold tracking-[-0.02em]">{formatShortDate(day)}</span>
               <span className="ml-auto text-[11px] font-medium text-ink-2">予定 {dayEvents.length} 件</span>
             </h2>
             <ul>
@@ -256,7 +256,7 @@ function ItemRows({
               {(item.place || item.dueOn) && (
                 <small className={cn("text-[11px] text-ink-2", late && "font-bold text-sun")}>
                   {item.place}
-                  {item.dueOn && `${item.dueOn.slice(5).replace("-", ".")} まで${late ? "・期限切れ" : ""}`}
+                  {item.dueOn && `${formatShortDate(item.dueOn)} まで${late ? "・期限切れ" : ""}`}
                 </small>
               )}
             </span>

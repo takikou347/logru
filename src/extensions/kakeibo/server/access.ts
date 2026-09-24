@@ -4,20 +4,11 @@ import { groupExtensions, groupMembers, groups } from "@server/core/db/schema";
 import { and, eq } from "drizzle-orm";
 import { kakeiboManifest } from "../manifest";
 
-/**
- * そのグループのメンバーで、家計簿の拡張が有効かを確かめる。違えば 404。
- * 無効にしたグループのデータは消さないが、見せない。F-308
- * @param db D1 を包んだ Drizzle
- * @param userId 利用者の ID
- * @param groupId グループの ID
- */
-export async function requireKakeiboGroup(db: DB, userId: string, groupId: string): Promise<void> {
-  const ok = await usableGroupIds(db, userId, [groupId]);
-  if (ok.length === 0) throw new HttpError(404, "見つかりません。");
-}
+/** 使えるグループ 1 つ */
+export type UsableGroup = { id: string; isPersonal: boolean };
 
 /**
- * 利用者が家計簿に使えるグループの ID。0019
+ * 利用者が家計簿に使えるグループ。0019
  *
  * 使うかどうかは、自分だけのグループの切り替えで持つ。使わないなら、どのグループも使えない。
  * 使うなら、自分だけのグループと、家計簿を有効にした共有のグループ。自分だけのグループは「自分だけ」に当たる。
@@ -26,7 +17,7 @@ export async function requireKakeiboGroup(db: DB, userId: string, groupId: strin
  * @param userId 利用者の ID
  * @param only 絞るグループ。省くと全部
  */
-export async function usableGroupIds(db: DB, userId: string, only?: string[]): Promise<string[]> {
+export async function usableGroups(db: DB, userId: string, only?: string[]): Promise<UsableGroup[]> {
   if (only && only.length === 0) return [];
   const rows = await db
     .select({ id: groupMembers.groupId, isPersonal: groups.isPersonal })
@@ -42,6 +33,28 @@ export async function usableGroupIds(db: DB, userId: string, only?: string[]): P
     )
     .where(eq(groupMembers.userId, userId));
   if (!rows.some((r) => r.isPersonal)) return [];
-  const ids = rows.map((r) => r.id);
-  return only ? ids.filter((id) => only.includes(id)) : ids;
+  return only ? rows.filter((r) => only.includes(r.id)) : rows;
+}
+
+/** 利用者が家計簿に使えるグループの ID。usableGroups の ID だけを返す形 */
+export async function usableGroupIds(db: DB, userId: string, only?: string[]): Promise<string[]> {
+  return (await usableGroups(db, userId, only)).map((g) => g.id);
+}
+
+/**
+ * そのグループのメンバーで、家計簿の拡張が有効かを確かめる。違えば 404。
+ * 無効にしたグループのデータは消さないが、見せない。F-308
+ * @param db D1 を包んだ Drizzle
+ * @param userId 利用者の ID
+ * @param groupId グループの ID
+ */
+export async function requireKakeiboGroup(db: DB, userId: string, groupId: string): Promise<void> {
+  const ok = await usableGroupIds(db, userId, [groupId]);
+  if (ok.length === 0) throw new HttpError(404, "見つかりません。");
+}
+
+/** 利用者の自分だけのグループの ID。家計簿を使っていなければ null */
+export async function personalKakeiboGroupId(db: DB, userId: string): Promise<string | null> {
+  const rows = await usableGroups(db, userId);
+  return rows.find((r) => r.isPersonal)?.id ?? null;
 }

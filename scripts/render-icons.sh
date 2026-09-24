@@ -24,6 +24,7 @@ render 180 "$root/public/apple-touch-icon.png" ""
 # 中身は中央の 60% に収まっているので、マスク用にもそのまま使える
 cp "$root/public/icon-512.png" "$root/public/icon-maskable-512.png"
 
-# ホーム画面のアイコンを長押ししたときの近道の絵。#110
+# ホーム画面のアイコンを長押ししたときの近道の絵。#110、0069
 render 96 "$root/public/icon-shortcut-new-96.png" "" "$root/public/icon-shortcut-new.svg"
 render 96 "$root/public/icon-shortcut-koma-96.png" "" "$root/public/icon-shortcut-koma.svg"
+render 96 "$root/public/icon-shortcut-kakeibo-96.png" "" "$root/public/icon-shortcut-kakeibo.svg"

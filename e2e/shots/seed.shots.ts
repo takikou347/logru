@@ -53,6 +53,28 @@ async function enableInGroup(page: Page, label: string) {
   await expect(toggle).toBeChecked();
 }
 
+/**
+ * 家計簿の口座を作る。/kakeibo/accounts の「+」から開く。0069
+ * @param opts.kind 種類のチップの名前。省くと既定(現金)のまま
+ * @param opts.openingBalance 始まりの残高。省くと 0 のまま。マイナスも渡せる
+ * @param opts.share 共有先のグループ名。省くと自分だけ
+ */
+async function createKakeiboAccount(
+  page: Page,
+  name: string,
+  opts: { kind?: string; openingBalance?: string; share?: string } = {},
+) {
+  await page.goto("/kakeibo/accounts");
+  await page.getByRole("toolbar", { name: "口座の操作" }).getByRole("button", { name: "口座を作る" }).click();
+  const sheet = page.getByRole("dialog", { name: "口座を作る" });
+  await sheet.getByLabel("名前").fill(name);
+  if (opts.kind) await sheet.getByRole("radio", { name: opts.kind }).click();
+  if (opts.openingBalance) await sheet.getByLabel("始まりの残高").fill(opts.openingBalance);
+  if (opts.share) await pickShare(page, sheet, opts.share);
+  await sheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("口座を作りました")).toBeVisible();
+}
+
 async function addEventOn(
   page: Page,
   opts: { title: string; date: string; time: [string, string]; group?: string; weekly?: boolean },
@@ -168,6 +190,32 @@ test("同じデータを入れる", async ({ page }) => {
       await create.getByRole("radio", { name: "食費" }).click();
       await create.getByRole("button", { name: "保存する" }).click();
       await expect(page.getByText("記録しました")).toBeVisible();
+    });
+
+  if (features.kakeibo)
+    await step("家計簿の口座", async () => {
+      await page.goto("/kakeibo/accounts");
+      if (!(await visible(page.getByRole("heading", { name: "家計簿の口座" }), 5_000))) {
+        features.kakeiboAccounts = false;
+        return;
+      }
+      await createKakeiboAccount(page, DATA.cash, { openingBalance: "30000" });
+      await createKakeiboAccount(page, DATA.bank, { kind: "銀行", openingBalance: "280000" });
+      await createKakeiboAccount(page, DATA.card, { kind: "カード", openingBalance: "-12000" });
+      await createKakeiboAccount(page, DATA.sharedAccount, { kind: "銀行", openingBalance: "50000", share: DATA.pair });
+
+      // 振替: 銀行 → 共有の生活費(毎月の生活費の入金)
+      await page.goto("/kakeibo?record=1");
+      const transfer = page.getByRole("dialog", { name: "記録する" });
+      await transfer.getByRole("radio", { name: "振替" }).click();
+      await transfer.getByLabel("金額").fill(DATA.transfer);
+      await transfer.getByRole("button", { name: /^出す元/ }).click();
+      await page.getByRole("dialog", { name: "出す元" }).getByRole("radio", { name: DATA.bank }).click();
+      await transfer.getByRole("button", { name: /^入れる先/ }).click();
+      await page.getByRole("dialog", { name: "入れる先" }).getByRole("radio", { name: DATA.sharedAccount }).click();
+      await transfer.getByRole("button", { name: "保存する" }).click();
+      await expect(page.getByText("記録しました")).toBeVisible();
+      features.kakeiboAccounts = true;
     });
 
   if (features.lists)

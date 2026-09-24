@@ -47,7 +47,14 @@ export async function listKakeiboItems(db: DB, groupIds: string[], from: number,
   const rows = await db
     .select({ groupId: kakeiboExpenses.groupId, date: kakeiboExpenses.date, amount: kakeiboExpenses.amount })
     .from(kakeiboExpenses)
-    .where(and(inArray(kakeiboExpenses.groupId, groupIds), between(kakeiboExpenses.date, fromKey, toKey)));
+    .where(
+      and(
+        inArray(kakeiboExpenses.groupId, groupIds),
+        between(kakeiboExpenses.date, fromKey, toKey),
+        // カレンダーには支出だけを渡す。収入と振替は出さない。0069
+        eq(kakeiboExpenses.type, "expense"),
+      ),
+    );
 
   const totals = new Map<string, { groupId: string; date: string; amounts: number[] }>();
   for (const r of rows) {
@@ -75,7 +82,14 @@ export async function searchKakeibo(db: DB, groupIds: string[], query: string): 
   const matched = await db
     .select({ groupId: kakeiboExpenses.groupId, date: kakeiboExpenses.date })
     .from(kakeiboExpenses)
-    .where(and(inArray(kakeiboExpenses.groupId, groupIds), like(kakeiboExpenses.memo, `%${query}%`)));
+    .where(
+      and(
+        inArray(kakeiboExpenses.groupId, groupIds),
+        like(kakeiboExpenses.memo, `%${query}%`),
+        // 探すも支出だけ。収入と振替のメモは探さない。0069
+        eq(kakeiboExpenses.type, "expense"),
+      ),
+    );
   const days = new Map(matched.map((r) => [`${r.groupId}\u0000${r.date}`, r]));
 
   return Promise.all(
@@ -83,7 +97,13 @@ export async function searchKakeibo(db: DB, groupIds: string[], query: string): 
       const rows = await db
         .select({ amount: kakeiboExpenses.amount })
         .from(kakeiboExpenses)
-        .where(and(eq(kakeiboExpenses.groupId, groupId), eq(kakeiboExpenses.date, date)));
+        .where(
+          and(
+            eq(kakeiboExpenses.groupId, groupId),
+            eq(kakeiboExpenses.date, date),
+            eq(kakeiboExpenses.type, "expense"),
+          ),
+        );
       return toDayItem(groupId, date, sumAmount(rows));
     }),
   );

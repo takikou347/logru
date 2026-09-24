@@ -6,7 +6,7 @@ import { addExtension, signUp } from "./helpers";
  * 「予定を足す」はカレンダーの上に新しい予定のシートを開いた状態、「ひとコマ」は撮る画面を開いた状態で起動する。
  */
 
-test("manifest に、予定を足すとひとコマの近道がある", async ({ page }) => {
+test("manifest に、予定を足す・ひとコマ・支出を記録するの近道がある", async ({ page }) => {
   await page.goto("/login");
   const manifestHref = await page.locator('link[rel="manifest"]').getAttribute("href");
   const res = await page.request.get(manifestHref!);
@@ -14,6 +14,7 @@ test("manifest に、予定を足すとひとコマの近道がある", async ({
   expect(json.shortcuts).toEqual([
     expect.objectContaining({ name: "予定を足す", url: "/?new=1" }),
     expect.objectContaining({ name: "ひとコマ", url: "/memories/koma/now" }),
+    expect.objectContaining({ name: "支出を記録する", url: "/kakeibo?record=1" }),
   ]);
   for (const shortcut of json.shortcuts) {
     expect(shortcut.icons[0].sizes).toBe("96x96");

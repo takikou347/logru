@@ -76,7 +76,7 @@ export default defineConfig(({ mode }) => ({
           { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
           { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
-        // ホーム画面のアイコンを長押ししたときの近道。開いたら URL の印を消す。#110
+        // ホーム画面のアイコンを長押ししたときの近道。開いたら URL の印を消す。#110、0069
         shortcuts: [
           {
             name: "予定を足す",
@@ -87,6 +87,11 @@ export default defineConfig(({ mode }) => ({
             name: "ひとコマ",
             url: "/memories/koma/now",
             icons: [{ src: "/icon-shortcut-koma-96.png", sizes: "96x96", type: "image/png" }],
+          },
+          {
+            name: "支出を記録する",
+            url: "/kakeibo?record=1",
+            icons: [{ src: "/icon-shortcut-kakeibo-96.png", sizes: "96x96", type: "image/png" }],
           },
         ],
       },

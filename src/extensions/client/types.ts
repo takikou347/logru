@@ -87,7 +87,11 @@ type ExtensionPage = {
 /** 入口に出す画面。PC は左の列、スマホは機能のシートに並ぶ */
 type ExtensionNav = { label: string; icon: LucideIcon; path: string; description?: string };
 
-/** 機能のシートに出す、すぐする操作。押すと path へ移る。例は「記録する」 */
+/**
+ * 「機能を足す」で足した直後の案内(トースト)に出す、すぐする操作。押すと path へ移る。例は「記録する」
+ * 機能のシートには出さない。すぐする操作は、いつでもできるならホームのウィジェット、
+ * 「いま」しかできないなら useShortcut が受け持つ。0019
+ */
 type ExtensionAction = { label: string; icon: LucideIcon; path: string; hint?: string };
 
 /**
@@ -165,7 +169,7 @@ export type ClientExtension = {
   pages?: ExtensionPage[];
   /** 入口に出す画面 */
   nav?: ExtensionNav;
-  /** 機能のシートに出す、すぐする操作 */
+  /** 「機能を足す」で足した直後の案内に出す、すぐする操作。無ければ省く */
   actions?: ExtensionAction[];
   /**
    * 近道を返す hook。F-26

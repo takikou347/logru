@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import { useBack } from "@/lib/use-back";
 
 type Props = { children: ReactNode } & ({ to: string; onClick?: never } | { onClick: () => void; to?: never });
 
@@ -8,9 +9,11 @@ const look =
 
 /**
  * カードの左上に置く、戻るためのリンク。見出しの上に小さく出す。押せる高さは 44px。
- * 行き先へ移るだけなら to、ログアウトしてから移るときなどは onClick を渡す。
+ * to は前の画面の記録が無いときに移る決まった先。記録があれば、押したときにそちらへ戻る。0070
+ * ログアウトしてから移るときなど、行き先を自分で決めたいときは onClick を渡す(この道は決まった先の記録をしない)。
  */
 export function BackLink({ children, to, onClick }: Props) {
+  const goBack = useBack(to ?? "/");
   const body = (
     <>
       <span aria-hidden="true">‹</span>
@@ -19,7 +22,7 @@ export function BackLink({ children, to, onClick }: Props) {
   );
   if (to !== undefined) {
     return (
-      <Link className={look} to={to}>
+      <Link className={look} to={goBack.to} onClick={goBack.onClick}>
         {body}
       </Link>
     );

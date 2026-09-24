@@ -18,7 +18,7 @@ test("拡張の画面の見出しを押すと機能のシートが開き、ほ�
   await page.goto("/kakeibo");
   await page.getByRole("heading", { name: "家計簿", level: 1 }).getByRole("button").click();
   const sheet = page.getByRole("dialog", { name: "機能" });
-  await expect(sheet.getByRole("link", { name: /リストに足す/ })).toBeVisible();
+  await expect(sheet.getByTestId("extension-tile-lists")).toBeVisible();
   await sheet.getByTestId("extension-tile-lists").click();
   await expect(page).toHaveURL(/\/lists$/);
 });

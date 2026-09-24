@@ -16,19 +16,31 @@ test("リストを作り、項目を足す、チェックする、消す。日�
   await signUp(page, { name: "こた" });
   await enableLists(page);
 
-  // 機能のシートに入口と「リストに足す」が出る
+  // 機能のシートには入口のタイルだけが出る。記録の動線はホームのウィジェットへ移した
   await page.goto("/");
   await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
   const sheet = page.getByRole("dialog", { name: "機能" });
-  await expect(sheet.getByRole("link", { name: /リストに足す/ })).toBeVisible();
   await expect(sheet.getByTestId("extension-tile-lists")).toBeVisible();
+  await expect(sheet.getByRole("link", { name: /リストに足す/ })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(sheet).toBeHidden();
 
-  // ホームのウィジェットが最初から並び、リストが無い間は作るよう促す
+  // ホームの「リスト」ウィジェットが最初から並び、リストが無い間は作るよう促す
   const widget = page.getByTestId("widget-lists-latest");
   await expect(widget).toBeVisible();
   await expect(widget.getByText("作ってみましょう")).toBeVisible();
+
+  // 「リストに足す」のウィジェットは既定では並ばない。ホームを編集して足せる
+  await expect(page.getByTestId("widget-lists-add")).toHaveCount(0);
+  await page.getByRole("button", { name: "ホームを編集" }).click();
+  await page.getByRole("button", { name: "ウィジェットを足す" }).click();
+  await page
+    .getByRole("dialog", { name: "ウィジェットを足す" })
+    .getByRole("button", { name: /リストに足す/ })
+    .click();
+  await page.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("ホームを保存しました")).toBeVisible();
+  await expect(page.getByTestId("widget-lists-add")).toBeVisible();
 
   // リストを作る
   await page.goto("/lists");

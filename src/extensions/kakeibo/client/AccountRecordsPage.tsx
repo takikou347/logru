@@ -3,7 +3,8 @@ import { useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Empty, Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,8 @@ export function AccountRecordsPage() {
   const detail = useKakeiboAccountDetail(id ?? null, month);
   const [editing, setEditing] = useState(false);
   const setMonth = (key: string) => setParams((p) => (p.set("month", key), p), { replace: true });
+  // 口座ごとの色は付けていない画面。0071
+  useAppFrame({ poolColors: [] });
 
   if (!id) return null;
   if (detail.isPending || !me.data) return <Loading />;
@@ -84,7 +87,7 @@ export function AccountRecordsPage() {
   const Icon = KAKEIBO_ACCOUNT_KIND_ICONS[account.kind];
 
   return (
-    <AppLayout poolColors={[]}>
+    <>
       <Page>
         <PageBar title={account.name} back="/kakeibo/accounts" />
         <Panel>
@@ -140,6 +143,6 @@ export function AccountRecordsPage() {
         </Panel>
       </Page>
       {editing && <AccountSheet groups={groups} me={me.data} account={account} onClose={() => setEditing(false)} />}
-    </AppLayout>
+    </>
   );
 }

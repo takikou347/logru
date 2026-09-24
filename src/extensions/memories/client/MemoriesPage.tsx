@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { Dock } from "@/components/parts/Dock";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
@@ -85,17 +86,19 @@ export function MemoriesPage() {
     return { upcoming, byYear: [...byYear.entries()].sort((a, b) => b[0] - a[0]) };
   }, [list.data, now]);
 
+  const filterOptions = groupFilterOptions({ groups, me: me.data, value: group, onChange: setGroup });
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
+
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
   const empty = list.data && list.data.memories.length === 0 && list.data.recent.length === 0;
-  const filterOptions = groupFilterOptions({ groups, me: data, value: group, onChange: setGroup });
   // 足せるものは記録する 1 つだけ。「+」を押すと記録のシートを直に開く。思い出を作るのは見出しの右のボタンから。0062、#164
   const addables: Addable[] = [
     { key: "record", label: "記録する", icon: Camera, onClick: () => setParams((p) => (p.set("record", "1"), p)) },
   ];
 
   return (
-    <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
+    <>
       <Page>
         {/* 見出しを押すと機能のシートが開き、ほかの拡張の画面へ近道できる。issue #26 */}
         <PageBar
@@ -133,7 +136,7 @@ export function MemoriesPage() {
       {creating && <MemorySheet groups={groups} me={data} defaultGroupId={group} onClose={() => setCreating(false)} />}
       {recording && <RecordSheet groups={groups} me={data} defaultGroupId={group} onClose={closeRecord} />}
       {features && <FeatureSheet onClose={() => setFeatures(false)} />}
-    </AppLayout>
+    </>
   );
 }
 

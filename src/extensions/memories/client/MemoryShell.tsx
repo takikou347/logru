@@ -5,7 +5,7 @@ import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { ApiError } from "@/api/client";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Empty } from "@/components/parts/Panel";
 import { Segmented } from "@/components/parts/Segmented";
@@ -40,21 +40,18 @@ export function MemoryShell({ face, children }: { face: Face; children: (p: Shel
   const detail = useMemory(id);
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
 
   if (!me.data || !ready || detail.isPending) return <Loading />;
   if (detail.error && !(detail.error instanceof ApiError && detail.error.status === 404)) {
-    return (
-      <AppLayout poolColors={poolColorsOf(groups, me.data)}>
-        <LoadFailure what="思い出" error={detail.error} onRetry={() => void detail.refetch()} />
-      </AppLayout>
-    );
+    return <LoadFailure what="思い出" error={detail.error} onRetry={() => void detail.refetch()} />;
   }
   if (!detail.data) {
     return (
-      <AppLayout poolColors={poolColorsOf(groups, me.data)}>
+      <>
         <Empty>思い出が見つかりません。削除されたか、グループから抜けた可能性があります。</Empty>
         <Link to="/memories">思い出の一覧へ</Link>
-      </AppLayout>
+      </>
     );
   }
   const data = detail.data;
@@ -66,7 +63,7 @@ export function MemoryShell({ face, children }: { face: Face; children: (p: Shel
   };
 
   return (
-    <AppLayout poolColors={poolColorsOf(groups, me.data)}>
+    <>
       <Ambient photo={data.memory.cover} />
       <div className="flex w-full max-w-[760px] flex-col gap-3">
         <header className="glass flex min-h-[58px] items-center gap-1 rounded-full px-1.5 py-1.5">
@@ -86,7 +83,7 @@ export function MemoryShell({ face, children }: { face: Face; children: (p: Shel
         {children({ detail: data, me: me.data, groups, group })}
       </div>
       {editing && <MemorySheet groups={groups} me={me.data} memory={data.memory} onClose={() => setEditing(false)} />}
-    </AppLayout>
+    </>
   );
 }
 

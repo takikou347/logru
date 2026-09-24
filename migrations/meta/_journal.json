@@ -148,6 +148,13 @@
       "when": 1790246400000,
       "tag": "0022_memory_photos_small",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1790300000000,
+      "tag": "0023_kakeibo_accounts",
+      "breakpoints": true
     }
   ]
 }

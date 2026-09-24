@@ -1,7 +1,7 @@
 import type { ClientExtension } from "@extensions/client/types";
 import { BadgeJapaneseYen, Wallet } from "lucide-react";
 import { kakeiboManifest } from "../manifest";
-import { MonthTotalWidget, RecordHomeWidget, useMonthTotalHint } from "./HomeWidget";
+import { AssetsWidget, MonthTotalWidget, RecordHomeWidget, useMonthTotalHint } from "./HomeWidget";
 import { KakeiboItemSheet } from "./KakeiboItemSheet";
 
 /**
@@ -33,6 +33,20 @@ export const kakeiboClient: ClientExtension = {
       defaultPlaced: true,
       Component: MonthTotalWidget,
     },
+    {
+      key: "kakeibo.assets",
+      label: "総資産",
+      description: "自分の口座の残高の合計を表示します。口座が無ければ、口座を作る場所を表示します。",
+      defaultPlaced: false,
+      Component: AssetsWidget,
+    },
   ],
-  pages: [{ path: "/kakeibo", load: async () => ({ Component: (await import("./KakeiboPage")).KakeiboPage }) }],
+  pages: [
+    { path: "/kakeibo", load: async () => ({ Component: (await import("./KakeiboPage")).KakeiboPage }) },
+    { path: "/kakeibo/accounts", load: async () => ({ Component: (await import("./AccountsPage")).AccountsPage }) },
+    {
+      path: "/kakeibo/accounts/:id",
+      load: async () => ({ Component: (await import("./AccountRecordsPage")).AccountRecordsPage }),
+    },
+  ],
 };

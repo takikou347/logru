@@ -1,6 +1,12 @@
 import type { Attendee, AttendeeResponse, CalendarItem, GroupSummary, Me } from "@shared/api-types";
 import { groupColor, memberColor } from "@/lib/colors";
-import { itemKey } from "./use-undoable-delete";
+
+/**
+ * 項目を見分ける名前。拡張が違えば ID が重なりうるので、拡張の名前を前に付ける。
+ * 繰り返す項目は、同じ ID で回ごとに何件も出るので、occurrenceAt も付けて見分ける。0043
+ */
+export const itemKey = (item: Pick<CalendarItem, "extension" | "id" | "occurrenceAt">) =>
+  `${item.extension}:${item.id}${item.occurrenceAt != null ? `:${item.occurrenceAt}` : ""}`;
 
 /** 項目の参加者を、名前と色を付けて画面で使う形にしたもの。#28 */
 export type ViewAttendee = {

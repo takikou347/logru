@@ -8,7 +8,7 @@ const RECENT_MS = 3000;
 
 const recent = new Map<string, number>();
 
-/** 足した(元に戻した)直後に呼ぶ。key は use-undoable-delete の itemKey */
+/** 足した(元に戻した)直後に呼ぶ。key は model.ts の itemKey */
 export function markJustAdded(key: string): void {
   recent.set(key, Date.now() + RECENT_MS);
 }

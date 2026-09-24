@@ -21,11 +21,12 @@ test("思い出を作り、写真付きで記録し、いいねを付け、カ�
   await signUp(page, { name: "こた" });
   await enableMemories(page);
 
-  // 機能のシートに入口と「記録する」が出る
+  // 機能のシートに入口が出る。記録の動線はホームのウィジェットへ移した
   await page.goto("/");
   await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
   const sheet = page.getByRole("dialog", { name: "機能" });
-  await expect(sheet.getByRole("link", { name: /記録する/ })).toBeVisible();
+  await expect(sheet.getByTestId("extension-tile-memories")).toBeVisible();
+  await expect(sheet.getByRole("link", { name: /記録する/ })).toHaveCount(0);
   await sheet.getByRole("link", { name: /思い出/ }).click();
 
   // 今日の日帰りの思い出を作ると、その 1 日が開く

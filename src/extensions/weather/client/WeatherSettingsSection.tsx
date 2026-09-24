@@ -1,3 +1,4 @@
+import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FieldMessage, Panel, PanelRow } from "@/components/parts/Panel";
@@ -89,11 +90,13 @@ function PickPlaceSheet({ onClose }: { onClose: () => void }) {
 
   const results = useSearchPlaces(debounced);
   const query = debounced.trim();
+  // 押した行だけに読み込み中の印を出す。保存が終わるまで、ほかの行も含めて押せなくする
+  const savingId = save.isPending ? save.variables?.id : undefined;
 
   async function pick(place: WeatherPlace) {
     try {
       await save.mutateAsync(place);
-      toast(`${place.name} をいつもの場所にしました`);
+      toast(`いつもの場所を${place.name}にしました`);
       onClose();
     } catch (err) {
       toast.error((err as Error).message);
@@ -121,11 +124,18 @@ function PickPlaceSheet({ onClose }: { onClose: () => void }) {
             <li key={place.id} className="border-line not-first:border-t">
               <button
                 type="button"
-                className="flex min-h-14 w-full flex-col justify-center gap-0.5 rounded-[14px] px-2 py-2 text-left disabled:opacity-50"
+                className="flex min-h-14 w-full items-center justify-between gap-2 rounded-[14px] px-2 py-2 text-left disabled:opacity-50"
                 disabled={save.isPending}
+                aria-busy={savingId === place.id}
                 onClick={() => pick(place)}
               >
-                <span className="truncate text-sm font-medium">{describePlace(place)}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">{describePlace(place)}</span>
+                {savingId === place.id && (
+                  <span className="flex flex-none items-center gap-1.5 text-xs text-ink-2">
+                    保存しています
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  </span>
+                )}
               </button>
             </li>
           ))}

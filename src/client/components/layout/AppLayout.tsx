@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useEnabledExtensions } from "@/lib/extensions";
 import { useApplyLabExperiments } from "@/lib/lab";
+import { useBack } from "@/lib/use-back";
 import { cn } from "@/lib/utils";
 import { Pools } from "../parts/Pools";
 import { ShortcutBand } from "../parts/ShortcutBand";
@@ -174,7 +175,8 @@ export function AccountMenu({ wide = false }: { wide?: boolean }) {
 
 /**
  * 設定やグループの画面の上の帯。左に戻るボタンを置く。
- * @param back 戻る先。渡すと PC でも戻るボタンを出す。一覧の下の画面で使う。渡さなければスマホだけに出し、カレンダーへ戻る
+ * @param back 前の画面の記録が無いときに移る、決まった先。渡すと PC でも戻るボタンを出す。一覧の下の画面で使う。
+ *   渡さなければスマホだけに出し、既定はカレンダー。押したときの行き先は、記録があれば前の画面を優先する。0070
  * @param backMobileOnly back を渡しつつ、PC では隠す。PC に別の道順(設定の目次など)が既にある画面で使う
  * @param onTitleClick 渡すと見出しがボタンになる。拡張の画面どうしの行き来を近くするため、
  *   機能のシートを開くのに使う。スマホで下の帯が無い画面(設定など)でも同じ道が開ける。issue #26
@@ -195,10 +197,11 @@ export function PageBar({
 }) {
   const hideOnDesktop = !back || backMobileOnly;
   const titleClass = cn("min-w-0 flex-1 truncate pl-2 text-[17px] font-bold", hideOnDesktop && "lg:pl-3");
+  const goBack = useBack(back ?? "/");
   return (
     <header className="glass flex min-h-[58px] items-center gap-1 rounded-full py-1.5 pr-2.5 pl-1.5">
       <Button asChild variant="ghost" size="icon" className={cn(hideOnDesktop && "lg:hidden")}>
-        <Link to={back ?? "/"} aria-label="戻る">
+        <Link to={goBack.to} aria-label="戻る" onClick={goBack.onClick}>
           <ChevronLeft className="size-5" />
         </Link>
       </Button>

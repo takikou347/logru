@@ -16,6 +16,7 @@ export const kakeiboClient: ClientExtension = {
   Editor: KakeiboItemSheet,
   icon: BadgeJapaneseYen,
   nav: { label: "家計簿", icon: Wallet, path: "/kakeibo", description: "支出の記録と合計" },
+  // 機能のシートには出さない。actions は「機能を足す」直後の案内だけに使う。ホームの記録するウィジェットと同じ道。0019
   actions: [{ label: "支出を記録する", icon: Wallet, path: "/kakeibo?record=1", hint: "金額とカテゴリ" }],
   useTileHint: useMonthTotalHint,
   widgets: [

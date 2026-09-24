@@ -230,6 +230,16 @@ const screens: Screen[] = [
     },
   },
   {
+    name: "09-kakeibo-accounts",
+    title: "家計簿の口座",
+    variants: DARK,
+    run: async (page, seed) => {
+      skipIfAbsent("09-kakeibo-accounts", seed.features.kakeiboAccounts, "家計簿の口座");
+      await page.goto("/kakeibo/accounts");
+      await expect(page.getByRole("heading", { name: "家計簿の口座" })).toBeVisible();
+    },
+  },
+  {
     name: "09-lists",
     title: "共有リスト",
     variants: DARK,

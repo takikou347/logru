@@ -19,6 +19,7 @@ import { poolColorsOf } from "@/modules/calendar/model";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
 import { formatSignedYen, formatYen } from "../shared/format";
+import { sumByType, summarizeExpenseByCategory } from "../shared/totals";
 import type { KakeiboAccountRef, KakeiboExpense } from "./api";
 import { useDeleteExpense, useKakeiboAccounts, useKakeiboGroups, useKakeiboSummary } from "./api";
 import { ExpenseSheet } from "./ExpenseSheet";
@@ -109,6 +110,9 @@ export function KakeiboPage() {
   const data = me.data;
   // 消す途中(元に戻せる 5 秒の間)の記録は、合計からもすぐ外して見せる。実際に消す API は後から呼ばれる。issue #12
   const records = (summary.data?.records ?? []).filter((r) => !pending.has(r.id));
+  const totalExpense = sumByType(records, "expense");
+  const totalIncome = sumByType(records, "income");
+  const byCategory = summarizeExpenseByCategory(records);
   const filterOptions = groupFilterOptions({ groups, me: data, value: group, onChange: setGroup });
   const personalGroupId = groups.find((g) => g.isPersonal)?.id ?? null;
   const isSelfFilter = group === null || group === personalGroupId;
@@ -167,19 +171,19 @@ export function KakeiboPage() {
         {summary.data && (
           <Panel title="この月の合計">
             <p className="text-3xl font-extrabold" data-testid="kakeibo-total">
-              {formatYen(summary.data.totalExpense)}
+              {formatYen(totalExpense)}
             </p>
             <div className="flex flex-col">
               <PanelRow>
                 <span>収入</span>
                 <span className="font-bold" data-testid="kakeibo-income">
-                  {formatSignedYen(summary.data.totalIncome)}
+                  {formatSignedYen(totalIncome)}
                 </span>
               </PanelRow>
               <PanelRow>
                 <span>差し引き</span>
                 <span className="font-bold" data-testid="kakeibo-net">
-                  {formatSignedYen(summary.data.totalIncome - summary.data.totalExpense)}
+                  {formatSignedYen(totalIncome - totalExpense)}
                 </span>
               </PanelRow>
               {summary.data.toShared !== null && (
@@ -202,10 +206,10 @@ export function KakeiboPage() {
           </Panel>
         )}
 
-        {summary.data && summary.data.byCategory.length > 0 && (
+        {summary.data && byCategory.length > 0 && (
           <Panel title="カテゴリ">
             <div className="flex flex-col">
-              {summary.data.byCategory.map((c) => (
+              {byCategory.map((c) => (
                 <PanelRow key={c.category}>
                   <span data-testid={`kakeibo-category-${c.category}`}>{kakeiboCategoryLabel(c.category)}</span>
                   <span className="font-bold">{formatYen(c.total)}</span>

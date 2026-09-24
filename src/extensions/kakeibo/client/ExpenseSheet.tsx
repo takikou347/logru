@@ -242,11 +242,18 @@ export function ExpenseSheet({
     }
   }
 
-  /** 消す。押した後すぐ閉じ、5 秒の「元に戻す」は呼び出し側に任せる */
+  /**
+   * 消す。押すとシートを閉じ、5 秒の「元に戻す」は呼び出し側(KakeiboPage)に任せる。
+   *
+   * シートの閉じるアニメーション(ResponsiveSheet、最長 300ms)の途中で「元に戻す」の知らせを出すと、
+   * 閉じる後片付けと知らせの表示が競合し、知らせの中身が描かれないことがある。アニメーションが終わってから
+   * 呼ぶよう、閉じるアニメーションより長めに遅らせる
+   */
   function remove() {
     if (!expense) return;
+    const target = expense;
     onClose();
-    onDelete?.(expense);
+    setTimeout(() => onDelete?.(target), 400);
   }
 
   return (

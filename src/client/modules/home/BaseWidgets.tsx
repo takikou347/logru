@@ -53,17 +53,10 @@ function OnlyInMonthView({ editing, children }: { editing: boolean; children: Re
 
 /** 選んだ日の予定。大きな日付と、その日の予定。週・日の表示では、同じ予定が一覧に出るので隠す */
 function DayPanelWidget({ editing }: HomeWidgetProps) {
-  const { today, selected, items, leaving, open, onAddNewDay } = useCalendarHome();
+  const { today, selected, items, leaving, open } = useCalendarHome();
   return (
     <OnlyInMonthView editing={editing}>
-      <DayPanel
-        day={selected}
-        today={today}
-        items={items}
-        leaving={leaving}
-        onOpen={open}
-        onAddNew={() => onAddNewDay(selected)}
-      />
+      <DayPanel day={selected} today={today} items={items} leaving={leaving} onOpen={open} />
     </OnlyInMonthView>
   );
 }

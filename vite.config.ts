@@ -102,7 +102,7 @@ export default defineConfig(({ mode }) => ({
         // 認証の通り道は Worker が Firebase へ中継する。画面の代わりに index.html を返さない。#1
         navigateFallbackDenylist: [/^\/api\//, /^\/__\//],
         // 書体は数が多いので先に全部は持たず、使ったものだけ残す
-        globPatterns: ["**/*.{js,css,html,svg,png}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,webp}"],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.endsWith(".woff2"),

@@ -5,6 +5,7 @@ import { Chip } from "@/components/parts/Chip";
 import { Dock } from "@/components/parts/Dock";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Button } from "@/components/ui/button";
+import { formatShortDate } from "@/lib/dates";
 import { useCalendar } from "@/modules/calendar/api";
 import { DAY_MS, memoryDays, startOfDayIn } from "../shared/days";
 import { memoryOfEvent } from "../shared/links";
@@ -49,8 +50,6 @@ function Day({ detail, me, groups, group }: ShellProps) {
   const [editing, setEditing] = useState<MemoryRecord | null>(null);
   const [photoAt, setPhotoAt] = useState<number | null>(null);
   const entries = entriesOf(records.data ?? []);
-  const weekday = (key: string) =>
-    new Intl.DateTimeFormat("ja-JP", { weekday: "short", timeZone: "UTC" }).format(Date.parse(key));
 
   return (
     <>
@@ -64,8 +63,7 @@ function Day({ detail, me, groups, group }: ShellProps) {
               aria-pressed={i === index}
               onClick={() => navigate(`/memories/${memory.id}/days/${i}`, { replace: true })}
             >
-              <span className="font-bold">{d.slice(5).replace("-", ".")}</span>
-              {weekday(d)}
+              {formatShortDate(d)}
             </Chip>
           ))}
         </div>

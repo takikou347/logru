@@ -1,6 +1,4 @@
-import { Plus } from "lucide-react";
 import { useId, useState } from "react";
-import { EmptyState } from "@/components/parts/EmptyState";
 import { Dot } from "@/components/parts/Panel";
 import { addDays, dateKey, dayTone, formatTime, holidayName, onDay, sameDay, startOfDay, WEEKDAYS } from "@/lib/dates";
 import { extensionGroups, extensionLabel } from "@/lib/extension-visuals";
@@ -8,9 +6,8 @@ import { useDeviceTilt } from "@/lib/use-device-tilt";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 import { kindIconOf } from "../kind-icon";
-import { kindOf, type ViewItem } from "../model";
+import { itemKey, kindOf, type ViewItem } from "../model";
 import { takeJustAdded } from "../recent-items";
-import { itemKey } from "../use-undoable-delete";
 
 /** 土日と祝日の文字の色。日曜と祝日は朱、土曜は瑠璃 */
 export const toneText = { sun: "text-sun", sat: "text-sat" } as const;
@@ -309,10 +306,8 @@ function MoneyRow({
  * 今日だけ、端末の傾きで中身(数字と予定)を最大 6px ずらして奥行きを出す。ガラスの面自体は動かさない。
  * iOS は、初めて触ったときに 1 度だけ許可を求める。動きを減らしているときは止める。0044、0048、#112
  *
- * 右上に「+」を常に出し、押すとこの日に予定を足すシートが開く。空のときは、マスコットの
- * 空の表示にも同じ操作の「この日の予定を作る」ボタンを出す。#148、0061
+ * 予定を足す入口は、下の帯の「+」だけにする。この日で始まる。0012、0062、issue #150
  * @param leaving 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98
- * @param onAddNew この日に足す
  */
 export function DayPanel({
   day,
@@ -320,14 +315,12 @@ export function DayPanel({
   items,
   onOpen,
   leaving,
-  onAddNew,
 }: {
   day: Date;
   today: Date;
   items: ViewItem[];
   onOpen: (i: ViewItem) => void;
   leaving?: Set<string>;
-  onAddNew: () => void;
 }) {
   const tone = dayTone(day);
   const hol = holidayName(day);
@@ -360,28 +353,12 @@ export function DayPanel({
           {/* 祝日の名前。ガラスの光沢が乗る場所なので、薄い文字だと読めない */}
           {hol && <div className="mt-0.5 text-[11px] text-ink">{hol}</div>}
         </div>
-        {/* この日に予定を足す。常に出す。空のときは下の空の表示にも同じ操作のボタンがある。#148、0061 */}
-        <button
-          type="button"
-          className="mt-3 grid size-11 flex-none place-items-center self-start rounded-full border border-(--glass-edge) bg-field text-ink-2 hover:bg-field-strong xl:mt-0"
-          aria-label="この日に足す"
-          onClick={onAddNew}
-        >
-          <Plus className="size-5" aria-hidden="true" />
-        </button>
       </div>
       {mine.length === 0 ? (
-        <EmptyState
-          pose="calendar"
-          bordered={false}
-          className="items-start py-2 text-left"
-          action={{ label: "この日の予定を作る", onClick: onAddNew, variant: "default" }}
-        >
-          この日の予定はありません。
-        </EmptyState>
+        <p className="py-2.5 text-left text-[13px] leading-relaxed text-ink-2">予定はありません。</p>
       ) : (
         <div style={tiltStyle} className={cn(isToday && "transition-transform duration-fast ease-out")}>
-          <ItemList items={mine} onOpen={onOpen} leaving={leaving} empty="この日の予定はありません。" />
+          <ItemList items={mine} onOpen={onOpen} leaving={leaving} empty="予定はありません。" />
         </div>
       )}
     </section>

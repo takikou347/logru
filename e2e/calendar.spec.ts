@@ -125,11 +125,13 @@ test("日付を押すと、その日を選ぶだけになる。中身は日の�
   await expect(page.getByTestId("big-day")).toHaveText("15");
 });
 
-test("日のカードの「+」か、下の帯の「+」を押すと、選んでいる日で予定を足すシートが開く。#148", async ({ page }) => {
+test("日付を選んでから下の帯の「+」を押すと、選んでいる日で予定を足すシートが開く。#148、issue #150", async ({
+  page,
+}) => {
   const grid = page.getByRole("region", { name: "月の表" });
   await grid.locator('[data-date="15"]:not([data-out]) button').first().click();
 
-  await dayPanel(page).getByRole("button", { name: "この日に足す" }).click();
+  await page.getByRole("button", { name: "予定を足す" }).last().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByLabel("日付")).toHaveValue(/-15$/);

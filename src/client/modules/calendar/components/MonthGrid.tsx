@@ -8,9 +8,8 @@ import { extensionLabel } from "@/lib/extension-visuals";
 import { cn } from "@/lib/utils";
 import { kindIconOf } from "../kind-icon";
 import { daySpan, hiddenPerDay, isMultiDay, layoutWeek, type SpanSegment } from "../lanes";
-import { kindOf, type ViewItem } from "../model";
+import { itemKey, kindOf, type ViewItem } from "../model";
 import { takeJustAdded } from "../recent-items";
-import { itemKey } from "../use-undoable-delete";
 import { toneText } from "./DayItems";
 
 /** スマホのマスに出す点の数 */

@@ -3,6 +3,7 @@ import { groups, users } from "@server/core/db/schema";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { KAKEIBO_ACCOUNT_KIND_KEYS } from "../shared/accounts";
 import { KAKEIBO_CATEGORY_KEYS } from "../shared/categories";
+import { KAKEIBO_SPLIT_MODES } from "../shared/splits";
 import { KAKEIBO_TYPES } from "../shared/types";
 
 /**
@@ -60,6 +61,10 @@ export const kakeiboExpenses = sqliteTable(
     /** 振替の入れる先。支出・収入は空 */
     toAccountId: text("to_account_id").references(() => kakeiboAccounts.id, { onDelete: "set null" }),
     memo: text("memo"),
+    /** 払った人。共有のグループの支出で、共有口座で払っていないときだけ入る。0072、F-318 */
+    paidBy: text("paid_by").references(() => users.id, { onDelete: "set null" }),
+    /** 割り方。paidBy と同じ条件のときだけ入る。ほかは空 */
+    splitMode: text("split_mode", { enum: KAKEIBO_SPLIT_MODES }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -74,3 +79,80 @@ export const kakeiboExpenses = sqliteTable(
 
 /** 表の 1 行 */
 export type KakeiboExpenseRow = typeof kakeiboExpenses.$inferSelect;
+
+/**
+ * 立て替えの、人ごとの負担額。記録を保存するときに行を作り直す。合計は記録の金額と同じ。0072、F-318
+ * 記録が消えると消える。負担した人がアカウントを消すと、その行の user_id だけが空になる
+ */
+export const kakeiboSplits = sqliteTable(
+  "kakeibo_splits",
+  {
+    id: text("id").primaryKey(),
+    expenseId: text("expense_id")
+      .notNull()
+      .references(() => kakeiboExpenses.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+    amount: integer("amount").notNull(),
+  },
+  // 記録を保存し直すとき、その記録の負担の行をまとめて消してから作り直すのに使う
+  (t) => [index("kakeibo_splits_expense_idx").on(t.expenseId)],
+);
+
+/** 表の 1 行 */
+export type KakeiboSplitRow = typeof kakeiboSplits.$inferSelect;
+
+/**
+ * 精算した記録。送った人・受け取った人・金額・日付を持つ。口座はそれぞれ自分の口座で、省ける。0072、F-321
+ */
+export const kakeiboSettlements = sqliteTable(
+  "kakeibo_settlements",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    fromUser: text("from_user").references(() => users.id, { onDelete: "set null" }),
+    toUser: text("to_user").references(() => users.id, { onDelete: "set null" }),
+    /** 円の整数 */
+    amount: integer("amount").notNull(),
+    /** `2026-09-22` の形 */
+    date: text("date").notNull(),
+    fromAccountId: text("from_account_id").references(() => kakeiboAccounts.id, { onDelete: "set null" }),
+    toAccountId: text("to_account_id").references(() => kakeiboAccounts.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  // グループの精算の一覧を引くのに使う
+  (t) => [index("kakeibo_settlements_group_idx").on(t.groupId)],
+);
+
+/** 表の 1 行 */
+export type KakeiboSettlementRow = typeof kakeiboSettlements.$inferSelect;
+
+/**
+ * 期間の予算。グループ、名前、始まりと終わりの日、金額を持つ。家計簿の中に閉じる(0002)。0072、F-323
+ */
+export const kakeiboBudgets = sqliteTable(
+  "kakeibo_budgets",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    /** 1 から 30 字 */
+    name: text("name").notNull(),
+    /** `2026-09-22` の形。終わりの日を含む */
+    startDate: text("start_date").notNull(),
+    endDate: text("end_date").notNull(),
+    /** 円の整数 */
+    amount: integer("amount").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("kakeibo_budgets_group_idx").on(t.groupId)],
+);
+
+/** 表の 1 行 */
+export type KakeiboBudgetRow = typeof kakeiboBudgets.$inferSelect;

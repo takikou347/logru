@@ -58,3 +58,12 @@ export async function personalKakeiboGroupId(db: DB, userId: string): Promise<st
   const rows = await usableGroups(db, userId);
   return rows.find((r) => r.isPersonal)?.id ?? null;
 }
+
+/**
+ * そのグループのメンバーの ID。家計簿を使っているかどうかは問わない。立て替えを割る相手は、
+ * 記録したときのグループのメンバー全員。0072、F-318
+ */
+export async function groupMemberIds(db: DB, groupId: string): Promise<string[]> {
+  const rows = await db.select({ id: groupMembers.userId }).from(groupMembers).where(eq(groupMembers.groupId, groupId));
+  return rows.map((r) => r.id);
+}

@@ -289,3 +289,84 @@ test("共有口座への振替は共有のグループの人にも見えるが�
   await expect(otherPage.getByText("現金")).toHaveCount(0);
   await expect(otherPage.getByRole("link", { name: "共有の財布" })).toBeVisible();
 });
+
+test("3 人のグループで 1 人が立て替えると、送る組み合わせが出て、精算すると 0 になる。共有口座の支出は精算に入らない。0072、F-318、F-319、F-320、F-321、F-322", async ({
+  page,
+  browser,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await page.goto("/groups");
+  await page.getByLabel("グループの名前").fill("旅行");
+  await page.getByRole("button", { name: "作る" }).click();
+  await page.getByRole("button", { name: "招待リンクを作る" }).click();
+  const inviteUrl = await page.getByLabel("招待リンク").inputValue();
+
+  await page.goto("/settings/extensions/kakeibo");
+  await page.getByRole("region", { name: "足すグループ" }).getByRole("button", { name: "旅行を足す" }).click();
+  await expect(page.getByText("足しました")).toBeVisible();
+
+  const mikaPage = await (await browser.newContext()).newPage();
+  await signUp(mikaPage, { name: "みか", next: new URL(inviteUrl).pathname });
+  await mikaPage.getByRole("button", { name: "参加する" }).click();
+  await expect(mikaPage).toHaveURL(/group=/);
+  await addExtension(mikaPage, "家計簿");
+
+  const rikuPage = await (await browser.newContext()).newPage();
+  await signUp(rikuPage, { name: "りく", next: new URL(inviteUrl).pathname });
+  await rikuPage.getByRole("button", { name: "参加する" }).click();
+  await expect(rikuPage).toHaveURL(/group=/);
+  await addExtension(rikuPage, "家計簿");
+
+  await createAccount(page, "現金", { openingBalance: "0" });
+  await createAccount(page, "旅行の共有口座", { kind: "銀行", share: "旅行" });
+
+  // 3 万円を、こたが現金(自分の口座)で立て替え、3 人で均等割り。既定の「全員で同じ額」のまま
+  const expenseSheet = await openRecordSheet(page);
+  await expenseSheet.getByLabel("金額").fill("30000");
+  await expenseSheet.getByRole("radio", { name: "交通" }).click();
+  await pickShare(page, expenseSheet, "旅行");
+  await pickAccount(page, expenseSheet, "口座", "現金");
+  await expect(expenseSheet.getByRole("button", { name: "払った人" })).toBeVisible();
+  await expenseSheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  // 共有口座で払った支出。これは割らない(「払った人」の欄が出ない)
+  const sharedExpenseSheet = await openRecordSheet(page);
+  await sharedExpenseSheet.getByLabel("金額").fill("5000");
+  await sharedExpenseSheet.getByRole("radio", { name: "食費" }).click();
+  await pickShare(page, sharedExpenseSheet, "旅行");
+  await pickAccount(page, sharedExpenseSheet, "口座", "旅行の共有口座");
+  await expect(sharedExpenseSheet.getByRole("button", { name: "払った人" })).toHaveCount(0);
+  await sharedExpenseSheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  // 精算の面に、みか・りくがそれぞれ 1 万円払う組み合わせが出る。共有口座の 5000 円は割った額に影響しない
+  await page.goto("/kakeibo");
+  await page.getByRole("button", { name: "旅行", exact: true }).click();
+  const settlementPanel = page.getByRole("region", { name: "精算" });
+  await expect(settlementPanel.getByText(/みか.*→.*自分.*¥10,000/)).toBeVisible();
+  await expect(settlementPanel.getByText(/りく.*→.*自分.*¥10,000/)).toBeVisible();
+
+  // みかの分から精算する
+  const mikaRow = settlementPanel.locator("li", { hasText: "みか" });
+  await mikaRow.getByRole("button", { name: "精算した" }).click();
+  const settleSheet = page.getByRole("dialog", { name: "精算した" });
+  await pickAccount(page, settleSheet, "自分の口座", "現金");
+  await settleSheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("精算しました")).toBeVisible();
+  await expect(settlementPanel.getByText(/みか.*→/)).toHaveCount(0);
+  await expect(settlementPanel.getByText(/りく.*→.*自分.*¥10,000/)).toBeVisible();
+
+  // りくの分も精算すると、送る組み合わせが無くなる
+  const rikuRow = settlementPanel.locator("li", { hasText: "りく" });
+  await rikuRow.getByRole("button", { name: "精算した" }).click();
+  await page.getByRole("dialog", { name: "精算した" }).getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("精算しました")).toBeVisible();
+  await expect(settlementPanel.getByText("精算はありません。")).toBeVisible();
+
+  // 現金の残高は、立て替えた 3 万円が引かれ、精算で受け取った 2 万円が戻る
+  await page.goto("/kakeibo/accounts");
+  await expect(page.getByRole("link", { name: "現金" })).toContainText("-¥10,000");
+});

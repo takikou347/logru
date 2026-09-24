@@ -1,5 +1,5 @@
 import type { GroupSummary, Me } from "@shared/api-types";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Chip } from "@/components/parts/Chip";
 import { EmptyState } from "@/components/parts/EmptyState";
@@ -12,12 +12,14 @@ import { Input, Textarea } from "@/components/ui/input";
 import { dateKey } from "@/lib/dates";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_EXPENSE_CATEGORIES, KAKEIBO_INCOME_CATEGORIES, type KakeiboCategory } from "../shared/categories";
+import type { KakeiboSplitMode } from "../shared/splits";
 import type { KakeiboType } from "../shared/types";
 import type { KakeiboAccount, KakeiboExpense, KakeiboUsage } from "./api";
 import { useKakeiboAccounts, useKakeiboUsage, useSaveExpense } from "./api";
 import { loadLastRecord, saveLastRecord } from "./local-prefs";
 import { sanitizeAmountInput } from "./numeric-input";
 import { KAKEIBO_ACCOUNT_KIND_ICONS } from "./parts";
+import { PayerPickerRow, SplitModeSection } from "./SplitSection";
 
 /** 支出は最初の 8 つだけ出し、残りは「ほか」で開く。F-314 */
 const EXPENSE_CATEGORY_PREVIEW = 8;
@@ -42,6 +44,7 @@ function AccountPickerRow({
   allowNone,
   excludeId,
   disabled,
+  recordGroupId,
 }: {
   label: string;
   accounts: KakeiboAccount[];
@@ -50,16 +53,23 @@ function AccountPickerRow({
   allowNone: boolean;
   excludeId?: string | null;
   disabled?: boolean;
+  /**
+   * 記録するグループ。渡すと、そのグループ以外の口座(立て替えで選べる自分の口座)に
+   * 「自分の口座」と添える。0072、F-319
+   */
+  recordGroupId?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const options = accounts.filter((a) => (!a.archivedAt || a.id === value) && a.id !== excludeId);
   const chosen = options.find((a) => a.id === value);
+  const isOwn = (a: KakeiboAccount) => Boolean(recordGroupId) && a.groupId !== recordGroupId;
   return (
     <div>
       <RowButton type="button" disabled={disabled} aria-haspopup="dialog" onClick={() => setOpen(true)}>
         <span>{label}</span>
         <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-ink-2">
           <span className="min-w-0 truncate">{chosen ? chosen.name : "口座なし"}</span>
+          {chosen && isOwn(chosen) && <span className="flex-none text-[11px] text-ink-3">(自分の口座)</span>}
         </span>
       </RowButton>
       {open && (
@@ -100,6 +110,7 @@ function AccountPickerRow({
                   >
                     <Icon className="size-4 flex-none text-ink-2" aria-hidden="true" />
                     <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                    {isOwn(a) && <span className="flex-none text-[11px] text-ink-3">自分の口座</span>}
                   </button>
                 );
               })}
@@ -170,8 +181,40 @@ export function ExpenseSheet({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // 振替は、選べる口座を「使えるグループ全部」から出す。支出・収入は、選んだグループの口座だけ。0069
-  const accounts = useKakeiboAccounts(type === "transfer" ? null : groupId);
+  // 立て替え。共有のグループの支出で、共有口座で払っていないときだけ使う。0072、F-318、F-319
+  const [payerId, setPayerId] = useState(expense?.paidBy ?? me.user.id);
+  const [splitMode, setSplitMode] = useState<KakeiboSplitMode>(expense?.splitMode ?? "equal");
+  const [customShares, setCustomShares] = useState<Record<string, string>>(() => {
+    if (expense?.splitMode !== "custom" || !expense.splits) return {};
+    return Object.fromEntries(
+      expense.splits
+        .filter((s): s is { userId: string; amount: number } => s.userId !== null)
+        .map((s) => [s.userId, String(s.amount)]),
+    );
+  });
+
+  const selectedGroup = groups.find((g) => g.id === groupId);
+  const personalGroupId = groups.find((g) => g.isPersonal)?.id ?? null;
+  // 割るかどうか。支出で、共有のグループで払ったとき。共有口座を選んだ支出は割らない。0072
+  const splitCandidate = type === "expense" && Boolean(selectedGroup) && !selectedGroup?.isPersonal;
+
+  // 振替と、立て替えの候補は、選べる口座を「使えるグループ全部」から出す。支出・収入は、選んだグループの口座だけ。0069、F-319
+  const accounts = useKakeiboAccounts(type === "transfer" || splitCandidate ? null : groupId);
+  const accountOptions = splitCandidate
+    ? (accounts.data ?? []).filter((a) => a.groupId === groupId || a.groupId === personalGroupId)
+    : (accounts.data ?? []);
+  const selectedAccount = accountOptions.find((a) => a.id === accountId);
+  const splitting = splitCandidate && (accountId === null || selectedAccount?.groupId !== groupId);
+  // 自分の口座を選んだら、その口座の持ち主(自分)しか払った人に選べない。0072
+  const payerLocked = Boolean(accountId) && selectedAccount?.groupId === personalGroupId;
+  const splitMembers = selectedGroup?.members ?? [];
+  const splitPeopleIds = [me.user.id, ...splitMembers.filter((m) => m.id !== me.user.id).map((m) => m.id)];
+  const customSplitTotal = splitPeopleIds.reduce((n, id) => n + (Number(customShares[id]) || 0), 0);
+
+  useEffect(() => {
+    if (payerLocked && payerId !== me.user.id) setPayerId(me.user.id);
+  }, [payerLocked, payerId, me.user.id]);
+
   const categoryKeys =
     type === "income" ? KAKEIBO_INCOME_CATEGORIES.map((c) => c.key) : KAKEIBO_EXPENSE_CATEGORIES.map((c) => c.key);
   const orderedCategories = useMemo(
@@ -193,18 +236,26 @@ export function ExpenseSheet({
     setExpandCategories(false);
     setAccountId(null);
     setToAccountId(null);
+    setPayerId(me.user.id);
+    setSplitMode("equal");
+    setCustomShares({});
   }
 
   function changeGroup(next: string) {
     setGroupId(next);
     setAccountId(null);
+    setPayerId(me.user.id);
+    setSplitMode("equal");
+    setCustomShares({});
   }
 
   const amountValue = Number(amount);
   const amountOk = amount !== "" && Number.isInteger(amountValue) && amountValue > 0 && amountValue <= 100_000_000;
+  const splitOk = !splitting || splitMode !== "custom" || customSplitTotal === amountValue;
   const canSubmit =
     Boolean(date) &&
     amountOk &&
+    splitOk &&
     (type === "transfer"
       ? Boolean(accountId) && Boolean(toAccountId) && accountId !== toAccountId
       : category !== null && Boolean(groupId));
@@ -225,6 +276,12 @@ export function ExpenseSheet({
           accountId,
           toAccountId: type === "transfer" ? toAccountId : undefined,
           memo: memo.trim() || null,
+          paidBy: splitting ? payerId : undefined,
+          splitMode: splitting ? splitMode : undefined,
+          splits:
+            splitting && splitMode === "custom"
+              ? splitPeopleIds.map((id) => ({ userId: id, amount: Number(customShares[id]) || 0 }))
+              : undefined,
         },
       });
       saveLastRecord({ type, accountId, toAccountId, groupId });
@@ -334,7 +391,7 @@ export function ExpenseSheet({
             <>
               <AccountPickerRow
                 label="出す元"
-                accounts={accounts.data ?? []}
+                accounts={accountOptions}
                 value={accountId}
                 onChange={setAccountId}
                 allowNone={false}
@@ -343,7 +400,7 @@ export function ExpenseSheet({
               />
               <AccountPickerRow
                 label="入れる先"
-                accounts={accounts.data ?? []}
+                accounts={accountOptions}
                 value={toAccountId}
                 onChange={setToAccountId}
                 allowNone={false}
@@ -354,12 +411,37 @@ export function ExpenseSheet({
           ) : (
             <AccountPickerRow
               label="口座"
-              accounts={accounts.data ?? []}
+              accounts={accountOptions}
               value={accountId}
               onChange={setAccountId}
               allowNone
               disabled={!canEdit}
+              recordGroupId={splitCandidate ? groupId : null}
             />
+          )}
+
+          {splitting && (
+            <>
+              <PayerPickerRow
+                groups={groups}
+                members={splitMembers}
+                me={me}
+                value={payerId}
+                onChange={setPayerId}
+                disabled={!canEdit || payerLocked}
+                disabledReason={payerLocked ? "自分の口座を選んだので、払った人は自分になります。" : undefined}
+              />
+              <SplitModeSection
+                groups={groups}
+                members={splitMembers}
+                me={me}
+                mode={splitMode}
+                onChangeMode={setSplitMode}
+                amount={amountOk ? amountValue : 0}
+                customShares={customShares}
+                onChangeCustomShares={setCustomShares}
+              />
+            </>
           )}
 
           <Field label="日付">

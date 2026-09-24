@@ -9,8 +9,17 @@ import { groups, users } from "@server/core/db/schema";
 import { eq, inArray, or } from "drizzle-orm";
 import type { KakeiboAccountKind } from "../shared/accounts";
 import type { KakeiboCategory } from "../shared/categories";
+import type { KakeiboSplitMode } from "../shared/splits";
 import type { KakeiboType } from "../shared/types";
-import { type KakeiboAccountRow, type KakeiboExpenseRow, kakeiboAccounts, kakeiboExpenses } from "./schema";
+import {
+  type KakeiboAccountRow,
+  type KakeiboExpenseRow,
+  type KakeiboSettlementRow,
+  kakeiboAccounts,
+  kakeiboExpenses,
+  kakeiboSettlements,
+  kakeiboSplits,
+} from "./schema";
 
 /** グループにいない人の表示名の代わり。#152 と同じ言い方 */
 const GONE_NAME = "退会した人";
@@ -72,10 +81,18 @@ export type KakeiboExpenseDto = {
   account: KakeiboAccountRef;
   toAccount: KakeiboAccountRef;
   memo: string | null;
+  /** 払った人。立て替えのときだけ入る。0072、F-318 */
+  paidBy: string | null;
+  splitMode: KakeiboSplitMode | null;
+  /**
+   * 人ごとの負担額。グループには金額と割り方だけ見せ、口座は見せない。0072
+   * userId は、負担した人がアカウントを消していれば null(退会した人)
+   */
+  splits: { userId: string | null; amount: number }[] | null;
 };
 
 /**
- * 記録の一覧を DTO にする。参照する口座をまとめて読んでから変換する。
+ * 記録の一覧を DTO にする。参照する口座と、立て替えの負担額をまとめて読んでから変換する。
  * @param visibleGroupIds 見ている人が家計簿に使える、全部のグループ
  */
 export async function toExpenseDtos(
@@ -85,6 +102,14 @@ export async function toExpenseDtos(
 ): Promise<KakeiboExpenseDto[]> {
   const ids = rows.flatMap((r) => [r.accountId, r.toAccountId].filter((x): x is string => x !== null));
   const refs = await loadAccountRefRows(db, ids);
+  const expenseIds = rows.filter((r) => r.splitMode !== null).map((r) => r.id);
+  const splitRows =
+    expenseIds.length === 0
+      ? []
+      : await db
+          .select({ expenseId: kakeiboSplits.expenseId, userId: kakeiboSplits.userId, amount: kakeiboSplits.amount })
+          .from(kakeiboSplits)
+          .where(inArray(kakeiboSplits.expenseId, expenseIds));
   return rows.map((row) => ({
     id: row.id,
     groupId: row.groupId,
@@ -96,6 +121,12 @@ export async function toExpenseDtos(
     account: toAccountRef(refs, visibleGroupIds, row.accountId),
     toAccount: toAccountRef(refs, visibleGroupIds, row.toAccountId),
     memo: row.memo,
+    paidBy: row.paidBy,
+    splitMode: row.splitMode,
+    splits:
+      row.splitMode === null
+        ? null
+        : splitRows.filter((s) => s.expenseId === row.id).map((s) => ({ userId: s.userId, amount: s.amount })),
   }));
 }
 
@@ -115,7 +146,7 @@ export type KakeiboAccountDto = {
 /**
  * 口座の残高。読むたびに数える。記録がどのグループにあっても、その口座を指していれば数える。0069
  *
- * 残高 = 始まりの残高 + 収入 - 支出 - 出た振替 + 入った振替
+ * 残高 = 始まりの残高 + 収入 - 支出 - 出た振替 + 入った振替 - 送った精算 + 受け取った精算。0072
  * @returns 口座の ID から残高への対応
  */
 export async function computeBalances(
@@ -144,6 +175,22 @@ export async function computeBalances(
       balances.set(row.toAccountId, balances.get(row.toAccountId)! + row.amount);
     }
   }
+  const settlementRows = await db
+    .select({
+      amount: kakeiboSettlements.amount,
+      fromAccountId: kakeiboSettlements.fromAccountId,
+      toAccountId: kakeiboSettlements.toAccountId,
+    })
+    .from(kakeiboSettlements)
+    .where(or(inArray(kakeiboSettlements.fromAccountId, ids), inArray(kakeiboSettlements.toAccountId, ids)));
+  for (const row of settlementRows) {
+    if (row.fromAccountId && balances.has(row.fromAccountId)) {
+      balances.set(row.fromAccountId, balances.get(row.fromAccountId)! - row.amount);
+    }
+    if (row.toAccountId && balances.has(row.toAccountId)) {
+      balances.set(row.toAccountId, balances.get(row.toAccountId)! + row.amount);
+    }
+  }
   return balances;
 }
 
@@ -160,4 +207,41 @@ export function toAccountDto(row: KakeiboAccountRow, balances: Map<string, numbe
     sortOrder: row.sortOrder,
     archivedAt: row.archivedAt ? row.archivedAt.getTime() : null,
   };
+}
+
+/** 画面に返す精算した記録の形。口座は、ほかの人の記録と同じ「〇〇さんの口座」の決まりに従う。0072、F-321 */
+export type KakeiboSettlementDto = {
+  id: string;
+  groupId: string;
+  createdBy: string | null;
+  fromUser: string | null;
+  toUser: string | null;
+  amount: number;
+  date: string;
+  fromAccount: KakeiboAccountRef;
+  toAccount: KakeiboAccountRef;
+};
+
+/**
+ * 精算した記録の一覧を DTO にする。
+ * @param visibleGroupIds 見ている人が家計簿に使える、全部のグループ
+ */
+export async function toSettlementDtos(
+  db: DB,
+  rows: KakeiboSettlementRow[],
+  visibleGroupIds: Set<string>,
+): Promise<KakeiboSettlementDto[]> {
+  const ids = rows.flatMap((r) => [r.fromAccountId, r.toAccountId].filter((x): x is string => x !== null));
+  const refs = await loadAccountRefRows(db, ids);
+  return rows.map((row) => ({
+    id: row.id,
+    groupId: row.groupId,
+    createdBy: row.createdBy,
+    fromUser: row.fromUser,
+    toUser: row.toUser,
+    amount: row.amount,
+    date: row.date,
+    fromAccount: toAccountRef(refs, visibleGroupIds, row.fromAccountId),
+    toAccount: toAccountRef(refs, visibleGroupIds, row.toAccountId),
+  }));
 }

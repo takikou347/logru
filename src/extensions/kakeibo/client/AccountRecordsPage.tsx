@@ -14,13 +14,17 @@ import { formatYen } from "../shared/format";
 import { AccountSheet } from "./AccountSheet";
 import type { KakeiboAccountRef, KakeiboExpense } from "./api";
 import { useKakeiboAccountDetail, useKakeiboGroups } from "./api";
-import { addMonthsToKey, formatMonthLabel, KAKEIBO_ACCOUNT_KIND_ICONS, monthKeyOf } from "./parts";
+import {
+  addMonthsToKey,
+  formatMonthLabel,
+  KAKEIBO_ACCOUNT_KIND_ICONS,
+  monthKeyOf,
+  accountRefLabel as sharedAccountRefLabel,
+} from "./parts";
 
-/** 相手の口座の表示。見えなければ「〇〇さんの口座」 */
+/** 相手の口座の表示。見えなければ「〇〇さんの口座」。口座なしのときは「口座なし」 */
 function accountRefLabel(ref: KakeiboAccountRef): string {
-  if (!ref) return "口座なし";
-  if ("hidden" in ref) return `${ref.ownerName}さんの口座`;
-  return ref.name;
+  return sharedAccountRefLabel(ref) ?? "口座なし";
 }
 
 /** この口座から見た金額。出ていけばマイナス、入ってくればプラス */

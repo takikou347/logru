@@ -176,12 +176,18 @@ export const listsRoutes = createRouter()
     const list = await loadUsableList(db, userId, c.req.param("id"));
     const item = await loadItem(db, list.id, c.req.param("itemId"));
     const input = c.req.valid("json");
+    // 送った項目だけを直す。チェックの有無と文字は、片方だけの更新もありうる。F-203、F-204
     await db
       .update(listItems)
       .set({
-        checked: input.checked,
-        checkedBy: input.checked ? userId : null,
-        checkedAt: input.checked ? new Date() : null,
+        text: input.text ?? item.text,
+        ...(input.checked === undefined
+          ? {}
+          : {
+              checked: input.checked,
+              checkedBy: input.checked ? userId : null,
+              checkedAt: input.checked ? new Date() : null,
+            }),
         updatedAt: new Date(),
       })
       .where(eq(listItems.id, item.id));

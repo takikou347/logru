@@ -131,6 +131,16 @@ export function useToggleItem(listId: string) {
   });
 }
 
+/** 項目の文字を直す。F-203 */
+export function useUpdateItemText(listId: string) {
+  const invalidate = useInvalidateLists();
+  return useMutation({
+    mutationFn: ({ id, text }: { id: string; text: string }) =>
+      api<ListItem>(`/lists/${listId}/items/${id}`, { method: "PATCH", body: { text } }),
+    onSettled: invalidate,
+  });
+}
+
 /**
  * 項目を消す。F-205
  * @param keepalive 画面を閉じるときに送り切る。5 秒の「元に戻す」の間に画面を離れたとき。issue #12

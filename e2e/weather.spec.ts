@@ -29,7 +29,7 @@ test("いつもの場所を選ぶと、7 日分の天気がカレンダーに出
 }) => {
   await signUp(page, { name: "こた" });
   const section = await pickPlace(page, "渋谷");
-  await expect(page.getByText("渋谷区 をいつもの場所にしました")).toBeVisible();
+  await expect(page.getByText("いつもの場所を渋谷区にしました")).toBeVisible();
   await expect(section.getByText("渋谷区")).toBeVisible();
 
   // 今日の天気の見本は「晴れ 24°/18°」。カレンダーの今日のマスに小さく出る。F-403
@@ -67,7 +67,7 @@ test("いつもの場所を選ぶと、7 日分の天気がカレンダーに出
 test("しおりの過去の日に、その日の天気が自動で残る。F-406、F-407", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await pickPlace(page, "渋谷");
-  await expect(page.getByText("渋谷区 をいつもの場所にしました")).toBeVisible();
+  await expect(page.getByText("いつもの場所を渋谷区にしました")).toBeVisible();
 
   await addExtension(page, "思い出");
 
@@ -82,4 +82,28 @@ test("しおりの過去の日に、その日の天気が自動で残る。F-406
 
   // 見本の過去の天気は「雨 22°/18°」。今日の予報(晴れ 24°/18°)とは違う値にして、見分けが付くようにしている
   await expect(page.getByText("雨 22°/18°")).toBeVisible();
+});
+
+test("場所を選んでから保存が済むまで、押した行に読み込み中の印が出て、ほかの行も押せなくなる", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await page.goto("/settings/extensions/weather");
+  await page.getByRole("button", { name: "場所を選ぶ" }).click();
+  const sheet = page.getByRole("dialog", { name: "場所を選ぶ" });
+  await sheet.getByLabel("市区町村の名前で探す").fill("渋谷");
+  const result = sheet.getByRole("listitem").first();
+  await expect(result).toBeVisible();
+
+  // 通信が遅いときを作る。保存の途中で「押した行だけが読み込み中」に見えるかを確かめる
+  await page.context().route("**/api/weather/location", async (route) => {
+    await new Promise((r) => setTimeout(r, 1_500));
+    await route.continue();
+  });
+  const resultButton = result.getByRole("button");
+  await resultButton.click();
+  await expect(resultButton).toHaveText(/保存しています/);
+  await expect(resultButton).toBeDisabled();
+
+  await page.context().unrouteAll({ behavior: "ignoreErrors" });
+  await expect(sheet).toBeHidden();
+  await expect(page.getByText("いつもの場所を渋谷区にしました")).toBeVisible();
 });

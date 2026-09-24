@@ -1,6 +1,17 @@
 import { useId, useState } from "react";
 import { Dot } from "@/components/parts/Panel";
-import { addDays, dateKey, dayTone, formatTime, holidayName, onDay, sameDay, startOfDay, WEEKDAYS } from "@/lib/dates";
+import {
+  addDays,
+  dateKey,
+  dayTone,
+  formatDay,
+  formatTime,
+  holidayName,
+  onDay,
+  sameDay,
+  startOfDay,
+  WEEKDAYS,
+} from "@/lib/dates";
 import { extensionGroups, extensionLabel } from "@/lib/extension-visuals";
 import { useDeviceTilt } from "@/lib/use-device-tilt";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -19,7 +30,7 @@ export const toneText = { sun: "text-sun", sat: "text-sat" } as const;
 function ItemTitle({ item }: { item: Pick<ViewItem, "title" | "myResponse" | "color"> }) {
   if (item.myResponse === "declined") {
     return (
-      <span className="min-w-0 flex-1 truncate line-through decoration-ink-2">
+      <span data-title className="min-w-0 flex-1 truncate line-through decoration-ink-2">
         {item.title}
         <span className="sr-only">（参加しない）</span>
       </span>
@@ -27,7 +38,9 @@ function ItemTitle({ item }: { item: Pick<ViewItem, "title" | "myResponse" | "co
   }
   return (
     <>
-      <span className="min-w-0 flex-1 truncate">{item.title}</span>
+      <span data-title className="min-w-0 flex-1 truncate">
+        {item.title}
+      </span>
       {item.myResponse === "pending" && (
         <span
           className={cn(
@@ -125,6 +138,7 @@ function ItemRows({
 /**
  * 週・日の表示の 1 日ぶんの一覧。拡張ごとに見出しを分けず、含まれる拡張の名前を 1 行にまとめる。
  * 予定を先に、拡張の項目をあとに並べる。今日の中身が拡張ごとの見出しで縦に伸び、他の日が隠れるのを防ぐ。#14
+ * 幅の広い表で題名が伸びると、グループ名が右端まで離れる。ここでは題名を伸ばさず、グループ名を題名のすぐ右に置く。#14
  * @param empty 1 件も無いときに出す文
  * @param leaving 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98
  */
@@ -143,7 +157,7 @@ export function FlatItemList({
   const present = extensionGroups().filter((g) => items.some((i) => i.extension === g.key));
   const ordered = [...items].sort((a, b) => Number(kindOf(a) !== "event") - Number(kindOf(b) !== "event"));
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-1 [&_[data-title]]:flex-initial">
       {present.length > 1 && (
         <p className="px-0.5 text-xs font-bold text-ink-2">{present.map((g) => g.label).join("・")}</p>
       )}
@@ -152,11 +166,11 @@ export function FlatItemList({
   );
 }
 
-/** 「このあと」の日の見出し。今日は出さず、明日は「明日」、それ以降は `9/27(日)` の形。#5 */
+/** 「このあと」の日の見出し。今日は出さず、明日は「明日」、それ以降は `9月27日 日曜` の形。#5、決定 0059 */
 function upcomingDayHeading(day: Date, today: Date): string | null {
   if (sameDay(day, today)) return null;
   if (sameDay(day, addDays(today, 1))) return "明日";
-  return `${day.getMonth() + 1}/${day.getDate()}(${WEEKDAYS[day.getDay()]})`;
+  return formatDay(day);
 }
 
 /** 項目を、始まりの日ごとにまとめる。items は時刻の早い順である前提 */
@@ -263,7 +277,8 @@ function ItemRow({
 }
 
 /**
- * 家計簿など、金額の 1 行。円のアイコンと金額を右寄せにする。数字の幅は tabular-nums でそろえる。塗らない札。0056
+ * 家計簿など、金額の 1 行。並びはほかの行と同じ(終日、点、アイコン、題名の所に金額、グループ)。
+ * 数字の幅は tabular-nums でそろえる。塗らない札。0056、UX レビュー #10
  * 足した直後は膨らんで入り、消す途中は縮んで消える。動かすのは transform と opacity だけ。0044、0048、#98
  */
 function MoneyRow({
@@ -287,12 +302,15 @@ function MoneyRow({
         className="grid min-h-11 w-full grid-cols-[46px_1fr] items-center gap-1 py-1 text-left"
         onClick={() => onOpen(i)}
       >
-        <Icon className="size-4 text-ink-2" aria-hidden="true" />
+        <span className="text-sm font-medium text-ink-2">終日</span>
         <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <Dot color={i.color} />
+          <Icon className="size-3.5 flex-none text-ink-2" aria-hidden="true" />
           <span className="sr-only">{extensionLabel(i.extension)}、</span>
-          <span className="min-w-0 truncate text-ink-2">{i.groupName}</span>
-          <span className="ml-auto font-semibold text-ink tabular-nums">{i.title}</span>
+          <span data-title className="min-w-0 flex-1 truncate font-semibold tabular-nums">
+            {i.title}
+          </span>
+          <span className="flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
         </span>
       </button>
     </li>

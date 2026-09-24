@@ -230,6 +230,31 @@ const screens: Screen[] = [
     },
   },
   {
+    name: "09-kakeibo-assets",
+    title: "家計簿の口座と総資産の面",
+    variants: DARK,
+    run: async (page, seed) => {
+      skipIfAbsent("09-kakeibo-assets", seed.features.kakeiboAccounts, "家計簿の口座");
+      await page.goto("/kakeibo");
+      const assets = page.getByTestId("kakeibo-assets");
+      await expect(assets).toBeVisible();
+      await scrollToTop(page, assets);
+    },
+  },
+  {
+    name: "09-kakeibo-sheet",
+    title: "家計簿の記録のシート(金額を入れた状態)",
+    variants: DARK,
+    run: async (page, seed) => {
+      skipIfAbsent("09-kakeibo-sheet", seed.features.kakeibo, "家計簿");
+      await page.goto("/kakeibo?record=1");
+      const sheet = page.getByRole("dialog", { name: "記録する" });
+      await expect(sheet).toBeVisible();
+      await sheet.getByLabel("金額").fill("1200");
+      await sheet.getByRole("radio", { name: "食費" }).click();
+    },
+  },
+  {
     name: "09-kakeibo-accounts",
     title: "家計簿の口座",
     variants: DARK,

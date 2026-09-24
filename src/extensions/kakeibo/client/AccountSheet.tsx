@@ -12,6 +12,7 @@ import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_ACCOUNT_KINDS, type KakeiboAccountKind } from "../shared/accounts";
 import type { KakeiboAccount } from "./api";
 import { useDeleteAccount, useSaveAccount } from "./api";
+import { sanitizeAmountInput } from "./numeric-input";
 import { GroupLabel } from "./parts";
 
 /**
@@ -128,13 +129,10 @@ export function AccountSheet({
           {(p) => (
             <Input
               {...p}
-              type="number"
+              type="text"
               inputMode="numeric"
-              min={-100_000_000}
-              max={100_000_000}
-              step={1}
               value={openingBalance}
-              onChange={(e) => setOpeningBalance(e.target.value)}
+              onChange={(e) => setOpeningBalance(sanitizeAmountInput(e.target.value, true))}
               className="text-right"
             />
           )}

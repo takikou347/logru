@@ -16,6 +16,7 @@ import type { KakeiboType } from "../shared/types";
 import type { KakeiboAccount, KakeiboExpense, KakeiboUsage } from "./api";
 import { useKakeiboAccounts, useKakeiboUsage, useSaveExpense } from "./api";
 import { loadLastRecord, saveLastRecord } from "./local-prefs";
+import { sanitizeAmountInput } from "./numeric-input";
 import { KAKEIBO_ACCOUNT_KIND_ICONS } from "./parts";
 
 /** 支出は最初の 8 つだけ出し、残りは「ほか」で開く。F-314 */
@@ -287,14 +288,12 @@ export function ExpenseSheet({
                 {...p}
                 ref={amountRef}
                 autoFocus
-                type="number"
+                type="text"
                 inputMode="numeric"
-                min={1}
-                max={100_000_000}
-                step={1}
+                pattern="[0-9]*"
                 placeholder="0"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => setAmount(sanitizeAmountInput(e.target.value))}
                 className="text-right text-2xl font-bold"
               />
             )}

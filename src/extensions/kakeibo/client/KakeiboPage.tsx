@@ -114,13 +114,11 @@ export function KakeiboPage() {
   const totalIncome = sumByType(records, "income");
   const byCategory = summarizeExpenseByCategory(records);
   const filterOptions = groupFilterOptions({ groups, me: data, value: group, onChange: setGroup });
-  const personalGroupId = groups.find((g) => g.isPersonal)?.id ?? null;
-  const isSelfFilter = group === null || group === personalGroupId;
   const accountsList = accounts.data ?? [];
-  const assetsTotal =
-    group === null
-      ? accountsList.filter((a) => a.groupId === personalGroupId).reduce((n, a) => n + a.balance, 0)
-      : accountsList.reduce((n, a) => n + a.balance, 0);
+  // グループごとに分けて並べる。自分の口座は総資産、共有口座はそのグループの合計を見出しにする。issue #177
+  const groupedAccounts = groups
+    .map((g) => ({ group: g, accounts: accountsList.filter((a) => a.groupId === g.id) }))
+    .filter((g) => g.accounts.length > 0);
   // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
   const handleDeleteExpense = (expense: KakeiboExpense) =>
     removeRecord(expense.id, ({ keepalive }) => deleteExpense.mutateAsync({ id: expense.id, keepalive }));
@@ -226,21 +224,38 @@ export function KakeiboPage() {
             </EmptyState>
           ) : (
             <>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-ink-2">{isSelfFilter ? "総資産" : "共有口座の合計"}</span>
-                <span className="text-xl font-extrabold tabular-nums" data-testid="kakeibo-assets">
-                  {formatYen(assetsTotal)}
-                </span>
-              </div>
-              <div className="flex flex-col">
-                {accountsList.map((a) => (
-                  <PanelRow key={a.id}>
-                    <Link to={`/kakeibo/accounts/${a.id}`} className="min-w-0 flex-1 truncate text-ink no-underline">
-                      {a.name}
-                    </Link>
-                    <span className="font-bold tabular-nums">{formatYen(a.balance)}</span>
-                  </PanelRow>
-                ))}
+              <div className="flex flex-col gap-3">
+                {groupedAccounts.map(({ group: g, accounts: groupAccounts }) => {
+                  const total = groupAccounts.reduce((n, a) => n + a.balance, 0);
+                  return (
+                    <div key={g.id} className="flex flex-col">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="min-w-0 truncate text-sm text-ink-2">
+                          {g.isPersonal ? "総資産" : `${g.name}の共有口座`}
+                        </span>
+                        <span
+                          className="text-xl font-extrabold tabular-nums"
+                          data-testid={g.isPersonal ? "kakeibo-assets" : undefined}
+                        >
+                          {formatYen(total)}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        {groupAccounts.map((a) => (
+                          <PanelRow key={a.id}>
+                            <Link
+                              to={`/kakeibo/accounts/${a.id}`}
+                              className="min-w-0 flex-1 truncate text-ink no-underline"
+                            >
+                              {a.name}
+                            </Link>
+                            <span className="font-bold tabular-nums">{formatYen(a.balance)}</span>
+                          </PanelRow>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               <Link to="/kakeibo/accounts" className="text-xs text-ink-2 underline underline-offset-2">
                 口座の画面へ

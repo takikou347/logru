@@ -77,6 +77,56 @@ test("リストを作り、項目を足す、チェックする、消す。日�
   await expect(page.getByRole("heading", { name: "買い物" })).toBeVisible();
 });
 
+/**
+ * iPhone の Safari は、日付・時刻の入力欄のネイティブな選択 UI を閉じるとき、シートの外側で
+ * 起きたように見えるポインター・クリックの動きを送ることがある。Playwright では実機の動きを
+ * 直に再現できないため、同じ形のイベントを `document.body` へ送って再現する
+ */
+async function dispatchOutsidePointerAndClick(page: Page) {
+  await page.evaluate(() => {
+    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0 }));
+    document.body.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+  });
+}
+
+test("日付の入力にフォーカスが残ったまま外側でポインターの動きが起きても、リストを作るシートは閉じずに登録できる", async ({
+  page,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableLists(page);
+  await page.goto("/lists");
+  await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
+  const create = page.getByRole("dialog", { name: "リストを作る" });
+  await create.getByLabel("名前").fill("買い物");
+  const dateInput = create.getByLabel("日付");
+  await dateInput.click();
+  await dateInput.fill("2026-09-25");
+  await expect(dateInput).toBeFocused();
+
+  // 日付の入力欄にまだフォーカスが残っている間は、外側の動きが起きてもシートを閉じない
+  await dispatchOutsidePointerAndClick(page);
+  await expect(create).toBeVisible();
+  await expect(create.getByLabel("日付")).toHaveValue("2026-09-25");
+
+  await create.getByRole("button", { name: "作る" }).click();
+  await expect(page).toHaveURL(/\/lists\/.+/);
+});
+
+test("日付の入力からフォーカスを外した後は、外側の動きでシートが今までどおり閉じる", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableLists(page);
+  await page.goto("/lists");
+  await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
+  const create = page.getByRole("dialog", { name: "リストを作る" });
+  const dateInput = create.getByLabel("日付");
+  await dateInput.click();
+  await dateInput.fill("2026-09-25");
+  await create.getByLabel("名前").focus();
+
+  await dispatchOutsidePointerAndClick(page);
+  await expect(create).toBeHidden();
+});
+
 test("項目を消すと 5 秒だけ元に戻せる。issue #12", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await enableLists(page);

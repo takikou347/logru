@@ -20,6 +20,3 @@ export const KAKEIBO_ACCOUNT_KIND_KEYS = KAKEIBO_ACCOUNT_KINDS.map((k) => k.key)
 export function kakeiboAccountKindLabel(key: string): string {
   return KAKEIBO_ACCOUNT_KINDS.find((k) => k.key === key)?.label ?? key;
 }
-
-/** 口座 1 件の最小限の形。残高の計算などで使い回す */
-export type KakeiboAccountLike = { id: string; groupId: string; openingBalance: number };

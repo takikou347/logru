@@ -6,8 +6,6 @@ import { Dot } from "@/components/parts/Panel";
 import { groupColor } from "@/lib/colors";
 import type { KakeiboAccountKind } from "../shared/accounts";
 
-export { formatShortDate } from "@/lib/dates";
-
 /**
  * 月を `2026-09` の形にする。画面は端末の時間帯で月を選ぶ。
  * @param d 月の中の 1 日

@@ -16,7 +16,7 @@ import { type KakeiboAccountRow, type KakeiboExpenseRow, kakeiboAccounts, kakeib
 const GONE_NAME = "退会した人";
 
 /** 記録に出す口座の参照。見えなければ hidden にして持ち主の表示名だけを返す */
-export type KakeiboAccountRef =
+type KakeiboAccountRef =
   | { id: string; name: string; kind: KakeiboAccountKind }
   | { id: string; hidden: true; ownerName: string }
   | null;
@@ -24,7 +24,7 @@ export type KakeiboAccountRef =
 type AccountRefRow = { id: string; groupId: string; name: string; kind: KakeiboAccountKind; ownerName: string | null };
 
 /** account_id / to_account_id が指す口座の名前などを、まとめて 1 度に読む */
-export async function loadAccountRefRows(db: DB, ids: string[]): Promise<Map<string, AccountRefRow>> {
+async function loadAccountRefRows(db: DB, ids: string[]): Promise<Map<string, AccountRefRow>> {
   const unique = [...new Set(ids)];
   if (unique.length === 0) return new Map();
   const rows = await db
@@ -48,7 +48,7 @@ export async function loadAccountRefRows(db: DB, ids: string[]): Promise<Map<str
  * @param visibleGroupIds 見ている人が家計簿に使える、全部のグループ(絞り込みは無視する)
  * @param id account_id か to_account_id。無ければ null
  */
-export function toAccountRef(
+function toAccountRef(
   refs: Map<string, AccountRefRow>,
   visibleGroupIds: Set<string>,
   id: string | null,

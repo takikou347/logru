@@ -8,6 +8,7 @@ import { Dot, Empty, FieldMessage, Panel } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDay } from "@/lib/dates";
 import type { ExternalCalendarSummary } from "../shared/schemas";
 import {
   EXTERNAL_CALENDARS_KEY as KEY,
@@ -20,7 +21,7 @@ import {
 /** `9月21日 14:05` の形にする */
 function formatSynced(ms: number): string {
   const d = new Date(ms);
-  return `${d.getMonth() + 1}月${d.getDate()}日 ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${formatDay(d)} ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 /**

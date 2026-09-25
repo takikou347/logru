@@ -27,6 +27,7 @@ import {
   addDays,
   addMonths,
   dateKey,
+  formatDay,
   monthGrid,
   onDay,
   parseDateKey,
@@ -450,7 +451,7 @@ export function CalendarPage() {
 
   // 足せるものは予定だけ。「+」を押すと選んでいる日で直接シートが開く。issue #150、拡張のものは拡張の画面が持つ。0019
   // 読み上げの名前に選んだ日を入れる。予定を足す入口はここだけなので、どの日に足すかを名前で伝える。0012、0062、issue #150
-  const addEventLabel = `${selected.getMonth() + 1}月${selected.getDate()}日に予定を足す`;
+  const addEventLabel = `${formatDay(selected)}に予定を足す`;
   const eventAddables: Addable[] = [
     { key: "event", label: addEventLabel, icon: CalendarPlus, onClick: () => addNew(selected) },
   ];

@@ -9,6 +9,7 @@ import { kakeiboInput } from "../shared/schemas";
 import { sumByType, summarizeExpenseByCategory } from "../shared/totals";
 import { personalKakeiboGroupId, requireKakeiboGroup, usableGroupIds, usableGroups } from "./access";
 import { kakeiboAccountsRoutes } from "./accounts-routes";
+import { kakeiboBudgetsRoutes } from "./budgets-routes";
 import { toExpenseDtos } from "./dto";
 import { type KakeiboAccountRow, type KakeiboExpenseRow, kakeiboAccounts, kakeiboExpenses } from "./schema";
 import { kakeiboSettlementRoutes, kakeiboSettlementsRoutes } from "./settlement-routes";
@@ -164,6 +165,7 @@ export const kakeiboRoutes = createRouter()
   .route("/accounts", kakeiboAccountsRoutes)
   .route("/settlement", kakeiboSettlementRoutes)
   .route("/settlements", kakeiboSettlementsRoutes)
+  .route("/budgets", kakeiboBudgetsRoutes)
   .get("/usage", async (c) => {
     const db = c.get("db");
     const userId = c.get("user").id;

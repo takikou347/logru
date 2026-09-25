@@ -49,5 +49,6 @@ export const kakeiboClient: ClientExtension = {
       path: "/kakeibo/accounts/:id",
       load: async () => ({ Component: (await import("./AccountRecordsPage")).AccountRecordsPage }),
     },
+    { path: "/kakeibo/budgets", load: async () => ({ Component: (await import("./BudgetsPage")).BudgetsPage }) },
   ],
 };

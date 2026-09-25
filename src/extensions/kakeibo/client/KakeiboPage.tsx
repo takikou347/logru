@@ -15,15 +15,17 @@ import { Panel, PanelRow } from "@/components/parts/Panel";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
-import { formatShortDate } from "@/lib/dates";
+import { dateKey, formatShortDate } from "@/lib/dates";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { poolColorsOf } from "@/modules/calendar/model";
+import { upcomingOrCurrentBudgets } from "../shared/budgets";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
 import { formatSignedYen, formatYen } from "../shared/format";
 import { sumByType, summarizeExpenseByCategory } from "../shared/totals";
 import type { KakeiboExpense } from "./api";
-import { useDeleteExpense, useKakeiboAccounts, useKakeiboGroups, useKakeiboSummary } from "./api";
+import { useDeleteExpense, useKakeiboAccounts, useKakeiboBudgets, useKakeiboGroups, useKakeiboSummary } from "./api";
+import { BudgetRow } from "./BudgetPanel";
 import { ExpenseSheet } from "./ExpenseSheet";
 import { accountRefLabel, addMonthsToKey, formatMonthLabel, kakeiboPersonName, monthKeyOf } from "./parts";
 import { SettlementPanel } from "./SettlementPanel";
@@ -105,6 +107,7 @@ export function KakeiboPage() {
   const month = monthParam && isMonthKey(monthParam) ? monthParam : monthKeyOf(new Date());
   const summary = useKakeiboSummary(group, month, ready);
   const accounts = useKakeiboAccounts(group, ready);
+  const budgets = useKakeiboBudgets(group, ready);
 
   const setGroup = (id: string | null) =>
     setParams((p) => (id ? p.set("group", id) : p.delete("group"), p), { replace: true });
@@ -127,6 +130,8 @@ export function KakeiboPage() {
   const byCategory = summarizeExpenseByCategory(records);
   const selectedGroup = groups.find((g) => g.id === group);
   const accountsList = accounts.data ?? [];
+  // 今日を含む予算と、これからの予算だけを出す。終わった予算は出さない。F-324
+  const shownBudgets = upcomingOrCurrentBudgets(budgets.data ?? [], dateKey(new Date()));
   // グループごとに分けて並べる。自分の口座は総資産、共有口座はそのグループの合計を見出しにする。issue #177
   const groupedAccounts = groups
     .map((g) => ({ group: g, accounts: accountsList.filter((a) => a.groupId === g.id) }))
@@ -177,6 +182,19 @@ export function KakeiboPage() {
           <LoadFailure what="家計簿" error={summary.error} onRetry={() => void summary.refetch()} />
         )}
         {summary.isPending && <Loading />}
+
+        {shownBudgets.length > 0 && (
+          <Panel title="予算">
+            <div className="flex flex-col">
+              {shownBudgets.map((b) => (
+                <BudgetRow key={b.id} budget={b} />
+              ))}
+            </div>
+            <Link to="/kakeibo/budgets" className="text-xs text-ink-2 underline underline-offset-2">
+              予算の画面へ
+            </Link>
+          </Panel>
+        )}
 
         {summary.data && (
           <Panel title="この月の合計">

@@ -1,4 +1,5 @@
 import { kakeiboAccountKindLabel } from "@extensions/kakeibo/shared/accounts";
+import { upcomingOrCurrentBudgets } from "@extensions/kakeibo/shared/budgets";
 import { isExpenseCategory, isIncomeCategory, kakeiboCategoryLabel } from "@extensions/kakeibo/shared/categories";
 import { dateKeyOfJst, isDateKey, isMonthKey, monthRange, startOfDateJst } from "@extensions/kakeibo/shared/dates";
 import { formatSignedYen, formatYen } from "@extensions/kakeibo/shared/format";
@@ -11,6 +12,8 @@ import {
 import {
   kakeiboAccountInput,
   kakeiboAccountPatchInput,
+  kakeiboBudgetInput,
+  kakeiboBudgetPatchInput,
   kakeiboInput,
   kakeiboRecurringInput,
   kakeiboSettlementInput,
@@ -447,5 +450,39 @@ describe("よく使う記録の入力。0072、F-326", () => {
   it("名前は 1 から 30 字", () => {
     expect(kakeiboTemplateInput.safeParse({ ...template, name: "" }).success).toBe(false);
     expect(kakeiboTemplateInput.safeParse({ ...template, name: "あ".repeat(31) }).success).toBe(false);
+  });
+});
+
+describe("期間の予算の入力。0072、F-323", () => {
+  const budget = { groupId: "g", name: "旅行", startDate: "2026-09-01", endDate: "2026-09-30", amount: 30000 };
+
+  it("形がそろえば通す", () => {
+    expect(kakeiboBudgetInput.safeParse(budget).success).toBe(true);
+  });
+
+  it("終わりの日は始まりの日と同じか後", () => {
+    expect(kakeiboBudgetInput.safeParse({ ...budget, endDate: "2026-08-31" }).success).toBe(false);
+    expect(kakeiboBudgetInput.safeParse({ ...budget, endDate: budget.startDate }).success).toBe(true);
+  });
+
+  it("直すときも、送った項目の組み合わせで終わりの日を確かめる", () => {
+    expect(kakeiboBudgetPatchInput.safeParse({ endDate: "2026-08-31" }).success).toBe(true);
+    expect(kakeiboBudgetPatchInput.safeParse({ startDate: "2026-09-10", endDate: "2026-09-01" }).success).toBe(false);
+  });
+});
+
+describe("家計簿の画面の上に出す予算。0072、F-324", () => {
+  const budgets = [
+    { id: "past", startDate: "2026-08-01", endDate: "2026-08-31" },
+    { id: "current", startDate: "2026-09-01", endDate: "2026-09-30" },
+    { id: "future", startDate: "2026-10-01", endDate: "2026-10-31" },
+  ];
+
+  it("終わった予算は出さない。今日を含む予算とこれからの予算を、始まりの日が早い順に出す", () => {
+    expect(upcomingOrCurrentBudgets(budgets, "2026-09-15").map((b) => b.id)).toEqual(["current", "future"]);
+  });
+
+  it("今日がちょうど終わりの日でも出す", () => {
+    expect(upcomingOrCurrentBudgets(budgets, "2026-08-31").map((b) => b.id)).toEqual(["past", "current", "future"]);
   });
 });

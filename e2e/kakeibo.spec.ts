@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addExtension, dayPanel, pickShare, signUp } from "./helpers";
+import { addExtension, dayPanel, pickShare, signUp, tokyoDateParts } from "./helpers";
 
 /** 機能の一覧で、家計簿を自分だけで使えるようにする */
 async function enableKakeibo(page: Page) {
@@ -372,4 +372,54 @@ test("3 人のグループで 1 人が立て替えると、送る組み合わせ
   // 現金の残高は、立て替えた 3 万円が引かれ、精算で受け取った 2 万円が戻る
   await page.goto("/kakeibo/accounts");
   await expect(page.getByRole("link", { name: "現金" })).toContainText("-¥10,000");
+});
+
+test("期間の予算を作ると、家計簿の画面の上と予算の画面に、使った額と残りが出る。0072、F-323、F-324", async ({
+  page,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  const end = tokyoDateParts(30);
+
+  await page.goto("/kakeibo/budgets");
+  await page.getByRole("toolbar", { name: "予算の操作" }).getByRole("button", { name: "予算を作る" }).click();
+  const sheet = page.getByRole("dialog", { name: "予算を作る" });
+  await sheet.getByLabel("名前").fill("食費");
+  await sheet.getByLabel("終わりの日").fill(end.key);
+  await sheet.getByLabel("金額").fill("10000");
+  await sheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("予算を作りました")).toBeVisible();
+  await expect(page.getByText("食費")).toBeVisible();
+  await expect(page.getByText("残り ¥10,000")).toBeVisible();
+
+  // 支出を記録すると、予算の使った額と残りに反映される
+  const expense = await openRecordSheet(page);
+  await expense.getByLabel("金額").fill("3000");
+  await expense.getByRole("radio", { name: "食費" }).click();
+  await expense.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  // 家計簿の画面の上にも、今日を含む予算として出る
+  await page.goto("/kakeibo");
+  const budgetPanel = page.getByRole("region", { name: "予算" });
+  await expect(budgetPanel.getByText("食費")).toBeVisible();
+  await expect(budgetPanel.getByText("使った額 ¥3,000")).toBeVisible();
+  await expect(budgetPanel.getByText("残り ¥7,000")).toBeVisible();
+
+  // 予算の画面でも同じ額を見られ、直す・消すができる
+  await page.goto("/kakeibo/budgets");
+  await expect(page.getByText("使った額 ¥3,000")).toBeVisible();
+  await page.getByText("食費").click();
+  const editSheet = page.getByRole("dialog", { name: "予算を直す" });
+  await editSheet.getByLabel("金額").fill("20000");
+  await editSheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("予算を直しました")).toBeVisible();
+  await expect(page.getByText("残り ¥17,000")).toBeVisible();
+
+  await page.getByText("食費").click();
+  await page.getByRole("dialog", { name: "予算を直す" }).getByRole("button", { name: "消す" }).click();
+  await page.getByRole("button", { name: "本当に消す" }).click();
+  await expect(page.getByText("予算を消しました")).toBeVisible();
+  await expect(page.getByText("まだ予算がありません。")).toBeVisible();
 });

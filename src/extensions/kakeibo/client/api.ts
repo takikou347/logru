@@ -106,6 +106,18 @@ export type KakeiboSettlementSummary = {
   settlements: KakeiboSettlement[];
 };
 
+/** 期間の予算 1 件。使った額を添える。0072、F-323、F-324 */
+export type KakeiboBudget = {
+  id: string;
+  groupId: string;
+  createdBy: string | null;
+  name: string;
+  startDate: string;
+  endDate: string;
+  amount: number;
+  used: number;
+};
+
 /** 読み込むデータの名前 */
 const kakeiboKeys = {
   all: ["kakeibo"] as const,
@@ -114,6 +126,7 @@ const kakeiboKeys = {
   accountDetail: (id: string, month: string) => ["kakeibo", "account", id, month] as const,
   usage: ["kakeibo", "usage"] as const,
   settlement: (group: string) => ["kakeibo", "settlement", group] as const,
+  budgets: (group: string | null) => ["kakeibo", "budgets", group ?? "all"] as const,
 };
 
 /**
@@ -288,6 +301,46 @@ export function useDeleteAccount() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api(`/kakeibo/accounts/${id}`, { method: "DELETE" }),
+    onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
+  });
+}
+
+/** 期間の予算を読む。使った額とともに返る。F-323、F-324 */
+export function useKakeiboBudgets(group: string | null, enabled = true) {
+  return useQuery({
+    queryKey: kakeiboKeys.budgets(group),
+    queryFn: () => api<{ budgets: KakeiboBudget[] }>(`/kakeibo/budgets${group ? `?group=${group}` : ""}`),
+    enabled,
+    select: (data) => data.budgets,
+  });
+}
+
+/** 期間の予算を作る、直す入力 */
+export type KakeiboBudgetSaveInput = {
+  groupId?: string;
+  name?: string;
+  startDate?: string;
+  endDate?: string;
+  amount?: number;
+};
+
+/** 期間の予算を作る、直す。F-323 */
+export function useSaveBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id?: string; body: KakeiboBudgetSaveInput }) =>
+      id
+        ? api<KakeiboBudget>(`/kakeibo/budgets/${id}`, { method: "PATCH", body })
+        : api<KakeiboBudget>("/kakeibo/budgets", { method: "POST", body }),
+    onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
+  });
+}
+
+/** 期間の予算を消す。F-323 */
+export function useDeleteBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api(`/kakeibo/budgets/${id}`, { method: "DELETE" }),
     onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
   });
 }

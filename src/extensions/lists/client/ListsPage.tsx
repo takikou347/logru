@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { Dock } from "@/components/parts/Dock";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
@@ -35,11 +36,12 @@ export function ListsPage() {
 
   const creating = params.get("create") === "1";
   const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
+  const filterOptions = groupFilterOptions({ groups, me: me.data, value: filterGroup, onChange: setGroup });
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
 
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
   const rows = lists.data ?? [];
-  const filterOptions = groupFilterOptions({ groups, me: data, value: filterGroup, onChange: setGroup });
   // 足せるものはリストだけ。「+」を押すと直接シートが開く。issue #150
   const addables: Addable[] = [
     {
@@ -51,7 +53,7 @@ export function ListsPage() {
   ];
 
   return (
-    <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
+    <>
       <Page>
         {/* 見出しを押すと機能のシートが開き、ほかの拡張の画面へ近道できる。issue #26 */}
         <PageBar title="リスト" onTitleClick={() => setFeatures(true)} />
@@ -108,6 +110,6 @@ export function ListsPage() {
       </Page>
       {creating && <CreateListSheet groups={groups} me={data} defaultGroupId={filterGroup} onClose={closeCreate} />}
       {features && <FeatureSheet onClose={() => setFeatures(false)} />}
-    </AppLayout>
+    </>
   );
 }

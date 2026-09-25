@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { Dock } from "@/components/parts/Dock";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Dot, Empty } from "@/components/parts/Panel";
@@ -32,6 +33,7 @@ export function KomaDaysPage() {
   const navigate = useNavigate();
   const [linking, setLinking] = useState<KomaDay | "today" | null>(null);
   const [editing, setEditing] = useState<MemoryRecord | null>(null);
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
 
   if (!me.data || !ready || days.isPending) return <Loading />;
   const data = me.data;
@@ -40,7 +42,7 @@ export function KomaDaysPage() {
   const startedToday = now.data?.started;
 
   return (
-    <AppLayout poolColors={poolColorsOf(groups, data)}>
+    <>
       <Page>
         <PageBar title="ひとコマ" back="/memories" />
         {days.error && <LoadFailure what="ひとコマ" error={days.error} onRetry={() => void days.refetch()} />}
@@ -115,6 +117,6 @@ export function KomaDaysPage() {
         />
       )}
       {editing && <RecordSheet groups={groups} me={data} record={editing} onClose={() => setEditing(null)} />}
-    </AppLayout>
+    </>
   );
 }

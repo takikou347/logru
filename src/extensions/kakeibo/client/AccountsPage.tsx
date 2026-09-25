@@ -2,7 +2,8 @@ import type { GroupSummary } from "@shared/api-types";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { Dock } from "@/components/parts/Dock";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
@@ -65,6 +66,7 @@ export function AccountsPage() {
 
   const creating = params.get("create") === "1";
   const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
 
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
@@ -74,7 +76,7 @@ export function AccountsPage() {
     .filter((g) => g.accounts.length > 0);
 
   return (
-    <AppLayout poolColors={poolColorsOf(groups, data)}>
+    <>
       <Page>
         <PageBar title="家計簿の口座" back="/kakeibo" />
 
@@ -117,6 +119,6 @@ export function AccountsPage() {
         </Dock>
       </Page>
       {creating && <AccountSheet groups={groups} me={data} onClose={closeCreate} />}
-    </AppLayout>
+    </>
   );
 }

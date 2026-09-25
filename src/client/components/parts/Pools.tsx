@@ -7,6 +7,10 @@ import { cn } from "@/lib/utils";
  * 丸は漂わせない。動かし続けると、ぼかしとガラスを毎フレーム描き直し、画面がちらつく。#3
  * 動きを減らす設定では、膨らむ動きも止める。
  *
+ * 高さは `inset-0` ではなく `h-dvh` で決める。iOS Safari は、スクロールしない短い画面だと
+ * 下のツールバーが常に出た状態の高さを `fixed` の inset 計算に使うことがあり、`inset-0` のままだと
+ * 実際に見えている高さより下がわずかに欠け、地の色(--ground)の帯が見えてしまう。0071
+ *
  * @param colors 3 つの色の名前。足りなければ既定の色で埋める
  * @param focus 膨らませる色の番号。0 から 2。null なら 3 色とも同じ大きさ
  */
@@ -17,7 +21,11 @@ export function Pools({ colors, focus }: { colors: string[]; focus?: number | nu
   const pool =
     "absolute aspect-square rounded-full bg-(--c) opacity-(--pool-opacity) blur-[46px] transition-[transform,opacity] duration-900 ease-out";
   return (
-    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true" data-pools>
+    <div
+      className="pointer-events-none fixed inset-x-0 top-0 h-dvh -z-10 overflow-hidden"
+      aria-hidden="true"
+      data-pools
+    >
       <i
         className={cn(
           pool,

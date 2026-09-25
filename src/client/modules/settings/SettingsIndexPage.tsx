@@ -1,6 +1,7 @@
 import { Navigate } from "react-router";
 import { useGroups, useMe } from "@/api/common";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { poolColorsOf } from "../calendar/model";
 import { SETTINGS_SECTIONS, SettingsToc } from "./components/SettingsToc";
@@ -15,15 +16,14 @@ export function SettingsIndexPage() {
   const desktop = useMediaQuery("(min-width: 1024px)");
   const me = useMe();
   const groups = useGroups();
+  useAppFrame({ poolColors: poolColorsOf(groups.data ?? [], me.data) });
 
   if (desktop) return <Navigate to={SETTINGS_SECTIONS[0].path} replace />;
 
   return (
-    <AppLayout poolColors={poolColorsOf(groups.data ?? [], me.data)}>
-      <Page>
-        <PageBar title="設定" />
-        <SettingsToc variant="menu" />
-      </Page>
-    </AppLayout>
+    <Page>
+      <PageBar title="設定" />
+      <SettingsToc variant="menu" />
+    </Page>
   );
 }

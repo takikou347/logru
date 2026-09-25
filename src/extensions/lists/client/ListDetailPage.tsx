@@ -4,7 +4,8 @@ import { useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Empty, Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
@@ -171,6 +172,8 @@ export function ListDetailPage() {
   useEffect(() => {
     if (addFocused) setParams((p) => (p.delete("add"), p), { replace: true });
   }, []);
+  // リストごとの色は付けていない画面。0071
+  useAppFrame({ poolColors: [] });
 
   if (!id) return null;
   if (detail.isPending || !me.data) return <Loading />;
@@ -190,7 +193,7 @@ export function ListDetailPage() {
   const group = groups.find((g) => g.id === list.groupId);
 
   return (
-    <AppLayout poolColors={[]}>
+    <>
       <Page>
         <PageBar title={list.title} back="/lists" />
         <Panel>
@@ -227,6 +230,6 @@ export function ListDetailPage() {
         </Panel>
       </Page>
       {editing && <EditListSheet list={list} onClose={() => setEditing(false)} />}
-    </AppLayout>
+    </>
   );
 }

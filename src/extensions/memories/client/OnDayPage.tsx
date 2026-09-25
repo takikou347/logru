@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { Dock } from "@/components/parts/Dock";
 import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
@@ -39,6 +40,13 @@ export function OnDayPage() {
   const [recording, setRecording] = useState(false);
   const [editing, setEditing] = useState<MemoryRecord | null>(null);
   const [photoAt, setPhotoAt] = useState<number | null>(null);
+  const filterOptions = groupFilterOptions({
+    groups,
+    me: me.data,
+    value: group,
+    onChange: (v) => setParams(v ? { group: v } : {}, { replace: true }),
+  });
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
 
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
@@ -49,12 +57,6 @@ export function OnDayPage() {
   // 日付の書き方は決定 0059。parseDateKey は端末の時間帯で Date を作るので、UTC のずれを気にせず使える
   const parsedDate = valid ? parseDateKey(date) : null;
   const title = parsedDate ? formatDay(parsedDate) : "その日";
-  const filterOptions = groupFilterOptions({
-    groups,
-    me: data,
-    value: group,
-    onChange: (v) => setParams(v ? { group: v } : {}, { replace: true }),
-  });
   const upcoming = from > Date.now();
   // 足せるものは記録だけ。「+」を押すと直接シートが開く。0062、0067
   const addables: Addable[] = [
@@ -62,7 +64,7 @@ export function OnDayPage() {
   ];
 
   return (
-    <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
+    <>
       <Ambient photo={memory?.cover ?? null} />
       <Page>
         <PageBar title={title} back="/memories" />
@@ -131,6 +133,6 @@ export function OnDayPage() {
           me={data}
         />
       )}
-    </AppLayout>
+    </>
   );
 }

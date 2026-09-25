@@ -8,7 +8,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useGroups, useMe } from "@/api/common";
-import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components/layout/AppLayout";
+import { AccountMenu, SideHeading, sideItemClass } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { Dock } from "@/components/parts/Dock";
 import { LoadFailure } from "@/components/parts/Failure";
 import { FeatureSheet } from "@/components/parts/FeatureSheet";
@@ -455,53 +456,55 @@ export function CalendarPage() {
     { key: "event", label: addEventLabel, icon: CalendarPlus, onClick: () => addNew(selected) },
   ];
 
-  return (
-    <AppLayout
-      poolColors={poolColorsOf(allGroups, me.data)}
-      poolFocus={focusIndex >= 0 ? focusIndex : null}
-      side={
-        <div className="flex flex-col gap-3">
-          <SideGroupFilter
-            options={filterOptions}
-            tourId="group-filter"
-            renderOption={(o) => {
-              // 共有のグループは、矢印でメンバーを開き、人ごとに出し入れできる。F-20
-              const section = sections.find((s) => s.group.id === o.key);
-              if (!section) {
-                return (
-                  <button
-                    key={o.key}
-                    type="button"
-                    className={sideItemClass}
-                    aria-pressed={o.pressed}
-                    onClick={o.onClick}
-                  >
-                    {o.label}
-                  </button>
-                );
-              }
+  useAppFrame({
+    poolColors: poolColorsOf(allGroups, me.data),
+    poolFocus: focusIndex >= 0 ? focusIndex : null,
+    side: (
+      <div className="flex flex-col gap-3">
+        <SideGroupFilter
+          options={filterOptions}
+          tourId="group-filter"
+          renderOption={(o) => {
+            // 共有のグループは、矢印でメンバーを開き、人ごとに出し入れできる。F-20
+            const section = sections.find((s) => s.group.id === o.key);
+            if (!section) {
               return (
-                <SideGroup
+                <button
                   key={o.key}
-                  section={section}
-                  label={o.label}
-                  pressed={o.pressed}
-                  onFilter={o.onClick}
-                  open={sideOpen.isOpen(o.key)}
-                  onOpenChange={(v) => sideOpen.setOpen(o.key, v)}
-                  hidden={hiddenIds}
-                  onToggle={togglePerson}
-                />
+                  type="button"
+                  className={sideItemClass}
+                  aria-pressed={o.pressed}
+                  onClick={o.onClick}
+                >
+                  {o.label}
+                </button>
               );
-            }}
-          />
-          <div>
-            <SideHeading>種類で絞る</SideHeading>
-            <SideKinds hidden={hiddenKinds} onToggle={toggleKind} />
-          </div>
+            }
+            return (
+              <SideGroup
+                key={o.key}
+                section={section}
+                label={o.label}
+                pressed={o.pressed}
+                onFilter={o.onClick}
+                open={sideOpen.isOpen(o.key)}
+                onOpenChange={(v) => sideOpen.setOpen(o.key, v)}
+                hidden={hiddenIds}
+                onToggle={togglePerson}
+              />
+            );
+          }}
+        />
+        <div>
+          <SideHeading>種類で絞る</SideHeading>
+          <SideKinds hidden={hiddenKinds} onToggle={toggleKind} />
         </div>
-      }
-    >
+      </div>
+    ),
+  });
+
+  return (
+    <>
       {/*
         スマホの幅では、月と年に「今日」「前」「次」「読み直す」「知らせ」「アカウント」を足すと 1 行に入らない。
         入る月と入らない月で高さが変わると落ち着かないので、スマホではいつも月と年の下へ操作を置く。
@@ -689,6 +692,6 @@ export function CalendarPage() {
           addons={addons}
         />
       )}
-    </AppLayout>
+    </>
   );
 }

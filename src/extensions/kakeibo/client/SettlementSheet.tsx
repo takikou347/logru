@@ -2,6 +2,7 @@
 import type { GroupSummary, Me } from "@shared/api-types";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
+import { Chip } from "@/components/parts/Chip";
 import { Field } from "@/components/parts/Field";
 import { FieldMessage } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
@@ -103,26 +104,22 @@ export function SettlementSheet({
               自分の口座
             </span>
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="kakeibo-settlement-account-label">
-              <button
-                type="button"
+              <Chip
                 role="radio"
                 aria-checked={(fromUser === me.user.id ? fromAccountId : toAccountId) === null}
                 onClick={() => (fromUser === me.user.id ? setFromAccountId(null) : setToAccountId(null))}
-                className="inline-flex min-h-11 items-center rounded-full border border-(--glass-edge) bg-field px-3.5 text-[13px] font-medium aria-checked:border-primary aria-checked:bg-primary aria-checked:text-primary-foreground"
               >
                 口座なし
-              </button>
+              </Chip>
               {myAccounts.map((a) => (
-                <button
+                <Chip
                   key={a.id}
-                  type="button"
                   role="radio"
                   aria-checked={(fromUser === me.user.id ? fromAccountId : toAccountId) === a.id}
                   onClick={() => (fromUser === me.user.id ? setFromAccountId(a.id) : setToAccountId(a.id))}
-                  className="inline-flex min-h-11 items-center rounded-full border border-(--glass-edge) bg-field px-3.5 text-[13px] font-medium aria-checked:border-primary aria-checked:bg-primary aria-checked:text-primary-foreground"
                 >
                   {a.name}
-                </button>
+                </Chip>
               ))}
             </div>
             <FieldMessage>口座を選ぶと、その口座の残高が動きます。</FieldMessage>

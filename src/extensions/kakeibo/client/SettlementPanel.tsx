@@ -1,12 +1,13 @@
 /** 精算の面。家計簿の画面を共有のグループで絞ったときだけ出す。0072、F-320、F-321、F-322 */
 import type { GroupSummary, Me } from "@shared/api-types";
 import { useState } from "react";
-import { toast } from "sonner";
+import { Loading } from "@/app/guards";
 import { UserAvatar } from "@/components/parts/Avatars";
+import { LoadFailure } from "@/components/parts/Failure";
 import { Empty, Panel, PanelRow } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
-import { formatShortDate } from "@/lib/dates";
-import { formatSignedYen, formatYen } from "../shared/format";
+import { useUndoableDelete } from "@/lib/use-undoable-delete";
+import { formatKakeiboDate, formatSignedYen, formatYen } from "../shared/format";
 import type { KakeiboTransfer } from "./api";
 import { useDeleteSettlement, useKakeiboSettlement } from "./api";
 import { accountRefLabel, kakeiboPersonName } from "./parts";
@@ -21,21 +22,15 @@ export function SettlementPanel({ groups, group, me }: { groups: GroupSummary[];
   const settlement = useKakeiboSettlement(group.id);
   const deleteSettlement = useDeleteSettlement();
   const [settling, setSettling] = useState<KakeiboTransfer | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。ほかの一覧の消し方とそろえる。issue #12
+  const { pending, remove } = useUndoableDelete("精算した記録を消しました");
 
-  if (!settlement.data) return null;
-  const { balances, transfers, settlements } = settlement.data;
-
-  async function remove(id: string) {
-    try {
-      await deleteSettlement.mutateAsync(id);
-      toast("精算した記録を消しました");
-    } catch (err) {
-      toast.error((err as Error).message);
-    } finally {
-      setConfirmDeleteId(null);
-    }
+  if (settlement.isPending) return <Loading />;
+  if (settlement.error || !settlement.data) {
+    return <LoadFailure what="精算" error={settlement.error} onRetry={() => void settlement.refetch()} />;
   }
+  const { balances, transfers } = settlement.data;
+  const settlements = settlement.data.settlements.filter((s) => !pending.has(s.id));
 
   return (
     <Panel title="精算">
@@ -80,22 +75,24 @@ export function SettlementPanel({ groups, group, me }: { groups: GroupSummary[];
                   {kakeiboPersonName(s.fromUser, group.members, me)} → {kakeiboPersonName(s.toUser, group.members, me)}
                 </span>
                 <span className="text-xs text-ink-2">
-                  {formatShortDate(s.date)}
+                  {formatKakeiboDate(s.date)}
                   {accountRefLabel(s.fromAccount) && ` ・ ${accountRefLabel(s.fromAccount)}`}
                 </span>
               </span>
               <span className="flex flex-none items-center gap-2">
                 <b className="tabular-nums">{formatYen(s.amount)}</b>
-                {s.createdBy === me.user.id &&
-                  (confirmDeleteId === s.id ? (
-                    <Button type="button" variant="danger" size="sm" onClick={() => void remove(s.id)}>
-                      本当に消す
-                    </Button>
-                  ) : (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmDeleteId(s.id)}>
-                      消す
-                    </Button>
-                  ))}
+                {s.createdBy === me.user.id && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      remove(s.id, ({ keepalive }) => deleteSettlement.mutateAsync({ id: s.id, keepalive }))
+                    }
+                  >
+                    消す
+                  </Button>
+                )}
               </span>
             </PanelRow>
           ))}

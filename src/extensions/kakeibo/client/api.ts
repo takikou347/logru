@@ -248,11 +248,15 @@ export function useSaveSettlement() {
   });
 }
 
-/** 精算した記録を消す。F-321 */
+/**
+ * 精算した記録を消す。F-321
+ * @param keepalive 画面を閉じるときに送り切る。5 秒の「元に戻す」の間に画面を離れたとき。issue #12
+ */
 export function useDeleteSettlement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api(`/kakeibo/settlements/${id}`, { method: "DELETE" }),
+    mutationFn: ({ id, keepalive }: { id: string; keepalive?: boolean }) =>
+      api(`/kakeibo/settlements/${id}`, { method: "DELETE", keepalive }),
     onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
   });
 }

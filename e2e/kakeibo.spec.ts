@@ -353,16 +353,19 @@ test("3 人のグループで 1 人が立て替えると、送る組み合わせ
   const mikaRow = settlementPanel.locator("li", { hasText: "みか" });
   await mikaRow.getByRole("button", { name: "精算した" }).click();
   const settleSheet = page.getByRole("dialog", { name: "精算した" });
-  await pickAccount(page, settleSheet, "自分の口座", "現金");
+  await settleSheet.getByRole("radio", { name: "現金" }).click();
   await settleSheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("精算しました")).toBeVisible();
-  await expect(settlementPanel.getByText(/みか.*→/)).toHaveCount(0);
-  await expect(settlementPanel.getByText(/りく.*→.*自分.*¥10,000/)).toBeVisible();
+  // 送る組み合わせ(li)からは消える。精算した記録の一覧には残るので、そちらは数えない
+  await expect(settlementPanel.locator("li").getByText(/みか.*→/)).toHaveCount(0);
+  await expect(settlementPanel.locator("li").getByText(/りく.*→.*自分.*¥10,000/)).toBeVisible();
 
   // りくの分も精算すると、送る組み合わせが無くなる
   const rikuRow = settlementPanel.locator("li", { hasText: "りく" });
   await rikuRow.getByRole("button", { name: "精算した" }).click();
-  await page.getByRole("dialog", { name: "精算した" }).getByRole("button", { name: "保存する" }).click();
+  const rikuSettleSheet = page.getByRole("dialog", { name: "精算した" });
+  await rikuSettleSheet.getByRole("radio", { name: "現金" }).click();
+  await rikuSettleSheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("精算しました")).toBeVisible();
   await expect(settlementPanel.getByText("精算はありません。")).toBeVisible();
 

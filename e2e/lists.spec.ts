@@ -69,8 +69,8 @@ test("リストを作り、項目を足す、チェックする、消す。日�
   await create.getByRole("button", { name: "作る" }).click();
   await expect(page).toHaveURL(/\/lists\/.+/);
 
-  // 日付は文中の書き方(`M月D日 X曜`)で出す。一覧の行の短い形(`M.D`)は使わない。決定 0059
-  await expect(page.getByText("9月25日 金曜 のカレンダーに出ています")).toBeVisible();
+  // 日付の書き方は `M月D日` の 1 つだけ。曜日は付けない。決定 0059
+  await expect(page.getByText("9月25日 のカレンダーに出ています")).toBeVisible();
 
   // 1 行打って Enter で次の項目へ。入力欄はそのまま続けて打てる。F-203
   const addInput = page.getByLabel("項目を足す");
@@ -299,7 +299,7 @@ test("リストの日付は日本時間の今日になる。日本時間の夜(�
   await create.getByLabel("日付").fill(today);
   await create.getByRole("button", { name: "作る" }).click();
   await expect(page).toHaveURL(/\/lists\/.+/);
-  await expect(page.getByText("9月24日 木曜 のカレンダーに出ています")).toBeVisible();
+  await expect(page.getByText("9月24日 のカレンダーに出ています")).toBeVisible();
 
   // カレンダーの既定(今日)にも、指定した日にも同じく出る
   await page.goto("/");
@@ -325,7 +325,7 @@ test("リストの日付は日本時間の今日になる。日本時間の朝(�
   await create.getByLabel("日付").fill(today);
   await create.getByRole("button", { name: "作る" }).click();
   await expect(page).toHaveURL(/\/lists\/.+/);
-  await expect(page.getByText("9月25日 金曜 のカレンダーに出ています")).toBeVisible();
+  await expect(page.getByText("9月25日 のカレンダーに出ています")).toBeVisible();
 
   // カレンダーの既定(今日)にも、指定した日にも同じく出る
   await page.goto("/");

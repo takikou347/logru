@@ -18,6 +18,7 @@ import {
   addDays,
   DAY_MS,
   dateKey,
+  formatDay,
   formatTime,
   holidayName,
   parseDateKey,
@@ -54,7 +55,7 @@ function defaultStart(date: Date): number {
  * @param day 予定を足す日。見出しに使う
  */
 function DayItemList({ day, items, onOpen }: { day: Date; items: DayItem[]; onOpen: (item: CalendarItem) => void }) {
-  const heading = `${day.getMonth() + 1}月${day.getDate()}日の予定`;
+  const heading = `${formatDay(day)}の予定`;
   return (
     <section aria-label={heading} className="rounded-2xl bg-field px-3.5 py-2">
       <h3 className="pt-0.5 text-xs font-bold text-ink-2">{heading}</h3>

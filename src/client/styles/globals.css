@@ -15,7 +15,7 @@
    * 下に浮かぶ帯(Dock、カレンダーの下の操作)に中身が隠れないよう空ける、下の余白。
    * 帯の画面下からの高さ(主な「+」56px、上下の余白 12px、帯の画面下からの余白 24px を足した 94px)
    * に、息継ぎ 12px と端末の安全な余白を足す。0062
-   * AppLayout がこの1か所だけで使う。画面ごとに数値を書かない
+   * AppShell がこの1か所だけで使う。画面ごとに数値を書かない。0071
    */
   --dock-clearance: calc(94px + 12px + env(safe-area-inset-bottom));
   --background: var(--ground);
@@ -294,6 +294,22 @@
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/*
+ * 月・週・日をつなぐ View Transitions。0049
+ * 名前(view-transition-name)を付けた「選んでいる日」の要素だけは、位置と大きさがつながる既定の動きを残す。
+ * 名前を付けていない残り(root)は、既定では前後の見た目をまるごと写し取り、クロスフェードで重ねる。
+ * ガラスの面のぼかしや Pools の色は移る前後でわずかに違うことがあり、そのクロスフェードが
+ * 一瞬の二重写し(ちらつき)に見える。root は動かさず、選んだ日だけがつながって見えるようにする。0071
+ *
+ * animation だけを切ると、既定の mix-blend-mode(plus-lighter)が残り、前後の面を足し合わせて
+ * 白っぽく光って見える瞬間ができる。normal に戻して、後ろの面をそのまま覆うようにする
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
 }
 
 /*

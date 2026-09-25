@@ -5,7 +5,8 @@ import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { useColorPref, useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { UserAvatar } from "@/components/parts/Avatars";
 import { ColorSheet } from "@/components/parts/ColorSheet";
 import { ColorSwatches } from "@/components/parts/ColorSwatches";
@@ -56,39 +57,44 @@ export function GroupDetailPage() {
   const [confirmLeave, setConfirmLeave] = useState(false);
   const group = groups.data?.find((g) => g.id === id);
   const extensions = useGroupExtensions(id, Boolean(group && !group.isPersonal));
+  // 自分の画面での色。グループが読めるまでは決まらないので、その間は既定の並びのまま。0071
+  const prefs = me.data?.colorPrefs ?? [];
+  const shown = group ? groupColor(group, prefs) : undefined;
+  useAppFrame({
+    poolColors: shown
+      ? [shown, ...poolColorsOf(groups.data ?? [], me.data).filter((c) => c !== shown)]
+      : poolColorsOf(groups.data ?? [], me.data),
+    poolFocus: shown ? 0 : undefined,
+  });
 
   if (groups.isPending || me.isPending) return <Loading />;
   // 自分だけのグループは、グループとして見せない。直接開いたら一覧へ戻す。0009
   if (group?.isPersonal) return <Navigate to="/groups" replace />;
   if (!group || !me.data) {
     return (
-      <AppLayout poolColors={poolColorsOf(groups.data ?? [], me.data)}>
-        <Page>
-          <PageBar title="グループ" back="/groups" />
-          {/* 読めなかったのか、無いのかを分ける。0025 */}
-          {groups.error && !groups.data ? (
-            <LoadFailure what="グループ" error={groups.error} onRetry={() => void groups.refetch()} />
-          ) : (
-            <FailurePanel
-              mark="?"
-              title="グループが見つかりません"
-              action={
-                <Button asChild variant="secondary">
-                  <Link to="/groups">グループの一覧へ</Link>
-                </Button>
-              }
-            >
-              抜けたか、管理者が消しました。入り直すには、新しい招待リンクをもらってください。
-            </FailurePanel>
-          )}
-        </Page>
-      </AppLayout>
+      <Page>
+        <PageBar title="グループ" back="/groups" />
+        {/* 読めなかったのか、無いのかを分ける。0025 */}
+        {groups.error && !groups.data ? (
+          <LoadFailure what="グループ" error={groups.error} onRetry={() => void groups.refetch()} />
+        ) : (
+          <FailurePanel
+            mark="?"
+            title="グループが見つかりません"
+            action={
+              <Button asChild variant="secondary">
+                <Link to="/groups">グループの一覧へ</Link>
+              </Button>
+            }
+          >
+            抜けたか、管理者が消しました。入り直すには、新しい招待リンクをもらってください。
+          </FailurePanel>
+        )}
+      </Page>
     );
   }
   const myId = me.data.user.id;
-  const prefs = me.data.colorPrefs;
   const admin = group.role === "admin";
-  const shown = groupColor(group, prefs);
   const adminCount = group.members.filter((m) => m.role === "admin").length;
 
   /** 変更を送る。成功したら知らせ、失敗したら知らせて undefined を返す */
@@ -131,12 +137,11 @@ export function GroupDetailPage() {
   }
 
   const isCustom = (t: ColorTarget) => prefs.some((p) => p.targetType === t.type && p.targetId === t.id);
+  // group が決まった後は、上で計算した shown が必ずある。型のための書き直し
+  const color = shown ?? groupColor(group, prefs);
 
   return (
-    <AppLayout
-      poolColors={[shown, ...poolColorsOf(groups.data ?? [], me.data).filter((c) => c !== shown)]}
-      poolFocus={0}
-    >
+    <>
       <Page>
         <PageBar title={group.name} back="/groups" />
 
@@ -148,7 +153,7 @@ export function GroupDetailPage() {
               setColorTarget({ type: "group", id: group.id, title: "自分の画面での色", fallback: group.color })
             }
           >
-            <Dot color={shown} className="size-3" />
+            <Dot color={color} className="size-3" />
             <span className="flex-1">自分の画面での色</span>
             <span className="text-xs text-ink-2">
               {isCustom({ type: "group", id: group.id, title: "", fallback: "" })
@@ -284,7 +289,7 @@ export function GroupDetailPage() {
         </ResponsiveSheet>
       )}
       {!colorTarget && !confirmLeave && <ScreenTour id="group" steps={BASE_TOURS.group} />}
-    </AppLayout>
+    </>
   );
 }
 

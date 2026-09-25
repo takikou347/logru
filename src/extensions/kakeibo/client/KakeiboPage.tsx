@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { Dock } from "@/components/parts/Dock";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
@@ -105,6 +106,8 @@ export function KakeiboPage() {
   const editingId = params.get("edit");
   const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
   const editing = summary.data?.records.find((r) => r.id === editingId);
+  const filterOptions = groupFilterOptions({ groups, me: me.data, value: group, onChange: setGroup });
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
 
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
@@ -113,7 +116,6 @@ export function KakeiboPage() {
   const totalExpense = sumByType(records, "expense");
   const totalIncome = sumByType(records, "income");
   const byCategory = summarizeExpenseByCategory(records);
-  const filterOptions = groupFilterOptions({ groups, me: data, value: group, onChange: setGroup });
   const accountsList = accounts.data ?? [];
   // グループごとに分けて並べる。自分の口座は総資産、共有口座はそのグループの合計を見出しにする。issue #177
   const groupedAccounts = groups
@@ -133,7 +135,7 @@ export function KakeiboPage() {
   ];
 
   return (
-    <AppLayout poolColors={poolColorsOf(groups, data)} side={<SideGroupFilter options={filterOptions} />}>
+    <>
       <Page>
         {/* 見出しを押すと機能のシートが開き、ほかの拡張の画面へ近道できる。issue #26 */}
         <PageBar title="家計簿" onTitleClick={() => setFeatures(true)} />
@@ -306,6 +308,6 @@ export function KakeiboPage() {
         <ExpenseSheet groups={groups} me={data} expense={editing} onClose={closeEdit} onDelete={handleDeleteExpense} />
       )}
       {features && <FeatureSheet onClose={() => setFeatures(false)} />}
-    </AppLayout>
+    </>
   );
 }

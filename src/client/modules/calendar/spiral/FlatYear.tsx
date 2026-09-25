@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { Dot } from "@/components/parts/Panel";
-import { dateKey, sameDay, WEEKDAYS } from "@/lib/dates";
+import { dateKey, formatDay, sameDay, WEEKDAYS } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import type { DaySummary } from "./summarize";
 
@@ -40,7 +40,8 @@ export function FlatYear({ year, summaries, today }: { year: number; summaries: 
                   "flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg text-[11px]",
                   sameDay(day.date, today) && "bg-field font-bold",
                 )}
-                aria-label={`${day.date.getMonth() + 1} 月 ${day.date.getDate()} 日`}
+                // 曜日は月の表そのものの曜日の列なので、日付の書き方(決定 0059)の外。ここだけ WEEKDAYS を直に足す
+                aria-label={`${formatDay(day.date)} ${WEEKDAYS[day.date.getDay()]}曜`}
               >
                 {day.thumb ? (
                   <img src={day.thumb} alt="" className="size-4 rounded-full object-cover" />

@@ -6,7 +6,7 @@ import { Chip } from "@/components/parts/Chip";
 import { Empty, Panel } from "@/components/parts/Panel";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { formatShortDate } from "@/lib/dates";
+import { formatShortDate, formatSpan } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { useCalendar } from "@/modules/calendar/api";
 import { dayKeyIn, memoryDays } from "../shared/days";
@@ -14,7 +14,7 @@ import { memoryOfEvent } from "../shared/links";
 import type { ItemKind, MemoryDetail, MemoryItem } from "../shared/types";
 import { useItemMutations, useMemoryList } from "./api";
 import { MemoryShell, type ShellProps } from "./MemoryShell";
-import { formatClock, formatSpan } from "./parts";
+import { formatClock } from "./parts";
 
 const KINDS = [
   { value: "wish", label: "やりたいこと" },

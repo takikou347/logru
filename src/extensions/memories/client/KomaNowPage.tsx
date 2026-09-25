@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { UserAvatar } from "@/components/parts/Avatars";
 import { LoadFailure } from "@/components/parts/Failure";
 import { FieldMessage } from "@/components/parts/Panel";
@@ -91,6 +91,8 @@ export function KomaNowPage() {
     return () => window.clearTimeout(timer);
   }, [deliver, navigate]);
 
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
+
   if (!me.data || !ready || now.isPending) return <Loading />;
   const data = now.data;
   const slot = data?.open[0] ?? null;
@@ -135,7 +137,7 @@ export function KomaNowPage() {
   }
 
   return (
-    <AppLayout poolColors={poolColorsOf(groups, me.data)}>
+    <>
       <Ambient photo={data?.last ?? null} />
       <div className="flex w-full max-w-[560px] flex-col gap-3">
         <header className="glass flex min-h-[58px] items-center gap-1 rounded-full px-1.5 py-1.5">
@@ -280,6 +282,6 @@ export function KomaNowPage() {
       {starting && data && (
         <KomaLinkSheet day={data.day} groups={groups} me={me.data} onClose={() => setStarting(false)} />
       )}
-    </AppLayout>
+    </>
   );
 }

@@ -139,7 +139,8 @@ export function MonthGridBody({
               const isToday = sameDay(d, today);
               const isSelected = sameDay(d, selected);
               const isOut = d.getMonth() !== month;
-              const label = `${formatDay(d)}${hol ? ` ${hol}` : ""}${isToday ? " 今日" : ""}。予定 ${all.length} 件`;
+              // 曜日は月の表そのものの曜日の列なので、日付の書き方(決定 0059)の外。ここだけ WEEKDAYS を直に足す
+              const label = `${formatDay(d)} ${WEEKDAYS[d.getDay()]}曜${hol ? ` ${hol}` : ""}${isToday ? " 今日" : ""}。予定 ${all.length} 件`;
               const moreDots = Math.max(0, mine.length - MAX_DOTS) + hidden[col]!;
               const moreChips = Math.max(0, mine.length - chipSlots) + hidden[col]!;
               return (
@@ -191,7 +192,7 @@ export function MonthGridBody({
                   <button
                     type="button"
                     className="absolute top-1 right-1 z-[4] hidden size-6 items-center justify-center rounded-full border border-(--glass-edge) bg-field text-ink-2 opacity-0 transition-opacity duration-fast ease-out group-hover:opacity-100 hover:bg-field-strong focus-visible:opacity-100 lg:flex"
-                    aria-label={`${d.getMonth() + 1}月${d.getDate()}日に足す`}
+                    aria-label={`${formatDay(d)}に足す`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onAddNewDay(d);
@@ -330,12 +331,11 @@ function KindIcon({ item }: { item: Pick<ViewItem, "extension" | "icon"> }) {
 /** 帯の読み上げ。`出張、9月21日から9月25日まで` の形。予定ではない項目は、題名の前に種類の名前を添える。0056 */
 function spanLabel(item: ViewItem): string {
   const { first, last } = daySpan(item);
-  const day = (d: Date) => `${d.getMonth() + 1}月${d.getDate()}日`;
   const tail = responseWord[item.myResponse ?? "accepted"];
   const kind = kindOf(item);
   const title = kind === "event" ? item.title : `${extensionLabel(item.extension)}、${item.title}`;
-  if (item.allDay) return `${title}、${day(first)}から${day(last)}まで${tail}`;
-  return `${title}、${day(first)} ${formatTime(item.startsAt)}から${day(last)} ${formatTime(item.endsAt!)}まで${tail}`;
+  if (item.allDay) return `${title}、${formatDay(first)}から${formatDay(last)}まで${tail}`;
+  return `${title}、${formatDay(first)} ${formatTime(item.startsAt)}から${formatDay(last)} ${formatTime(item.endsAt!)}まで${tail}`;
 }
 
 /**

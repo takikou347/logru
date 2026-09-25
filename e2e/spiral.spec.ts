@@ -18,10 +18,11 @@ test("月の表の年を押すと、その年をらせんで見る画面が開�
 test("予定の色の点がその日に出て、押すとその日のカレンダーへ移る。F-39", async ({ page }) => {
   await addEvent(page, "歯医者");
   const today = tokyoDateParts();
-  const label = `${today.month} 月 ${today.day} 日`;
+  // 曜日はカレンダーの形の中だけで見せるので、読み上げ名の頭だけを確かめる。決定 0059
+  const label = new RegExp(`^${today.month}月${today.day}日 `);
 
   await page.goto(`/spiral/${today.year}`);
-  const day = page.getByRole("link", { name: label, exact: true });
+  const day = page.getByRole("link", { name: label });
   await expect(day.locator(".swatch-dot")).toBeVisible();
 
   await day.click();

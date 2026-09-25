@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { dateKey, formatTime } from "@/lib/dates";
+import { dateKey, formatDay, formatTime } from "@/lib/dates";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { useCalendar } from "@/modules/calendar/api";
 import { addDaysToKey, dayKeyIn, daysBetween, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
@@ -273,8 +273,7 @@ export function MemorySheet({
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate font-medium">{e.title}</span>
                     <span className="text-[11px] text-ink-2">
-                      {new Date(e.startsAt).getMonth() + 1}/{new Date(e.startsAt).getDate()}{" "}
-                      {e.allDay ? "終日" : formatTime(e.startsAt)}
+                      {formatDay(new Date(e.startsAt))} {e.allDay ? "終日" : formatTime(e.startsAt)}
                       {other && !picked.has(e.id) && `・「${other.title}」に入っています`}
                     </span>
                   </span>

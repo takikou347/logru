@@ -308,6 +308,45 @@ describe("精算の計算。0072、F-320", () => {
     // 4 人の貸し借りは、多くて 3 回で済む
     expect(transfers.length).toBeLessThanOrEqual(3);
   });
+
+  it("0 になる部分集合に分けられるときは、部分集合をまたがず、貪欲法より少ない回数になる", () => {
+    // a・b・c は 8-3-5=0 で 1 つの部分集合(2 回で済む)。d・e は 4-4=0 でもう 1 つの部分集合(1 回で済む)。
+    // 全員をまとめて大きい順に貪欲法で当てると、部分集合をまたいで 4 回になってしまう。分けてから当てると 3 回で済む
+    const net = new Map([
+      ["a", 8000],
+      ["b", -3000],
+      ["c", -5000],
+      ["d", 4000],
+      ["e", -4000],
+    ]);
+    const transfers = minimalTransfers(new Map(net));
+    expect(transfers.length).toBe(3);
+
+    const settled = new Map(net);
+    for (const t of transfers) {
+      settled.set(t.from, (settled.get(t.from) ?? 0) + t.amount);
+      settled.set(t.to, (settled.get(t.to) ?? 0) - t.amount);
+    }
+    for (const v of settled.values()) expect(v).toBe(0);
+
+    // d・e の部分集合の外(a・b・c)へは送らない。部分集合をまたぐ送金が無いことも確かめる
+    for (const t of transfers) {
+      const deGroup = new Set(["d", "e"]);
+      expect(deGroup.has(t.from)).toBe(deGroup.has(t.to));
+    }
+  });
+
+  it("人数が多くても、時間がかかりすぎずに全員の差し引きが 0 になる組み合わせを作る", () => {
+    const net = new Map<string, number>();
+    for (let i = 0; i < 30; i++) net.set(`u${i}`, i % 2 === 0 ? 1000 : -1000);
+    const transfers = minimalTransfers(net);
+    const settled = new Map(net);
+    for (const t of transfers) {
+      settled.set(t.from, (settled.get(t.from) ?? 0) + t.amount);
+      settled.set(t.to, (settled.get(t.to) ?? 0) - t.amount);
+    }
+    for (const v of settled.values()) expect(v).toBe(0);
+  });
 });
 
 describe("定期の記録の日付。0072、F-325", () => {

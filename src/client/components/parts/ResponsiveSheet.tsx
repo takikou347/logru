@@ -4,6 +4,24 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 
+/** `<input>` の、日付・時刻を選ぶネイティブな型 */
+const DATE_LIKE_INPUT_TYPES = new Set(["date", "time", "datetime-local", "month", "week"]);
+
+/**
+ * iPhone の Safari は、日付・時刻の入力欄のネイティブな選択 UI を閉じるとき、シートの外側で
+ * 起きたように見えるポインター・フォーカスの動きを送ることがある。Radix の Dialog・Sheet は
+ * それを「外側を押した」と見なして、日付を選んだ直後にシートを閉じてしまう。
+ *
+ * 外側の動きが起きた時点で日付・時刻の入力欄にまだフォーカスが残っていれば、ネイティブな UI の
+ * 後始末とみなし、閉じるのをやめる。ふさわしくない動きは防げないが、フォームの入力を保つ方を選ぶ。
+ */
+function keepOpenWhileDateInputFocused(event: { preventDefault: () => void }) {
+  const active = document.activeElement;
+  if (active instanceof HTMLInputElement && DATE_LIKE_INPUT_TYPES.has(active.type)) {
+    event.preventDefault();
+  }
+}
+
 /**
  * スマホでは下から出るシート、PC では中央のダイアログ。0010
  *
@@ -46,6 +64,7 @@ export function ResponsiveSheet({
       <Dialog open onOpenChange={onOpenChange}>
         <DialogContent
           showCloseButton={!bar}
+          onInteractOutside={keepOpenWhileDateInputFocused}
           className={cn(
             body,
             "max-h-[calc(100dvh-48px)] overflow-hidden rounded-panel border-(--glass-edge) bg-(--glass-flat) p-6 sm:max-w-[440px]",
@@ -70,6 +89,7 @@ export function ResponsiveSheet({
       <SheetContent
         side="bottom"
         showCloseButton={!bar}
+        onInteractOutside={keepOpenWhileDateInputFocused}
         className={cn(
           body,
           "overflow-hidden",

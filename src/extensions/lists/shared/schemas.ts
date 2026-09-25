@@ -29,10 +29,13 @@ export const listItemInput = z.object({
   text: fields.text,
 });
 
-/** 項目のチェックを直すときの入力。F-204 */
-export const listItemPatchInput = z.object({
-  checked: z.boolean(),
-});
+/** 項目のチェック、文字を直すときの入力。送った項目だけを直す。どちらも省くのは断る。F-203、F-204 */
+export const listItemPatchInput = z
+  .object({
+    checked: z.boolean().optional(),
+    text: fields.text.optional(),
+  })
+  .refine((v) => v.checked !== undefined || v.text !== undefined, "直す項目を入れてください。");
 
 export type ListInput = z.infer<typeof listInput>;
 export type ListPatchInput = z.infer<typeof listPatchInput>;

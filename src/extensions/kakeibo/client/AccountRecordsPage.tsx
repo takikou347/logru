@@ -8,9 +8,10 @@ import { useAppFrame } from "@/components/layout/AppShell";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Empty, Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
+import { formatShortDate } from "@/lib/dates";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
-import { formatKakeiboDate, formatYen } from "../shared/format";
+import { formatYen } from "../shared/format";
 import { AccountSheet } from "./AccountSheet";
 import type { KakeiboAccountRef, KakeiboExpense } from "./api";
 import { useKakeiboAccountDetail, useKakeiboGroups } from "./api";
@@ -47,7 +48,7 @@ function RecordRow({ record, accountId }: { record: KakeiboExpense; accountId: s
   return (
     <li className="border-line not-first:border-t">
       <div className="grid min-h-11 grid-cols-[4.75rem_1fr] items-center gap-1 py-1 text-left">
-        <time className="text-sm font-medium whitespace-nowrap text-ink-2">{formatKakeiboDate(record.date)}</time>
+        <time className="text-sm font-medium whitespace-nowrap text-ink-2">{formatShortDate(record.date)}</time>
         <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <span className="min-w-0 truncate">{relation}</span>
           {record.memo && <span className="min-w-0 truncate text-xs font-normal text-ink-2">{record.memo}</span>}

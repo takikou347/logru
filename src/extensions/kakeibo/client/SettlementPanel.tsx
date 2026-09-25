@@ -6,8 +6,9 @@ import { UserAvatar } from "@/components/parts/Avatars";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Empty, Panel, PanelRow } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
+import { formatShortDate } from "@/lib/dates";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
-import { formatKakeiboDate, formatSignedYen, formatYen } from "../shared/format";
+import { formatSignedYen, formatYen } from "../shared/format";
 import type { KakeiboTransfer } from "./api";
 import { useDeleteSettlement, useKakeiboSettlement } from "./api";
 import { accountRefLabel, kakeiboPersonName } from "./parts";
@@ -75,7 +76,7 @@ export function SettlementPanel({ groups, group, me }: { groups: GroupSummary[];
                   {kakeiboPersonName(s.fromUser, group.members, me)} → {kakeiboPersonName(s.toUser, group.members, me)}
                 </span>
                 <span className="text-xs text-ink-2">
-                  {formatKakeiboDate(s.date)}
+                  {formatShortDate(s.date)}
                   {accountRefLabel(s.fromAccount) && ` ・ ${accountRefLabel(s.fromAccount)}`}
                 </span>
               </span>

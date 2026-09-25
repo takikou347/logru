@@ -15,11 +15,12 @@ import { Panel, PanelRow } from "@/components/parts/Panel";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
+import { formatShortDate } from "@/lib/dates";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
-import { formatKakeiboDate, formatSignedYen, formatYen } from "../shared/format";
+import { formatSignedYen, formatYen } from "../shared/format";
 import { sumByType, summarizeExpenseByCategory } from "../shared/totals";
 import type { KakeiboExpense } from "./api";
 import { useDeleteExpense, useKakeiboAccounts, useKakeiboGroups, useKakeiboSummary } from "./api";
@@ -58,7 +59,7 @@ function RecordRow({
         className="grid min-h-11 w-full grid-cols-[4.75rem_1fr] items-center gap-1 py-1 text-left"
         onClick={onClick}
       >
-        <time className="text-sm font-medium whitespace-nowrap text-ink-2">{formatKakeiboDate(record.date)}</time>
+        <time className="text-sm font-medium whitespace-nowrap text-ink-2">{formatShortDate(record.date)}</time>
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="flex min-w-0 items-baseline gap-1.5">
             <span className="min-w-0 truncate text-sm font-medium">{relation}</span>

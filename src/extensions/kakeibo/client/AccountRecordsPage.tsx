@@ -5,7 +5,7 @@ import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { Page, PageBar } from "@/components/layout/AppLayout";
 import { useAppFrame } from "@/components/layout/AppShell";
-import { LoadFailure } from "@/components/parts/Failure";
+import { LoadableSection, PanelSkeleton } from "@/components/parts/LoadableSection";
 import { Empty, Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { formatShortDate } from "@/lib/dates";
@@ -13,7 +13,7 @@ import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
 import { formatYen } from "../shared/format";
 import { AccountSheet } from "./AccountSheet";
-import type { KakeiboAccountRef, KakeiboExpense } from "./api";
+import type { KakeiboAccountDetail, KakeiboAccountRef, KakeiboExpense } from "./api";
 import { useKakeiboAccountDetail, useKakeiboGroups } from "./api";
 import {
   addMonthsToKey,
@@ -77,41 +77,14 @@ export function AccountRecordsPage() {
   useAppFrame({ poolColors: [] });
 
   if (!id) return null;
-  if (detail.isPending || !me.data) return <Loading />;
-  if (detail.error || !detail.data) {
-    return (
-      <Page>
-        <PageBar title="口座" back="/kakeibo/accounts" />
-        <LoadFailure what="口座" error={detail.error} onRetry={() => void detail.refetch()} />
-      </Page>
-    );
-  }
-
-  const { account, records } = detail.data;
-  const Icon = KAKEIBO_ACCOUNT_KIND_ICONS[account.kind];
+  if (!me.data) return <Loading />;
 
   return (
     <>
       <Page>
-        <PageBar title={account.name} back="/kakeibo/accounts" />
-        <Panel>
-          <div className="flex items-center justify-between gap-2">
-            <span className="flex min-w-0 items-center gap-2.5">
-              <Icon className="size-5 flex-none text-ink-2" aria-hidden="true" />
-              <span className="flex min-w-0 flex-col">
-                <b className="truncate text-[17px]">{account.name}</b>
-                {account.archivedAt && <span className="text-xs text-ink-2">使わない</span>}
-              </span>
-            </span>
-            <Button type="button" variant="ghost" size="icon" aria-label="口座を直す" onClick={() => setEditing(true)}>
-              <Pencil className="size-4" />
-            </Button>
-          </div>
-          <p className="text-2xl font-extrabold tabular-nums" data-testid="kakeibo-account-balance">
-            {formatYen(account.balance)}
-          </p>
-        </Panel>
+        <PageBar title={detail.data?.account.name ?? "口座"} back="/kakeibo/accounts" />
 
+        {/* 月の帯は、読み込み中や読めなかったときも操作できるよう、下の面より外に置く。issue #195 */}
         <div className="glass flex items-center justify-between rounded-full px-2 py-1.5">
           <Button
             type="button"
@@ -134,19 +107,55 @@ export function AccountRecordsPage() {
           </Button>
         </div>
 
-        <Panel title="記録">
-          {records.length === 0 ? (
-            <Empty>この月の記録はありません。</Empty>
-          ) : (
-            <ul className="flex flex-col">
-              {records.map((r) => (
-                <RecordRow key={r.id} record={r} accountId={account.id} />
-              ))}
-            </ul>
-          )}
-        </Panel>
+        <LoadableSection query={detail} what="口座" skeleton={<PanelSkeleton lines={5} />}>
+          {(data: KakeiboAccountDetail) => {
+            const { account, records } = data;
+            const Icon = KAKEIBO_ACCOUNT_KIND_ICONS[account.kind];
+            return (
+              <>
+                <Panel>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <Icon className="size-5 flex-none text-ink-2" aria-hidden="true" />
+                      <span className="flex min-w-0 flex-col">
+                        <b className="truncate text-[17px]">{account.name}</b>
+                        {account.archivedAt && <span className="text-xs text-ink-2">使わない</span>}
+                      </span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="口座を直す"
+                      onClick={() => setEditing(true)}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                  </div>
+                  <p className="text-2xl font-extrabold tabular-nums" data-testid="kakeibo-account-balance">
+                    {formatYen(account.balance)}
+                  </p>
+                </Panel>
+
+                <Panel title="記録">
+                  {records.length === 0 ? (
+                    <Empty>この月の記録はありません。</Empty>
+                  ) : (
+                    <ul className="flex flex-col">
+                      {records.map((r) => (
+                        <RecordRow key={r.id} record={r} accountId={account.id} />
+                      ))}
+                    </ul>
+                  )}
+                </Panel>
+              </>
+            );
+          }}
+        </LoadableSection>
       </Page>
-      {editing && <AccountSheet groups={groups} me={me.data} account={account} onClose={() => setEditing(false)} />}
+      {editing && detail.data && (
+        <AccountSheet groups={groups} me={me.data} account={detail.data.account} onClose={() => setEditing(false)} />
+      )}
     </>
   );
 }

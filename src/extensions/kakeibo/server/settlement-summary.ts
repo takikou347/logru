@@ -151,3 +151,28 @@ export async function myShareDebts(
   }
   return results;
 }
+
+/**
+ * グループごとの、自分が関わる送る組み合わせ。「すべて」で絞った家計簿の画面に出す。#197
+ * 貸し借りが無いグループ、自分が関わらない組み合わせは含めない。
+ * @param groupIds 利用者が家計簿に使える、全部のグループ。呼び出し側で 1 回だけ読んで渡す。#199
+ */
+export async function mySettlementTransfers(
+  db: DB,
+  userId: string,
+  groupIds: string[],
+): Promise<{ groupId: string; transfers: Transfer[] }[]> {
+  if (groupIds.length === 0) return [];
+  const splitGroupRows = await db
+    .select({ groupId: kakeiboExpenses.groupId })
+    .from(kakeiboExpenses)
+    .where(and(inArray(kakeiboExpenses.groupId, groupIds), isNotNull(kakeiboExpenses.splitMode)));
+  const sharedGroupIds = [...new Set(splitGroupRows.map((r) => r.groupId))];
+  const results: { groupId: string; transfers: Transfer[] }[] = [];
+  for (const groupId of sharedGroupIds) {
+    const { transfers } = await computeGroupSettlement(db, groupId);
+    const mine = transfers.filter((t) => t.from === userId || t.to === userId);
+    if (mine.length > 0) results.push({ groupId, transfers: mine });
+  }
+  return results;
+}

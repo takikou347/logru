@@ -14,7 +14,7 @@ import { toExpenseDtos } from "./dto";
 import { kakeiboRecurringsRoutes } from "./recurring-routes";
 import { type KakeiboAccountRow, type KakeiboExpenseRow, kakeiboAccounts, kakeiboExpenses } from "./schema";
 import { kakeiboSettlementRoutes, kakeiboSettlementsRoutes } from "./settlement-routes";
-import { myShareDebts, sharedBurdenThisMonth } from "./settlement-summary";
+import { mySettlementTransfers, myShareDebts, sharedBurdenThisMonth } from "./settlement-summary";
 import { resolveSplitPlan, splitStatements } from "./splits";
 import { kakeiboTemplatesRoutes } from "./templates-routes";
 
@@ -314,6 +314,15 @@ export const kakeiboRoutes = createRouter()
       );
     }
 
+    // 「すべて」で絞ったときだけ、精算が残っているグループごとの送る組み合わせを出す。#197
+    const settlements = groupParam
+      ? null
+      : await mySettlementTransfers(
+          db,
+          userId,
+          allUsable.map((g) => g.id),
+        );
+
     const visibleGroupIds = new Set(allUsable.map((g) => g.id));
     return c.json({
       totalExpense: sumByType(totalsRows, "expense"),
@@ -323,6 +332,7 @@ export const kakeiboRoutes = createRouter()
       fromShared,
       sharedBurden,
       debts,
+      settlements,
       recordsTruncated,
       records: await toExpenseDtos(db, rows, visibleGroupIds),
     });

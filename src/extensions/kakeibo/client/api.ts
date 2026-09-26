@@ -55,6 +55,8 @@ export type KakeiboSummary = {
   sharedBurden: number | null;
   /** 自分だけのグループに絞ったときだけ入る。グループごとの、いま立て替え中の額。0072、F-322 */
   debts: KakeiboDebt[] | null;
+  /** 一覧(records)が上限で切れていて、この月にもっと記録があるとき true。合計は切っていない。#199 */
+  recordsTruncated: boolean;
   records: KakeiboExpense[];
 };
 

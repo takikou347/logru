@@ -2,12 +2,12 @@ import { zValidator } from "@hono/zod-validator";
 import { createRouter, HttpError, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
-import { and, desc, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { KAKEIBO_EXPENSE_CATEGORY_KEYS, KAKEIBO_INCOME_CATEGORY_KEYS } from "../shared/categories";
 import { DAY_MS, dateKeyOfJst, isMonthKey, monthRange } from "../shared/dates";
 import { kakeiboInput } from "../shared/schemas";
 import { sumByType, summarizeExpenseByCategory } from "../shared/totals";
-import { personalKakeiboGroupId, requireKakeiboGroup, usableGroupIds, usableGroups } from "./access";
+import { requireKakeiboGroup, usableGroupIds, usableGroups } from "./access";
 import { kakeiboAccountsRoutes } from "./accounts-routes";
 import { kakeiboBudgetsRoutes } from "./budgets-routes";
 import { toExpenseDtos } from "./dto";
@@ -197,28 +197,53 @@ export const kakeiboRoutes = createRouter()
     const month = c.req.query("month") ?? "";
     if (!isMonthKey(month)) throw new HttpError(400, "月を `2026-09` の形で指定してください。");
     const groupParam = c.req.query("group");
-    const groupIds = await usableGroupIds(db, userId, groupParam ? [groupParam] : undefined);
+    // 使えるグループはここで 1 回だけ読み、絞り込み・自分だけのグループ探し・見える範囲の判定に使い回す。#199
+    const allUsable = await usableGroups(db, userId);
+    const groupIds = groupParam
+      ? allUsable.filter((g) => g.id === groupParam).map((g) => g.id)
+      : allUsable.map((g) => g.id);
     if (groupParam && groupIds.length === 0) throw new HttpError(404, "見つかりません。");
 
     const { from, to } = monthRange(month);
-    const rows =
+    const monthWhere =
       groupIds.length === 0
+        ? null
+        : and(
+            inArray(kakeiboExpenses.groupId, groupIds),
+            gte(kakeiboExpenses.date, from),
+            lt(kakeiboExpenses.date, to),
+          );
+    const rows =
+      monthWhere === null
         ? []
         : await db
             .select()
             .from(kakeiboExpenses)
-            .where(
-              and(
-                inArray(kakeiboExpenses.groupId, groupIds),
-                gte(kakeiboExpenses.date, from),
-                lt(kakeiboExpenses.date, to),
-              ),
-            )
+            .where(monthWhere)
             .orderBy(desc(kakeiboExpenses.date), desc(kakeiboExpenses.id))
             .limit(RECORDS_LIMIT);
 
+    // 合計とカテゴリ別の合計は、一覧を RECORDS_LIMIT で切る前の全件から、SQL の GROUP BY で出す。
+    // 切るのは一覧(records)だけ。0069、F-303、#199
+    const totalsRows =
+      monthWhere === null
+        ? []
+        : await db
+            .select({
+              type: kakeiboExpenses.type,
+              category: kakeiboExpenses.category,
+              amount: sql<number>`coalesce(sum(${kakeiboExpenses.amount}), 0)`,
+              n: count(),
+            })
+            .from(kakeiboExpenses)
+            .where(monthWhere)
+            .groupBy(kakeiboExpenses.type, kakeiboExpenses.category);
+    const recordCount = totalsRows.reduce((n, t) => n + t.n, 0);
+    // 一覧を切ったときは、画面に「新しい 500 件を出しています」のように出す。#199
+    const recordsTruncated = recordCount > RECORDS_LIMIT;
+
     // 自分だけで絞ったときだけ、共有口座とのやり取りを別の行で出す。0069、F-303
-    const personalGroupId = await personalKakeiboGroupId(db, userId);
+    const personalGroupId = allUsable.find((g) => g.isPersonal)?.id ?? null;
     let toShared: number | null = null;
     let fromShared: number | null = null;
     if (personalGroupId && groupParam === personalGroupId) {
@@ -229,6 +254,7 @@ export const kakeiboRoutes = createRouter()
           .where(eq(kakeiboAccounts.groupId, personalGroupId))
       ).map((r) => r.id);
       if (personalAccountIds.length > 0) {
+        // 振替はどのグループにも属さず読むので、自分の口座の ID(account_id か to_account_id)で絞る。#199
         const transfers = await db
           .select({
             amount: kakeiboExpenses.amount,
@@ -237,7 +263,15 @@ export const kakeiboRoutes = createRouter()
           })
           .from(kakeiboExpenses)
           .where(
-            and(eq(kakeiboExpenses.type, "transfer"), gte(kakeiboExpenses.date, from), lt(kakeiboExpenses.date, to)),
+            and(
+              eq(kakeiboExpenses.type, "transfer"),
+              gte(kakeiboExpenses.date, from),
+              lt(kakeiboExpenses.date, to),
+              or(
+                inArray(kakeiboExpenses.accountId, personalAccountIds),
+                inArray(kakeiboExpenses.toAccountId, personalAccountIds),
+              ),
+            ),
           );
         // 自分の口座から、自分の口座ではない先(共有口座)へ出したぶん
         toShared = transfers
@@ -268,18 +302,23 @@ export const kakeiboRoutes = createRouter()
     let debts: { groupId: string; receivable: number; payable: number }[] | null = null;
     if (personalGroupId && groupParam === personalGroupId) {
       sharedBurden = await sharedBurdenThisMonth(db, userId, from, to);
-      debts = await myShareDebts(db, userId);
+      debts = await myShareDebts(
+        db,
+        userId,
+        allUsable.map((g) => g.id),
+      );
     }
 
-    const visibleGroupIds = new Set(await usableGroupIds(db, userId));
+    const visibleGroupIds = new Set(allUsable.map((g) => g.id));
     return c.json({
-      totalExpense: sumByType(rows, "expense"),
-      totalIncome: sumByType(rows, "income"),
-      byCategory: summarizeExpenseByCategory(rows),
+      totalExpense: sumByType(totalsRows, "expense"),
+      totalIncome: sumByType(totalsRows, "income"),
+      byCategory: summarizeExpenseByCategory(totalsRows),
       toShared,
       fromShared,
       sharedBurden,
       debts,
+      recordsTruncated,
       records: await toExpenseDtos(db, rows, visibleGroupIds),
     });
   })

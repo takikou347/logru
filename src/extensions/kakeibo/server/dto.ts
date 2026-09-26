@@ -4,6 +4,8 @@
  * 振替の相手の口座が、見ている人の使えるグループに無ければ、名前と種類を返さず、
  * 口座のグループの持ち主の表示名だけを返す。画面はそれを「〇〇さんの口座」と出す。
  */
+
+import { chunk, D1_CHUNK, readByChunk } from "@server/core/db/chunk";
 import type { DB } from "@server/core/db/client";
 import { groups, users } from "@server/core/db/schema";
 import { eq, inArray, or } from "drizzle-orm";
@@ -36,18 +38,20 @@ type AccountRefRow = { id: string; groupId: string; name: string; kind: KakeiboA
 async function loadAccountRefRows(db: DB, ids: string[]): Promise<Map<string, AccountRefRow>> {
   const unique = [...new Set(ids)];
   if (unique.length === 0) return new Map();
-  const rows = await db
-    .select({
-      id: kakeiboAccounts.id,
-      groupId: kakeiboAccounts.groupId,
-      name: kakeiboAccounts.name,
-      kind: kakeiboAccounts.kind,
-      ownerName: users.name,
-    })
-    .from(kakeiboAccounts)
-    .leftJoin(groups, eq(groups.id, kakeiboAccounts.groupId))
-    .leftJoin(users, eq(users.id, groups.createdBy))
-    .where(inArray(kakeiboAccounts.id, unique));
+  const rows = await readByChunk(unique, (part) =>
+    db
+      .select({
+        id: kakeiboAccounts.id,
+        groupId: kakeiboAccounts.groupId,
+        name: kakeiboAccounts.name,
+        kind: kakeiboAccounts.kind,
+        ownerName: users.name,
+      })
+      .from(kakeiboAccounts)
+      .leftJoin(groups, eq(groups.id, kakeiboAccounts.groupId))
+      .leftJoin(users, eq(users.id, groups.createdBy))
+      .where(inArray(kakeiboAccounts.id, part)),
+  );
   return new Map(rows.map((r) => [r.id, r as AccountRefRow]));
 }
 
@@ -103,13 +107,12 @@ export async function toExpenseDtos(
   const ids = rows.flatMap((r) => [r.accountId, r.toAccountId].filter((x): x is string => x !== null));
   const refs = await loadAccountRefRows(db, ids);
   const expenseIds = rows.filter((r) => r.splitMode !== null).map((r) => r.id);
-  const splitRows =
-    expenseIds.length === 0
-      ? []
-      : await db
-          .select({ expenseId: kakeiboSplits.expenseId, userId: kakeiboSplits.userId, amount: kakeiboSplits.amount })
-          .from(kakeiboSplits)
-          .where(inArray(kakeiboSplits.expenseId, expenseIds));
+  const splitRows = await readByChunk(expenseIds, (part) =>
+    db
+      .select({ expenseId: kakeiboSplits.expenseId, userId: kakeiboSplits.userId, amount: kakeiboSplits.amount })
+      .from(kakeiboSplits)
+      .where(inArray(kakeiboSplits.expenseId, part)),
+  );
   return rows.map((row) => ({
     id: row.id,
     groupId: row.groupId,
@@ -156,16 +159,28 @@ export async function computeBalances(
   const balances = new Map(accounts.map((a) => [a.id, a.openingBalance]));
   if (accounts.length === 0) return balances;
   const ids = accounts.map((a) => a.id);
-  const rows = await db
-    .select({
-      type: kakeiboExpenses.type,
-      amount: kakeiboExpenses.amount,
-      accountId: kakeiboExpenses.accountId,
-      toAccountId: kakeiboExpenses.toAccountId,
-    })
-    .from(kakeiboExpenses)
-    .where(or(inArray(kakeiboExpenses.accountId, ids), inArray(kakeiboExpenses.toAccountId, ids)));
-  for (const row of rows) {
+  // account_id と to_account_id の両方に inArray を使う(OR)ので、1 回に渡す ID 数は半分にする。
+  // チャンクをまたいで同じ行が 2 回返ることがあるため、id で束ねて重ねを消す。#199
+  const halfChunk = Math.max(1, Math.floor(D1_CHUNK / 2));
+
+  const expenseRows = new Map<
+    string,
+    Pick<KakeiboExpenseRow, "id" | "type" | "amount" | "accountId" | "toAccountId">
+  >();
+  for (const part of chunk(ids, halfChunk)) {
+    const rows = await db
+      .select({
+        id: kakeiboExpenses.id,
+        type: kakeiboExpenses.type,
+        amount: kakeiboExpenses.amount,
+        accountId: kakeiboExpenses.accountId,
+        toAccountId: kakeiboExpenses.toAccountId,
+      })
+      .from(kakeiboExpenses)
+      .where(or(inArray(kakeiboExpenses.accountId, part), inArray(kakeiboExpenses.toAccountId, part)));
+    for (const row of rows) expenseRows.set(row.id, row);
+  }
+  for (const row of expenseRows.values()) {
     if (row.accountId && balances.has(row.accountId)) {
       // 収入は足す。支出と、振替の出す元は引く
       const delta = row.type === "income" ? row.amount : -row.amount;
@@ -175,15 +190,24 @@ export async function computeBalances(
       balances.set(row.toAccountId, balances.get(row.toAccountId)! + row.amount);
     }
   }
-  const settlementRows = await db
-    .select({
-      amount: kakeiboSettlements.amount,
-      fromAccountId: kakeiboSettlements.fromAccountId,
-      toAccountId: kakeiboSettlements.toAccountId,
-    })
-    .from(kakeiboSettlements)
-    .where(or(inArray(kakeiboSettlements.fromAccountId, ids), inArray(kakeiboSettlements.toAccountId, ids)));
-  for (const row of settlementRows) {
+
+  const settlementRows = new Map<
+    string,
+    Pick<KakeiboSettlementRow, "id" | "amount" | "fromAccountId" | "toAccountId">
+  >();
+  for (const part of chunk(ids, halfChunk)) {
+    const rows = await db
+      .select({
+        id: kakeiboSettlements.id,
+        amount: kakeiboSettlements.amount,
+        fromAccountId: kakeiboSettlements.fromAccountId,
+        toAccountId: kakeiboSettlements.toAccountId,
+      })
+      .from(kakeiboSettlements)
+      .where(or(inArray(kakeiboSettlements.fromAccountId, part), inArray(kakeiboSettlements.toAccountId, part)));
+    for (const row of rows) settlementRows.set(row.id, row);
+  }
+  for (const row of settlementRows.values()) {
     if (row.fromAccountId && balances.has(row.fromAccountId)) {
       balances.set(row.fromAccountId, balances.get(row.fromAccountId)! - row.amount);
     }

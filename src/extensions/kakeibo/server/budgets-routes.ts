@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { createRouter, HttpError, validationHook } from "@server/core/app";
 import type { DB } from "@server/core/db/client";
-import { and, count, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { kakeiboBudgetInput, kakeiboBudgetPatchInput } from "../shared/schemas";
 import { requireKakeiboGroup, usableGroupIds } from "./access";
 import { type KakeiboBudgetRow, kakeiboBudgets, kakeiboExpenses } from "./schema";
@@ -38,6 +38,42 @@ async function usedAmount(db: DB, groupId: string, startDate: string, endDate: s
       ),
     );
   return rows.reduce((n, r) => n + r.amount, 0);
+}
+
+/**
+ * 複数の予算の使った額を、1 本の GROUP BY で読む。予算ごとに期間が違うので、まず対象のグループの
+ * 日ごとの合計をまとめて読み、それぞれの予算の期間に入る日を足し合わせる。#199
+ * @returns 予算の ID から使った額への対応
+ */
+async function usedAmounts(db: DB, rows: KakeiboBudgetRow[]): Promise<Map<string, number>> {
+  const used = new Map(rows.map((r) => [r.id, 0]));
+  if (rows.length === 0) return used;
+  const groupIds = [...new Set(rows.map((r) => r.groupId))];
+  const minStart = rows.reduce((min, r) => (r.startDate < min ? r.startDate : min), rows[0]!.startDate);
+  const maxEnd = rows.reduce((max, r) => (r.endDate > max ? r.endDate : max), rows[0]!.endDate);
+  const daily = await db
+    .select({
+      groupId: kakeiboExpenses.groupId,
+      date: kakeiboExpenses.date,
+      amount: sql<number>`coalesce(sum(${kakeiboExpenses.amount}), 0)`,
+    })
+    .from(kakeiboExpenses)
+    .where(
+      and(
+        inArray(kakeiboExpenses.groupId, groupIds),
+        eq(kakeiboExpenses.type, "expense"),
+        gte(kakeiboExpenses.date, minStart),
+        lte(kakeiboExpenses.date, maxEnd),
+      ),
+    )
+    .groupBy(kakeiboExpenses.groupId, kakeiboExpenses.date);
+  for (const row of rows) {
+    let sum = 0;
+    for (const d of daily)
+      if (d.groupId === row.groupId && d.date >= row.startDate && d.date <= row.endDate) sum += d.amount;
+    used.set(row.id, sum);
+  }
+  return used;
 }
 
 function toBudgetDto(row: KakeiboBudgetRow, used: number): KakeiboBudgetDto {
@@ -81,9 +117,8 @@ export const kakeiboBudgetsRoutes = createRouter()
             .from(kakeiboBudgets)
             .where(inArray(kakeiboBudgets.groupId, groupIds))
             .orderBy(kakeiboBudgets.startDate);
-    const budgets = await Promise.all(
-      rows.map(async (row) => toBudgetDto(row, await usedAmount(db, row.groupId, row.startDate, row.endDate))),
-    );
+    const used = await usedAmounts(db, rows);
+    const budgets = rows.map((row) => toBudgetDto(row, used.get(row.id) ?? 0));
     return c.json({ budgets });
   })
   .post("/", zValidator("json", kakeiboBudgetInput, validationHook), async (c) => {

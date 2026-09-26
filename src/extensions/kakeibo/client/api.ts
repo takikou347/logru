@@ -55,6 +55,8 @@ export type KakeiboSummary = {
   sharedBurden: number | null;
   /** 自分だけのグループに絞ったときだけ入る。グループごとの、いま立て替え中の額。0072、F-322 */
   debts: KakeiboDebt[] | null;
+  /** 一覧(records)が上限で切れていて、この月にもっと記録があるとき true。合計は切っていない。#199 */
+  recordsTruncated: boolean;
   records: KakeiboExpense[];
 };
 
@@ -123,6 +125,12 @@ export type KakeiboRecurring = {
   lastMonth: string | null;
   paused: boolean;
 };
+
+/**
+ * 作った直後だけ乗る、その場で入れた記録。決めた日をもう過ぎていたときだけ入る。#198
+ * @see useSaveRecurring
+ */
+export type KakeiboRecurringOccurrence = { id: string; date: string };
 
 /** よく使う記録 1 件。本人のものだけ。0072、F-326 */
 export type KakeiboTemplate = {
@@ -401,15 +409,26 @@ export type KakeiboRecurringSaveInput = {
   paused?: boolean;
 };
 
-/** 定期の記録を作る、直す。F-325 */
+/**
+ * 定期の記録を作る、直す。F-325
+ *
+ * 作るときだけ、応答に `occurrence` が乗ることがある。決めた日をもう過ぎていて、その場で今月の分を
+ * 1 件入れたとき。カレンダーの日ごとの合計も動くので、カレンダーの読み直しまで含む useInvalidateKakeibo を使う。#198
+ */
 export function useSaveRecurring() {
-  const qc = useQueryClient();
+  const invalidate = useInvalidateKakeibo();
   return useMutation({
     mutationFn: ({ id, body }: { id?: string; body: KakeiboRecurringSaveInput }) =>
       id
-        ? api<KakeiboRecurring>(`/kakeibo/recurrings/${id}`, { method: "PATCH", body })
-        : api<KakeiboRecurring>("/kakeibo/recurrings", { method: "POST", body }),
-    onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
+        ? api<KakeiboRecurring & { occurrence?: KakeiboRecurringOccurrence | null }>(`/kakeibo/recurrings/${id}`, {
+            method: "PATCH",
+            body,
+          })
+        : api<KakeiboRecurring & { occurrence: KakeiboRecurringOccurrence | null }>("/kakeibo/recurrings", {
+            method: "POST",
+            body,
+          }),
+    onSettled: invalidate,
   });
 }
 

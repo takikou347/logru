@@ -22,7 +22,7 @@ import { upcomingOrCurrentBudgets } from "../shared/budgets";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
 import { formatSignedYen, formatYen } from "../shared/format";
-import { sumByType, summarizeExpenseByCategory } from "../shared/totals";
+import { subtractPendingFromCategories, sumByType } from "../shared/totals";
 import type { KakeiboExpense } from "./api";
 import { useDeleteExpense, useKakeiboAccounts, useKakeiboBudgets, useKakeiboGroups, useKakeiboSummary } from "./api";
 import { BudgetRow } from "./BudgetPanel";
@@ -123,11 +123,13 @@ export function KakeiboPage() {
 
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
-  // 消す途中(元に戻せる 5 秒の間)の記録は、合計からもすぐ外して見せる。実際に消す API は後から呼ばれる。issue #12
+  // 消す途中(元に戻せる 5 秒の間)の記録は、一覧からすぐ外して見せる。実際に消す API は後から呼ばれる。issue #12
   const records = (summary.data?.records ?? []).filter((r) => !pending.has(r.id));
-  const totalExpense = sumByType(records, "expense");
-  const totalIncome = sumByType(records, "income");
-  const byCategory = summarizeExpenseByCategory(records);
+  // 合計とカテゴリ別の合計は、一覧(500 件で切れることがある)ではなく API がその月の全件から出した値を使う。#199
+  const pendingRecords = (summary.data?.records ?? []).filter((r) => pending.has(r.id));
+  const totalExpense = (summary.data?.totalExpense ?? 0) - sumByType(pendingRecords, "expense");
+  const totalIncome = (summary.data?.totalIncome ?? 0) - sumByType(pendingRecords, "income");
+  const byCategory = subtractPendingFromCategories(summary.data?.byCategory ?? [], pendingRecords);
   const selectedGroup = groups.find((g) => g.id === group);
   const accountsList = accounts.data ?? [];
   // 今日を含む予算と、これからの予算だけを出す。終わった予算は出さない。F-324
@@ -339,6 +341,11 @@ export function KakeiboPage() {
         </Panel>
 
         <Panel title="記録">
+          {summary.data?.recordsTruncated && (
+            <p className="text-xs text-ink-2" data-testid="kakeibo-records-truncated">
+              新しい {records.length} 件を出しています。合計はこの月の全部の記録から計算しています。
+            </p>
+          )}
           {records.length === 0 ? (
             <EmptyState
               pose="coin"

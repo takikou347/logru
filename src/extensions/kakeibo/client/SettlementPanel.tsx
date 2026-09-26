@@ -84,18 +84,17 @@ export function SettlementPanel({ groups, group, me }: { groups: GroupSummary[];
                       </span>
                       <span className="flex flex-none items-center gap-2">
                         <b className="tabular-nums">{formatYen(s.amount)}</b>
-                        {s.createdBy === me.user.id && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              remove(s.id, ({ keepalive }) => deleteSettlement.mutateAsync({ id: s.id, keepalive }))
-                            }
-                          >
-                            消す
-                          </Button>
-                        )}
+                        {/* 共有のグループの精算は、書いた人でなくても消せる。0079 */}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            remove(s.id, ({ keepalive }) => deleteSettlement.mutateAsync({ id: s.id, keepalive }))
+                          }
+                        >
+                          消す
+                        </Button>
                       </span>
                     </PanelRow>
                   ))}

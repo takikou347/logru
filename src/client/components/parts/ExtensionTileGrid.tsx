@@ -6,7 +6,12 @@ import { toast } from "sonner";
 import { useGroups, useSetExtensionOrder } from "@/api/common";
 import { Button } from "@/components/ui/button";
 import { extensionIcon } from "@/lib/extension-visuals";
-import { permanentExtensionTiles, useExtensionTileHints, useOrderedEnabledExtensions } from "@/lib/extensions";
+import {
+  permanentExtensionTiles,
+  useAddableExtensions,
+  useExtensionTileHints,
+  useOrderedEnabledExtensions,
+} from "@/lib/extensions";
 import { takeExtensionJustAdded } from "@/lib/recent-extension-adds";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { usePointerReorder } from "@/lib/use-pointer-reorder";
@@ -132,7 +137,7 @@ function EditableTile({
   );
 }
 
-/** 点線の「+」。押すと「機能を足す」画面へ */
+/** 点線の「+」。押すと「機能を足す」画面へ。足せる機能が無ければ出さない。issue #224、0086 */
 function AddTile({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <Link
@@ -184,12 +189,15 @@ function RemoveExtensionSheet({
  * いつも足された状態の拡張(外部のカレンダーなど)は先頭に固定し、並べ替え・外すの対象にしない。
  * 「並びを変える」で編集の状態にすると、持ち手のドラッグ(#121 と同じ Pointer Events の仕組み)か、
  * 各タイルの持ち手ボタンで並べ替えられ、`−` で外せる。並べ替えも外すも、押した瞬間に保存する。
+ *
+ * 足せる機能が 1 つも無ければ、末尾の「+」を出さない。1 つ外すとまた出る。issue #224、0086
  */
 export function ExtensionTileGrid({ onNavigate }: { onNavigate?: () => void }) {
   const groups = useGroups();
   const personalGroupId = groups.data?.find((g) => g.isPersonal)?.id ?? null;
   const permanent = permanentExtensionTiles();
   const removable = useOrderedEnabledExtensions();
+  const addable = useAddableExtensions();
   const hints = useExtensionTileHints();
   const reorder = useSetExtensionOrder();
   const setEnabled = useSetExtensionEnabled();
@@ -257,7 +265,7 @@ export function ExtensionTileGrid({ onNavigate }: { onNavigate?: () => void }) {
             )}
           </div>
         ))}
-        <AddTile onNavigate={onNavigate} />
+        {addable.length > 0 && <AddTile onNavigate={onNavigate} />}
       </div>
       {removing && personalGroupId && (
         <RemoveExtensionSheet

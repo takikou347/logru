@@ -86,6 +86,55 @@ test("案内の途中で予定を足すと、閉じたあとに続きの枚へ�
   await expect(guide(page).getByRole("heading", { name: "グループで共有する" })).toBeVisible();
 });
 
+test("4 枚目で機能を紹介し、その場で足すと閉じたあとに機能のシートに出る。issue #222", async ({ page }) => {
+  await signUp(page, { next: "/" });
+  await guide(page).getByRole("button", { name: "次へ" }).click();
+  await guide(page).getByRole("button", { name: "次へ" }).click();
+  await guide(page).getByRole("button", { name: "次へ" }).click();
+  await expect(guide(page).getByRole("heading", { name: "機能を足す" })).toBeVisible();
+
+  // 天気はいつも有効なので、足すボタンではなく「使えます」の行になる
+  const weatherRow = guide(page).getByRole("listitem", { name: "天気" });
+  await expect(weatherRow.getByText("使えます")).toBeVisible();
+  await expect(weatherRow.getByRole("button", { name: "足す" })).toHaveCount(0);
+
+  const kakeiboRow = guide(page).getByRole("listitem", { name: "家計簿" });
+  await kakeiboRow.getByRole("button", { name: "足す" }).click();
+  await expect(kakeiboRow.getByText("足しました")).toBeVisible();
+
+  await guide(page).getByRole("button", { name: "あとで" }).click();
+  await expect(guide(page)).toBeHidden();
+
+  await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
+  await expect(page.getByRole("dialog", { name: "機能" }).getByTestId("extension-tile-kakeibo")).toBeVisible();
+});
+
+test("足せる機能が無ければ、開き直したときの案内は 3 枚になる。issue #222、#224", async ({ page }) => {
+  await signUp(page, { next: "/" });
+  await guide(page).getByRole("button", { name: "次へ" }).click();
+  await guide(page).getByRole("button", { name: "次へ" }).click();
+  await guide(page).getByRole("button", { name: "次へ" }).click();
+  for (const name of ["家計簿", "リスト", "思い出"]) {
+    await guide(page).getByRole("listitem", { name }).getByRole("button", { name: "足す" }).click();
+    await expect(guide(page).getByRole("listitem", { name }).getByText("足しました")).toBeVisible();
+  }
+  await guide(page).getByRole("button", { name: "あとで" }).click();
+  await expect(guide(page)).toBeHidden();
+
+  await page.goto("/settings/usage");
+  const help = page.getByRole("region", { name: "使い方" });
+  await help.getByRole("link", { name: "はじめての案内をもう一度見る" }).click();
+  await expect(guide(page).getByRole("heading", { name: "Logru へようこそ" })).toBeVisible();
+  await guide(page).getByRole("button", { name: "次へ" }).click();
+  await guide(page).getByRole("button", { name: "次へ" }).click();
+  // 足せる機能がもう無いので、グループの枚が最後になる
+  await expect(guide(page).getByRole("heading", { name: "グループで共有する" })).toBeVisible();
+  await expect(guide(page).getByRole("img", { name: "3 枚中 3 枚目" })).toBeVisible();
+  await expect(guide(page).getByRole("button", { name: "あとで" })).toBeVisible();
+  await guide(page).getByRole("button", { name: "あとで" }).click();
+  await expect(guide(page)).toBeHidden();
+});
+
 test("よくある質問は、ログインしていなくても読める。#72", async ({ page }) => {
   await page.goto("/help");
   await expect(page.getByRole("heading", { name: "よくある質問", level: 1 })).toBeVisible();

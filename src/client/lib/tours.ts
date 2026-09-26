@@ -15,6 +15,11 @@ export const BASE_TOURS = {
     },
     { target: '[data-tour="group-filter"]', text: "グループを選ぶと、そのグループの予定だけになります。" },
     { target: '[data-tour="edit-home"]', text: "「ホームを編集」で、ウィジェットを並べ替えられます。" },
+    // 右上の家のボタンは issue #220、#221 で足す。develop にまだ無くても、同じ場所を指して案内は先に整える。#222
+    {
+      target: '[data-tour="edit-home"]',
+      text: "ホームのウィジェットは足す・外す・並べ替えができます。右上の家のボタンで、どの画面からでもホームへ戻れます。",
+    },
   ],
   group: [{ target: '[data-tour="group-invite"]', text: "招待リンクを渡すと、7 日のあいだ相手がグループに入れます。" }],
   extensions: [
@@ -26,6 +31,22 @@ export const BASE_TOURS = {
 } satisfies Record<string, TourStep[]>;
 
 /**
+ * E2E で、コーチマークそのものを確かめる印。エミュレーターにつないだ組み立てでだけ読む。
+ * 既定は VITE_TOURS=off で切っているが(ほかの操作を隠さないように)、コーチマークを確かめる
+ * テストだけ、この印を立てて VITE_TOURS=off を上書きする。issue #222
+ */
+export const E2E_FORCE_TOURS_KEY = "logru-e2e-force-tours";
+
+function e2eForcesTours(): boolean {
+  if (!import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL) return false;
+  try {
+    return localStorage.getItem(E2E_FORCE_TOURS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * その画面の案内を出してよいか。出す条件はここ 1 か所にまとめる。
  * E2E テストでは VITE_TOURS=off で切る。吹き出しがほかの操作を隠さないように
  *
@@ -33,7 +54,7 @@ export const BASE_TOURS = {
  * @param id 画面の ID
  */
 export function shouldShowTour(me: Me | undefined, id: string): boolean {
-  if (import.meta.env.VITE_TOURS === "off") return false;
+  if (import.meta.env.VITE_TOURS === "off" && !e2eForcesTours()) return false;
   if (!me) return false;
   // はじめての案内(F-32)が終わるまでは出さない。2 つが重なって出ないように
   if (me.onboardedAt === null) return false;

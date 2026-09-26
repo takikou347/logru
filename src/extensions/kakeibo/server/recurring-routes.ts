@@ -7,7 +7,7 @@ import { dateKeyOfJst } from "../shared/dates";
 import { monthKeyOfDate } from "../shared/recurring";
 import { kakeiboRecurringInput, kakeiboRecurringPatchInput } from "../shared/schemas";
 import { requireKakeiboGroup, usableGroups } from "./access";
-import { tryInsertOccurrence } from "./scheduled";
+import { type RecurringOccurrence, tryInsertOccurrence } from "./scheduled";
 import { type KakeiboAccountRow, type KakeiboRecurringRow, kakeiboAccounts, kakeiboRecurrings } from "./schema";
 
 /** 1 人が作れる定期の記録の上限。個人の想定なので十分な余白を取る。0065 */
@@ -30,6 +30,12 @@ type KakeiboRecurringDto = {
   lastMonth: string | null;
   paused: boolean;
 };
+
+/**
+ * 作った直後の応答だけに乗る、その場で入れた記録。決めた日をもう過ぎていたときだけ入る。
+ * 画面は、これがあれば「9月1日の分を記録しました」と日付を出し、元に戻す道を付ける。#198
+ */
+type KakeiboRecurringCreateDto = KakeiboRecurringDto & { occurrence: RecurringOccurrence | null };
 
 function toDto(row: KakeiboRecurringRow): KakeiboRecurringDto {
   return {
@@ -131,9 +137,11 @@ export const kakeiboRecurringsRoutes = createRouter()
     const created = (await db.select().from(kakeiboRecurrings).where(eq(kakeiboRecurrings.id, id)).get())!;
     // 決めた日をもう過ぎていたら、その月の分をすぐ入れる。kota の決定(2026-09-26)。0072
     const today = dateKeyOfJst(Date.now());
-    await tryInsertOccurrence(db, created, monthKeyOfDate(today), today);
+    const occurrence = await tryInsertOccurrence(db, created, monthKeyOfDate(today), today);
     const row = (await db.select().from(kakeiboRecurrings).where(eq(kakeiboRecurrings.id, id)).get())!;
-    return c.json(toDto(row), 201);
+    // 画面は occurrence があれば、その日付を知らせに出し、元に戻す(その 1 件を消す)道を付ける。#198
+    const dto: KakeiboRecurringCreateDto = { ...toDto(row), occurrence };
+    return c.json(dto, 201);
   })
   .patch("/:id", zValidator("json", kakeiboRecurringPatchInput, validationHook), async (c) => {
     const db = c.get("db");
@@ -151,6 +159,12 @@ export const kakeiboRecurringsRoutes = createRouter()
         : null;
     }
 
+    const startMonth = input.startMonth ?? current.startMonth;
+    const endMonth = input.endMonth === undefined ? current.endMonth : input.endMonth;
+    // 送った項目といまの値を合わせた形でも、終わりの月が始まりの月より前でないか確かめる。budgets-routes.ts と同じ形。#198
+    if (endMonth && endMonth < startMonth)
+      throw new HttpError(400, "終わりの月は、始まりの月と同じか後にしてください。");
+
     await db
       .update(kakeiboRecurrings)
       .set({
@@ -160,8 +174,8 @@ export const kakeiboRecurringsRoutes = createRouter()
         accountId,
         memo: input.memo === undefined ? current.memo : input.memo || null,
         dayOfMonth: input.dayOfMonth ?? current.dayOfMonth,
-        startMonth: input.startMonth ?? current.startMonth,
-        endMonth: input.endMonth === undefined ? current.endMonth : input.endMonth,
+        startMonth,
+        endMonth,
         pausedAt: input.paused === undefined ? current.pausedAt : input.paused ? new Date() : null,
         updatedAt: new Date(),
       })

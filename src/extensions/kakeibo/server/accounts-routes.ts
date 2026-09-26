@@ -6,7 +6,13 @@ import { isMonthKey, monthRange } from "../shared/dates";
 import { kakeiboAccountInput, kakeiboAccountPatchInput } from "../shared/schemas";
 import { requireKakeiboGroup, usableGroupIds } from "./access";
 import { computeBalances, toAccountDto, toExpenseDtos } from "./dto";
-import { type KakeiboAccountRow, kakeiboAccounts, kakeiboExpenses } from "./schema";
+import {
+  type KakeiboAccountRow,
+  kakeiboAccounts,
+  kakeiboExpenses,
+  kakeiboRecurrings,
+  kakeiboTemplates,
+} from "./schema";
 
 /** 1 つのグループに作れる口座の上限。個人か少人数の想定なので十分な余白を取る。0065 */
 const ACCOUNTS_LIMIT = 30;
@@ -101,6 +107,17 @@ export const kakeiboAccountsRoutes = createRouter()
       .from(kakeiboExpenses)
       .where(or(eq(kakeiboExpenses.accountId, current.id), eq(kakeiboExpenses.toAccountId, current.id)));
     if (n > 0) throw new HttpError(409, "記録のある口座は消せません。「使わない」にしてください。");
+    // 定期の記録・よく使う記録からも参照されていないか確かめる。#198
+    const [{ n: nr } = { n: 0 }] = await db
+      .select({ n: count() })
+      .from(kakeiboRecurrings)
+      .where(or(eq(kakeiboRecurrings.accountId, current.id), eq(kakeiboRecurrings.toAccountId, current.id)));
+    if (nr > 0) throw new HttpError(409, "定期の記録が使っている口座は消せません。「使わない」にしてください。");
+    const [{ n: nt } = { n: 0 }] = await db
+      .select({ n: count() })
+      .from(kakeiboTemplates)
+      .where(or(eq(kakeiboTemplates.accountId, current.id), eq(kakeiboTemplates.toAccountId, current.id)));
+    if (nt > 0) throw new HttpError(409, "よく使う記録が使っている口座は消せません。「使わない」にしてください。");
     await db.delete(kakeiboAccounts).where(eq(kakeiboAccounts.id, current.id));
     return c.body(null, 204);
   })

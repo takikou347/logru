@@ -16,6 +16,7 @@ import {
   kakeiboBudgetPatchInput,
   kakeiboInput,
   kakeiboRecurringInput,
+  kakeiboRecurringPatchInput,
   kakeiboSettlementInput,
   kakeiboTemplateInput,
 } from "@extensions/kakeibo/shared/schemas";
@@ -472,6 +473,26 @@ describe("定期の記録の入力。0072、F-325", () => {
   it("始まりの月・終わりの月は `2026-09` の形", () => {
     expect(kakeiboRecurringInput.safeParse({ ...recurring, startMonth: "2026/09" }).success).toBe(false);
     expect(kakeiboRecurringInput.safeParse({ ...recurring, endMonth: "2026-12" }).success).toBe(true);
+  });
+
+  it("月が 13 以上など、範囲の外の月は断る。#198", () => {
+    expect(kakeiboRecurringInput.safeParse({ ...recurring, startMonth: "2026-13" }).success).toBe(false);
+    expect(kakeiboRecurringInput.safeParse({ ...recurring, endMonth: "2026-00" }).success).toBe(false);
+  });
+
+  it("終わりの月が始まりの月より前は断る。#198", () => {
+    expect(kakeiboRecurringInput.safeParse({ ...recurring, startMonth: "2026-09", endMonth: "2026-08" }).success).toBe(
+      false,
+    );
+    expect(kakeiboRecurringInput.safeParse({ ...recurring, startMonth: "2026-09", endMonth: "2026-09" }).success).toBe(
+      true,
+    );
+  });
+
+  it("直すときも、送った項目の組み合わせで終わりの月を確かめる。#198", () => {
+    expect(kakeiboRecurringPatchInput.safeParse({ endMonth: "2026-08" }).success).toBe(true);
+    expect(kakeiboRecurringPatchInput.safeParse({ startMonth: "2026-09", endMonth: "2026-08" }).success).toBe(false);
+    expect(kakeiboRecurringPatchInput.safeParse({ startMonth: "2026-13" }).success).toBe(false);
   });
 });
 

@@ -15,7 +15,7 @@ import { kakeiboRecurringsRoutes } from "./recurring-routes";
 import { type KakeiboAccountRow, type KakeiboExpenseRow, kakeiboAccounts, kakeiboExpenses } from "./schema";
 import { kakeiboSettlementRoutes, kakeiboSettlementsRoutes } from "./settlement-routes";
 import { myShareDebts, sharedBurdenThisMonth } from "./settlement-summary";
-import { resolveSplitPlan, writeSplits } from "./splits";
+import { resolveSplitPlan, splitStatements } from "./splits";
 import { kakeiboTemplatesRoutes } from "./templates-routes";
 
 /** 月に 1 度に読む記録の上限。家計簿は個人か少人数の想定なので十分な余白を取る */
@@ -63,7 +63,7 @@ type ResolvedWrite = Pick<
  * 種類ごとの入力の決まりを確かめ、保存する値を組み立てる。振替のグループはここで決める。0069
  *
  * 支出は、共有のグループで共有口座以外(自分の口座、口座なし)で払ったときだけ、立て替えとして割る。
- * 割った結果(shares)は呼び出し側が writeSplits で書き込む。0072、F-318
+ * 割った結果(shares)は呼び出し側が splitStatements の文を batch で書き込む。0072、F-318
  *
  * @param current 直すときの、いまの行。新しく作るときは無い
  */
@@ -328,8 +328,11 @@ export const kakeiboRoutes = createRouter()
     const input = c.req.valid("json");
     const { write, shares } = await resolveWrite(db, userId, input);
     const id = crypto.randomUUID();
-    await db.insert(kakeiboExpenses).values({ id, createdBy: userId, memo: input.memo || null, ...write });
-    await writeSplits(db, id, shares);
+    // 記録と負担の行を 1 回の書き込みにする。途中で切れて負担の行だけ無い記録が残らないよう。#198
+    await db.batch([
+      db.insert(kakeiboExpenses).values({ id, createdBy: userId, memo: input.memo || null, ...write }),
+      ...splitStatements(db, id, shares),
+    ] as unknown as Parameters<typeof db.batch>[0]);
     const row = await db.select().from(kakeiboExpenses).where(eq(kakeiboExpenses.id, id)).get();
     const visibleGroupIds = new Set(await usableGroupIds(db, userId));
     return c.json((await toExpenseDtos(db, [row!], visibleGroupIds))[0], 201);
@@ -340,11 +343,14 @@ export const kakeiboRoutes = createRouter()
     const current = await loadOwned(db, userId, c.req.param("id"));
     const input = c.req.valid("json");
     const { write, shares } = await resolveWrite(db, userId, input, current);
-    await db
-      .update(kakeiboExpenses)
-      .set({ memo: input.memo === undefined ? current.memo : input.memo || null, updatedAt: new Date(), ...write })
-      .where(eq(kakeiboExpenses.id, current.id));
-    await writeSplits(db, current.id, shares);
+    // 記録と負担の行を 1 回の書き込みにする。#198
+    await db.batch([
+      db
+        .update(kakeiboExpenses)
+        .set({ memo: input.memo === undefined ? current.memo : input.memo || null, updatedAt: new Date(), ...write })
+        .where(eq(kakeiboExpenses.id, current.id)),
+      ...splitStatements(db, current.id, shares),
+    ] as unknown as Parameters<typeof db.batch>[0]);
     const row = await db.select().from(kakeiboExpenses).where(eq(kakeiboExpenses.id, current.id)).get();
     const visibleGroupIds = new Set(await usableGroupIds(db, userId));
     return c.json((await toExpenseDtos(db, [row!], visibleGroupIds))[0]);

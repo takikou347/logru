@@ -1,11 +1,12 @@
 import type { GroupSummary, Me } from "@shared/api-types";
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router";
 import { Field } from "@/components/parts/Field";
 import { FieldMessage } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { SharePickerRow } from "@/components/parts/SharePicker";
-import { Button } from "@/components/ui/button";
+import { SheetFooterActions } from "@/components/parts/SheetFooterActions";
+import { useSheetSubmit } from "@/components/parts/use-sheet-submit";
 import { Input } from "@/components/ui/input";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { useCreateList } from "./api";
@@ -31,9 +32,8 @@ export function CreateListSheet({
 }) {
   const navigate = useNavigate();
   const createList = useCreateList();
-  // シートを閉じる動きが終わってから、実際に移る先。#192
-  const afterClose = useRef<string | null>(null);
-  const [open, setOpen] = useState(true);
+  // 開いているか・送信中か・失敗を、シートの骨組みとしてまとめて持つ。0081
+  const { open, busy, error, submit: submitSheet, close, closeAndThen, handleClosed } = useSheetSubmit(onClose);
 
   const [groupId, setGroupId] = useState(
     defaultShareGroupId(groups, defaultGroupId, {
@@ -46,47 +46,37 @@ export function CreateListSheet({
   const usualDefault = groupId === me.settings.usualShareGroupId;
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   const canSubmit = title.trim().length > 0 && Boolean(groupId);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setError(null);
     if (!canSubmit) return;
-    setBusy(true);
-    try {
-      const created = await createList.mutateAsync({ groupId, title: title.trim(), date: date || null });
-      afterClose.current = `/lists/${created.id}`;
-      setOpen(false);
-    } catch (err) {
-      setError((err as Error).message);
-      setBusy(false);
-    }
-  }
-
-  /** 閉じる動きが終わってから、親に知らせ、作ったリストの画面へ移る。#192 */
-  function handleClosed() {
-    onClose();
-    if (afterClose.current) navigate(afterClose.current);
+    await submitSheet(
+      async () => {
+        const created = await createList.mutateAsync({ groupId, title: title.trim(), date: date || null });
+        // 閉じる動きが終わってから、作ったリストの画面へ移る。#192
+        closeAndThen(() => navigate(`/lists/${created.id}`));
+      },
+      { keepOpen: true },
+    );
   }
 
   return (
     <ResponsiveSheet
       title="リストを作る"
       open={open}
-      onOpenChange={() => setOpen(false)}
+      onOpenChange={close}
       onClose={handleClosed}
       footer={
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-            やめる
-          </Button>
-          <Button type="submit" form={CREATE_LIST_FORM_ID} disabled={busy || !canSubmit}>
-            {busy ? "作っています" : "作る"}
-          </Button>
-        </div>
+        <SheetFooterActions
+          formId={CREATE_LIST_FORM_ID}
+          busy={busy}
+          canSubmit={canSubmit}
+          submitLabel="作る"
+          busyLabel="作っています"
+          onCancel={close}
+        />
       }
     >
       <form id={CREATE_LIST_FORM_ID} className="flex flex-col gap-3.5" onSubmit={submit} noValidate>

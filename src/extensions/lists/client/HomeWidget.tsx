@@ -1,5 +1,5 @@
-import { ChevronRight, ListChecks } from "lucide-react";
-import { Link } from "react-router";
+import { ListChecks } from "lucide-react";
+import { HomeWidgetCard } from "@/components/parts/HomeWidgetCard";
 import { useLists } from "./api";
 
 /** 機能のタイルに出す短い字。いちばん新しいリストの残りの数。使っていないときは読み込まない。0058 */
@@ -15,20 +15,13 @@ export function useLatestListHint(enabled: boolean): string | null {
  */
 export function AddToListWidget() {
   return (
-    <Link
+    <HomeWidgetCard
       to="/lists/latest"
-      data-testid="widget-lists-add"
-      className="glass grid min-h-16 grid-cols-[44px_1fr_auto] items-center gap-3 rounded-panel py-2.5 pr-3 pl-2.5 text-ink no-underline"
-    >
-      <span className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-        <ListChecks className="size-5" aria-hidden="true" />
-      </span>
-      <span className="flex min-w-0 flex-col">
-        <b className="truncate text-[15px]">リストに足す</b>
-        <small className="truncate text-xs text-ink-2">いちばん新しいリストに</small>
-      </span>
-      <ChevronRight className="size-5 text-ink-2" aria-hidden="true" />
-    </Link>
+      testId="widget-lists-add"
+      icon={ListChecks}
+      label="リストに足す"
+      hint="いちばん新しいリストに"
+    />
   );
 }
 
@@ -39,22 +32,14 @@ export function AddToListWidget() {
 export function LatestListWidget() {
   const lists = useLists(null);
   const latest = (lists.data ?? [])[0];
+  const hint = !lists.data ? "…" : latest ? `残り ${latest.remainingCount}` : "作ってみましょう";
   return (
-    <Link
+    <HomeWidgetCard
       to={latest ? `/lists/${latest.id}` : "/lists"}
-      data-testid="widget-lists-latest"
-      className="glass grid min-h-16 grid-cols-[44px_1fr_auto] items-center gap-3 rounded-panel py-2.5 pr-3 pl-2.5 text-ink no-underline"
-    >
-      <span className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-        <ListChecks className="size-5" aria-hidden="true" />
-      </span>
-      <span className="flex min-w-0 flex-col">
-        <b className="truncate text-[15px]">{latest ? latest.title : "リスト"}</b>
-        <small className="truncate text-xs text-ink-2">
-          {!lists.data ? "…" : latest ? `残り ${latest.remainingCount}` : "作ってみましょう"}
-        </small>
-      </span>
-      <ChevronRight className="size-5 text-ink-2" aria-hidden="true" />
-    </Link>
+      testId="widget-lists-latest"
+      icon={ListChecks}
+      label={latest ? latest.title : "リスト"}
+      hint={hint}
+    />
   );
 }

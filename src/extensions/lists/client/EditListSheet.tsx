@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { Field } from "@/components/parts/Field";
 import { FieldMessage } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
+import { SheetFooterActions } from "@/components/parts/SheetFooterActions";
+import { useSheetSubmit } from "@/components/parts/use-sheet-submit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ListSummary } from "./api";
@@ -22,27 +24,19 @@ export function EditListSheet({ list, onClose }: { list: ListSummary; onClose: (
   const deleteList = useDeleteList();
   const [title, setTitle] = useState(list.title);
   const [date, setDate] = useState(list.date ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
-  // シート全体(直す・消す確認の両方)が開いているか。開閉の動きは ResponsiveSheet に任せる。#192
-  const [open, setOpen] = useState(true);
+  // シート全体(直す・消す確認の両方)が開いているか・送信中か・失敗。0081
+  const { open, busy, error, setError, submit: submitSheet, close, handleClosed } = useSheetSubmit(onClose);
 
   const canSubmit = title.trim().length > 0;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setError(null);
     if (!canSubmit) return;
-    setBusy(true);
-    try {
+    await submitSheet(async () => {
       await patchList.mutateAsync({ title: title.trim(), date: date || null });
       toast("リストを直しました");
-      setOpen(false);
-    } catch (err) {
-      setError((err as Error).message);
-      setBusy(false);
-    }
+    });
   }
 
   /**
@@ -67,8 +61,8 @@ export function EditListSheet({ list, onClose }: { list: ListSummary; onClose: (
         title="リストを消しますか"
         description={`「${list.title}」と、中の項目がすべて消えます。元に戻せません。`}
         open={open}
-        onOpenChange={() => setOpen(false)}
-        onClose={onClose}
+        onOpenChange={close}
+        onClose={handleClosed}
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setConfirm(false)}>
@@ -89,17 +83,16 @@ export function EditListSheet({ list, onClose }: { list: ListSummary; onClose: (
     <ResponsiveSheet
       title="リストを直す"
       open={open}
-      onOpenChange={() => setOpen(false)}
-      onClose={onClose}
+      onOpenChange={close}
+      onClose={handleClosed}
       footer={
-        <div className="flex justify-between gap-2">
-          <Button type="button" variant="danger" onClick={() => setConfirm(true)}>
-            消す
-          </Button>
-          <Button type="submit" form={EDIT_LIST_FORM_ID} disabled={busy || !canSubmit}>
-            {busy ? "保存しています" : "保存する"}
-          </Button>
-        </div>
+        <SheetFooterActions
+          formId={EDIT_LIST_FORM_ID}
+          busy={busy}
+          canSubmit={canSubmit}
+          onCancel={close}
+          onDelete={() => setConfirm(true)}
+        />
       }
     >
       <form id={EDIT_LIST_FORM_ID} className="flex flex-col gap-3.5" onSubmit={submit} noValidate>

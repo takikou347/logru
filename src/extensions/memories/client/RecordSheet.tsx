@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { FieldMessage, PanelRow } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { SharePickerRow } from "@/components/parts/SharePicker";
+import { useSheetSubmit } from "@/components/parts/use-sheet-submit";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { auth } from "@/lib/firebase";
@@ -86,14 +87,20 @@ export function RecordSheet({
   const [body, setBody] = useState(record?.body ?? "");
   const [time, setTime] = useState<string | null>(record ? toLocalInput(record.occurredAt) : null);
   const [itemId, setItemId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const camera = useRef<HTMLInputElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   // このシートを開いてから新しく送った写真の ID。保存せずに外すか閉じたら、すぐ消す。F-117、#158
   const uploaded = useRef<Set<string>>(new Set());
-  // 開いているか。閉じる動きは ResponsiveSheet に任せ、終わってから onClose を呼ぶ。#192
-  const [open, setOpen] = useState(true);
+  // 開いているか・送信中か・失敗を、シートの骨組みとしてまとめて持つ。0081
+  const {
+    open,
+    busy: saving,
+    error,
+    setError,
+    submit: submitSheet,
+    close: closeSheet,
+    handleClosed,
+  } = useSheetSubmit(onClose);
 
   /** 保存に含めない、送った写真をすぐ消す */
   function discardUploaded(photoId: string) {
@@ -166,7 +173,6 @@ export function RecordSheet({
   }
 
   async function save() {
-    setError(null);
     if (!body.trim() && done.length === 0) {
       setError("写真か文章を入力してください。");
       return;
@@ -174,9 +180,8 @@ export function RecordSheet({
     const chosen = new Date(shownTime).getTime();
     if (chosen > Date.now() + 60_000) return setError("未来の時刻は選べません。");
     if (min !== null && (chosen < min || chosen > max)) return setError("この日の中の時刻を選んでください。");
-    setSaving(true);
     const occurredAt = chosen;
-    try {
+    await submitSheet(async () => {
       if (record) {
         await saveRecord.mutateAsync({
           id: record.id,
@@ -192,12 +197,7 @@ export function RecordSheet({
       // 送った写真は記録に付いたので、閉じるときにもう消さない
       uploaded.current.clear();
       await invalidate();
-      setOpen(false);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   /** まだ記録に付いていない、送った写真をすべてすぐ消す */
@@ -209,14 +209,14 @@ export function RecordSheet({
   /** 保存せずに閉じる。まだ記録に付いていない、送った写真はすぐ消す。F-117、#158 */
   function close() {
     discardAllUploaded();
-    setOpen(false);
+    closeSheet();
   }
 
   /** 消す。すぐ画面から外し、5 秒のあいだ「元に戻す」を出してから送る。F-117 */
   function remove() {
     if (!record) return;
     discardAllUploaded();
-    setOpen(false);
+    closeSheet();
     qc.setQueriesData<MemoryRecord[]>({ queryKey: ["memories", "records"] }, (old) =>
       old?.filter((r) => r.id !== record.id),
     );
@@ -248,7 +248,7 @@ export function RecordSheet({
       title={record ? "記録を編集" : "記録する"}
       open={open}
       onOpenChange={close}
-      onClose={onClose}
+      onClose={handleClosed}
       footer={
         <div className="flex justify-between gap-2">
           {record ? (

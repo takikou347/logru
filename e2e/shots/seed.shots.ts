@@ -218,6 +218,63 @@ test("同じデータを入れる", async ({ page }) => {
       features.kakeiboAccounts = true;
     });
 
+  if (features.kakeibo)
+    await step("立て替えと精算", async () => {
+      await page.goto("/kakeibo?record=1");
+      const sheet = page.getByRole("dialog", { name: "記録する" });
+      // 前回は振替だった(口座の振替を入れた直後)ので、支出に戻す
+      await sheet.getByRole("radio", { name: "支出" }).click();
+      await sheet.getByLabel("金額").fill(DATA.splitExpense);
+      // カテゴリは最初の 8 つだけ出る。ここでは必ず出る「外食」を使う。F-314
+      await sheet.getByRole("radio", { name: "外食" }).click();
+      if (!(await pickShare(page, sheet, DATA.pair))) {
+        features.kakeiboSettlement = false;
+        return;
+      }
+      // 口座なしのまま(共有口座を選ばない)保存すると、立て替えとして割られる。0072
+      await sheet.getByRole("button", { name: "保存する" }).click();
+      await expect(page.getByText("記録しました")).toBeVisible();
+      features.kakeiboSettlement = true;
+    });
+
+  if (features.kakeibo)
+    await step("予算", async () => {
+      await page.goto("/kakeibo/budgets");
+      const add = page.getByRole("toolbar", { name: "予算の操作" }).getByRole("button", { name: "予算を作る" });
+      if (!(await visible(add, 5_000))) {
+        features.kakeiboBudget = false;
+        return;
+      }
+      await add.click();
+      const sheet = page.getByRole("dialog", { name: "予算を作る" });
+      await sheet.getByLabel("名前").fill(DATA.budget);
+      await sheet.getByLabel("終わりの日").fill(tokyoDate(20));
+      await sheet.getByLabel("金額").fill(DATA.budgetAmount);
+      await sheet.getByRole("button", { name: "保存する" }).click();
+      await expect(page.getByText("予算を作りました")).toBeVisible();
+      features.kakeiboBudget = true;
+    });
+
+  if (features.kakeibo)
+    await step("定期の記録", async () => {
+      await page.goto("/kakeibo/recurrings");
+      const add = page
+        .getByRole("toolbar", { name: "定期の記録の操作" })
+        .getByRole("button", { name: "定期の記録を作る" });
+      if (!(await visible(add, 5_000))) {
+        features.kakeiboRecurring = false;
+        return;
+      }
+      await add.click();
+      const sheet = page.getByRole("dialog", { name: "定期の記録を作る" });
+      await sheet.getByLabel("金額").fill(DATA.recurringAmount);
+      await sheet.getByRole("radio", { name: "住まい" }).click();
+      await sheet.getByLabel("毎月の日").fill("1");
+      await sheet.getByRole("button", { name: "保存する" }).click();
+      await expect(page.getByText("定期の記録を作りました")).toBeVisible();
+      features.kakeiboRecurring = true;
+    });
+
   if (features.lists)
     await step("共有リスト", async () => {
       await page.goto("/lists");

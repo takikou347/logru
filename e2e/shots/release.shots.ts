@@ -265,6 +265,39 @@ const screens: Screen[] = [
     },
   },
   {
+    name: "09-kakeibo-settlement",
+    title: "家計簿の精算の面(ふたりで絞った状態)",
+    variants: DARK,
+    run: async (page, seed) => {
+      skipIfAbsent("09-kakeibo-settlement", seed.features.kakeiboSettlement, "立て替えと精算");
+      await page.goto("/kakeibo");
+      await page.getByRole("button", { name: DATA.pair, exact: true }).click();
+      const panel = page.getByRole("region", { name: "精算" });
+      await expect(panel).toBeVisible();
+      await scrollToTop(page, panel);
+    },
+  },
+  {
+    name: "09-kakeibo-budgets",
+    title: "予算の画面",
+    variants: DARK,
+    run: async (page, seed) => {
+      skipIfAbsent("09-kakeibo-budgets", seed.features.kakeiboBudget, "予算");
+      await page.goto("/kakeibo/budgets");
+      await expect(page.getByText(DATA.budget)).toBeVisible();
+    },
+  },
+  {
+    name: "09-kakeibo-recurring",
+    title: "定期の記録の画面",
+    variants: DARK,
+    run: async (page, seed) => {
+      skipIfAbsent("09-kakeibo-recurring", seed.features.kakeiboRecurring, "定期の記録");
+      await page.goto("/kakeibo/recurrings");
+      await expect(page.getByRole("heading", { name: "定期の記録" })).toBeVisible();
+    },
+  },
+  {
     name: "09-lists",
     title: "共有リスト",
     variants: DARK,

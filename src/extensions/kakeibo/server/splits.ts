@@ -5,6 +5,7 @@
  * (自分の口座か、口座なし)ときだけ割る。それ以外は payer も割り方も持たない。
  */
 import { HttpError } from "@server/core/app";
+import { chunk } from "@server/core/db/chunk";
 import type { DB } from "@server/core/db/client";
 import { eq } from "drizzle-orm";
 import {
@@ -77,21 +78,24 @@ export async function resolveSplitPlan(
   return { paidBy: payerId, splitMode: mode, shares: provided };
 }
 
+/** 1 回の insert に入れる行の数。1 行 4 個の値を使うので、D1 の 1 文 100 個の上限より十分小さくする。#199 */
+const INSERT_CHUNK = 20;
+
 /**
  * 記録の負担の行を作り直す文を組み立てる。呼び出し側が、記録そのものの書き込みと合わせて
  * `db.batch` に渡し、1 回の書き込みにする。#198
+ *
+ * 割った人数が多いと、1 文の insert では D1 の 1 文あたりの値の上限(100 個)を超えるので、
+ * INSERT_CHUNK 行ずつの insert に分ける。#199
  * @param db D1 を包んだ Drizzle
  * @param expenseId 記録の ID
  * @param shares 人ごとの負担額。空なら消す文だけを返す
  */
 export function splitStatements(db: DB, expenseId: string, shares: KakeiboSplitShare[]): unknown[] {
   const statements: unknown[] = [db.delete(kakeiboSplits).where(eq(kakeiboSplits.expenseId, expenseId))];
-  if (shares.length > 0) {
-    statements.push(
-      db
-        .insert(kakeiboSplits)
-        .values(shares.map((s) => ({ id: crypto.randomUUID(), expenseId, userId: s.userId, amount: s.amount }))),
-    );
+  const rows = shares.map((s) => ({ id: crypto.randomUUID(), expenseId, userId: s.userId, amount: s.amount }));
+  for (const part of chunk(rows, INSERT_CHUNK)) {
+    statements.push(db.insert(kakeiboSplits).values(part));
   }
   return statements;
 }

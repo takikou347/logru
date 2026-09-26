@@ -56,7 +56,7 @@ export function PhotoImg({
         loading="lazy"
         decoding="async"
         onLoad={() => setLoaded(true)}
-        className={cn("size-full object-cover transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0")}
+        className={cn("size-full object-cover transition-opacity duration-slow", loaded ? "opacity-100" : "opacity-0")}
       />
     </span>
   );

@@ -19,7 +19,7 @@ export function Pools({ colors, focus }: { colors: string[]; focus?: number | nu
   const dim = (i: number) => focus != null && focus !== i;
   const grow = (i: number) => focus === i;
   const pool =
-    "absolute aspect-square rounded-full bg-(--c) opacity-(--pool-opacity) blur-[46px] transition-[transform,opacity] duration-900 ease-out";
+    "absolute aspect-square rounded-full bg-(--c) opacity-(--pool-opacity) blur-[46px] transition-[transform,opacity] duration-ambient ease-out";
   return (
     <div
       className="pointer-events-none fixed inset-x-0 top-0 h-dvh -z-10 overflow-hidden"

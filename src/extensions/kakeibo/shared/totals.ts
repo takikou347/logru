@@ -28,3 +28,24 @@ export function summarizeExpenseByCategory(
     .filter((c) => c.total > 0)
     .sort((a, b) => b.total - a.total);
 }
+
+/**
+ * カテゴリ別の合計から、消す途中の記録(まだ API の合計には残っている)の分だけを、画面で即座に
+ * 差し引く。消す確定は API が別に呼ばれる。issue #12、#199
+ * @param byCategory API から読んだ、カテゴリ別の合計
+ * @param pending 消す途中の記録
+ */
+export function subtractPendingFromCategories(
+  byCategory: { category: KakeiboCategory; total: number }[],
+  pending: Pick<Amounted, "type" | "category" | "amount">[],
+): { category: KakeiboCategory; total: number }[] {
+  const totals = new Map(byCategory.map((c) => [c.category, c.total]));
+  for (const r of pending) {
+    if (r.type !== "expense") continue;
+    totals.set(r.category, (totals.get(r.category) ?? 0) - r.amount);
+  }
+  return [...totals.entries()]
+    .map(([category, total]) => ({ category, total }))
+    .filter((c) => c.total > 0)
+    .sort((a, b) => b.total - a.total);
+}

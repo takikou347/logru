@@ -262,7 +262,7 @@ export const memoryRoutes = createRouter()
       .where(eq(memoryPhotos.id, c.req.param("photoId")))
       .get();
     if (!row) return c.body(null, 204);
-    if (row.createdBy !== me.id || row.recordId !== null) throw new HttpError(403, "この写真は削除できません。");
+    if (row.createdBy !== me.id || row.recordId !== null) throw new HttpError(403, "この写真は消せません。");
     await db.delete(memoryPhotos).where(eq(memoryPhotos.id, row.id));
     return c.body(null, 204);
   })
@@ -337,7 +337,7 @@ export const memoryRoutes = createRouter()
     const body = input.body === undefined ? row.body : input.body || null;
     if (!body && nextIds.length === 0) throw new HttpError(400, "写真か文章を入力してください。");
     if (row.kind === "koma" && nextIds.length === 0)
-      throw new HttpError(400, "ひとコマの写真は外せません。不要なときは記録ごと削除してください。");
+      throw new HttpError(400, "ひとコマの写真は外せません。不要なときは記録ごと消してください。");
     await requirePhotos(db, me.id, row.groupId, nextIds, row.id);
     const removed = current.map((p) => p.id).filter((id) => !nextIds.includes(id));
     await db.batch([
@@ -360,7 +360,7 @@ export const memoryRoutes = createRouter()
     const db = c.get("db");
     const me = c.get("user");
     const row = await loadRecordRow(db, me.id, c.req.param("recordId"));
-    if (row.createdBy !== me.id) throw new HttpError(403, "記録を削除できるのは、記録した人だけです。");
+    if (row.createdBy !== me.id) throw new HttpError(403, "記録を消せるのは、記録した人だけです。");
     // 写真といいねは外部キーで消える。写真の行が消えると、トリガーが R2 の鍵を消す待ちに積む
     await db.delete(memoryRecords).where(eq(memoryRecords.id, row.id));
     return c.body(null, 204);
@@ -492,7 +492,7 @@ export const memoryRoutes = createRouter()
     const db = c.get("db");
     const me = c.get("user");
     const row = await loadMemory(db, me.id, c.req.param("id"));
-    if (row.createdBy !== me.id) throw new HttpError(403, "思い出を削除できるのは、作った人だけです。");
+    if (row.createdBy !== me.id) throw new HttpError(403, "思い出を消せるのは、作った人だけです。");
     // しおりの行は外部キーで消える。記録は思い出に属さないので残る。0020
     await db.delete(memories).where(eq(memories.id, row.id));
     return c.body(null, 204);
@@ -613,7 +613,7 @@ export const memoryRoutes = createRouter()
       .where(and(eq(memoryItems.id, c.req.param("itemId")), eq(memoryItems.memoryId, row.id)))
       .get();
     if (!item) throw new HttpError(404, "見つかりません。");
-    if (item.createdBy !== me.id) throw new HttpError(403, "削除できるのは、追加した人だけです。");
+    if (item.createdBy !== me.id) throw new HttpError(403, "消せるのは、足した人だけです。");
     await db.delete(memoryItems).where(eq(memoryItems.id, item.id));
     return c.body(null, 204);
   });

@@ -85,17 +85,23 @@ test("しおりにやること、持ち物を足して済みにできる。思�
 
   await page.getByRole("radio", { name: "しおり" }).click();
   await page.getByRole("tab", { name: /やること/ }).click();
-  await page.getByRole("button", { name: "やることを追加" }).click();
-  await page.getByRole("textbox", { name: "やることを追加" }).fill("おでんの店を予約する");
-  await page.getByRole("button", { name: "追加", exact: true }).click();
+  await page.getByRole("button", { name: "やることを足す" }).click();
+  await page.getByRole("textbox", { name: "やることを足す" }).fill("おでんの店を予約する");
+  await page.getByRole("button", { name: "足す", exact: true }).click();
   const todo = page.getByRole("checkbox", { name: "おでんの店を予約する を完了にする" });
   await todo.click();
   await expect(todo).toBeChecked();
 
   await page.getByRole("tab", { name: /持ち物/ }).click();
-  await page.getByRole("button", { name: "持ち物を追加" }).click();
-  await page.getByRole("textbox", { name: "持ち物を追加" }).fill("充電器");
-  await page.getByRole("button", { name: "追加", exact: true }).click();
+  await page.getByRole("button", { name: "持ち物を足す" }).click();
+  await page.getByRole("textbox", { name: "持ち物を足す" }).fill("充電器");
+  await page.getByRole("button", { name: "足す", exact: true }).click();
+  await expect(page.getByRole("checkbox", { name: "充電器 を完了にする" })).toBeVisible();
+
+  // 消すと、確認は出ず 5 秒だけ「元に戻す」を出す。issue #12
+  await page.getByRole("button", { name: "充電器 を消す" }).click();
+  await expect(page.getByRole("checkbox", { name: "充電器 を完了にする" })).toBeHidden();
+  await page.getByRole("button", { name: "元に戻す" }).click();
   await expect(page.getByRole("checkbox", { name: "充電器 を完了にする" })).toBeVisible();
 
   // 文章だけの記録を残してから、思い出を消す
@@ -106,8 +112,8 @@ test("しおりにやること、持ち物を足して済みにできる。思�
   await expect(page.getByText("記録しました")).toBeVisible();
 
   await page.getByRole("button", { name: "思い出を編集" }).click();
-  await page.getByRole("dialog", { name: "思い出を編集" }).getByRole("button", { name: "削除" }).click();
-  await page.getByRole("dialog", { name: "思い出を削除しますか" }).getByRole("button", { name: "削除する" }).click();
+  await page.getByRole("dialog", { name: "思い出を編集" }).getByRole("button", { name: "消す" }).click();
+  await page.getByRole("dialog", { name: "思い出を消しますか" }).getByRole("button", { name: "消す" }).click();
   await expect(page).toHaveURL(/\/memories$/);
   await expect(page.getByRole("region", { name: "最近の記録" }).getByText("出発")).toBeVisible();
 });

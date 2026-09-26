@@ -7,6 +7,7 @@ import { Empty, Panel } from "@/components/parts/Panel";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { formatShortDate, formatSpan } from "@/lib/dates";
+import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { cn } from "@/lib/utils";
 import { useCalendar } from "@/modules/calendar/api";
 import { dayKeyIn, memoryDays } from "../shared/days";
@@ -123,7 +124,7 @@ function Wishes({ detail, group, me }: ListProps) {
           いつでも<span className="ml-auto text-[11px] font-medium text-ink-2">日を決めずにやりたいこと</span>
         </h2>
         <ItemRows items={loose} detail={detail} group={group} me={me} />
-        <AddRow detail={detail} kind="wish" dayIndex={null} placeholder="やりたいことを追加" />
+        <AddRow detail={detail} kind="wish" dayIndex={null} placeholder="やりたいことを足す" />
       </Panel>
       {days.map((day, i) => {
         const dayEvents = events.filter((e) => dayKeyIn(e.startsAt, memory.timeZone) === day);
@@ -151,7 +152,7 @@ function Wishes({ detail, group, me }: ListProps) {
               ))}
             </ul>
             <ItemRows items={dayWishes} detail={detail} group={group} me={me} />
-            <AddRow detail={detail} kind="wish" dayIndex={i} placeholder="この日にやりたいことを追加" />
+            <AddRow detail={detail} kind="wish" dayIndex={i} placeholder="この日にやりたいことを足す" />
           </Panel>
         );
       })}
@@ -170,9 +171,9 @@ function Todos({ detail, group, me }: ListProps) {
       <h2 className="flex items-baseline text-sm font-bold">
         やること<span className="ml-auto text-[11px] font-medium text-ink-2">出発までに</span>
       </h2>
-      {sorted.length === 0 && <Empty>予約や下調べなど、出発までにやることを追加できます。</Empty>}
+      {sorted.length === 0 && <Empty>予約や下調べなど、出発までにやることを足せます。</Empty>}
       <ItemRows items={sorted} detail={detail} group={group} me={me} />
-      <AddRow detail={detail} kind="todo" placeholder="やることを追加" group={group} withDue />
+      <AddRow detail={detail} kind="todo" placeholder="やることを足す" group={group} withDue />
     </Panel>
   );
 }
@@ -186,9 +187,9 @@ function Packing({ detail, group, me }: ListProps) {
   return (
     <Panel aria-label="持ち物">
       <h2 className="flex items-baseline text-sm font-bold">持ち物</h2>
-      {packing.length === 0 && <Empty>持ち物を追加すると、誰が持っていくかを決められます。</Empty>}
+      {packing.length === 0 && <Empty>持ち物を足すと、誰が持っていくかを決められます。</Empty>}
       <ItemRows items={packing} detail={detail} group={group} me={me} />
-      <AddRow detail={detail} kind="packing" placeholder="持ち物を追加" group={group} />
+      <AddRow detail={detail} kind="packing" placeholder="持ち物を足す" group={group} />
       {others.length > 0 && (
         <label className="flex min-h-11 items-center justify-between gap-3 border-t border-line pt-2 text-sm">
           ほかの思い出からコピー
@@ -217,7 +218,10 @@ function assigneeName(item: MemoryItem, group: GroupSummary | undefined): string
   return group?.members.find((m) => m.id === item.assigneeId)?.name ?? "みんな";
 }
 
-/** しおりの行を並べる。印を押すと済んだことになる。書いた人は消せる */
+/**
+ * しおりの行を並べる。印を押すと済んだことになる。書いた人は消せる。
+ * 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
+ */
 function ItemRows({
   items,
   detail,
@@ -230,11 +234,13 @@ function ItemRows({
   me: Me;
 }) {
   const { update, remove } = useItemMutations(detail.memory.id);
+  const { pending, remove: removeItem } = useUndoableDelete("消しました");
   const today = useMemo(() => dayKeyIn(Date.now(), detail.memory.timeZone), [detail.memory.timeZone]);
-  if (items.length === 0) return null;
+  const shown = items.filter((i) => !pending.has(i.id));
+  if (shown.length === 0) return null;
   return (
     <ul>
-      {items.map((item) => {
+      {shown.map((item) => {
         const who =
           item.kind === "wish"
             ? group?.members.find((m) => m.id === item.createdBy)
@@ -270,8 +276,8 @@ function ItemRows({
                 <button
                   type="button"
                   className="grid size-9 place-items-center text-ink-3"
-                  aria-label={`${item.title} を削除`}
-                  onClick={() => remove.mutate(item.id)}
+                  aria-label={`${item.title} を消す`}
+                  onClick={() => removeItem(item.id, ({ keepalive }) => remove.mutateAsync({ id: item.id, keepalive }))}
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -398,7 +404,7 @@ function AddRow({
           className="min-h-10 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground"
           disabled={!title.trim() || add.isPending}
         >
-          追加
+          足す
         </button>
       </div>
     </form>

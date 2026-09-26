@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { Page, PageBar } from "@/components/layout/AppLayout";
 import { useAppFrame } from "@/components/layout/AppShell";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Empty, Panel } from "@/components/parts/Panel";
+import { SwipeRow } from "@/components/parts/SwipeRow";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -65,11 +66,11 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
 
 /**
  * 項目の行。チェックすると下へ寄り、字が薄くなる。F-204、F-205
- * 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
+ * 左へスワイプすると「直す」「消す」が出る。消すときは確認を出さず、5 秒だけ「元に戻す」を出す。0084、issue #12、#225
  * 足した(元に戻した)直後は膨らんで入り、消す途中は縮んで消える。動かすのは transform と opacity だけ。0044、0048、#201
  *
- * 文字を押すと、その場で入力欄になって直せる。Enter か欄の外を押すと保存、Esc か空にすると元に戻す。
- * チェックの押せる範囲(左)、文字を直す範囲(中)、消す範囲(右)は重ならない。F-203
+ * 文字を押すと、その場で入力欄になって直せる。Enter か欄の外を押すと保存、Esc か空にすると元に戻す。0084
+ * チェックの押せる範囲(左)、文字を直す範囲(右)は重ならない。F-203
  */
 function ItemRow({
   item,
@@ -125,51 +126,41 @@ function ItemRow({
   // 描いた瞬間に 1 度だけ読む。足した直後の再描画と、読み直しの描き直しを見分けるため
   const [entering] = useState(() => takeJustAdded(item.id));
   return (
-    <li
-      className={cn(
-        "grid min-h-[52px] grid-cols-[34px_1fr_auto] items-center gap-1 border-t border-line text-sm",
-        entering && "item-enter",
-      )}
-      data-leaving={isLeaving || undefined}
-    >
-      <Checkbox
-        checked={item.checked}
-        aria-label={`${item.text} をチェックする`}
-        onCheckedChange={(v) => toggleItem.mutate({ id: item.id, checked: v === true })}
-        className="size-[22px] rounded-[7px]"
-      />
-      {editing ? (
-        <Input
-          ref={inputRef}
-          value={text}
-          maxLength={200}
-          aria-label={`${item.text} を直す`}
-          className="h-9 px-2 py-1 text-sm"
-          onChange={(e) => setText(e.target.value)}
-          onBlur={commit}
-          onKeyDown={onKeyDown}
-        />
-      ) : (
-        <button
-          type="button"
-          className={cn(
-            "truncate rounded-(--r-field) py-1 text-left font-medium",
-            item.checked && "text-ink-2 line-through",
+    <li className={cn("border-t border-line text-sm", entering && "item-enter")} data-leaving={isLeaving || undefined}>
+      <SwipeRow id={item.id} onEdit={startEdit} onDelete={() => onRemove(item)}>
+        <div className="grid min-h-[52px] grid-cols-[34px_1fr] items-center gap-1">
+          <Checkbox
+            checked={item.checked}
+            aria-label={`${item.text} をチェックする`}
+            onCheckedChange={(v) => toggleItem.mutate({ id: item.id, checked: v === true })}
+            className="size-[22px] rounded-[7px]"
+          />
+          {editing ? (
+            <Input
+              ref={inputRef}
+              value={text}
+              maxLength={200}
+              aria-label={`${item.text} を直す`}
+              className="h-9 px-2 py-1 text-sm"
+              onChange={(e) => setText(e.target.value)}
+              onBlur={commit}
+              onKeyDown={onKeyDown}
+            />
+          ) : (
+            <button
+              type="button"
+              className={cn(
+                "truncate rounded-(--r-field) py-1 text-left font-medium",
+                item.checked && "text-ink-2 line-through",
+              )}
+              aria-label={`${item.text} を直す`}
+              onClick={startEdit}
+            >
+              {item.text}
+            </button>
           )}
-          aria-label={`${item.text} を直す`}
-          onClick={startEdit}
-        >
-          {item.text}
-        </button>
-      )}
-      <button
-        type="button"
-        className="grid size-9 place-items-center text-ink-3"
-        aria-label={`${item.text} を消す`}
-        onClick={() => onRemove(item)}
-      >
-        <Trash2 className="size-4" />
-      </button>
+        </div>
+      </SwipeRow>
     </li>
   );
 }

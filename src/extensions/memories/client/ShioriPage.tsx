@@ -1,9 +1,10 @@
 import type { GroupSummary, Me } from "@shared/api-types";
-import { Plus, Trash2 } from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
+import { Plus } from "lucide-react";
+import { type FormEvent, type ReactNode, useMemo, useState } from "react";
 import { UserAvatar } from "@/components/parts/Avatars";
 import { Chip } from "@/components/parts/Chip";
 import { Empty, Panel } from "@/components/parts/Panel";
+import { SwipeRow } from "@/components/parts/SwipeRow";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { formatShortDate, formatSpan } from "@/lib/dates";
@@ -219,8 +220,8 @@ function assigneeName(item: MemoryItem, group: GroupSummary | undefined): string
 }
 
 /**
- * しおりの行を並べる。印を押すと済んだことになる。書いた人は消せる。
- * 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
+ * しおりの行を並べる。印を押すと済んだことになる。書いた人は左へスワイプすると消せる。
+ * 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12、0084、#225
  */
 function ItemRows({
   items,
@@ -246,11 +247,8 @@ function ItemRows({
             ? group?.members.find((m) => m.id === item.createdBy)
             : group?.members.find((m) => m.id === item.assigneeId);
         const late = item.kind === "todo" && !item.doneAt && item.dueOn !== null && item.dueOn < today;
-        return (
-          <li
-            key={item.id}
-            className="grid min-h-[52px] grid-cols-[34px_1fr_auto] items-center gap-1 border-t border-line text-sm"
-          >
+        const content: ReactNode = (
+          <div className="grid min-h-[52px] grid-cols-[34px_1fr_auto] items-center gap-1">
             <Checkbox
               checked={Boolean(item.doneAt)}
               aria-label={`${item.title} を完了にする`}
@@ -272,17 +270,21 @@ function ItemRows({
               ) : (
                 assigneeName(item, group) && <span className="text-[11px] text-ink-2">{assigneeName(item, group)}</span>
               )}
-              {item.createdBy === me.user.id && (
-                <button
-                  type="button"
-                  className="grid size-9 place-items-center text-ink-3"
-                  aria-label={`${item.title} を消す`}
-                  onClick={() => removeItem(item.id, ({ keepalive }) => remove.mutateAsync({ id: item.id, keepalive }))}
-                >
-                  <Trash2 className="size-4" />
-                </button>
-              )}
             </span>
+          </div>
+        );
+        return (
+          <li key={item.id} className="border-t border-line text-sm">
+            {item.createdBy === me.user.id ? (
+              <SwipeRow
+                id={item.id}
+                onDelete={() => removeItem(item.id, ({ keepalive }) => remove.mutateAsync({ id: item.id, keepalive }))}
+              >
+                {content}
+              </SwipeRow>
+            ) : (
+              content
+            )}
           </li>
         );
       })}

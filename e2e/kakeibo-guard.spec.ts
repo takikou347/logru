@@ -14,6 +14,12 @@ async function kakeiboUser(request: APIRequestContext) {
   return { ...user, groupId: personalGroupId as string };
 }
 
+/** その人の利用者 ID を読む */
+async function userId(request: APIRequestContext, user: { headers: Record<string, string> }): Promise<string> {
+  const me = await (await request.get("/api/me", { headers: user.headers })).json();
+  return me.user.id;
+}
+
 /** その人の自分だけのグループに、口座を 1 つ作る */
 async function createAccount(
   request: APIRequestContext,
@@ -70,7 +76,7 @@ test("ほかの人の記録には届かない。グループの外からは作�
   expect(deniedDelete.status()).toBe(404);
 });
 
-test("同じグループのメンバーでも、書いた人以外は直せない、消せない", async ({ request }) => {
+test("共有のグループの記録は、書いた人でなくてもメンバーなら直せる、消せる。issue #206、0079", async ({ request }) => {
   const owner = await kakeiboUser(request);
   const member = await kakeiboUser(request);
   const group = await (await request.post("/api/groups", { headers: owner.headers, data: { name: "ふたり" } })).json();
@@ -91,14 +97,72 @@ test("同じグループのメンバーでも、書いた人以外は直せな�
   expect(summary.totalExpense).toBe(1000);
   expect(summary.records).toHaveLength(1);
 
-  // 書いた人ではないので、直せないし消せない
+  // 書いた人でなくても、共有のグループのメンバーなら直せる
   const patched = await request.patch(`/api/kakeibo/${expense.id}`, {
     headers: member.headers,
-    data: { type: "expense", groupId: group.id, date: "2026-09-19", amount: 1, category: "food" },
+    data: { type: "expense", groupId: group.id, date: "2026-09-19", amount: 1500, category: "food" },
   });
-  expect(patched.status()).toBe(403);
+  expect(patched.status()).toBe(200);
+  expect((await patched.json()).amount).toBe(1500);
+  // 消せる
   const deleted = await request.delete(`/api/kakeibo/${expense.id}`, { headers: member.headers });
-  expect(deleted.status()).toBe(403);
+  expect(deleted.status()).toBe(204);
+});
+
+test("自分だけの記録は、同じグループの人でも直せない、消せない。issue #206、0079", async ({ request }) => {
+  const owner = await kakeiboUser(request);
+  const member = await kakeiboUser(request);
+  const group = await (await request.post("/api/groups", { headers: owner.headers, data: { name: "ふたり" } })).json();
+  await request.put(`/api/groups/${group.id}/extensions/kakeibo`, { headers: owner.headers, data: { enabled: true } });
+  const { token } = await (await request.post(`/api/groups/${group.id}/invites`, { headers: owner.headers })).json();
+  expect((await request.post(`/api/invites/${token}/accept`, { headers: member.headers })).ok()).toBe(true);
+
+  // owner の自分だけのグループ(personal)に記録する。member とは「ふたり」を共有していても、
+  // 自分だけのグループ自体は共有していない
+  const created = await request.post("/api/kakeibo", {
+    headers: owner.headers,
+    data: { type: "expense", groupId: owner.groupId, date: "2026-09-19", amount: 1000, category: "food" },
+  });
+  const expense = await created.json();
+
+  const patched = await request.patch(`/api/kakeibo/${expense.id}`, {
+    headers: member.headers,
+    data: { type: "expense", groupId: owner.groupId, date: "2026-09-19", amount: 1, category: "food" },
+  });
+  expect(patched.status()).toBe(404);
+  const deleted = await request.delete(`/api/kakeibo/${expense.id}`, { headers: member.headers });
+  expect(deleted.status()).toBe(404);
+});
+
+test("共有のグループの精算した記録は、書いた人でなくてもメンバーなら消せる。グループの外からは消せない。issue #206、0079", async ({
+  request,
+}) => {
+  const owner = await kakeiboUser(request);
+  const member = await kakeiboUser(request);
+  const outsider = await kakeiboUser(request);
+  const group = await (await request.post("/api/groups", { headers: owner.headers, data: { name: "ふたり" } })).json();
+  await request.put(`/api/groups/${group.id}/extensions/kakeibo`, { headers: owner.headers, data: { enabled: true } });
+  const { token } = await (await request.post(`/api/groups/${group.id}/invites`, { headers: owner.headers })).json();
+  await request.post(`/api/invites/${token}/accept`, { headers: member.headers });
+
+  const ownerId = await userId(request, owner);
+  const memberId = await userId(request, member);
+  const created = await request.post("/api/kakeibo/settlements", {
+    headers: owner.headers,
+    data: { groupId: group.id, fromUser: memberId, toUser: ownerId, amount: 1000, date: "2026-09-19" },
+  });
+  expect(created.status()).toBe(201);
+  const settlement = await created.json();
+
+  // グループの外からは 404
+  const deniedDelete = await request.delete(`/api/kakeibo/settlements/${settlement.id}`, {
+    headers: outsider.headers,
+  });
+  expect(deniedDelete.status()).toBe(404);
+
+  // 書いた人(owner)でなくても、メンバー(member)なら消せる
+  const deleted = await request.delete(`/api/kakeibo/settlements/${settlement.id}`, { headers: member.headers });
+  expect(deleted.status()).toBe(204);
 });
 
 test("記録すると月の合計とカテゴリ別の合計に反映される。振替は数えない。F-301、F-303、F-310、F-311", async ({

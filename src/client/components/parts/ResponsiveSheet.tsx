@@ -1,5 +1,5 @@
 import { XIcon } from "lucide-react";
-import { type AnimationEvent, type ReactNode, useEffect } from "react";
+import { type AnimationEvent, type ReactNode, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogClose,
@@ -34,6 +34,14 @@ function keepOpenWhileDateInputFocused(event: { preventDefault: () => void }) {
 /** 閉じるボタン(X)の見た目。ガラスの面(position: relative)の右上に留める */
 const CLOSE_BUTTON_CLASS =
   "absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none";
+
+/**
+ * 閉じる動き(--dur-base、220ms)より長く待っても `animationend` が来なければ、代わりに呼ぶ。
+ * ヘッドレスの Chromium では、裏で他の描き直しが起きている間、短い CSS animation の
+ * `animationend` がすぐには届かないことがある。そのままだと `onClose` が呼ばれず、
+ * 閉じたはずのシートが `data-state="closed"`・`pointer-events-none` のまま居座り続ける。#211
+ */
+const CLOSE_FALLBACK_MS = 400;
 
 /**
  * スマホでは下から出るシート、PC では中央のダイアログ。0010
@@ -87,15 +95,36 @@ export function ResponsiveSheet({
   const controlled = openProp !== undefined;
   const open = controlled ? openProp : true;
 
+  // onClose は 1 回だけ呼ぶ。animationend と、保険のタイマーの両方から呼べるため。
+  // ref に包み、依存の配列を気にせず使えるようにする。#211
+  const closedRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const closeOnceRef = useRef(() => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    onCloseRef.current();
+  });
+  useEffect(() => {
+    if (open) closedRef.current = false;
+  }, [open]);
+
+  // 閉じ始めたら(open が false になったら)、animationend が来なくても保険で呼ぶ。#211
+  useEffect(() => {
+    if (!controlled || open) return;
+    const timer = window.setTimeout(() => closeOnceRef.current(), CLOSE_FALLBACK_MS);
+    return () => window.clearTimeout(timer);
+  }, [controlled, open]);
+
   const onOpenChange = (next: boolean) => {
     if (next) return;
     if (controlled) onOpenChangeProp?.(false);
-    else onClose();
+    else closeOnceRef.current();
   };
   /** 閉じる動きが終わった瞬間だけ、親に知らせる。開く動きの終わりでは呼ばない。#192 */
   function onMotionEnd(e: AnimationEvent<HTMLDivElement>) {
     if (e.target !== e.currentTarget) return;
-    if (controlled && !open && e.currentTarget.dataset.state === "closed") onClose();
+    if (controlled && !open && e.currentTarget.dataset.state === "closed") closeOnceRef.current();
   }
 
   const panel = "glass flex flex-col gap-3.5 text-ink";

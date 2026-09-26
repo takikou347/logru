@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
@@ -72,6 +72,9 @@ export function AccountRecordsPage() {
   const month = monthParam && isMonthKey(monthParam) ? monthParam : monthKeyOf(new Date());
   const detail = useKakeiboAccountDetail(id ?? null, month);
   const [editing, setEditing] = useState(false);
+  // もう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。
+  // key に積んで、確実に新しい `AccountSheet` を作る。#211
+  const editGen = useRef(0);
   const setMonth = (key: string) => setParams((p) => (p.set("month", key), p), { replace: true });
   // 口座ごとの色は付けていない画面。0071
   useAppFrame({ poolColors: [] });
@@ -103,7 +106,16 @@ export function AccountRecordsPage() {
                 {account.archivedAt && <span className="text-xs text-ink-2">使わない</span>}
               </span>
             </span>
-            <Button type="button" variant="ghost" size="icon" aria-label="口座を直す" onClick={() => setEditing(true)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="口座を直す"
+              onClick={() => {
+                editGen.current += 1;
+                setEditing(true);
+              }}
+            >
               <Pencil className="size-4" />
             </Button>
           </div>
@@ -146,7 +158,15 @@ export function AccountRecordsPage() {
           )}
         </Panel>
       </Page>
-      {editing && <AccountSheet groups={groups} me={me.data} account={account} onClose={() => setEditing(false)} />}
+      {editing && (
+        <AccountSheet
+          key={editGen.current}
+          groups={groups}
+          me={me.data}
+          account={account}
+          onClose={() => setEditing(false)}
+        />
+      )}
     </>
   );
 }

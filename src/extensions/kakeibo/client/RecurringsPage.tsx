@@ -1,5 +1,6 @@
 /** 定期の記録の画面。F-325 */
 import { Repeat } from "lucide-react";
+import { useRef } from "react";
 import { useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
@@ -38,6 +39,9 @@ export function RecurringsPage() {
   const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
   const editingId = params.get("edit");
   const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
+  // 同じ記録をもう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。
+  // key に積んで、確実に新しい `RecurringSheet` を作る。#211
+  const editGen = useRef(0);
   const handleCreated = (occurrence: KakeiboRecurringOccurrence | null) => {
     if (!occurrence) return;
     // 5 秒たっても、画面を離れても、この記録は消さない(そのまま残す)。commitFn は何もしない
@@ -87,7 +91,10 @@ export function RecurringsPage() {
                   <button
                     type="button"
                     className="flex w-full items-center justify-between gap-3 py-2 text-left"
-                    onClick={() => setParams((p) => (p.set("edit", r.id), p), { replace: true })}
+                    onClick={() => {
+                      editGen.current += 1;
+                      setParams((p) => (p.set("edit", r.id), p), { replace: true });
+                    }}
                   >
                     <span className="flex min-w-0 flex-col">
                       <span className="min-w-0 truncate text-[15px] font-medium">
@@ -127,6 +134,7 @@ export function RecurringsPage() {
       {creating && <RecurringSheet groups={groups} me={me.data} onClose={closeCreate} onCreated={handleCreated} />}
       {editing && (
         <RecurringSheet
+          key={`${editingId}-${editGen.current}`}
           groups={groups}
           me={me.data}
           recurring={editing}

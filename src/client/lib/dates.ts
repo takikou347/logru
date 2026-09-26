@@ -6,6 +6,9 @@ import holidayJp from "@holiday-jp/holiday_jp";
 
 /** 1 日のミリ秒 */
 export const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** 端末の時間帯の名前。#205 */
+export const deviceTimeZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Tokyo";
 /** 日曜から始まる曜日の名前 */
 export const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
@@ -106,7 +109,7 @@ export function formatShortDate(dateKey: string): string {
  * ミリ秒を、指定した時間帯で数えて `formatDay` と同じ形にする。思い出など、端末と違う
  * 時間帯を持つ拡張で使う。画面ごとに Intl.DateTimeFormat を直に組み立てない。決定 0059
  */
-export function formatDayAt(ms: number, timeZone: string | undefined, opts?: { year?: boolean }): string {
+function formatDayAt(ms: number, timeZone: string | undefined, opts?: { year?: boolean }): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",

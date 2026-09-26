@@ -381,7 +381,10 @@ export function CalendarPage() {
       .then((item) => {
         if (!cancelled) setEditor({ mode: "edit", item });
       })
-      .catch(() => {})
+      // 読めなかったとき(消えた、見られなくなった)。捨てずに知らせる。#204
+      .catch(() => {
+        if (!cancelled) toast.error("見つかりません。消されたか、見られなくなりました。");
+      })
       .finally(() => {
         if (cancelled) return;
         setParams(

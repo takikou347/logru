@@ -45,3 +45,12 @@ test("思い出を足していない人がひとコマの近道を開くと、�
   await expect(page).toHaveURL(/\/settings\/extensions$/);
   await expect(page.getByText("思い出はまだ足していません")).toBeVisible();
 });
+
+test("グループを読み込めなかったときは、使っていないと決めつけず読み直せる。#204", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await page.context().route("**/api/groups", (route) => route.fulfill({ status: 500, json: {} }));
+  await page.goto("/memories/koma/now");
+  await expect(page).toHaveURL(/\/memories\/koma\/now$/);
+  await expect(page.getByText("グループを読み込めませんでした")).toBeVisible();
+  await expect(page.getByRole("button", { name: "もう一度読み込む" })).toBeVisible();
+});

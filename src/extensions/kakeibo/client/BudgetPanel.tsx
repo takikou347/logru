@@ -38,7 +38,7 @@ export function BudgetRow({ budget, groupLabel }: { budget: KakeiboBudget; group
           </span>
         </span>
         <span className={`flex-none text-xs font-medium ${over ? "text-sun" : "text-ink-2"}`}>
-          残り {formatYen(remaining)}
+          {over ? `${formatYen(-remaining)} 超えています` : `残り ${formatYen(remaining)}`}
         </span>
       </div>
       <BudgetBar amount={budget.amount} used={budget.used} />

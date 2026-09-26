@@ -63,6 +63,8 @@ export function useLists(group: string | null, enabled = true) {
     queryKey: listsKeys.list(group),
     queryFn: () => api<{ lists: ListSummary[] }>(`/lists${group ? `?group=${group}` : ""}`).then((r) => r.lists),
     enabled,
+    // グループを移った直後は、前の中身を出したままにする。0078、#195
+    placeholderData: (prev) => prev,
   });
 }
 

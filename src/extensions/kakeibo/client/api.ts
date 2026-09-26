@@ -1,13 +1,17 @@
 /** 家計簿の拡張が API から読むデータと、書き換え */
 
-import type { GroupSummary } from "@shared/api-types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
+import type { CalendarItem, GroupSummary } from "@shared/api-types";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { api } from "@/api/client";
 import { useGroups } from "@/api/common";
+import { keys } from "@/api/keys";
+import type { LoadableQuery } from "@/components/parts/LoadableSection";
+import { DAY_MS } from "@/lib/dates";
 import { kakeiboManifest } from "../manifest";
 import type { KakeiboAccountKind } from "../shared/accounts";
 import type { KakeiboCategory } from "../shared/categories";
+import type { Transfer } from "../shared/settlement";
 import type { KakeiboSplitMode } from "../shared/splits";
 import type { KakeiboType } from "../shared/types";
 
@@ -42,6 +46,9 @@ export type KakeiboCategoryTotal = { category: KakeiboCategory; total: number };
 /** グループごとの、いま立て替え中の額。自分だけの画面で使う。0072、F-322 */
 export type KakeiboDebt = { groupId: string; receivable: number; payable: number };
 
+/** グループごとの、自分が関わる送る組み合わせ。「すべて」の画面で使う。#197 */
+export type KakeiboGroupSettlement = { groupId: string; transfers: Transfer[] };
+
 /** `GET /api/kakeibo` の応答 */
 export type KakeiboSummary = {
   totalExpense: number;
@@ -55,6 +62,8 @@ export type KakeiboSummary = {
   sharedBurden: number | null;
   /** 自分だけのグループに絞ったときだけ入る。グループごとの、いま立て替え中の額。0072、F-322 */
   debts: KakeiboDebt[] | null;
+  /** 「すべて」で絞ったときだけ入る。精算が残っているグループごとの送る組み合わせ。#197 */
+  settlements: KakeiboGroupSettlement[] | null;
   records: KakeiboExpense[];
 };
 
@@ -186,6 +195,8 @@ export function useKakeiboSummary(group: string | null, month: string, enabled =
     queryKey: kakeiboKeys.summary(group, month),
     queryFn: () => api<KakeiboSummary>(`/kakeibo?${group ? `group=${group}&` : ""}month=${month}`),
     enabled,
+    // 月やグループを移った直後は、前の中身を出したままにする。切り替わるまで data を空にしない。0078、#195
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -196,6 +207,7 @@ export function useKakeiboAccounts(group: string | null, enabled = true) {
     queryFn: () => api<{ accounts: KakeiboAccount[] }>(`/kakeibo/accounts${group ? `?group=${group}` : ""}`),
     enabled,
     select: (data) => data.accounts,
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -205,6 +217,8 @@ export function useKakeiboAccountDetail(id: string | null, month: string) {
     queryKey: kakeiboKeys.accountDetail(id ?? "", month),
     queryFn: () => api<KakeiboAccountDetail>(`/kakeibo/accounts/${id}/records?month=${month}`),
     enabled: Boolean(id),
+    // 月を移るたびに骨組みへ戻さず、前の月の中身を出したままにする。0078、#195
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -219,6 +233,7 @@ export function useKakeiboSettlement(groupId: string | null) {
     queryKey: kakeiboKeys.settlement(groupId ?? ""),
     queryFn: () => api<KakeiboSettlementSummary>(`/kakeibo/settlement?group=${groupId}`),
     enabled: Boolean(groupId),
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -345,6 +360,7 @@ export function useKakeiboBudgets(group: string | null, enabled = true) {
     queryFn: () => api<{ budgets: KakeiboBudget[] }>(`/kakeibo/budgets${group ? `?group=${group}` : ""}`),
     enabled,
     select: (data) => data.budgets,
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -465,4 +481,49 @@ export function useDeleteTemplate() {
       api(`/kakeibo/templates/${id}`, { method: "DELETE", keepalive }),
     onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
   });
+}
+
+/**
+ * 期間を、土台のカレンダー(`GET /api/calendar`)の 1 回の上限に収まるよう分ける。
+ * `src/shared/schemas.ts` の `MAX_RANGE_MS`(100 日)に少し余裕を持たせる。0072、F-323、#196
+ */
+function memoryRangeChunks(from: number, to: number): { from: number; to: number }[] {
+  const chunkDays = 90;
+  const span = chunkDays * DAY_MS;
+  const chunks: { from: number; to: number }[] = [];
+  for (let f = from; f < to; f += span) chunks.push({ from: f, to: Math.min(f + span, to) });
+  return chunks;
+}
+
+/**
+ * そのグループの、期間のある思い出(前後およそ 1 年ぶん)。予算の「思い出から選ぶ」に使う。0072、F-323
+ *
+ * 土台のカレンダーの API だけを使い、思い出の表は読まない。0072。1 回で読める期間には上限があるので、
+ * 90 日ずつに分けて並列に読む(`year-range.ts` の `yearChunks` と同じ考え方)。キーは月・週・日の表と
+ * 同じ形なので、境目が重なれば読み直さずに済む。範囲は開いたときに 1 度だけ決め、描くたびには作り直さない。
+ */
+export function useKakeiboMemories(groupId: string): LoadableQuery<CalendarItem[]> {
+  const [now] = useState(() => Date.now());
+  const from = now - 365 * DAY_MS;
+  const to = now + 365 * DAY_MS;
+  const results = useQueries({
+    queries: memoryRangeChunks(from, to).map((r) => ({
+      queryKey: keys.calendar(r.from, r.to),
+      queryFn: () => api<{ items: CalendarItem[] }>(`/calendar?from=${r.from}&to=${r.to}`).then((res) => res.items),
+      staleTime: 5 * 60 * 1000,
+    })),
+  });
+  const isPending = results.some((r) => r.isPending);
+  const errored = results.find((r) => r.isError);
+  return {
+    data:
+      isPending || errored
+        ? undefined
+        : results.flatMap((r) => r.data ?? []).filter((i) => i.extension === "memories" && i.groupId === groupId),
+    error: (errored?.error as Error) ?? null,
+    isPending,
+    refetch: () => {
+      for (const r of results) void r.refetch();
+    },
+  };
 }

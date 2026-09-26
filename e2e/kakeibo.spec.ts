@@ -424,7 +424,7 @@ test("期間の予算を作ると、家計簿の画面の上と予算の画面�
   await expect(page.getByText("まだ予算がありません。")).toBeVisible();
 });
 
-test("決めた日をもう過ぎて定期の記録を作ると、すぐその月の分が入り、共有のグループでは作った人が払って割る。kota の決定(2026-09-26)。0072、F-325", async ({
+test("決めた日をもう過ぎて定期の記録を作ると、すぐその月の分が入り、共有のグループでは作った人が払って割る。知らせに日付が出て元に戻せる。0072、F-325、#198", async ({
   page,
   browser,
 }) => {
@@ -457,12 +457,16 @@ test("決めた日をもう過ぎて定期の記録を作ると、すぐその�
     .click();
   const sheet = page.getByRole("dialog", { name: "定期の記録を作る" });
   await pickShare(page, sheet, "暮らし");
-  await sheet.getByLabel("金額").fill("12000");
+  // 全角の数字でも半角に直して入る。#198
+  await sheet.getByLabel("金額").fill("１２０００");
   await sheet.getByRole("radio", { name: "住まい" }).click();
   await sheet.getByRole("radio", { name: "現金" }).click();
   await sheet.getByLabel("毎月の日").fill("1");
   await sheet.getByRole("button", { name: "保存する" }).click();
-  await expect(page.getByText("定期の記録を作りました")).toBeVisible();
+  // 知らせに、入れた記録の日付を出し、「元に戻す」でその 1 件だけを消せる。#198
+  const today = tokyoDateParts(0);
+  await expect(page.getByText(`${today.month}月1日の分を記録しました`)).toBeVisible();
+  await expect(page.getByRole("button", { name: "元に戻す" })).toBeVisible();
 
   // すぐその月の分が家計簿に入る。作った人(こた)が払い、みかと同じ額に割る
   await page.goto("/kakeibo");
@@ -474,6 +478,52 @@ test("決めた日をもう過ぎて定期の記録を作ると、すぐその�
   // 現金の残高からすぐ引かれる
   await page.goto("/kakeibo/accounts");
   await expect(page.getByRole("link", { name: "現金" })).toContainText("-¥12,000");
+});
+
+test("共有のグループを抜けると、抜けた人がそのグループに作った定期の記録は止まる。#198", async ({ page, browser }) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await page.goto("/groups");
+  await page.getByLabel("グループの名前").fill("工房");
+  await page.getByRole("button", { name: "作る" }).click();
+  await page.getByRole("button", { name: "招待リンクを作る" }).click();
+  const inviteUrl = await page.getByLabel("招待リンク").inputValue();
+  const groupUrl = page.url();
+
+  await page.goto("/settings/extensions/kakeibo");
+  await page.getByRole("region", { name: "足すグループ" }).getByRole("button", { name: "工房を足す" }).click();
+  await expect(page.getByText("足しました")).toBeVisible();
+
+  const mikaPage = await (await browser.newContext()).newPage();
+  await signUp(mikaPage, { name: "みか", next: new URL(inviteUrl).pathname });
+  await mikaPage.getByRole("button", { name: "参加する" }).click();
+  await expect(mikaPage).toHaveURL(/group=/);
+  await addExtension(mikaPage, "家計簿");
+
+  // みかが、工房グループに、来月から始まる定期の記録を作る。始まりの月がまだなので、すぐには入らない
+  await mikaPage.goto("/kakeibo/recurrings");
+  await mikaPage
+    .getByRole("toolbar", { name: "定期の記録の操作" })
+    .getByRole("button", { name: "定期の記録を作る" })
+    .click();
+  const sheet = mikaPage.getByRole("dialog", { name: "定期の記録を作る" });
+  await pickShare(mikaPage, sheet, "工房");
+  await sheet.getByLabel("金額").fill("3000");
+  await sheet.getByRole("radio", { name: "住まい" }).click();
+  const next = tokyoDateParts(31);
+  await sheet.getByLabel("始まりの月").fill(`${next.year}-${String(next.month).padStart(2, "0")}`);
+  await sheet.getByRole("button", { name: "保存する" }).click();
+  await expect(mikaPage.getByText("定期の記録を作りました")).toBeVisible();
+  await expect(mikaPage.getByText("止めている")).toHaveCount(0);
+
+  // みかが工房を抜けると、みかが作ったこの定期の記録は止まる。次の毎日の処理でも入らなくなる
+  await mikaPage.goto(groupUrl);
+  await mikaPage.getByRole("button", { name: "グループを抜ける" }).click();
+  await mikaPage.getByRole("dialog", { name: "グループを抜けますか" }).getByRole("button", { name: "抜ける" }).click();
+
+  await mikaPage.goto("/kakeibo/recurrings");
+  await expect(mikaPage.getByText("止めている")).toBeVisible();
 });
 
 test("カテゴリを選ぶと、そのカテゴリで前回使った口座が選ばれる。口座を手で選べばそちらが残る。0072、F-327", async ({

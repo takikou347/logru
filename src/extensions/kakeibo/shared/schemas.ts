@@ -1,14 +1,9 @@
 import { z } from "zod";
 import { KAKEIBO_ACCOUNT_KIND_KEYS } from "./accounts";
 import { KAKEIBO_CATEGORY_KEYS } from "./categories";
-import { isDateKey } from "./dates";
+import { isDateKey, isMonthKey } from "./dates";
 import { KAKEIBO_SPLIT_MODES } from "./splits";
 import { KAKEIBO_TYPES } from "./types";
-
-/** `2026-09` の形の月かどうか。日付を持たない定期の記録の始まり・終わりの月で使う */
-function isMonthKeyInput(value: string): boolean {
-  return /^\d{4}-\d{2}$/.test(value);
-}
 
 const fields = {
   type: z.enum(KAKEIBO_TYPES, { error: "種類を選んでください。" }),
@@ -140,38 +135,51 @@ export type KakeiboBudgetPatchInput = z.infer<typeof kakeiboBudgetPatchInput>;
 
 const recurringFields = {
   dayOfMonth: z.number().int().min(1, "1 から 31 の日にしてください。").max(31, "1 から 31 の日にしてください。"),
-  monthKey: z.string().refine(isMonthKeyInput, "月を `2026-09` の形で入れてください。"),
+  // `2026-13` のような、月が 1〜12 に収まらない値も断る。#198
+  monthKey: z.string().refine(isMonthKey, "月を `2026-09` の形で入れてください。"),
 };
 
 /** 定期の記録の入力。種類ごとに要る項目は記録の入力と同じ。F-325 */
-export const kakeiboRecurringInput = z.object({
-  groupId: fields.groupId,
-  type: fields.type,
-  amount: fields.amount,
-  category: fields.category.optional(),
-  accountId: fields.accountId.optional(),
-  toAccountId: fields.accountId.optional(),
-  memo: fields.memo.optional(),
-  dayOfMonth: recurringFields.dayOfMonth,
-  startMonth: recurringFields.monthKey,
-  endMonth: recurringFields.monthKey.nullable().optional(),
-});
+export const kakeiboRecurringInput = z
+  .object({
+    groupId: fields.groupId,
+    type: fields.type,
+    amount: fields.amount,
+    category: fields.category.optional(),
+    accountId: fields.accountId.optional(),
+    toAccountId: fields.accountId.optional(),
+    memo: fields.memo.optional(),
+    dayOfMonth: recurringFields.dayOfMonth,
+    startMonth: recurringFields.monthKey,
+    endMonth: recurringFields.monthKey.nullable().optional(),
+  })
+  // 終わりの月が始まりの月より前も断る。#198
+  .refine((v) => !v.endMonth || v.endMonth >= v.startMonth, {
+    message: "終わりの月は、始まりの月と同じか後にしてください。",
+    path: ["endMonth"],
+  });
 
 export type KakeiboRecurringInput = z.infer<typeof kakeiboRecurringInput>;
 
 /** 定期の記録を直すときの入力。送った項目だけ確かめる。F-325 */
-export const kakeiboRecurringPatchInput = z.object({
-  type: fields.type.optional(),
-  amount: fields.amount.optional(),
-  category: fields.category.optional(),
-  accountId: fields.accountId.optional(),
-  toAccountId: fields.accountId.optional(),
-  memo: fields.memo.optional(),
-  dayOfMonth: recurringFields.dayOfMonth.optional(),
-  startMonth: recurringFields.monthKey.optional(),
-  endMonth: recurringFields.monthKey.nullable().optional(),
-  paused: z.boolean().optional(),
-});
+export const kakeiboRecurringPatchInput = z
+  .object({
+    type: fields.type.optional(),
+    amount: fields.amount.optional(),
+    category: fields.category.optional(),
+    accountId: fields.accountId.optional(),
+    toAccountId: fields.accountId.optional(),
+    memo: fields.memo.optional(),
+    dayOfMonth: recurringFields.dayOfMonth.optional(),
+    startMonth: recurringFields.monthKey.optional(),
+    endMonth: recurringFields.monthKey.nullable().optional(),
+    paused: z.boolean().optional(),
+  })
+  // 直すときも、送った項目の組み合わせで終わりの月を確かめる。budget の patch と同じ形。#198
+  .refine((v) => !(v.startMonth && v.endMonth) || v.endMonth >= v.startMonth, {
+    message: "終わりの月は、始まりの月と同じか後にしてください。",
+    path: ["endMonth"],
+  });
 
 export type KakeiboRecurringPatchInput = z.infer<typeof kakeiboRecurringPatchInput>;
 

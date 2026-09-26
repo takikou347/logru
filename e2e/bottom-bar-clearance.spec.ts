@@ -72,13 +72,23 @@ test("思い出: 棚がいくつあっても、下の帯より上に見える", 
 test("家計簿: 記録が無い月でも、空の表示が下の帯より上に見える", async ({ page }) => {
   await addExtension(page, "家計簿");
   await page.goto("/kakeibo");
-  await scrollToBottom(page);
-  const toolbar = await page.getByRole("toolbar", { name: "家計簿の操作" }).boundingBox();
-  const panel = await page.getByRole("region", { name: "記録" }).boundingBox();
-  expect(toolbar).toBeTruthy();
-  expect(panel).toBeTruthy();
-  expect(panel!.y + panel!.height).toBeLessThanOrEqual(toolbar!.y);
+  await expectKakeiboAboveDock(page);
 });
+
+/**
+ * 家計簿の「記録」の面の下端が、下の帯より上にあることを確かめる。
+ * 読み込みや数字の動きで面の高さが後から変わることがあるので、落ち着くまで下へ送り直して測る
+ */
+async function expectKakeiboAboveDock(page: import("@playwright/test").Page) {
+  await expect(async () => {
+    await scrollToBottom(page);
+    const toolbar = await page.getByRole("toolbar", { name: "家計簿の操作" }).boundingBox();
+    const panel = await page.getByRole("region", { name: "記録" }).boundingBox();
+    expect(toolbar).toBeTruthy();
+    expect(panel).toBeTruthy();
+    expect(panel!.y + panel!.height).toBeLessThanOrEqual(toolbar!.y);
+  }).toPass({ timeout: 15_000 });
+}
 
 test("家計簿: 記録がいくつあっても、下の帯より上に見える", async ({ page }) => {
   await addExtension(page, "家計簿");
@@ -93,10 +103,5 @@ test("家計簿: 記録がいくつあっても、下の帯より上に見える
     await sheet.getByRole("radio", { name: "食費" }).click();
     await sheet.getByRole("button", { name: "保存する" }).click();
   }
-  await scrollToBottom(page);
-  const toolbar = await page.getByRole("toolbar", { name: "家計簿の操作" }).boundingBox();
-  const panel = await page.getByRole("region", { name: "記録" }).boundingBox();
-  expect(toolbar).toBeTruthy();
-  expect(panel).toBeTruthy();
-  expect(panel!.y + panel!.height).toBeLessThanOrEqual(toolbar!.y);
+  await expectKakeiboAboveDock(page);
 });

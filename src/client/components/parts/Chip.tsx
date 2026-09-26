@@ -11,7 +11,9 @@ export function Chip({ className, ...props }: ComponentProps<"button">) {
       type="button"
       className={cn(
         // 指の目安 44px。#22
-        "inline-flex min-h-11 flex-none items-center gap-[7px] rounded-full border border-(--glass-edge) bg-field px-3.5 text-[13px] font-medium whitespace-nowrap",
+        // 選んでいないときの枠は --chip-edge。ライトの地とほぼ同じ明るさの --glass-edge だと、
+        // 選んでいない種類・カテゴリのチップが地に溶けて見える。issue #202
+        "inline-flex min-h-11 flex-none items-center gap-[7px] rounded-full border border-(--chip-edge) bg-field px-3.5 text-[13px] font-medium whitespace-nowrap",
         "aria-checked:border-primary aria-checked:bg-primary aria-checked:text-primary-foreground",
         "aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground",
         // 押せないときは、選んでいないものだけを薄くする。選んでいるものは、いまの値として読めるように残す

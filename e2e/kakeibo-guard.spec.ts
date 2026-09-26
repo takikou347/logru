@@ -1,5 +1,5 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
-import { apiUser } from "./helpers";
+import { apiUser, tokyoDateParts } from "./helpers";
 
 /** 規約に同意し、自分だけのグループで家計簿を使えるようにした利用者 */
 async function kakeiboUser(request: APIRequestContext) {
@@ -455,4 +455,36 @@ test("共有口座への振替は、共有のグループの人には金額と�
     await request.get(`/api/kakeibo/accounts?group=${group.id}`, { headers: member.headers })
   ).json();
   expect(accounts.accounts.map((x: { id: string }) => x.id)).toEqual([shared.id]);
+});
+
+test("月に 501 件書いても、合計は一覧を切る前の全件から出る。一覧は 500 件で切り、切ったと知らせる。#199", async ({
+  request,
+}) => {
+  test.setTimeout(120_000);
+  const a = await kakeiboUser(request);
+  const month = tokyoDateParts().key.slice(0, 7);
+  const date = tokyoDateParts().key;
+
+  // 501 件を一度に作る。並べて作ると速いので、一定数ずつまとめて投げる
+  const total = 501;
+  const concurrency = 25;
+  for (let i = 0; i < total; i += concurrency) {
+    const batch = Array.from({ length: Math.min(concurrency, total - i) }, () =>
+      request.post("/api/kakeibo", {
+        headers: a.headers,
+        data: { type: "expense", groupId: a.groupId, date, amount: 10, category: "food" },
+      }),
+    );
+    const results = await Promise.all(batch);
+    for (const r of results) expect(r.status()).toBe(201);
+  }
+
+  const summary = await (
+    await request.get(`/api/kakeibo?group=${a.groupId}&month=${month}`, { headers: a.headers })
+  ).json();
+  // 一覧は 500 件で切るが、合計は 501 件全部から出る。割った記録が多いときの分け方はユニットテストで確かめる。#199
+  expect(summary.records).toHaveLength(500);
+  expect(summary.totalExpense).toBe(total * 10);
+  expect(summary.byCategory).toEqual([{ category: "food", total: total * 10 }]);
+  expect(summary.recordsTruncated).toBe(true);
 });

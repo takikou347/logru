@@ -153,7 +153,16 @@ export function KakeiboPage() {
     <>
       <Page>
         {/* 見出しを押すと機能のシートが開き、ほかの拡張の画面へ近道できる。issue #26 */}
-        <PageBar title="家計簿" onTitleClick={() => setFeatures(true)} />
+        {/* PC は中身が長く、下の帯(Dock)が末尾まで遠くなるため、ここに主な「+」を置く。issue #202 */}
+        <PageBar
+          title="家計簿"
+          onTitleClick={() => setFeatures(true)}
+          action={
+            <div className="hidden lg:block">
+              <PrimaryAddButton label="支出を記録する" addables={addables} />
+            </div>
+          }
+        />
         <GroupFilterBand options={filterOptions} />
 
         <div className="glass flex items-center justify-between rounded-full px-2 py-1.5">
@@ -364,7 +373,8 @@ export function KakeiboPage() {
         {/* 空の月は中身が短く、浮いた「+」が中身に重なるので、下の帯と同じ高さの余白を足す。issue #24 */}
         <div className="h-[var(--dock-clearance)] lg:hidden" aria-hidden="true" />
 
-        <Dock label="家計簿の操作">
+        {/* PC の主な「+」は上の見出しの帯にある。ここは PC で隠す。issue #202 */}
+        <Dock label="家計簿の操作" className="lg:hidden">
           <PrimaryAddButton label="支出を記録する" addables={addables} />
         </Dock>
       </Page>

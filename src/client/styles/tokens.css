@@ -24,6 +24,12 @@
   --glass: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8));
   --glass-flat: #eef2f0;
   --glass-edge: rgba(255, 255, 255, 0.72);
+  /*
+   * Chip の枠。--glass-edge(白寄りの枠)は、ライトの地(--glass-flat の rgb(238,242,240)のような
+   * 薄い面)とほぼ同じ明るさで、選んでいない種類・カテゴリのチップが地に溶けて見えた。
+   * 文字色(--ink)の 18% にして、境目の比を確保する。issue #202
+   */
+  --chip-edge: rgba(23, 32, 44, 0.18);
   --glass-shine: rgba(255, 255, 255, 0.55);
   /* 影。ガラスの縁と厚みを出す */
   --glass-shadow:
@@ -68,6 +74,11 @@
   --dur-fast: 150ms;
   --dur-base: 220ms;
   --dur-slow: 320ms;
+  /*
+   * インクだまりが膨らむ・引く動きだけの例外。開く・閉じるという区切りが無く、フォーカスが
+   * 移るたびに続けて起こるので、3 段のどれに寄せても意味が変わってしまう。0044、issue #203
+   */
+  --dur-ambient: 900ms;
 
   /*
    * 画面の上の、ノッチなどにかかる安全な余白。CSS の変数越しに使うのは、シートの高さの上限の計算に
@@ -92,6 +103,8 @@
   --glass: linear-gradient(180deg, rgba(30, 37, 48, 0.88), rgba(20, 26, 35, 0.82));
   --glass-flat: #1c222c;
   --glass-edge: rgba(255, 255, 255, 0.14);
+  /* ダークはもとの --glass-edge のままで比が保てているので変えない。issue #202 */
+  --chip-edge: var(--glass-edge);
   --glass-shine: rgba(255, 255, 255, 0.1);
   --glass-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.3), 0 18px 40px -18px rgba(0, 0, 0, 0.7);

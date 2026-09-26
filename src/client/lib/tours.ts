@@ -9,7 +9,10 @@ import type { TourStep } from "@shared/tours";
 /** 土台の画面の案内。ID は tours_seen に入る。変えると、見た人にもう一度出る */
 export const BASE_TOURS = {
   calendar: [
-    { target: '[role="gridcell"][data-today]', text: "日付を押すと、その日の予定を足せます。" },
+    {
+      target: '[role="gridcell"][data-today]',
+      text: "日付を押すと、その日を選べます。下の「+」で、選んでいる日に予定を足せます。",
+    },
     { target: '[data-tour="group-filter"]', text: "グループを選ぶと、そのグループの予定だけになります。" },
     { target: '[data-tour="edit-home"]', text: "「ホームを編集」で、ウィジェットを並べ替えられます。" },
   ],

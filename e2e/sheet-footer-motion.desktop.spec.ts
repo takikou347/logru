@@ -8,7 +8,9 @@ test("PC で家計簿の記録のシートを開くと、保存するが画面�
   await signUp(page);
   await addExtension(page, "家計簿");
   await page.goto("/kakeibo");
-  await page.getByRole("toolbar", { name: "家計簿の操作" }).getByRole("button", { name: "支出を記録する" }).click();
+  // PC は下の帯(Dock)を隠し、見出しの帯(PageBar の action)から記録する。同じ名前のボタンが
+  // 空の月の案内にもあるが、見出しの帯の方が先に出るので先頭を取る。issue #202
+  await page.getByRole("button", { name: "支出を記録する" }).first().click();
   const sheet = page.getByRole("dialog", { name: "記録する" });
   await expect(sheet).toBeVisible();
 

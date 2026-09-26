@@ -1,5 +1,6 @@
 /** 予算の画面。F-323、F-324 */
 import { PiggyBank } from "lucide-react";
+import { useRef } from "react";
 import { useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
@@ -36,6 +37,9 @@ export function BudgetsPage() {
   const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
   const handleDelete = (budget: KakeiboBudget) =>
     remove(budget.id, ({ keepalive }) => deleteBudget.mutateAsync({ id: budget.id, keepalive }));
+  // 同じ予算をもう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。
+  // key に積んで、確実に新しい `BudgetSheet` を作る。#211
+  const editGen = useRef(0);
 
   if (!me.data || !ready) return <Loading />;
   const rows = (budgets.data ?? []).filter((b) => !pending.has(b.id));
@@ -78,7 +82,10 @@ export function BudgetsPage() {
                   key={b.id}
                   type="button"
                   className="text-left"
-                  onClick={() => setParams((p) => (p.set("edit", b.id), p), { replace: true })}
+                  onClick={() => {
+                    editGen.current += 1;
+                    setParams((p) => (p.set("edit", b.id), p), { replace: true });
+                  }}
                 >
                   <BudgetRow budget={b} groupLabel={groupLabel(b.groupId)} />
                 </button>
@@ -103,7 +110,14 @@ export function BudgetsPage() {
       </Page>
       {creating && <BudgetSheet groups={groups} me={me.data} onClose={closeCreate} />}
       {editing && (
-        <BudgetSheet groups={groups} me={me.data} budget={editing} onClose={closeEdit} onDelete={handleDelete} />
+        <BudgetSheet
+          key={`${editingId}-${editGen.current}`}
+          groups={groups}
+          me={me.data}
+          budget={editing}
+          onClose={closeEdit}
+          onDelete={handleDelete}
+        />
       )}
     </>
   );

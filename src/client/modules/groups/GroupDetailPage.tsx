@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { groupColor, memberColor } from "@/lib/colors";
 import { BASE_TOURS } from "@/lib/tours";
+import { useExitOnly } from "@/lib/use-row-motion";
 import { poolColorsOf } from "../calendar/model";
 import {
   useCreateInvite,
@@ -53,6 +54,8 @@ export function GroupDetailPage() {
   const revokeInvites = useRevokeInvites(id);
   const toggleExtension = useToggleGroupExtension(id);
   const [invite, setInvite] = useState<Invite | null>(null);
+  // 招待リンクの欄を取り消すときは、縮んで消える動きだけ付ける。元に戻すは無い。0085、#226
+  const { leaving: leavingInvite, remove: removeInvite } = useExitOnly();
   const [colorTarget, setColorTarget] = useState<ColorTarget | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const group = groups.data?.find((g) => g.id === id);
@@ -202,15 +205,16 @@ export function GroupDetailPage() {
         {admin && (
           <Panel title="招待" data-tour="group-invite">
             {invite ? (
-              <>
+              // 取り消すときは、縮んで消える動きの間だけ残す。元に戻すは無い。0044、0085、#226
+              <div className="flex flex-col gap-2" data-leaving={leavingInvite.has("invite") || undefined}>
                 <FieldMessage>
                   このリンクを開いた人は、7 日のうちならグループに入れます。招待したい相手にだけ送ってください。
                 </FieldMessage>
                 <Input readOnly value={invite.url} aria-label="招待リンク" onFocus={(e) => e.target.select()} />
-                <Button className="self-start" onClick={copy}>
+                <Button className="self-start" onClick={copy} disabled={leavingInvite.has("invite")}>
                   コピーする
                 </Button>
-              </>
+              </div>
             ) : (
               <Button variant="secondary" className="self-start" onClick={makeInvite}>
                 招待リンクを作る
@@ -219,9 +223,18 @@ export function GroupDetailPage() {
             <Button
               variant="ghost"
               className="self-start"
-              onClick={() =>
-                run(() => revokeInvites.mutateAsync(), "招待リンクをすべて取り消しました").then(() => setInvite(null))
-              }
+              disabled={leavingInvite.has("invite")}
+              onClick={() => {
+                if (!invite) {
+                  void run(() => revokeInvites.mutateAsync(), "招待リンクをすべて取り消しました");
+                  return;
+                }
+                removeInvite("invite", () => {
+                  void run(() => revokeInvites.mutateAsync(), "招待リンクをすべて取り消しました").then(() =>
+                    setInvite(null),
+                  );
+                });
+              }}
             >
               招待リンクをすべて取り消す
             </Button>

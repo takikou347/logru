@@ -270,6 +270,33 @@
   pointer-events: none;
 }
 
+/*
+ * 直した行を、保存した直後だけ短く光らせる。背景をうっすら付けて消すだけで、位置や大きさは動かさない。
+ * data-edited="true" を付けると、その場で 1 度だけ再生される。動きが終わったら呼び出し側が属性を外す。0044、0048、0085、#226
+ */
+[data-edited="true"] {
+  animation: row-edited-flash var(--dur-slow) var(--ease-out);
+}
+@keyframes row-edited-flash {
+  from {
+    background-color: var(--field-strong);
+  }
+}
+
+/*
+ * 金額などの数字が、値が変わった直後だけ短く動く。下からわずかに入れ替わる程度で、大きさは変えない。
+ * AnimatedAmount が、最初に描いたときを除いて値が変わった瞬間だけ付ける。0044、0085、#226
+ */
+.amount-flip {
+  animation: amount-flip var(--dur-base) var(--ease-out);
+}
+@keyframes amount-flip {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 /* いいねのハートが一度はねる。押してハートを付けた瞬間だけ付け、終わったら外す。0044、0048、#98 */
 .heart-bounce {
   animation: heart-bounce var(--dur-slow) var(--ease-in-out);

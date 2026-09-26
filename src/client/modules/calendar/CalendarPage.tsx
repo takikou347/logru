@@ -4,7 +4,7 @@ import type { CalendarItem, HomeWidgetEntry } from "@shared/api-types";
 import { defaultHomeLayout, mergeHomeLayout, visibleHomeLayout } from "@shared/home";
 import { useQueryClient } from "@tanstack/react-query";
 import { CalendarPlus, ChevronLeft, ChevronRight, LayoutGrid, Pencil } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useGroups, useMe } from "@/api/common";
@@ -39,7 +39,7 @@ import { useEnabledExtensions } from "@/lib/extensions";
 import { BASE_TOURS } from "@/lib/tours";
 import { useRecordScreen } from "@/lib/use-back";
 import { useMediaQuery } from "@/lib/use-media-query";
-import { useUndoableDelete as useSharedUndoableDelete } from "@/lib/use-undoable-delete";
+import { useRowMotion } from "@/lib/use-row-motion";
 import { withViewTransition } from "@/lib/view-transition";
 import { useSaveHomeLayout } from "../home/api";
 import { CalendarHomeProvider, type CalendarView, type MonthNav } from "../home/CalendarContext";
@@ -64,7 +64,6 @@ import {
   type ViewItem,
   viewItemsOf,
 } from "./model";
-import { markJustAdded } from "./recent-items";
 
 const VIEWS = [
   { value: "month", label: "月" },
@@ -85,70 +84,20 @@ function useToday(): Date {
   return today;
 }
 
-/** 縮んで消える動きの長さ。globals.css の [data-leaving] と同じ --dur-base(220ms)。0044、0048 */
-const EXIT_MS = 220;
-
-function without(s: Set<string>, key: string): Set<string> {
-  if (!s.has(key)) return s;
-  const next = new Set(s);
-  next.delete(key);
-  return next;
-}
-
-function withKey(s: Set<string>, key: string): Set<string> {
-  if (s.has(key)) return s;
-  const next = new Set(s);
-  next.add(key);
-  return next;
-}
-
 /**
- * カレンダーの項目を消す。5 秒の「元に戻す」そのものは lib/use-undoable-delete が持つ。ここで足すのは、
- * 消した瞬間に縮んで消える動き(leaving)と、動きが終わってから一覧から外す(hidden)の 2 段階と、
- * 項目を出した拡張の deleteItem を呼ぶこと。0012、0044、0048、#98
- *
- * 「元に戻す」を押すと、動きの途中でも終わった後でも戻り、戻った項目は足したときと同じ膨らむ動きで入る。
+ * カレンダーの項目を消す。足す・消す・元に戻すの動きそのものは lib/use-row-motion が持つ。ここで足すのは、
+ * 項目を出した拡張の deleteItem を呼び、消えたらカレンダーを読み直すこと。0012、0044、0048、0085、#98
  *
  * @returns hidden は一覧から外す項目の itemKey。leaving は縮んで消える動きの途中の itemKey。remove は消す関数
  */
 function useCalendarDelete() {
   const qc = useQueryClient();
-  const [leaving, setLeaving] = useState<Set<string>>(new Set());
-  const [hidden, setHidden] = useState<Set<string>>(new Set());
-  const exitTimers = useRef(new Map<string, number>());
-
-  const clearExit = useCallback((key: string) => {
-    const t = exitTimers.current.get(key);
-    if (t != null) {
-      window.clearTimeout(t);
-      exitTimers.current.delete(key);
-    }
-  }, []);
-
-  const onRestore = useCallback(
-    (key: string) => {
-      clearExit(key);
-      markJustAdded(key);
-      setLeaving((s) => without(s, key));
-      setHidden((s) => without(s, key));
-    },
-    [clearExit],
-  );
-
-  const { remove: removePending } = useSharedUndoableDelete("予定を消しました", onRestore);
+  const { hidden, leaving, remove: removeRow } = useRowMotion("予定を消しました");
 
   const remove = useCallback(
     (item: CalendarItem, scope?: ItemEditScope) => {
       const key = itemKey(item);
-      setLeaving((s) => withKey(s, key));
-      exitTimers.current.set(
-        key,
-        window.setTimeout(() => {
-          exitTimers.current.delete(key);
-          setHidden((s) => withKey(s, key));
-        }, EXIT_MS),
-      );
-      removePending(key, async (opts) => {
+      removeRow(key, async (opts) => {
         try {
           await clientExtension(item.extension)?.deleteItem?.(item.id, {
             ...opts,
@@ -156,15 +105,11 @@ function useCalendarDelete() {
             scope,
           });
         } finally {
-          if (!opts.keepalive) {
-            await qc.invalidateQueries({ queryKey: ["calendar"] });
-            setHidden((s) => without(s, key));
-            setLeaving((s) => without(s, key));
-          }
+          if (!opts.keepalive) await qc.invalidateQueries({ queryKey: ["calendar"] });
         }
       });
     },
-    [removePending, qc],
+    [removeRow, qc],
   );
 
   return { hidden, leaving, remove };

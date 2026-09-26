@@ -89,6 +89,7 @@ export function BudgetSheet({
   defaultGroupId,
   onClose,
   onDelete,
+  onSaved,
 }: {
   groups: GroupSummary[];
   me: Me;
@@ -97,6 +98,8 @@ export function BudgetSheet({
   onClose: () => void;
   /** 「消す」を押したとき。budget があるときだけ渡る。#194 */
   onDelete?: (budget: KakeiboBudget) => void;
+  /** 直して保存できたとき。budget があるときだけ渡る。一覧の行を光らせる印に使う。0085、#226 */
+  onSaved?: (id: string) => void;
 }) {
   const saveBudget = useSaveBudget();
   // 開いているか・送信中か・失敗を、シートの骨組みとしてまとめて持つ。0081
@@ -132,6 +135,7 @@ export function BudgetSheet({
           body: { name: name.trim(), startDate, endDate, amount: amountValue },
         });
         toast("予算を直しました");
+        onSaved?.(budget.id);
       } else {
         await saveBudget.mutateAsync({ body: { groupId, name: name.trim(), startDate, endDate, amount: amountValue } });
         toast("予算を作りました");

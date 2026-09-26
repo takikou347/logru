@@ -1,5 +1,4 @@
 import type { GroupSummary, Me } from "@shared/api-types";
-import { useQueryClient } from "@tanstack/react-query";
 import { Camera, ImagePlus, RotateCw, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -13,7 +12,7 @@ import { auth } from "@/lib/firebase";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { cn } from "@/lib/utils";
 import type { MemoryItem, MemoryRecord, Photo } from "../shared/types";
-import { memoryKeys, useDeleteRecord, useDiscardPhoto, useInvalidateMemories, useSaveRecord } from "./api";
+import { useDiscardPhoto, useInvalidateMemories, useSaveRecord } from "./api";
 import { preparePhoto, uploadPhoto } from "./image";
 import { PhotoImg } from "./parts";
 
@@ -48,6 +47,7 @@ function toLocalInput(ms: number): string {
  * @param wishes 済んだ印を付けられるやりたいこと。思い出の中で開いたときだけ
  * @param record 編集する記録。無ければ新しく作る
  * @param range 選べる時刻。思い出の日から開いたときは、その日の中で、いままで。無ければ、いままで
+ * @param onDelete 「消す」を押したとき。record があるときだけ渡る。5 秒の「元に戻す」は呼び出し側に任せる。0085、#226
  */
 export function RecordSheet({
   groups,
@@ -57,6 +57,7 @@ export function RecordSheet({
   record,
   range,
   onClose,
+  onDelete,
 }: {
   groups: GroupSummary[];
   me: Me;
@@ -65,11 +66,10 @@ export function RecordSheet({
   record?: MemoryRecord;
   range?: { min: number; max: number };
   onClose: () => void;
+  onDelete?: (record: MemoryRecord) => void;
 }) {
-  const qc = useQueryClient();
   const invalidate = useInvalidateMemories();
   const saveRecord = useSaveRecord();
-  const deleteRecord = useDeleteRecord();
   const discardPhoto = useDiscardPhoto();
   const [groupId, setGroupId] = useState(
     record?.groupId ??
@@ -99,6 +99,7 @@ export function RecordSheet({
     setError,
     submit: submitSheet,
     close: closeSheet,
+    closeAndThen,
     handleClosed,
   } = useSheetSubmit(onClose);
 
@@ -212,35 +213,14 @@ export function RecordSheet({
     closeSheet();
   }
 
-  /** 消す。すぐ画面から外し、5 秒のあいだ「元に戻す」を出してから送る。F-117 */
+  /**
+   * 消す。押すとシートを閉じ始め、5 秒の「元に戻す」は呼び出し側(DayPage、OnDayPage)に任せる。
+   * まだ記録に付いていない、送った写真はすぐ消す。lib/use-row-motion に寄せた。0085、#226
+   */
   function remove() {
     if (!record) return;
     discardAllUploaded();
-    closeSheet();
-    qc.setQueriesData<MemoryRecord[]>({ queryKey: ["memories", "records"] }, (old) =>
-      old?.filter((r) => r.id !== record.id),
-    );
-    let undone = false;
-    const timer = window.setTimeout(async () => {
-      if (undone) return;
-      try {
-        await deleteRecord.mutateAsync(record.id);
-      } catch (e) {
-        toast.error((e as Error).message);
-      }
-      await invalidate();
-    }, 5000);
-    toast("記録を消しました", {
-      duration: 5000,
-      action: {
-        label: "元に戻す",
-        onClick: () => {
-          undone = true;
-          window.clearTimeout(timer);
-          void qc.invalidateQueries({ queryKey: memoryKeys.all });
-        },
-      },
-    });
+    closeAndThen(() => onDelete?.(record));
   }
 
   return (

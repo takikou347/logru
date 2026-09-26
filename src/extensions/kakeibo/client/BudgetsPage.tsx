@@ -1,6 +1,6 @@
 /** 予算の画面。F-323、F-324 */
 import { PiggyBank } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
@@ -11,12 +11,45 @@ import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Panel } from "@/components/parts/Panel";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
-import { useUndoableDelete } from "@/lib/use-undoable-delete";
+import { useRowMotion } from "@/lib/use-row-motion";
+import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
+import { takeJustAdded } from "@/modules/calendar/recent-items";
 import type { KakeiboBudget } from "./api";
 import { useDeleteBudget, useKakeiboBudgets, useKakeiboGroups } from "./api";
 import { BudgetRow } from "./BudgetPanel";
 import { BudgetSheet } from "./BudgetSheet";
+
+/**
+ * 予算 1 件の行。押すと直すシートが開く。足した(元に戻した)直後は膨らんで入り、消す途中は縮んで消える。
+ * 直した直後は短く光る。0044、0048、0085、#226
+ */
+function BudgetListRow({
+  budget,
+  groupLabel,
+  isLeaving,
+  isEdited,
+  onClick,
+}: {
+  budget: KakeiboBudget;
+  groupLabel: string;
+  isLeaving: boolean;
+  isEdited: boolean;
+  onClick: () => void;
+}) {
+  const [entering] = useState(() => takeJustAdded(budget.id));
+  return (
+    <button
+      type="button"
+      className={cn("text-left", entering && "item-enter")}
+      data-leaving={isLeaving || undefined}
+      data-edited={isEdited || undefined}
+      onClick={onClick}
+    >
+      <BudgetRow budget={budget} groupLabel={groupLabel} />
+    </button>
+  );
+}
 
 /**
  * 予算の画面。すべての予算を並べる。作る、直す、消す
@@ -28,8 +61,8 @@ export function BudgetsPage() {
   const [params, setParams] = useSearchParams();
   useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
   const deleteBudget = useDeleteBudget();
-  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。元に戻せる間は一覧から外す。#194
-  const { pending, remove } = useUndoableDelete("予算を消しました");
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。縮んで消える動きと、直した行を光らせる印も持つ。#194、0085、#226
+  const { hidden, leaving, remove, flashing, flash } = useRowMotion("予算を消しました");
 
   const creating = params.get("create") === "1";
   const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
@@ -42,7 +75,7 @@ export function BudgetsPage() {
   const editGen = useRef(0);
 
   if (!me.data || !ready) return <Loading />;
-  const rows = (budgets.data ?? []).filter((b) => !pending.has(b.id));
+  const rows = (budgets.data ?? []).filter((b) => !hidden.has(b.id));
   const editing = rows.find((b) => b.id === editingId);
   const groupLabel = (groupId: string) => {
     const g = groups.find((x) => x.id === groupId);
@@ -78,17 +111,17 @@ export function BudgetsPage() {
           <Panel>
             <div className="flex flex-col">
               {rows.map((b) => (
-                <button
+                <BudgetListRow
                   key={b.id}
-                  type="button"
-                  className="text-left"
+                  budget={b}
+                  groupLabel={groupLabel(b.groupId)}
+                  isLeaving={leaving.has(b.id)}
+                  isEdited={flashing.has(b.id)}
                   onClick={() => {
                     editGen.current += 1;
                     setParams((p) => (p.set("edit", b.id), p), { replace: true });
                   }}
-                >
-                  <BudgetRow budget={b} groupLabel={groupLabel(b.groupId)} />
-                </button>
+                />
               ))}
             </div>
           </Panel>
@@ -117,6 +150,7 @@ export function BudgetsPage() {
           budget={editing}
           onClose={closeEdit}
           onDelete={handleDelete}
+          onSaved={flash}
         />
       )}
     </>

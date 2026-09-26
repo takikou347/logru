@@ -11,10 +11,11 @@ import { Dot, Empty } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { groupColor } from "@/lib/colors";
 import { deviceTimeZone, formatShortDate } from "@/lib/dates";
+import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { startOfDayIn } from "../shared/days";
 import type { KomaDay, MemoryRecord } from "../shared/types";
-import { useMemoryGroups } from "./api";
+import { useDeleteRecord, useInvalidateMemories, useMemoryGroups } from "./api";
 import { KomaLinkSheet } from "./KomaLinkSheet";
 import { KomaStrip } from "./KomaStrip";
 import { useKomaDays, useKomaNow } from "./koma-api";
@@ -33,6 +34,15 @@ export function KomaDaysPage() {
   const navigate = useNavigate();
   const [linking, setLinking] = useState<KomaDay | "today" | null>(null);
   const [editing, setEditing] = useState<MemoryRecord | null>(null);
+  const invalidate = useInvalidateMemories();
+  const deleteRecord = useDeleteRecord();
+  // ひとコマは行の一覧ではないので、縮んで消える動きは持たない。5 秒の「元に戻す」だけ出す。#194、0085
+  const { remove: removeRecord } = useUndoableDelete("記録を消しました");
+  const handleDeleteRecord = (record: MemoryRecord) =>
+    removeRecord(record.id, async ({ keepalive }) => {
+      await deleteRecord.mutateAsync(record.id);
+      if (!keepalive) await invalidate();
+    });
   useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
 
   if (!me.data || !ready || days.isPending) return <Loading />;
@@ -116,7 +126,15 @@ export function KomaDaysPage() {
           onClose={() => setLinking(null)}
         />
       )}
-      {editing && <RecordSheet groups={groups} me={data} record={editing} onClose={() => setEditing(null)} />}
+      {editing && (
+        <RecordSheet
+          groups={groups}
+          me={data}
+          record={editing}
+          onClose={() => setEditing(null)}
+          onDelete={handleDeleteRecord}
+        />
+      )}
     </>
   );
 }

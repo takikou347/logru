@@ -353,6 +353,10 @@ export function useSaveAccount() {
       id
         ? api<KakeiboAccount>(`/kakeibo/accounts/${id}`, { method: "PATCH", body })
         : api<KakeiboAccount>("/kakeibo/accounts", { method: "POST", body }),
+    // 新しく作った口座だけ、一覧に出たときに膨らんで入る動きを付ける。0044、0048、0085、#226
+    onSuccess: (saved, { id }) => {
+      if (!id) markJustAdded(saved.id);
+    },
     onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
   });
 }
@@ -398,6 +402,10 @@ export function useSaveBudget() {
       id
         ? api<KakeiboBudget>(`/kakeibo/budgets/${id}`, { method: "PATCH", body })
         : api<KakeiboBudget>("/kakeibo/budgets", { method: "POST", body }),
+    // 新しく作った予算だけ、一覧に出たときに膨らんで入る動きを付ける。0044、0048、0085、#226
+    onSuccess: (saved, { id }) => {
+      if (!id) markJustAdded(saved.id);
+    },
     onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
   });
 }
@@ -457,6 +465,10 @@ export function useSaveRecurring() {
             method: "POST",
             body,
           }),
+    // 新しく作った定期の記録だけ、一覧に出たときに膨らんで入る動きを付ける。0044、0048、0085、#226
+    onSuccess: (saved, { id }) => {
+      if (!id) markJustAdded(saved.id);
+    },
     onSettled: invalidate,
   });
 }
@@ -502,6 +514,10 @@ export function useSaveTemplate() {
       id
         ? api<KakeiboTemplate>(`/kakeibo/templates/${id}`, { method: "PATCH", body })
         : api<KakeiboTemplate>("/kakeibo/templates", { method: "POST", body }),
+    // 新しく作ったよく使う記録だけ、一覧に出たときに膨らんで入る動きを付ける。0044、0048、0085、#226
+    onSuccess: (saved, { id }) => {
+      if (!id) markJustAdded(saved.id);
+    },
     onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
   });
 }

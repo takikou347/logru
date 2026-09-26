@@ -9,6 +9,7 @@ import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDay } from "@/lib/dates";
+import { useExitOnly } from "@/lib/use-row-motion";
 import type { ExternalCalendarSummary } from "../shared/schemas";
 import {
   EXTERNAL_CALENDARS_KEY as KEY,
@@ -33,11 +34,25 @@ export function ExternalCalendarsSection() {
   const calendars = useExternalCalendars();
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<ExternalCalendarSummary | null>(null);
+  const removeCalendar = useRemoveExternalCalendar();
+  // 消すときは確認を出さず、縮んで消える動きだけ付ける。元に戻すは無い。0085、#226
+  const { leaving, remove: removeRow } = useExitOnly();
 
   const refresh = () =>
     Promise.all([qc.invalidateQueries({ queryKey: KEY }), qc.invalidateQueries({ queryKey: ["calendar"] })]);
 
   const resync = useResyncExternalCalendar();
+
+  /** 確認したあとに実際に消す。縮んで消える動きが終わってから呼ぶ。0085、#226 */
+  async function commitRemove(calendar: ExternalCalendarSummary) {
+    try {
+      await removeCalendar.mutateAsync(calendar.id);
+      await refresh();
+      toast(`${calendar.name} の登録を消しました`);
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
 
   const list = calendars.data ?? [];
   return (
@@ -51,7 +66,11 @@ export function ExternalCalendarsSection() {
       {list.length > 0 && (
         <ul aria-label="登録した外部のカレンダー">
           {list.map((c) => (
-            <li key={c.id} className="flex flex-col gap-1.5 border-b border-line py-2.5 last:border-b-0">
+            <li
+              key={c.id}
+              className="flex flex-col gap-1.5 border-b border-line py-2.5 last:border-b-0"
+              data-leaving={leaving.has(c.id) || undefined}
+            >
               <div className="flex min-w-0 items-center gap-2.5">
                 <Dot color={c.color} className="size-3" />
                 <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{c.name}</span>
@@ -89,7 +108,17 @@ export function ExternalCalendarsSection() {
       {adding && (
         <AddCalendarSheet used={list.map((c) => c.color)} onClose={() => setAdding(false)} onAdded={refresh} />
       )}
-      {removing && <RemoveCalendarSheet calendar={removing} onClose={() => setRemoving(null)} onRemoved={refresh} />}
+      {removing && (
+        <RemoveCalendarSheet
+          calendar={removing}
+          onClose={() => setRemoving(null)}
+          onConfirm={() => {
+            const target = removing;
+            setRemoving(null);
+            removeRow(target.id, () => void commitRemove(target));
+          }}
+        />
+      )}
     </Panel>
   );
 }
@@ -178,28 +207,19 @@ function AddCalendarSheet({
   );
 }
 
-/** 登録を消す前の確認。消すと、取り込んだ予定も消える */
+/**
+ * 登録を消す前の確認。消すと、取り込んだ予定も消える。
+ * 実際に消す・縮んで消える動きは呼び出し側(ExternalCalendarsSection)に任せる。0085、#226
+ */
 function RemoveCalendarSheet({
   calendar,
   onClose,
-  onRemoved,
+  onConfirm,
 }: {
   calendar: ExternalCalendarSummary;
   onClose: () => void;
-  onRemoved: () => Promise<unknown>;
+  onConfirm: () => void;
 }) {
-  const removeCalendar = useRemoveExternalCalendar();
-  const busy = removeCalendar.isPending;
-  async function remove() {
-    try {
-      await removeCalendar.mutateAsync(calendar.id);
-      await onRemoved();
-      toast(`${calendar.name} の登録を消しました`);
-      onClose();
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  }
   return (
     <ResponsiveSheet
       title={`${calendar.name} の登録を消す`}
@@ -210,7 +230,7 @@ function RemoveCalendarSheet({
         <Button type="button" variant="ghost" onClick={onClose}>
           やめる
         </Button>
-        <Button type="button" variant="danger" disabled={busy} onClick={remove}>
+        <Button type="button" variant="danger" onClick={onConfirm}>
           登録を消す
         </Button>
       </div>

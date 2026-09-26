@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { api } from "@/api/client";
 import { useGroups } from "@/api/common";
+import { markJustAdded } from "@/modules/calendar/recent-items";
 import { kakeiboManifest } from "../manifest";
 import type { KakeiboAccountKind } from "../shared/accounts";
 import type { KakeiboCategory } from "../shared/categories";
@@ -264,6 +265,10 @@ export function useSaveExpense() {
       id
         ? api<KakeiboExpense>(`/kakeibo/${id}`, { method: "PATCH", body })
         : api<KakeiboExpense>("/kakeibo", { method: "POST", body }),
+    // 新しく作った記録だけ、一覧に出たときに膨らんで入る動きを付ける。直したときは震えない。0044、0048、#201
+    onSuccess: (saved, { id }) => {
+      if (!id) markJustAdded(saved.id);
+    },
     onSettled: invalidate,
   });
 }

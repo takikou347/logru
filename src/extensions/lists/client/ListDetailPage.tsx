@@ -1,5 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useMe } from "@/api/common";
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { formatShortDate } from "@/lib/dates";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { cn } from "@/lib/utils";
+import { markJustAdded, takeJustAdded } from "@/modules/calendar/recent-items";
 import type { ListItem } from "./api";
 import { useAddItem, useDeleteItem, useListDetail, useListsGroups, useToggleItem, useUpdateItemText } from "./api";
 import { EditListSheet } from "./EditListSheet";
@@ -38,7 +39,9 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
     const value = text.trim();
     if (!value) return;
     setText("");
-    await addItem.mutateAsync(value);
+    const created = await addItem.mutateAsync(value);
+    // 足した項目が、一覧に出たときに膨らんで入る動きを付ける。0044、0048、#201
+    markJustAdded(created.id);
     // 送った後も入力欄からフォーカスを外さず、続けて次の項目を打てるようにする。F-203
     inputRef.current?.focus();
   }
@@ -63,11 +66,22 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
 /**
  * 項目の行。チェックすると下へ寄り、字が薄くなる。F-204、F-205
  * 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
+ * 足した(元に戻した)直後は膨らんで入り、消す途中は縮んで消える。動かすのは transform と opacity だけ。0044、0048、#201
  *
  * 文字を押すと、その場で入力欄になって直せる。Enter か欄の外を押すと保存、Esc か空にすると元に戻す。
  * チェックの押せる範囲(左)、文字を直す範囲(中)、消す範囲(右)は重ならない。F-203
  */
-function ItemRow({ item, listId, onRemove }: { item: ListItem; listId: string; onRemove: (item: ListItem) => void }) {
+function ItemRow({
+  item,
+  listId,
+  onRemove,
+  isLeaving,
+}: {
+  item: ListItem;
+  listId: string;
+  onRemove: (item: ListItem) => void;
+  isLeaving: boolean;
+}) {
   const toggleItem = useToggleItem(listId);
   const updateText = useUpdateItemText(listId);
   const [editing, setEditing] = useState(false);
@@ -108,8 +122,16 @@ function ItemRow({ item, listId, onRemove }: { item: ListItem; listId: string; o
     }
   }
 
+  // 描いた瞬間に 1 度だけ読む。足した直後の再描画と、読み直しの描き直しを見分けるため
+  const [entering] = useState(() => takeJustAdded(item.id));
   return (
-    <li className="grid min-h-[52px] grid-cols-[34px_1fr_auto] items-center gap-1 border-t border-line text-sm">
+    <li
+      className={cn(
+        "grid min-h-[52px] grid-cols-[34px_1fr_auto] items-center gap-1 border-t border-line text-sm",
+        entering && "item-enter",
+      )}
+      data-leaving={isLeaving || undefined}
+    >
       <Checkbox
         checked={item.checked}
         aria-label={`${item.text} をチェックする`}
@@ -152,6 +174,85 @@ function ItemRow({ item, listId, onRemove }: { item: ListItem; listId: string; o
   );
 }
 
+/** 縮んで消える動きの長さ。globals.css の [data-leaving] と同じ --dur-base(220ms)。0044、0048、#201 */
+const EXIT_MS = 220;
+
+function without(s: Set<string>, key: string): Set<string> {
+  if (!s.has(key)) return s;
+  const next = new Set(s);
+  next.delete(key);
+  return next;
+}
+
+function withKey(s: Set<string>, key: string): Set<string> {
+  if (s.has(key)) return s;
+  const next = new Set(s);
+  next.add(key);
+  return next;
+}
+
+/**
+ * 項目を消す。5 秒の「元に戻す」そのものは lib/use-undoable-delete が持つ。ここで足すのは、消した瞬間に
+ * 縮んで消える動き(leaving)と、動きが終わってから一覧から外す(hidden)の 2 段階。
+ * modules/calendar/CalendarPage.tsx の useCalendarDelete と同じ仕組み。0044、0048、#201
+ *
+ * @returns hidden は一覧から外す項目の id。leaving は縮んで消える動きの途中の項目の id。remove は消す関数
+ */
+function useListItemDelete(listId: string) {
+  const deleteItem = useDeleteItem(listId);
+  const [leaving, setLeaving] = useState<Set<string>>(new Set());
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const exitTimers = useRef(new Map<string, number>());
+
+  const clearExit = useCallback((key: string) => {
+    const t = exitTimers.current.get(key);
+    if (t != null) {
+      window.clearTimeout(t);
+      exitTimers.current.delete(key);
+    }
+  }, []);
+
+  const onRestore = useCallback(
+    (key: string) => {
+      clearExit(key);
+      markJustAdded(key);
+      setLeaving((s) => without(s, key));
+      setHidden((s) => without(s, key));
+    },
+    [clearExit],
+  );
+
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
+  const { remove: removePending } = useUndoableDelete("項目を消しました", onRestore);
+
+  const remove = useCallback(
+    (item: ListItem) => {
+      const key = item.id;
+      setLeaving((s) => withKey(s, key));
+      exitTimers.current.set(
+        key,
+        window.setTimeout(() => {
+          exitTimers.current.delete(key);
+          setHidden((s) => withKey(s, key));
+        }, EXIT_MS),
+      );
+      removePending(key, async ({ keepalive }) => {
+        try {
+          await deleteItem.mutateAsync({ id: item.id, keepalive });
+        } finally {
+          if (!keepalive) {
+            setHidden((s) => without(s, key));
+            setLeaving((s) => without(s, key));
+          }
+        }
+      });
+    },
+    [removePending, deleteItem],
+  );
+
+  return { hidden, leaving, remove };
+}
+
 /**
  * リストの詳細。F-203〜F-208
  * 項目を足す、チェックする、消す。名前と日付は「直す」から変えられる。
@@ -163,8 +264,7 @@ export function ListDetailPage() {
   const me = useMe();
   const { groups } = useListsGroups();
   const detail = useListDetail(id ?? null);
-  const deleteItem = useDeleteItem(id ?? "");
-  const { pending, remove } = useUndoableDelete("項目を消しました");
+  const { hidden, leaving, remove } = useListItemDelete(id ?? "");
   const [editing, setEditing] = useState(false);
   const addFocused = params.get("add") === "1";
 
@@ -187,9 +287,7 @@ export function ListDetailPage() {
   }
 
   const list = detail.data;
-  const items = [...list.items].filter((i) => !pending.has(i.id)).sort((a, b) => Number(a.checked) - Number(b.checked));
-  const removeItem = (item: ListItem) =>
-    remove(item.id, ({ keepalive }) => deleteItem.mutateAsync({ id: item.id, keepalive }));
+  const items = [...list.items].filter((i) => !hidden.has(i.id)).sort((a, b) => Number(a.checked) - Number(b.checked));
   const group = groups.find((g) => g.id === list.groupId);
 
   return (
@@ -222,7 +320,13 @@ export function ListDetailPage() {
           ) : (
             <ul>
               {items.map((item) => (
-                <ItemRow key={item.id} item={item} listId={list.id} onRemove={removeItem} />
+                <ItemRow
+                  key={item.id}
+                  item={item}
+                  listId={list.id}
+                  onRemove={remove}
+                  isLeaving={leaving.has(item.id)}
+                />
               ))}
             </ul>
           )}

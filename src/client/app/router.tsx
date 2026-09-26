@@ -1,4 +1,4 @@
-import { createBrowserRouter, type RouteObject } from "react-router";
+import { createBrowserRouter, Outlet, type RouteObject, ScrollRestoration } from "react-router";
 import { AppShell } from "@/components/layout/AppShell";
 import { AgreePage } from "@/modules/auth/AgreePage";
 import { LoginPage } from "@/modules/auth/LoginPage";
@@ -129,5 +129,18 @@ const routes: RouteObject[] = [
   { path: "*", element: <NotFound /> },
 ];
 
+/**
+ * 新しい画面は上から、ブラウザーの戻る・進むで来た画面は元のスクロール位置に戻す。
+ * どの画面にも掛かるよう、ルートの要素として 1 つだけ置く。#201
+ */
+function Root() {
+  return (
+    <>
+      <Outlet />
+      <ScrollRestoration />
+    </>
+  );
+}
+
 /** アプリの道順 */
-export const router = createBrowserRouter([{ errorElement: <RouteError />, children: routes }]);
+export const router = createBrowserRouter([{ element: <Root />, errorElement: <RouteError />, children: routes }]);

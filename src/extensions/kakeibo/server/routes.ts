@@ -220,7 +220,8 @@ export const kakeiboRoutes = createRouter()
             .select()
             .from(kakeiboExpenses)
             .where(monthWhere)
-            .orderBy(desc(kakeiboExpenses.date), desc(kakeiboExpenses.id))
+            // 同じ日は、作った時刻の新しい順。id は作った順とは関係ない UUID なので並びが決まらなかった。#201
+            .orderBy(desc(kakeiboExpenses.date), desc(kakeiboExpenses.createdAt))
             .limit(RECORDS_LIMIT);
 
     // 合計とカテゴリ別の合計は、一覧を RECORDS_LIMIT で切る前の全件から、SQL の GROUP BY で出す。

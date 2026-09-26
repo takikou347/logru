@@ -23,6 +23,8 @@ import { PayerPickerRow, SplitModeSection } from "./SplitSection";
 
 /** 支出は最初の 8 つだけ出し、残りは「ほか」で開く。F-314 */
 const EXPENSE_CATEGORY_PREVIEW = 8;
+/** 下の footer のボタンから、シートの中の form を submit するのに使う */
+const EXPENSE_FORM_ID = "kakeibo-expense-form";
 
 const TYPE_LABELS: Record<KakeiboType, string> = { expense: "支出", income: "収入", transfer: "振替" };
 
@@ -184,6 +186,10 @@ export function ExpenseSheet({
   const [expandCategories, setExpandCategories] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // 開いているか。閉じる動きは ResponsiveSheet に任せ、終わってから onClose を呼ぶ。#192
+  const [open, setOpen] = useState(true);
+  // 閉じる動きが終わってから消す。消す先の記録を、閉じ始めた時点で覚えておく
+  const afterClose = useRef<KakeiboExpense | null>(null);
 
   // 立て替え。共有のグループの支出で、共有口座で払っていないときだけ使う。0072、F-318、F-319
   const [payerId, setPayerId] = useState(expense?.paidBy ?? me.user.id);
@@ -336,7 +342,7 @@ export function ExpenseSheet({
         setMemo("");
         amountRef.current?.focus();
       } else {
-        onClose();
+        setOpen(false);
       }
     } catch (err) {
       setError((err as Error).message);
@@ -346,23 +352,65 @@ export function ExpenseSheet({
   }
 
   /**
-   * 消す。押すとシートを閉じ、5 秒の「元に戻す」は呼び出し側(KakeiboPage)に任せる。
-   *
-   * シートの閉じるアニメーション(ResponsiveSheet、最長 300ms)の途中で「元に戻す」の知らせを出すと、
-   * 閉じる後片付けと知らせの表示が競合し、知らせの中身が描かれないことがある。アニメーションが終わってから
-   * 呼ぶよう、閉じるアニメーションより長めに遅らせる
+   * 消す。押すとシートを閉じ始め、5 秒の「元に戻す」は呼び出し側(KakeiboPage)に任せる。
+   * 閉じる動きの途中で「元に戻す」の知らせを出すと、閉じる後片付けと知らせの表示が競合し、
+   * 知らせの中身が描かれないことがある。動きが終わってから呼ぶ。#192
    */
   function remove() {
     if (!expense) return;
-    const target = expense;
+    afterClose.current = expense;
+    setOpen(false);
+  }
+
+  /** 閉じる動きが終わってから、親に知らせる。消す記録を覚えていたら、そのあと消す。#192 */
+  function handleClosed() {
     onClose();
-    setTimeout(() => onDelete?.(target), 400);
+    const pending = afterClose.current;
+    afterClose.current = null;
+    if (pending) onDelete?.(pending);
   }
 
   return (
-    <ResponsiveSheet title={!expense ? "記録する" : canEdit ? "記録を直す" : "記録"} onClose={onClose}>
+    <ResponsiveSheet
+      title={!expense ? "記録する" : canEdit ? "記録を直す" : "記録"}
+      open={open}
+      onOpenChange={() => setOpen(false)}
+      onClose={handleClosed}
+      footer={
+        canEdit ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between gap-2">
+              {expense ? (
+                <Button type="button" variant="danger" onClick={remove}>
+                  消す
+                </Button>
+              ) : (
+                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                  やめる
+                </Button>
+              )}
+              <Button type="submit" form={EXPENSE_FORM_ID} disabled={busy || !canSubmit}>
+                {busy ? "保存しています" : "保存する"}
+              </Button>
+            </div>
+            {!expense && (
+              <Button type="button" variant="secondary" disabled={busy || !canSubmit} onClick={() => void submit(true)}>
+                続けて記録
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="flex justify-end">
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+              閉じる
+            </Button>
+          </div>
+        )
+      }
+    >
       {!canEdit && <FieldMessage>この記録は見るだけです。直せて消せるのは、書いた人だけです。</FieldMessage>}
       <form
+        id={EXPENSE_FORM_ID}
         className="flex flex-col gap-3.5"
         onSubmit={(e) => {
           e.preventDefault();
@@ -556,35 +604,6 @@ export function ExpenseSheet({
           )}
         </fieldset>
         {error && <FieldMessage error>{error}</FieldMessage>}
-        {canEdit ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex justify-between gap-2">
-              {expense ? (
-                <Button type="button" variant="danger" onClick={remove}>
-                  消す
-                </Button>
-              ) : (
-                <Button type="button" variant="ghost" onClick={onClose}>
-                  やめる
-                </Button>
-              )}
-              <Button type="submit" disabled={busy || !canSubmit}>
-                {busy ? "保存しています" : "保存する"}
-              </Button>
-            </div>
-            {!expense && (
-              <Button type="button" variant="secondary" disabled={busy || !canSubmit} onClick={() => void submit(true)}>
-                続けて記録
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="flex justify-end">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              閉じる
-            </Button>
-          </div>
-        )}
       </form>
     </ResponsiveSheet>
   );

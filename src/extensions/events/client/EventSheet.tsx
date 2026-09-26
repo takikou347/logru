@@ -38,6 +38,9 @@ import { AttendeeList, InvitePicker, RsvpBar } from "./Invitees";
 import { RepeatFields, repeatDraftFromRule, repeatDraftToInput } from "./RepeatFields";
 import { ScopeDialog } from "./ScopeDialog";
 
+/** 下の footer のボタンから、シートの中の form を submit するのに使う */
+const EVENT_FORM_ID = "event-form";
+
 /**
  * 新しい予定の始まりの時刻。今日なら次の正時、ほかの日なら 9 時。
  * @param date 予定を足す日
@@ -153,6 +156,10 @@ export function EventSheet({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const online = useOnline();
+  // 開いているか。閉じる動きは ResponsiveSheet に任せ、終わってから onClose を呼ぶ。#192
+  const [open, setOpen] = useState(true);
+  // 閉じる動きが終わってから消す。消す先の予定と範囲を、閉じ始めた時点で覚えておく
+  const afterClose = useRef<{ item: CalendarItem; scope?: ItemEditScope } | null>(null);
   // ほかの拡張が足した欄の、保存した後の仕事。0019
   const afterSaves = useRef(new Set<(itemId: string) => Promise<void>>());
   const register = useCallback((fn: (itemId: string) => Promise<void>) => {
@@ -265,12 +272,12 @@ export function EventSheet({
         vibrateShort();
       }
       toast(editing ? "予定を保存しました" : "予定を足しました");
-      onClose();
+      setOpen(false);
     } catch (err) {
       if (editing && err instanceof ApiError && err.status === 404) {
         await qc.invalidateQueries({ queryKey: ["calendar"] });
         toast.error("この予定は消されています");
-        onClose();
+        setOpen(false);
         return;
       }
       // 入力の誤りでなければ、入れた内容が残っていることも伝える
@@ -315,8 +322,8 @@ export function EventSheet({
     setScopeAction(null);
     if (action === "delete") {
       if (editing) {
-        onDelete(editing, scope);
-        onClose();
+        afterClose.current = { item: editing, scope };
+        setOpen(false);
       }
       return;
     }
@@ -324,8 +331,56 @@ export function EventSheet({
     setPendingPayload(null);
   }
 
+  /** 閉じる動きが終わってから、親に知らせる。消す予定を覚えていたら、そのあと消す。#192 */
+  function handleClosed() {
+    onClose();
+    const pending = afterClose.current;
+    afterClose.current = null;
+    if (pending) onDelete(pending.item, pending.scope);
+  }
+
   return (
-    <ResponsiveSheet title={!editing ? "新しい予定" : canEdit ? "予定を直す" : "予定"} onClose={onClose}>
+    <ResponsiveSheet
+      title={!editing ? "新しい予定" : canEdit ? "予定を直す" : "予定"}
+      open={open}
+      onOpenChange={() => setOpen(false)}
+      onClose={handleClosed}
+      footer={
+        canEdit ? (
+          <div className="flex justify-between gap-2">
+            {editing && canDelete ? (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => {
+                  if (needsScope) {
+                    setScopeAction("delete");
+                    return;
+                  }
+                  afterClose.current = { item: editing };
+                  setOpen(false);
+                }}
+              >
+                予定を消す
+              </Button>
+            ) : (
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                やめる
+              </Button>
+            )}
+            <Button type="submit" form={EVENT_FORM_ID} disabled={busy || !online || !title.trim() || !groupId}>
+              {busy ? "保存しています" : "保存する"}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-end">
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+              閉じる
+            </Button>
+          </div>
+        )
+      }
+    >
       {listDay && dayItems.length > 0 && onOpenItem && (
         <DayItemList day={listDay} items={dayItems} onOpen={onOpenItem} />
       )}
@@ -339,7 +394,7 @@ export function EventSheet({
         />
       )}
       {!canEdit && <Notice>この予定は見るだけです。直せるのは、作った人と招待された人です。</Notice>}
-      <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
+      <form id={EVENT_FORM_ID} className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         {/* 見るだけのときは、入力をまとめて押せなくする */}
         <fieldset disabled={!canEdit} className="contents">
           <Field label="題名">
@@ -440,39 +495,6 @@ export function EventSheet({
           </Notice>
         )}
         {error && online && <Notice error>{error}</Notice>}
-        {canEdit ? (
-          <div className="flex justify-between gap-2">
-            {editing && canDelete ? (
-              <Button
-                type="button"
-                variant="danger"
-                onClick={() => {
-                  if (needsScope) {
-                    setScopeAction("delete");
-                    return;
-                  }
-                  onDelete(editing);
-                  onClose();
-                }}
-              >
-                予定を消す
-              </Button>
-            ) : (
-              <Button type="button" variant="ghost" onClick={onClose}>
-                やめる
-              </Button>
-            )}
-            <Button type="submit" disabled={busy || !online || !title.trim() || !groupId}>
-              {busy ? "保存しています" : "保存する"}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex justify-end">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              閉じる
-            </Button>
-          </div>
-        )}
       </form>
       {scopeAction && (
         <ScopeDialog

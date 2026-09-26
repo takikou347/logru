@@ -92,6 +92,8 @@ export function RecordSheet({
   const picker = useRef<HTMLInputElement>(null);
   // このシートを開いてから新しく送った写真の ID。保存せずに外すか閉じたら、すぐ消す。F-117、#158
   const uploaded = useRef<Set<string>>(new Set());
+  // 開いているか。閉じる動きは ResponsiveSheet に任せ、終わってから onClose を呼ぶ。#192
+  const [open, setOpen] = useState(true);
 
   /** 保存に含めない、送った写真をすぐ消す */
   function discardUploaded(photoId: string) {
@@ -190,7 +192,7 @@ export function RecordSheet({
       // 送った写真は記録に付いたので、閉じるときにもう消さない
       uploaded.current.clear();
       await invalidate();
-      onClose();
+      setOpen(false);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -207,14 +209,14 @@ export function RecordSheet({
   /** 保存せずに閉じる。まだ記録に付いていない、送った写真はすぐ消す。F-117、#158 */
   function close() {
     discardAllUploaded();
-    onClose();
+    setOpen(false);
   }
 
   /** 消す。すぐ画面から外し、5 秒のあいだ「元に戻す」を出してから送る。F-117 */
   function remove() {
     if (!record) return;
     discardAllUploaded();
-    onClose();
+    setOpen(false);
     qc.setQueriesData<MemoryRecord[]>({ queryKey: ["memories", "records"] }, (old) =>
       old?.filter((r) => r.id !== record.id),
     );
@@ -242,7 +244,28 @@ export function RecordSheet({
   }
 
   return (
-    <ResponsiveSheet title={record ? "記録を編集" : "記録する"} onClose={close}>
+    <ResponsiveSheet
+      title={record ? "記録を編集" : "記録する"}
+      open={open}
+      onOpenChange={close}
+      onClose={onClose}
+      footer={
+        <div className="flex justify-between gap-2">
+          {record ? (
+            <Button variant="danger" onClick={remove}>
+              消す
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={close}>
+              やめる
+            </Button>
+          )}
+          <Button onClick={save} disabled={sending || saving}>
+            {sending ? "写真を送っています" : "保存する"}
+          </Button>
+        </div>
+      }
+    >
       <input
         ref={camera}
         type="file"
@@ -382,21 +405,6 @@ export function RecordSheet({
         )}
       </div>
       {error && <FieldMessage error>{error}</FieldMessage>}
-
-      <div className="flex gap-2">
-        {record ? (
-          <Button variant="danger" onClick={remove}>
-            消す
-          </Button>
-        ) : (
-          <Button variant="ghost" onClick={close}>
-            やめる
-          </Button>
-        )}
-        <Button className="flex-1" onClick={save} disabled={sending || saving}>
-          {sending ? "写真を送っています" : "保存する"}
-        </Button>
-      </div>
     </ResponsiveSheet>
   );
 }

@@ -72,12 +72,18 @@ test("下の操作の帯も、画面に収まる", async ({ page }) => {
 
 test("シートは透けない。後ろのカレンダーが文字に重ならない", async ({ page }) => {
   await page.getByRole("button", { name: "予定を足す" }).last().click();
-  await expect(page.getByRole("dialog", { name: "新しい予定" })).toBeVisible();
-  const opaque = await page.locator('[data-slot="sheet-content"]').evaluate((el) => {
-    const alpha = getComputedStyle(el).backgroundColor.match(/rgba?\([^)]*?([\d.]+)\)$/);
-    // rgb(...) なら不透明。rgba(...) なら 4 つ目の値が 1 のときだけ不透明
-    return !getComputedStyle(el).backgroundColor.startsWith("rgba") || Number(alpha?.[1]) === 1;
-  });
+  const sheet = page.getByRole("dialog", { name: "新しい予定" });
+  await expect(sheet).toBeVisible();
+  // 位置と大きさだけを持つ [data-slot="sheet-content"] は透明にし、開閉の動きを付ける。0077
+  // 塗りを持つのは、そのすぐ内側のガラスの面(.glass)
+  const opaque = await sheet
+    .locator(".glass")
+    .first()
+    .evaluate((el) => {
+      const alpha = getComputedStyle(el).backgroundColor.match(/rgba?\([^)]*?([\d.]+)\)$/);
+      // rgb(...) なら不透明。rgba(...) なら 4 つ目の値が 1 のときだけ不透明
+      return !getComputedStyle(el).backgroundColor.startsWith("rgba") || Number(alpha?.[1]) === 1;
+    });
   expect(opaque).toBe(true);
 });
 

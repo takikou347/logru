@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import type { ListSummary } from "./api";
 import { useDeleteList, usePatchList } from "./api";
 
+/** 下の footer のボタンから、シートの中の form を submit するのに使う */
+const EDIT_LIST_FORM_ID = "edit-list-form";
+
 /**
  * リストの名前と日付を直す、リストを消すシート。F-206、F-208
  * 消す前に、元に戻せないことを確かめる画面を挟む。
@@ -22,6 +25,8 @@ export function EditListSheet({ list, onClose }: { list: ListSummary; onClose: (
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  // シート全体(直す・消す確認の両方)が開いているか。開閉の動きは ResponsiveSheet に任せる。#192
+  const [open, setOpen] = useState(true);
 
   const canSubmit = title.trim().length > 0;
 
@@ -33,13 +38,17 @@ export function EditListSheet({ list, onClose }: { list: ListSummary; onClose: (
     try {
       await patchList.mutateAsync({ title: title.trim(), date: date || null });
       toast("リストを直しました");
-      onClose();
+      setOpen(false);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
     }
   }
 
+  /**
+   * 消す。消すと、開いているリストの画面自体が読めなくなり、一覧へ移る。
+   * 移る先で `ResponsiveSheet` はどのみち画面の木から外れるため、閉じる動きは待たない。#192
+   */
   async function remove() {
     try {
       await deleteList.mutateAsync(list.id);
@@ -57,23 +66,43 @@ export function EditListSheet({ list, onClose }: { list: ListSummary; onClose: (
       <ResponsiveSheet
         title="リストを消しますか"
         description={`「${list.title}」と、中の項目がすべて消えます。元に戻せません。`}
-        onClose={() => setConfirm(false)}
+        open={open}
+        onOpenChange={() => setOpen(false)}
+        onClose={onClose}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setConfirm(false)}>
+              やめる
+            </Button>
+            <Button variant="destructive" onClick={remove}>
+              消す
+            </Button>
+          </div>
+        }
       >
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setConfirm(false)}>
-            やめる
-          </Button>
-          <Button variant="destructive" onClick={remove}>
-            消す
-          </Button>
-        </div>
+        {null}
       </ResponsiveSheet>
     );
   }
 
   return (
-    <ResponsiveSheet title="リストを直す" onClose={onClose}>
-      <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
+    <ResponsiveSheet
+      title="リストを直す"
+      open={open}
+      onOpenChange={() => setOpen(false)}
+      onClose={onClose}
+      footer={
+        <div className="flex justify-between gap-2">
+          <Button type="button" variant="danger" onClick={() => setConfirm(true)}>
+            消す
+          </Button>
+          <Button type="submit" form={EDIT_LIST_FORM_ID} disabled={busy || !canSubmit}>
+            {busy ? "保存しています" : "保存する"}
+          </Button>
+        </div>
+      }
+    >
+      <form id={EDIT_LIST_FORM_ID} className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         <Field label="名前">
           {(p) => <Input {...p} value={title} maxLength={50} onChange={(e) => setTitle(e.target.value)} />}
         </Field>
@@ -81,14 +110,6 @@ export function EditListSheet({ list, onClose }: { list: ListSummary; onClose: (
           {(p) => <Input {...p} type="date" value={date} onChange={(e) => setDate(e.target.value)} />}
         </Field>
         {error && <FieldMessage error>{error}</FieldMessage>}
-        <div className="flex justify-between gap-2">
-          <Button type="button" variant="danger" onClick={() => setConfirm(true)}>
-            消す
-          </Button>
-          <Button type="submit" disabled={busy || !canSubmit}>
-            {busy ? "保存しています" : "保存する"}
-          </Button>
-        </div>
       </form>
     </ResponsiveSheet>
   );

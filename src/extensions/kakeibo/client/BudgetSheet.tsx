@@ -15,6 +15,9 @@ import type { KakeiboBudget } from "./api";
 import { useDeleteBudget, useSaveBudget } from "./api";
 import { sanitizeAmountInput } from "./numeric-input";
 
+/** 下の footer のボタンから、シートの中の form を submit するのに使う */
+const BUDGET_FORM_ID = "kakeibo-budget-form";
+
 /** 端末の時間帯。祝日や期間を表すのに使う */
 const deviceTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Tokyo";
 
@@ -89,6 +92,8 @@ export function BudgetSheet({
 }) {
   const saveBudget = useSaveBudget();
   const deleteBudget = useDeleteBudget();
+  // 開いているか。閉じる動きは ResponsiveSheet に任せ、終わってから onClose を呼ぶ。#192
+  const [open, setOpen] = useState(true);
 
   const [groupId, setGroupId] = useState(
     budget?.groupId ??
@@ -128,7 +133,7 @@ export function BudgetSheet({
         await saveBudget.mutateAsync({ body: { groupId, name: name.trim(), startDate, endDate, amount: amountValue } });
         toast("予算を作りました");
       }
-      onClose();
+      setOpen(false);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -141,7 +146,7 @@ export function BudgetSheet({
     try {
       await deleteBudget.mutateAsync(budget.id);
       toast("予算を消しました");
-      onClose();
+      setOpen(false);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -149,8 +154,35 @@ export function BudgetSheet({
   }
 
   return (
-    <ResponsiveSheet title={budget ? "予算を直す" : "予算を作る"} onClose={onClose}>
-      <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
+    <ResponsiveSheet
+      title={budget ? "予算を直す" : "予算を作る"}
+      open={open}
+      onOpenChange={() => setOpen(false)}
+      onClose={onClose}
+      footer={
+        <div className="flex justify-between gap-2">
+          {budget ? (
+            confirmDelete ? (
+              <Button type="button" variant="danger" disabled={busy} onClick={() => void remove()}>
+                {busy ? "消しています" : "本当に消す"}
+              </Button>
+            ) : (
+              <Button type="button" variant="ghost" onClick={() => setConfirmDelete(true)}>
+                消す
+              </Button>
+            )
+          ) : (
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              やめる
+            </Button>
+          )}
+          <Button type="submit" form={BUDGET_FORM_ID} disabled={busy || !canSubmit}>
+            {busy ? "保存しています" : "保存する"}
+          </Button>
+        </div>
+      }
+    >
+      <form id={BUDGET_FORM_ID} className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         {!budget && (
           <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} extensionLabel="家計簿" />
         )}
@@ -202,26 +234,6 @@ export function BudgetSheet({
           )}
         </Field>
         {error && <FieldMessage error>{error}</FieldMessage>}
-        <div className="flex justify-between gap-2">
-          {budget ? (
-            confirmDelete ? (
-              <Button type="button" variant="danger" disabled={busy} onClick={() => void remove()}>
-                {busy ? "消しています" : "本当に消す"}
-              </Button>
-            ) : (
-              <Button type="button" variant="ghost" onClick={() => setConfirmDelete(true)}>
-                消す
-              </Button>
-            )
-          ) : (
-            <Button type="button" variant="ghost" onClick={onClose}>
-              やめる
-            </Button>
-          )}
-          <Button type="submit" disabled={busy || !canSubmit}>
-            {busy ? "保存しています" : "保存する"}
-          </Button>
-        </div>
       </form>
       {pickingMemory && groupId && (
         <MemoryPickerSheet

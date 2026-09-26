@@ -13,6 +13,9 @@ import { useKakeiboAccounts, useSaveSettlement } from "./api";
 import { sanitizeAmountInput } from "./numeric-input";
 import { kakeiboPersonName } from "./parts";
 
+/** 下の footer のボタンから、シートの中の form を submit するのに使う */
+const SETTLEMENT_FORM_ID = "kakeibo-settlement-form";
+
 /**
  * 精算したと記録するシート。金額と日付(既定は今日)、送った人と受け取った人がそれぞれ自分の口座を選べる。
  * 自分の口座は、送った人か受け取った人が自分のときだけ選べる。ほかの人の口座は見えないため。0072
@@ -42,6 +45,8 @@ export function SettlementSheet({
   const personalAccounts = useKakeiboAccounts(isMine ? personalGroupId : null, isMine && Boolean(personalGroupId));
   const myAccounts = personalAccounts.data ?? [];
 
+  // 開いているか。閉じる動きは ResponsiveSheet に任せ、終わってから onClose を呼ぶ。#192
+  const [open, setOpen] = useState(true);
   const [amountText, setAmountText] = useState(String(amount));
   const [date, setDate] = useState(dateKey(new Date()));
   const [fromAccountId, setFromAccountId] = useState<string | null>(null);
@@ -69,7 +74,7 @@ export function SettlementSheet({
         toAccountId: toUser === me.user.id ? toAccountId : undefined,
       });
       toast("精算しました");
-      onClose();
+      setOpen(false);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -77,8 +82,23 @@ export function SettlementSheet({
   }
 
   return (
-    <ResponsiveSheet title="精算した" onClose={onClose}>
-      <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
+    <ResponsiveSheet
+      title="精算した"
+      open={open}
+      onOpenChange={() => setOpen(false)}
+      onClose={onClose}
+      footer={
+        <div className="flex justify-between gap-2">
+          <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+            やめる
+          </Button>
+          <Button type="submit" form={SETTLEMENT_FORM_ID} disabled={busy || !canSubmit}>
+            {busy ? "保存しています" : "保存する"}
+          </Button>
+        </div>
+      }
+    >
+      <form id={SETTLEMENT_FORM_ID} className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         <p className="text-sm text-ink-2">
           {kakeiboPersonName(fromUser, group.members, me)} から {kakeiboPersonName(toUser, group.members, me)} へ
         </p>
@@ -126,14 +146,6 @@ export function SettlementSheet({
           </div>
         )}
         {error && <FieldMessage error>{error}</FieldMessage>}
-        <div className="flex justify-between gap-2">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            やめる
-          </Button>
-          <Button type="submit" disabled={busy || !canSubmit}>
-            {busy ? "保存しています" : "保存する"}
-          </Button>
-        </div>
       </form>
     </ResponsiveSheet>
   );

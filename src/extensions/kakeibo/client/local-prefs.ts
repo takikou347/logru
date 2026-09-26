@@ -5,7 +5,7 @@
  * 記録自体は続けられるよう、読み書きは try/catch で包む。グループの絞り込み(F-20)や
  * 種類の入り切り(0056)と同じ考え方
  */
-import type { KakeiboType } from "../shared/types";
+import { KAKEIBO_TYPES, type KakeiboType } from "../shared/types";
 
 const KEY = "logru-kakeibo-last-record";
 
@@ -17,14 +17,31 @@ export type KakeiboLastRecord = {
   groupId: string | null;
 };
 
-/** 読めなければ null。値の形が壊れていても null にする */
+const RECORD_TYPES = new Set<string>(KAKEIBO_TYPES);
+
+/** 文字列か null。それ以外の形(数値、真偽など)なら null にする */
+function stringOrNull(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+/**
+ * 読めなければ null。値の形が壊れていても null にする。
+ * 端末に残った古い形や、書き換えられた値をそのまま信じない。項目ごとに型を確かめる。#193
+ */
 export function loadLastRecord(): KakeiboLastRecord | null {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const value = JSON.parse(raw) as unknown;
     if (!value || typeof value !== "object") return null;
-    return value as KakeiboLastRecord;
+    const v = value as Record<string, unknown>;
+    if (typeof v.type !== "string" || !RECORD_TYPES.has(v.type)) return null;
+    return {
+      type: v.type as KakeiboLastRecord["type"],
+      accountId: stringOrNull(v.accountId),
+      toAccountId: stringOrNull(v.toAccountId),
+      groupId: stringOrNull(v.groupId),
+    };
   } catch {
     return null;
   }

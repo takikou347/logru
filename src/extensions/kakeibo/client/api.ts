@@ -337,11 +337,15 @@ export function useSaveAccount() {
   });
 }
 
-/** 口座を消す。記録が残っていれば 409 になる。F-309 */
+/**
+ * 口座を消す。記録が残っていれば 409 になる。F-309
+ * @param keepalive 画面を閉じるときに送り切る。5 秒の「元に戻す」の間に画面を離れたとき。issue #12、#194
+ */
 export function useDeleteAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api(`/kakeibo/accounts/${id}`, { method: "DELETE" }),
+    mutationFn: ({ id, keepalive }: { id: string; keepalive?: boolean }) =>
+      api(`/kakeibo/accounts/${id}`, { method: "DELETE", keepalive }),
     onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
   });
 }
@@ -377,11 +381,15 @@ export function useSaveBudget() {
   });
 }
 
-/** 期間の予算を消す。F-323 */
+/**
+ * 期間の予算を消す。F-323
+ * @param keepalive 画面を閉じるときに送り切る。5 秒の「元に戻す」の間に画面を離れたとき。issue #12、#194
+ */
 export function useDeleteBudget() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api(`/kakeibo/budgets/${id}`, { method: "DELETE" }),
+    mutationFn: ({ id, keepalive }: { id: string; keepalive?: boolean }) =>
+      api(`/kakeibo/budgets/${id}`, { method: "DELETE", keepalive }),
     onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
   });
 }
@@ -432,11 +440,15 @@ export function useSaveRecurring() {
   });
 }
 
-/** 定期の記録を消す。F-325 */
+/**
+ * 定期の記録を消す。F-325
+ * @param keepalive 画面を閉じるときに送り切る。5 秒の「元に戻す」の間に画面を離れたとき。issue #12、#194
+ */
 export function useDeleteRecurring() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api(`/kakeibo/recurrings/${id}`, { method: "DELETE" }),
+    mutationFn: ({ id, keepalive }: { id: string; keepalive?: boolean }) =>
+      api(`/kakeibo/recurrings/${id}`, { method: "DELETE", keepalive }),
     onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
   });
 }

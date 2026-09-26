@@ -3,8 +3,8 @@ import type { GroupMember, GroupSummary, Me } from "@shared/api-types";
 import { useEffect, useState } from "react";
 import { UserAvatar } from "@/components/parts/Avatars";
 import { Chip } from "@/components/parts/Chip";
-import { FieldMessage, RowButton } from "@/components/parts/Panel";
-import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
+import { FieldMessage } from "@/components/parts/Panel";
+import { PickerOptionRow, PickerRow } from "@/components/parts/PickerRow";
 import { Input } from "@/components/ui/input";
 import { formatYen } from "../shared/format";
 import type { KakeiboSplitMode } from "../shared/splits";
@@ -38,38 +38,34 @@ export function PayerPickerRow({
   const [open, setOpen] = useState(false);
   const people = [me.user.id, ...members.filter((m) => m.id !== me.user.id).map((m) => m.id)];
   return (
-    <div>
-      <RowButton type="button" disabled={disabled} aria-haspopup="dialog" onClick={() => setOpen(true)}>
-        <span>払った人</span>
-        <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-ink-2">
+    <PickerRow
+      label="払った人"
+      disabled={disabled}
+      disabledReason={disabledReason}
+      open={open}
+      onOpen={() => setOpen(true)}
+      onClose={() => setOpen(false)}
+      valueNode={
+        <>
           <UserAvatar userId={value} groups={groups} me={me} size={20} />
           <span className="min-w-0 truncate">{kakeiboPersonName(value, members, me)}</span>
-        </span>
-      </RowButton>
-      {disabled && disabledReason && <FieldMessage>{disabledReason}</FieldMessage>}
-      {open && (
-        <ResponsiveSheet title="払った人" onClose={() => setOpen(false)}>
-          <div role="radiogroup" aria-label="払った人" className="flex flex-col">
-            {people.map((id) => (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={value === id}
-                onClick={() => {
-                  onChange(id);
-                  setOpen(false);
-                }}
-                className="flex min-h-12 w-full items-center gap-3 border-b border-line text-left text-[15px] last:border-b-0"
-              >
-                <UserAvatar userId={id} groups={groups} me={me} size={22} />
-                <span className="min-w-0 flex-1 truncate">{kakeiboPersonName(id, members, me)}</span>
-              </button>
-            ))}
-          </div>
-        </ResponsiveSheet>
-      )}
-    </div>
+        </>
+      }
+    >
+      {people.map((id) => (
+        <PickerOptionRow
+          key={id}
+          checked={value === id}
+          onSelect={() => {
+            onChange(id);
+            setOpen(false);
+          }}
+        >
+          <UserAvatar userId={id} groups={groups} me={me} size={22} />
+          <span className="min-w-0 flex-1 truncate">{kakeiboPersonName(id, members, me)}</span>
+        </PickerOptionRow>
+      ))}
+    </PickerRow>
   );
 }
 
@@ -123,7 +119,7 @@ export function SplitModeSection({
       <span className="text-xs font-medium text-ink-2" id="kakeibo-split-mode-label">
         割り方
       </span>
-      <div className="flex gap-2" role="radiogroup" aria-labelledby="kakeibo-split-mode-label">
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="kakeibo-split-mode-label">
         {(Object.keys(SPLIT_MODE_LABELS) as KakeiboSplitMode[]).map((m) => (
           <Chip key={m} role="radio" aria-checked={mode === m} onClick={() => onChangeMode(m)}>
             {SPLIT_MODE_LABELS[m]}

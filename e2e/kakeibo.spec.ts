@@ -35,7 +35,10 @@ async function openRecordSheet(page: Page) {
   return page.getByRole("dialog", { name: "記録する" });
 }
 
-/** 記録のシートで口座を選ぶ。「口座」「出す元」「入れる先」など、行の名前で選ぶ */
+/**
+ * 記録のシートで口座を選ぶ。「口座」「出す元」「入れる先」「自分の口座」など、行の名前で選ぶ。
+ * 選ぶ一覧は role="listbox"・role="option"(0067、#194)。共有の一覧(role="radio")とは違う
+ */
 async function pickAccount(
   page: Page,
   sheet: import("@playwright/test").Locator,
@@ -43,7 +46,7 @@ async function pickAccount(
   accountName: string,
 ) {
   await sheet.getByRole("button", { name: new RegExp(`^${rowLabel}`) }).click();
-  await page.getByRole("dialog", { name: rowLabel }).getByRole("radio", { name: accountName }).click();
+  await page.getByRole("dialog", { name: rowLabel }).getByRole("option", { name: accountName }).click();
 }
 
 test("足す前は、家計簿の画面は開けない", async ({ page }) => {
@@ -81,8 +84,10 @@ test("ホームの「記録する」から 3 タップと金額の入力 1 回�
 
   // 金額の入力 1 回
   await dialog.getByLabel("金額").fill("1200");
-  // 2 タップ目: カテゴリを選ぶ。既定では何も選んでいないので保存できない
-  await expect(dialog.getByRole("button", { name: "保存する" })).toBeDisabled();
+  // 2 タップ目: カテゴリを選ぶ。既定では何も選んでいないので、押すとカテゴリの欄に理由が出て保存できない。#193
+  await dialog.getByRole("button", { name: "保存する" }).click();
+  await expect(dialog.getByText("カテゴリを選んでください。")).toBeVisible();
+  await expect(page.getByText("記録しました")).toHaveCount(0);
   await dialog.getByRole("radio", { name: "食費" }).click();
   // 3 タップ目: 保存する。日付と共有先は既定のまま
   await dialog.getByRole("button", { name: "保存する" }).click();
@@ -353,7 +358,7 @@ test("3 人のグループで 1 人が立て替えると、送る組み合わせ
   const mikaRow = settlementPanel.locator("li", { hasText: "みか" });
   await mikaRow.getByRole("button", { name: "精算した" }).click();
   const settleSheet = page.getByRole("dialog", { name: "精算した" });
-  await settleSheet.getByRole("radio", { name: "現金" }).click();
+  await pickAccount(page, settleSheet, "自分の口座", "現金");
   await settleSheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("精算しました")).toBeVisible();
   // 送る組み合わせ(li)からは消える。精算した記録の一覧には残るので、そちらは数えない
@@ -364,7 +369,7 @@ test("3 人のグループで 1 人が立て替えると、送る組み合わせ
   const rikuRow = settlementPanel.locator("li", { hasText: "りく" });
   await rikuRow.getByRole("button", { name: "精算した" }).click();
   const rikuSettleSheet = page.getByRole("dialog", { name: "精算した" });
-  await rikuSettleSheet.getByRole("radio", { name: "現金" }).click();
+  await pickAccount(page, rikuSettleSheet, "自分の口座", "現金");
   await rikuSettleSheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("精算しました")).toBeVisible();
   await expect(settlementPanel.getByText("精算はありません。")).toBeVisible();
@@ -417,9 +422,9 @@ test("期間の予算を作ると、家計簿の画面の上と予算の画面�
   await expect(page.getByText("予算を直しました")).toBeVisible();
   await expect(page.getByText("残り ¥17,000")).toBeVisible();
 
+  // 消すときは確認を挟まず、5 秒だけ「元に戻す」を出す。#194
   await page.getByText("食費").click();
   await page.getByRole("dialog", { name: "予算を直す" }).getByRole("button", { name: "消す" }).click();
-  await page.getByRole("button", { name: "本当に消す" }).click();
   await expect(page.getByText("予算を消しました")).toBeVisible();
   await expect(page.getByText("まだ予算がありません。")).toBeVisible();
 });
@@ -460,7 +465,7 @@ test("決めた日をもう過ぎて定期の記録を作ると、すぐその�
   // 全角の数字でも半角に直して入る。#198
   await sheet.getByLabel("金額").fill("１２０００");
   await sheet.getByRole("radio", { name: "住まい" }).click();
-  await sheet.getByRole("radio", { name: "現金" }).click();
+  await pickAccount(page, sheet, "口座", "現金");
   await sheet.getByLabel("毎月の日").fill("1");
   await sheet.getByRole("button", { name: "保存する" }).click();
   // 知らせに、入れた記録の日付を出し、「元に戻す」でその 1 件だけを消せる。#198
@@ -598,4 +603,110 @@ test("記録のシートで「よく使う記録にする」と、次からチ�
   await page.getByLabel("いつもの買い物 を直す").fill("スーパー");
   await page.getByLabel("いつもの買い物 を直す").press("Enter");
   await expect(page.getByText("スーパー")).toBeVisible();
+});
+
+test("自分だけで記録した口座は、共有のグループでは選べないので「口座なし」になり保存できる。#193", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+  await createAccount(page, "財布", { openingBalance: "0" });
+
+  // 自分だけのグループで、収入・財布を記録する。端末に前回の選択(収入・財布・自分だけ)が残る
+  const first = await openRecordSheet(page);
+  await first.getByRole("radio", { name: "収入" }).click();
+  await first.getByLabel("金額").fill("1000");
+  await first.getByRole("radio", { name: "給料" }).click();
+  await pickAccount(page, first, "口座", "財布");
+  await first.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  // 共有のグループを作り、家計簿を足す
+  await page.goto("/groups");
+  await page.getByLabel("グループの名前").fill("ふたり");
+  await page.getByRole("button", { name: "作る" }).click();
+  await page.goto("/settings/extensions/kakeibo");
+  await page.getByRole("region", { name: "足すグループ" }).getByRole("button", { name: "ふたりを足す" }).click();
+  await expect(page.getByText("足しました")).toBeVisible();
+
+  // このグループに絞って記録のシートを開くと、種類(収入)は前回のまま選ばれるが、
+  // 財布はこのグループでは選べないので、口座は「口座なし」に戻る
+  await page.goto("/kakeibo");
+  await page.getByRole("button", { name: "ふたり", exact: true }).click();
+  await page.getByRole("toolbar", { name: "家計簿の操作" }).getByRole("button", { name: "支出を記録する" }).click();
+  const second = page.getByRole("dialog", { name: "記録する" });
+  await expect(second.getByRole("radio", { name: "収入", exact: true })).toHaveAttribute("aria-checked", "true");
+  await expect(second.getByRole("button", { name: /^口座/ })).toContainText("口座なし");
+
+  // 選べない口座を送らず、保存が通る
+  await second.getByLabel("金額").fill("2000");
+  await second.getByRole("radio", { name: "給料" }).click();
+  await second.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+});
+
+test("カテゴリの無いよく使う記録を押すとカテゴリは空に戻り、保存を押すとカテゴリの欄に理由が出る。#193", async ({
+  page,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  // カテゴリを選ばずに「よく使う記録にする」で残す
+  const create = await openRecordSheet(page);
+  await create.getByLabel("金額").fill("500");
+  await create.getByRole("button", { name: "よく使う記録にする" }).click();
+  await create.getByLabel("よく使う記録の名前").fill("現金だけ");
+  await create.getByRole("button", { name: "残す" }).click();
+  await expect(page.getByText("よく使う記録にしました")).toBeVisible();
+  await create.getByRole("button", { name: "やめる" }).click();
+
+  // 新しく開き、いったんカテゴリを選んでから、カテゴリの無いよく使う記録を押す
+  const sheet = await openRecordSheet(page);
+  await sheet.getByRole("radio", { name: "食費" }).click();
+  await sheet.getByRole("button", { name: "現金だけ" }).click();
+  await expect(sheet.getByRole("radio", { name: "食費" })).toHaveAttribute("aria-checked", "false");
+
+  // 保存を押すと、カテゴリの欄に理由が出て、記録は増えない
+  await sheet.getByRole("button", { name: "保存する" }).click();
+  await expect(sheet.getByText("カテゴリを選んでください。")).toBeVisible();
+  await expect(page.getByText("記録しました")).toHaveCount(0);
+});
+
+test("よく使う記録の名前の欄で Enter を押すと、それだけが残り記録のフォームは送られない。#193", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  const sheet = await openRecordSheet(page);
+  await sheet.getByLabel("金額").fill("300");
+  await sheet.getByRole("radio", { name: "日用品" }).click();
+  await sheet.getByRole("button", { name: "よく使う記録にする" }).click();
+  const nameField = sheet.getByLabel("よく使う記録の名前");
+  await nameField.fill("Enterで残す");
+  await nameField.press("Enter");
+  await expect(page.getByText("よく使う記録にしました")).toBeVisible();
+
+  // 記録のフォームは送られていない。シートは開いたまま、記録は増えない
+  await expect(sheet).toBeVisible();
+  await expect(page.getByText("記録しました")).toHaveCount(0);
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥0");
+
+  // よく使う記録は 1 件だけできる
+  await page.goto("/kakeibo/templates");
+  await expect(page.getByText("Enterで残す")).toHaveCount(1);
+});
+
+test("割り方の 3 つのチップは、390px でも折り返して切れない。#194", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await page.goto("/groups");
+  await page.getByLabel("グループの名前").fill("シェア");
+  await page.getByRole("button", { name: "作る" }).click();
+  await page.goto("/settings/extensions/kakeibo");
+  await page.getByRole("region", { name: "足すグループ" }).getByRole("button", { name: "シェアを足す" }).click();
+  await expect(page.getByText("足しました")).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const sheet = await openRecordSheet(page);
+  await pickShare(page, sheet, "シェア");
+  await expect(sheet.getByRole("button", { name: "払った人" })).toBeVisible();
+  await expect(sheet.getByRole("radio", { name: "割らない" })).toBeInViewport();
 });

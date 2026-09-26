@@ -10,8 +10,10 @@ import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Panel } from "@/components/parts/Panel";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
+import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { poolColorsOf } from "@/modules/calendar/model";
-import { useKakeiboBudgets, useKakeiboGroups } from "./api";
+import type { KakeiboBudget } from "./api";
+import { useDeleteBudget, useKakeiboBudgets, useKakeiboGroups } from "./api";
 import { BudgetRow } from "./BudgetPanel";
 import { BudgetSheet } from "./BudgetSheet";
 
@@ -24,14 +26,19 @@ export function BudgetsPage() {
   const budgets = useKakeiboBudgets(null, ready);
   const [params, setParams] = useSearchParams();
   useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
+  const deleteBudget = useDeleteBudget();
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。元に戻せる間は一覧から外す。#194
+  const { pending, remove } = useUndoableDelete("予算を消しました");
 
   const creating = params.get("create") === "1";
   const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
   const editingId = params.get("edit");
   const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
+  const handleDelete = (budget: KakeiboBudget) =>
+    remove(budget.id, ({ keepalive }) => deleteBudget.mutateAsync({ id: budget.id, keepalive }));
 
   if (!me.data || !ready) return <Loading />;
-  const rows = budgets.data ?? [];
+  const rows = (budgets.data ?? []).filter((b) => !pending.has(b.id));
   const editing = rows.find((b) => b.id === editingId);
   const groupLabel = (groupId: string) => {
     const g = groups.find((x) => x.id === groupId);
@@ -95,7 +102,9 @@ export function BudgetsPage() {
         </Dock>
       </Page>
       {creating && <BudgetSheet groups={groups} me={me.data} onClose={closeCreate} />}
-      {editing && <BudgetSheet groups={groups} me={me.data} budget={editing} onClose={closeEdit} />}
+      {editing && (
+        <BudgetSheet groups={groups} me={me.data} budget={editing} onClose={closeEdit} onDelete={handleDelete} />
+      )}
     </>
   );
 }

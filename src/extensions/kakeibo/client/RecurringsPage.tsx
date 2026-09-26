@@ -14,8 +14,9 @@ import { formatShortDate } from "@/lib/dates";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { kakeiboCategoryLabel } from "../shared/categories";
-import type { KakeiboRecurringOccurrence } from "./api";
-import { useDeleteExpense, useKakeiboGroups, useKakeiboRecurrings } from "./api";
+import { formatSignedYen, formatYen } from "../shared/format";
+import type { KakeiboRecurring, KakeiboRecurringOccurrence } from "./api";
+import { useDeleteExpense, useDeleteRecurring, useKakeiboGroups, useKakeiboRecurrings } from "./api";
 import { formatMonthLabel } from "./parts";
 import { RecurringSheet } from "./RecurringSheet";
 
@@ -33,6 +34,9 @@ export function RecurringsPage() {
   const { remove: removeOccurrence } = useUndoableDelete("記録しました", (id) => {
     void deleteExpense.mutateAsync({ id });
   });
+  const deleteRecurring = useDeleteRecurring();
+  // 定期の記録そのものを消すときは確認を出さず、5 秒だけ「元に戻す」を出す。#194
+  const { pending, remove: removeRecurring } = useUndoableDelete("定期の記録を消しました");
 
   const creating = params.get("create") === "1";
   const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
@@ -45,9 +49,11 @@ export function RecurringsPage() {
       message: `${formatShortDate(occurrence.date)}の分を記録しました`,
     });
   };
+  const handleDelete = (recurring: KakeiboRecurring) =>
+    removeRecurring(recurring.id, ({ keepalive }) => deleteRecurring.mutateAsync({ id: recurring.id, keepalive }));
 
   if (!me.data || !ready) return <Loading />;
-  const rows = recurrings.data ?? [];
+  const rows = (recurrings.data ?? []).filter((r) => !pending.has(r.id));
   const editing = rows.find((r) => r.id === editingId);
   const groupLabel = (groupId: string) => {
     const g = groups.find((x) => x.id === groupId);
@@ -100,8 +106,7 @@ export function RecurringsPage() {
                       </span>
                     </span>
                     <span className="flex-none font-bold tabular-nums">
-                      {r.type === "income" ? "+" : ""}
-                      {r.amount.toLocaleString("ja-JP")}円
+                      {r.type === "income" ? formatSignedYen(r.amount) : formatYen(r.amount)}
                     </span>
                   </button>
                 </li>
@@ -132,6 +137,7 @@ export function RecurringsPage() {
           recurring={editing}
           onClose={closeEdit}
           onCreated={handleCreated}
+          onDelete={handleDelete}
         />
       )}
     </>

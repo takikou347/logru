@@ -2,10 +2,13 @@
 
 import type { GroupMember, GroupSummary, Me } from "@shared/api-types";
 import { Banknote, CreditCard, Landmark, type LucideIcon, Smartphone, Wallet } from "lucide-react";
+import { useState } from "react";
+import { EmptyState } from "@/components/parts/EmptyState";
 import { Dot } from "@/components/parts/Panel";
+import { PickerOptionRow, PickerRow } from "@/components/parts/PickerRow";
 import { groupColor } from "@/lib/colors";
 import type { KakeiboAccountKind } from "../shared/accounts";
-import type { KakeiboAccountRef } from "./api";
+import type { KakeiboAccount, KakeiboAccountRef } from "./api";
 
 /**
  * 月を `2026-09` の形にする。画面は端末の時間帯で月を選ぶ。
@@ -69,5 +72,92 @@ export function GroupLabel({ group, me }: { group: GroupSummary | undefined; me:
       <Dot color={groupColor(group, me.colorPrefs)} />
       <span className="truncate">{group.isPersonal ? "自分だけ" : group.name}</span>
     </span>
+  );
+}
+
+/**
+ * 口座を選ぶ行。支出・収入の「口座」、振替の「出す元」「入れる先」、定期の記録・精算の口座で使う。
+ * 押すと下から一覧が開き、選んでいる口座に印が付く。0067、0072、F-309、F-319、#194
+ *
+ * 「使わない」にした口座は、いま選んでいるものでなければ一覧に出さない。F-309
+ */
+export function AccountPickerRow({
+  label,
+  accounts,
+  value,
+  onChange,
+  allowNone,
+  excludeId,
+  disabled,
+  recordGroupId,
+}: {
+  label: string;
+  accounts: KakeiboAccount[];
+  value: string | null;
+  onChange: (id: string | null) => void;
+  allowNone: boolean;
+  excludeId?: string | null;
+  disabled?: boolean;
+  /**
+   * 記録するグループ。渡すと、そのグループ以外の口座(立て替えで選べる自分の口座)に
+   * 「自分の口座」と添える。0072、F-319
+   */
+  recordGroupId?: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const options = accounts.filter((a) => (!a.archivedAt || a.id === value) && a.id !== excludeId);
+  const chosen = options.find((a) => a.id === value);
+  const isOwn = (a: KakeiboAccount) => Boolean(recordGroupId) && a.groupId !== recordGroupId;
+  return (
+    <PickerRow
+      label={label}
+      disabled={disabled}
+      open={open}
+      onOpen={() => setOpen(true)}
+      onClose={() => setOpen(false)}
+      valueNode={
+        <>
+          <span className="min-w-0 truncate">{chosen ? chosen.name : "口座なし"}</span>
+          {chosen && isOwn(chosen) && <span className="flex-none text-[11px] text-ink-3">(自分の口座)</span>}
+        </>
+      }
+    >
+      {options.length === 0 ? (
+        <EmptyState pose="coin" bordered={false} action={{ label: "口座を作る", to: "/kakeibo/accounts" }}>
+          まだ口座がありません。作ると、ここで選べます。
+        </EmptyState>
+      ) : (
+        <>
+          {allowNone && (
+            <PickerOptionRow
+              checked={value === null}
+              onSelect={() => {
+                onChange(null);
+                setOpen(false);
+              }}
+            >
+              <span className="min-w-0 flex-1 truncate text-ink-2">口座なし</span>
+            </PickerOptionRow>
+          )}
+          {options.map((a) => {
+            const Icon = KAKEIBO_ACCOUNT_KIND_ICONS[a.kind];
+            return (
+              <PickerOptionRow
+                key={a.id}
+                checked={value === a.id}
+                onSelect={() => {
+                  onChange(a.id);
+                  setOpen(false);
+                }}
+              >
+                <Icon className="size-4 flex-none text-ink-2" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                {isOwn(a) && <span className="flex-none text-[11px] text-ink-3">自分の口座</span>}
+              </PickerOptionRow>
+            );
+          })}
+        </>
+      )}
+    </PickerRow>
   );
 }

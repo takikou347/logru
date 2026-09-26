@@ -188,7 +188,8 @@ export const kakeiboTemplateInput = z.object({
   name: z.string().trim().min(1, "名前を入れてください。").max(30, "名前は 30 文字までです。"),
   type: fields.type,
   groupId: fields.groupId.optional(),
-  category: fields.category.optional(),
+  // カテゴリの無いよく使う記録もある。accountId・memo と同じく null を許す。#193
+  category: fields.category.nullable().optional(),
   accountId: fields.accountId.optional(),
   toAccountId: fields.accountId.optional(),
   memo: fields.memo.optional(),
@@ -202,7 +203,8 @@ export const kakeiboTemplatePatchInput = z.object({
   name: z.string().trim().min(1, "名前を入れてください。").max(30, "名前は 30 文字までです。").optional(),
   type: fields.type.optional(),
   groupId: fields.groupId.nullable().optional(),
-  category: fields.category.optional(),
+  // カテゴリの無いよく使う記録もある。accountId・memo と同じく null を許す。#193
+  category: fields.category.nullable().optional(),
   accountId: fields.accountId.optional(),
   toAccountId: fields.accountId.optional(),
   memo: fields.memo.optional(),

@@ -1,6 +1,6 @@
 import type { GroupMember, Me } from "@shared/api-types";
 import { ChevronLeft, ChevronRight, Coins } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
@@ -16,8 +16,11 @@ import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
 import { dateKey, formatShortDate } from "@/lib/dates";
+import { useBack } from "@/lib/use-back";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
+import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
+import { markJustAdded, takeJustAdded } from "@/modules/calendar/recent-items";
 import { upcomingOrCurrentBudgets } from "../shared/budgets";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
@@ -33,6 +36,8 @@ import { SettlementPanel } from "./SettlementPanel";
 /**
  * 記録の行。振替は「出す元 → 入れる先」、収入は金額の前に「+」。
  * 立て替えは、払った人と自分の負担額を添える。design.md「記録」の並び
+ *
+ * 足した(元に戻した)直後は膨らんで入り、消す途中は縮んで消える。動かすのは transform と opacity だけ。0044、0048、#201
  */
 function RecordRow({
   record,
@@ -40,12 +45,14 @@ function RecordRow({
   members,
   me,
   onClick,
+  isLeaving,
 }: {
   record: KakeiboExpense;
   groupLabel: string;
   members: GroupMember[];
   me: Me;
   onClick: () => void;
+  isLeaving: boolean;
 }) {
   const relation =
     record.type === "transfer"
@@ -54,8 +61,13 @@ function RecordRow({
   const account = record.type !== "transfer" ? accountRefLabel(record.account) : null;
   const amount = record.type === "income" ? formatSignedYen(record.amount) : formatYen(record.amount);
   const mySplit = record.splits?.find((s) => s.userId === me.user.id);
+  // 描いた瞬間に 1 度だけ読む。足した直後の再描画と、月を移る・グループを絞り直す再描画を見分けるため
+  const [entering] = useState(() => takeJustAdded(record.id));
   return (
-    <li className="border-line not-first:border-t">
+    <li
+      className={cn("border-line not-first:border-t", entering && "item-enter")}
+      data-leaving={isLeaving || undefined}
+    >
       <button
         type="button"
         className="grid min-h-11 w-full grid-cols-[4.75rem_1fr] items-center gap-1 py-1 text-left"
@@ -86,6 +98,85 @@ function RecordRow({
   );
 }
 
+/** 縮んで消える動きの長さ。globals.css の [data-leaving] と同じ --dur-base(220ms)。0044、0048、#201 */
+const EXIT_MS = 220;
+
+function without(s: Set<string>, key: string): Set<string> {
+  if (!s.has(key)) return s;
+  const next = new Set(s);
+  next.delete(key);
+  return next;
+}
+
+function withKey(s: Set<string>, key: string): Set<string> {
+  if (s.has(key)) return s;
+  const next = new Set(s);
+  next.add(key);
+  return next;
+}
+
+/**
+ * 記録を消す。5 秒の「元に戻す」そのものは lib/use-undoable-delete が持つ。ここで足すのは、消した瞬間に
+ * 縮んで消える動き(leaving)と、動きが終わってから一覧から外す(hidden)の 2 段階。
+ * modules/calendar/CalendarPage.tsx の useCalendarDelete と同じ仕組み。0044、0048、#201
+ *
+ * @returns hidden は一覧から外す記録の id。leaving は縮んで消える動きの途中の記録の id。remove は消す関数
+ */
+function useKakeiboRecordDelete() {
+  const deleteExpense = useDeleteExpense();
+  const [leaving, setLeaving] = useState<Set<string>>(new Set());
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const exitTimers = useRef(new Map<string, number>());
+
+  const clearExit = useCallback((key: string) => {
+    const t = exitTimers.current.get(key);
+    if (t != null) {
+      window.clearTimeout(t);
+      exitTimers.current.delete(key);
+    }
+  }, []);
+
+  const onRestore = useCallback(
+    (key: string) => {
+      clearExit(key);
+      markJustAdded(key);
+      setLeaving((s) => without(s, key));
+      setHidden((s) => without(s, key));
+    },
+    [clearExit],
+  );
+
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
+  const { remove: removePending } = useUndoableDelete("記録を消しました", onRestore);
+
+  const remove = useCallback(
+    (expense: KakeiboExpense) => {
+      const key = expense.id;
+      setLeaving((s) => withKey(s, key));
+      exitTimers.current.set(
+        key,
+        window.setTimeout(() => {
+          exitTimers.current.delete(key);
+          setHidden((s) => withKey(s, key));
+        }, EXIT_MS),
+      );
+      removePending(key, async ({ keepalive }) => {
+        try {
+          await deleteExpense.mutateAsync({ id: expense.id, keepalive });
+        } finally {
+          if (!keepalive) {
+            setHidden((s) => without(s, key));
+            setLeaving((s) => without(s, key));
+          }
+        }
+      });
+    },
+    [removePending, deleteExpense],
+  );
+
+  return { hidden, leaving, remove };
+}
+
 /**
  * 家計簿の画面。F-303
  *
@@ -97,9 +188,10 @@ export function KakeiboPage() {
   const me = useMe();
   const { groups, ready } = useKakeiboGroups();
   const [params, setParams] = useSearchParams();
-  const deleteExpense = useDeleteExpense();
-  const { pending, remove: removeRecord } = useUndoableDelete("記録を消しました");
+  const { hidden, leaving, remove: removeExpense } = useKakeiboRecordDelete();
   const [features, setFeatures] = useState(false);
+  // ホームのウィジェット(?from=widget)から開いたシートは、閉じたらホームへ戻す。0070、#201
+  const back = useBack("/");
 
   const groupParam = params.get("group");
   const group = groups.some((g) => g.id === groupParam) ? groupParam : null;
@@ -114,7 +206,15 @@ export function KakeiboPage() {
   const setMonth = (key: string) => setParams((p) => (p.set("month", key), p), { replace: true });
 
   const recording = params.get("record") === "1";
-  const closeRecord = () => setParams((p) => (p.delete("record"), p), { replace: true });
+  const openedFromWidget = params.get("from") === "widget";
+  const closeRecord = () => {
+    // ウィジェットから開いたときだけ、この画面に留まらずホーム(前の画面)へ戻る。0070、#201
+    if (openedFromWidget) {
+      back.onClick();
+      return;
+    }
+    setParams((p) => (p.delete("record"), p), { replace: true });
+  };
   const editingId = params.get("edit");
   const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
   const editing = summary.data?.records.find((r) => r.id === editingId);
@@ -126,19 +226,17 @@ export function KakeiboPage() {
   const selectedGroup = groups.find((g) => g.id === group);
   // 今日を含む予算と、これからの予算だけを出す。終わった予算は出さない。F-324
   const today = dateKey(new Date());
-  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
-  const handleDeleteExpense = (expense: KakeiboExpense) =>
-    removeRecord(expense.id, ({ keepalive }) => deleteExpense.mutateAsync({ id: expense.id, keepalive }));
+  const handleDeleteExpense = (expense: KakeiboExpense) => removeExpense(expense);
   const openRecordSheet = () => setParams((p) => (p.set("record", "1"), p), { replace: true });
   // 足せるものは記録だけ。「+」を押すと直接シートが開く。issue #150
   const addables: Addable[] = [{ key: "expense", label: "支出を記録する", icon: Coins, onClick: openRecordSheet }];
 
   /** 「この月の合計」から「記録」までの、summary から作る面。data が届いてから呼ぶ。0078、#195 */
   function summaryPanels(data: KakeiboSummary) {
-    // 消す途中(元に戻せる 5 秒の間)の記録は、一覧からすぐ外して見せる。実際に消す API は後から呼ばれる。issue #12
-    const records = data.records.filter((r) => !pending.has(r.id));
+    // 消す途中(縮んで消える動きの間、元に戻せる 5 秒の間)の記録は、一覧に残しつつ合計からはすぐ抜く。issue #12、0048、#201
+    const records = data.records.filter((r) => !hidden.has(r.id));
     // 合計とカテゴリ別の合計は、一覧(500 件で切れることがある)ではなく API がその月の全件から出した値を使う。#199
-    const pendingRecords = data.records.filter((r) => pending.has(r.id));
+    const pendingRecords = data.records.filter((r) => leaving.has(r.id));
     const totalExpense = data.totalExpense - sumByType(pendingRecords, "expense");
     const totalIncome = data.totalIncome - sumByType(pendingRecords, "income");
     const byCategory = subtractPendingFromCategories(data.byCategory, pendingRecords);
@@ -272,6 +370,7 @@ export function KakeiboPage() {
                     groupLabel={groupLabel}
                     members={recordGroup?.members ?? []}
                     me={meData}
+                    isLeaving={leaving.has(r.id)}
                     onClick={() => setParams((p) => (p.set("edit", r.id), p), { replace: true })}
                   />
                 );

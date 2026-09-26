@@ -93,15 +93,18 @@ test("ホームの「記録する」から 3 タップと金額の入力 1 回�
   await dialog.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("記録しました")).toBeVisible();
 
+  // ウィジェットから開いたシートを閉じると、家計簿の画面には残らずホームへ戻る。0070、#201
+  await expect(page).toHaveURL("/");
+  // ホームの「今月の合計」に反映される
+  await expect(total.getByText("¥1,200")).toBeVisible();
+
   // 家計簿の画面自身にも、この月の合計とカテゴリ別の内訳に反映される
+  await page.goto("/kakeibo");
   await expect(page.getByTestId("kakeibo-total")).toHaveText("¥1,200");
   await expect(page.getByTestId("kakeibo-category-food")).toHaveText("食費");
 
-  // ホームの「今月の合計」に反映される
-  await page.goto("/");
-  await expect(total.getByText("¥1,200")).toBeVisible();
-
   // カレンダーのその日に、小さく合計が出る
+  await page.goto("/");
   const badge = dayPanel(page).getByRole("button", { name: /¥1,200/ });
   await expect(badge).toBeVisible();
 

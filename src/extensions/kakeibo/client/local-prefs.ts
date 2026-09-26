@@ -38,3 +38,36 @@ export function saveLastRecord(value: KakeiboLastRecord): void {
     // 覚えられなくても、次回は既定(支出、口座なし)に戻るだけ
   }
 }
+
+/**
+ * カテゴリごとに前回使った口座。表を持たず、端末が覚える。0072、F-327
+ * カテゴリを選ぶとその口座が選ばれる。口座を手で選んだら、そちらを使う(呼び出し側で上書きする)
+ */
+const CATEGORY_ACCOUNT_KEY = "logru-kakeibo-category-account";
+
+/** そのカテゴリで前回使った口座。覚えていなければ null */
+export function loadCategoryAccount(category: string): string | null {
+  try {
+    const raw = localStorage.getItem(CATEGORY_ACCOUNT_KEY);
+    if (!raw) return null;
+    const map = JSON.parse(raw) as unknown;
+    if (!map || typeof map !== "object") return null;
+    const value = (map as Record<string, unknown>)[category];
+    return typeof value === "string" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** カテゴリごとの前回の口座を覚える。口座なしを選んだら、そのカテゴリの分は忘れる */
+export function saveCategoryAccount(category: string, accountId: string | null): void {
+  try {
+    const raw = localStorage.getItem(CATEGORY_ACCOUNT_KEY);
+    const map: Record<string, string> = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    if (accountId) map[category] = accountId;
+    else delete map[category];
+    localStorage.setItem(CATEGORY_ACCOUNT_KEY, JSON.stringify(map));
+  } catch {
+    // 覚えられなくても、次回はそのカテゴリの口座が選ばれないだけ
+  }
+}

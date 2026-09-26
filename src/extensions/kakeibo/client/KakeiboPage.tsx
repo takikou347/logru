@@ -1,3 +1,4 @@
+import type { GroupMember, Me } from "@shared/api-types";
 import { ChevronLeft, ChevronRight, Coins } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -14,33 +15,36 @@ import { Panel, PanelRow } from "@/components/parts/Panel";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
-import { formatShortDate } from "@/lib/dates";
+import { dateKey, formatShortDate } from "@/lib/dates";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { poolColorsOf } from "@/modules/calendar/model";
+import { upcomingOrCurrentBudgets } from "../shared/budgets";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
 import { formatSignedYen, formatYen } from "../shared/format";
 import { sumByType, summarizeExpenseByCategory } from "../shared/totals";
-import type { KakeiboAccountRef, KakeiboExpense } from "./api";
-import { useDeleteExpense, useKakeiboAccounts, useKakeiboGroups, useKakeiboSummary } from "./api";
+import type { KakeiboExpense } from "./api";
+import { useDeleteExpense, useKakeiboAccounts, useKakeiboBudgets, useKakeiboGroups, useKakeiboSummary } from "./api";
+import { BudgetRow } from "./BudgetPanel";
 import { ExpenseSheet } from "./ExpenseSheet";
-import { addMonthsToKey, formatMonthLabel, monthKeyOf } from "./parts";
+import { accountRefLabel, addMonthsToKey, formatMonthLabel, kakeiboPersonName, monthKeyOf } from "./parts";
+import { SettlementPanel } from "./SettlementPanel";
 
-/** 相手の口座の表示。見えなければ「〇〇さんの口座」 */
-function accountRefLabel(ref: KakeiboAccountRef): string | null {
-  if (!ref) return null;
-  if ("hidden" in ref) return `${ref.ownerName}さんの口座`;
-  return ref.name;
-}
-
-/** 記録の行。振替は「出す元 → 入れる先」、収入は金額の前に「+」 */
+/**
+ * 記録の行。振替は「出す元 → 入れる先」、収入は金額の前に「+」。
+ * 立て替えは、払った人と自分の負担額を添える。design.md「記録」の並び
+ */
 function RecordRow({
   record,
   groupLabel,
+  members,
+  me,
   onClick,
 }: {
   record: KakeiboExpense;
   groupLabel: string;
+  members: GroupMember[];
+  me: Me;
   onClick: () => void;
 }) {
   const relation =
@@ -49,14 +53,15 @@ function RecordRow({
       : kakeiboCategoryLabel(record.category);
   const account = record.type !== "transfer" ? accountRefLabel(record.account) : null;
   const amount = record.type === "income" ? formatSignedYen(record.amount) : formatYen(record.amount);
+  const mySplit = record.splits?.find((s) => s.userId === me.user.id);
   return (
     <li className="border-line not-first:border-t">
       <button
         type="button"
-        className="grid min-h-11 w-full grid-cols-[46px_1fr] items-center gap-1 py-1 text-left"
+        className="grid min-h-11 w-full grid-cols-[4.75rem_1fr] items-center gap-1 py-1 text-left"
         onClick={onClick}
       >
-        <time className="text-sm font-medium text-ink-2">{formatShortDate(record.date)}</time>
+        <time className="text-sm font-medium whitespace-nowrap text-ink-2">{formatShortDate(record.date)}</time>
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="flex min-w-0 items-baseline gap-1.5">
             <span className="min-w-0 truncate text-sm font-medium">{relation}</span>
@@ -69,6 +74,12 @@ function RecordRow({
             </span>
             <span className="flex-none font-bold text-ink tabular-nums">{amount}</span>
           </span>
+          {record.splitMode && (
+            <span className="text-xs text-ink-2">
+              {kakeiboPersonName(record.paidBy, members, me)}が払った
+              {mySplit && ` ・ 自分の負担 ${formatYen(mySplit.amount)}`}
+            </span>
+          )}
         </span>
       </button>
     </li>
@@ -96,6 +107,7 @@ export function KakeiboPage() {
   const month = monthParam && isMonthKey(monthParam) ? monthParam : monthKeyOf(new Date());
   const summary = useKakeiboSummary(group, month, ready);
   const accounts = useKakeiboAccounts(group, ready);
+  const budgets = useKakeiboBudgets(group, ready);
 
   const setGroup = (id: string | null) =>
     setParams((p) => (id ? p.set("group", id) : p.delete("group"), p), { replace: true });
@@ -116,7 +128,10 @@ export function KakeiboPage() {
   const totalExpense = sumByType(records, "expense");
   const totalIncome = sumByType(records, "income");
   const byCategory = summarizeExpenseByCategory(records);
+  const selectedGroup = groups.find((g) => g.id === group);
   const accountsList = accounts.data ?? [];
+  // 今日を含む予算と、これからの予算だけを出す。終わった予算は出さない。F-324
+  const shownBudgets = upcomingOrCurrentBudgets(budgets.data ?? [], dateKey(new Date()));
   // グループごとに分けて並べる。自分の口座は総資産、共有口座はそのグループの合計を見出しにする。issue #177
   const groupedAccounts = groups
     .map((g) => ({ group: g, accounts: accountsList.filter((a) => a.groupId === g.id) }))
@@ -168,6 +183,19 @@ export function KakeiboPage() {
         )}
         {summary.isPending && <Loading />}
 
+        {shownBudgets.length > 0 && (
+          <Panel title="予算">
+            <div className="flex flex-col">
+              {shownBudgets.map((b) => (
+                <BudgetRow key={b.id} budget={b} />
+              ))}
+            </div>
+            <Link to="/kakeibo/budgets" className="text-xs text-ink-2 underline underline-offset-2">
+              予算の画面へ
+            </Link>
+          </Panel>
+        )}
+
         {summary.data && (
           <Panel title="この月の合計">
             <p className="text-3xl font-extrabold" data-testid="kakeibo-total">
@@ -202,8 +230,36 @@ export function KakeiboPage() {
                   </span>
                 </PanelRow>
               )}
+              {summary.data.sharedBurden !== null && summary.data.sharedBurden > 0 && (
+                <PanelRow>
+                  <span>グループで負担した額</span>
+                  <span className="font-bold" data-testid="kakeibo-shared-burden">
+                    {formatYen(summary.data.sharedBurden)}
+                  </span>
+                </PanelRow>
+              )}
+              {summary.data.debts?.map((d) => {
+                const g = groups.find((x) => x.id === d.groupId);
+                const net = d.receivable - d.payable;
+                return (
+                  <Link
+                    key={d.groupId}
+                    to={`/kakeibo?group=${d.groupId}`}
+                    className="flex min-h-11 items-center justify-between gap-3 border-b border-line text-sm text-ink no-underline last:border-b-0"
+                  >
+                    <span className="min-w-0 truncate">{g ? `${g.name}の立て替え` : "立て替え"}</span>
+                    <span className="flex-none font-bold tabular-nums" data-testid={`kakeibo-debt-${d.groupId}`}>
+                      {net > 0 ? `受け取る ${formatYen(net)}` : `払う ${formatYen(-net)}`}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           </Panel>
+        )}
+
+        {summary.data && selectedGroup && !selectedGroup.isPersonal && (
+          <SettlementPanel groups={groups} group={selectedGroup} me={data} />
         )}
 
         {summary.data && byCategory.length > 0 && (
@@ -266,6 +322,13 @@ export function KakeiboPage() {
           )}
         </Panel>
 
+        <Panel>
+          <div className="flex items-center gap-4 text-xs text-ink-2 underline underline-offset-2">
+            <Link to="/kakeibo/recurrings">定期の記録</Link>
+            <Link to="/kakeibo/templates">よく使う記録</Link>
+          </div>
+        </Panel>
+
         <Panel title="記録">
           {records.length === 0 ? (
             <EmptyState
@@ -288,6 +351,8 @@ export function KakeiboPage() {
                     key={r.id}
                     record={r}
                     groupLabel={groupLabel}
+                    members={recordGroup?.members ?? []}
+                    me={data}
                     onClick={() => setParams((p) => (p.set("edit", r.id), p), { replace: true })}
                   />
                 );

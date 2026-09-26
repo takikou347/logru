@@ -9,8 +9,14 @@ import { kakeiboInput } from "../shared/schemas";
 import { sumByType, summarizeExpenseByCategory } from "../shared/totals";
 import { personalKakeiboGroupId, requireKakeiboGroup, usableGroupIds, usableGroups } from "./access";
 import { kakeiboAccountsRoutes } from "./accounts-routes";
+import { kakeiboBudgetsRoutes } from "./budgets-routes";
 import { toExpenseDtos } from "./dto";
+import { kakeiboRecurringsRoutes } from "./recurring-routes";
 import { type KakeiboAccountRow, type KakeiboExpenseRow, kakeiboAccounts, kakeiboExpenses } from "./schema";
+import { kakeiboSettlementRoutes, kakeiboSettlementsRoutes } from "./settlement-routes";
+import { myShareDebts, sharedBurdenThisMonth } from "./settlement-summary";
+import { resolveSplitPlan, writeSplits } from "./splits";
+import { kakeiboTemplatesRoutes } from "./templates-routes";
 
 /** 月に 1 度に読む記録の上限。家計簿は個人か少人数の想定なので十分な余白を取る */
 const RECORDS_LIMIT = 500;
@@ -50,11 +56,15 @@ async function loadWritableAccount(
 /** 保存に使う、確かめ済みの値 */
 type ResolvedWrite = Pick<
   KakeiboExpenseRow,
-  "groupId" | "type" | "date" | "amount" | "category" | "accountId" | "toAccountId"
+  "groupId" | "type" | "date" | "amount" | "category" | "accountId" | "toAccountId" | "paidBy" | "splitMode"
 >;
 
 /**
  * 種類ごとの入力の決まりを確かめ、保存する値を組み立てる。振替のグループはここで決める。0069
+ *
+ * 支出は、共有のグループで共有口座以外(自分の口座、口座なし)で払ったときだけ、立て替えとして割る。
+ * 割った結果(shares)は呼び出し側が writeSplits で書き込む。0072、F-318
+ *
  * @param current 直すときの、いまの行。新しく作るときは無い
  */
 async function resolveWrite(
@@ -62,7 +72,7 @@ async function resolveWrite(
   userId: string,
   input: ReturnType<typeof kakeiboInput.parse>,
   current?: KakeiboExpenseRow,
-): Promise<ResolvedWrite> {
+): Promise<{ write: ResolvedWrite; shares: Awaited<ReturnType<typeof resolveSplitPlan>>["shares"] }> {
   if (input.type === "transfer") {
     if (!input.accountId || !input.toAccountId) throw new HttpError(400, "出す元と入れる先の口座を選んでください。");
     if (input.accountId === input.toAccountId) throw new HttpError(400, "出す元と入れる先は、別の口座にしてください。");
@@ -77,27 +87,37 @@ async function resolveWrite(
     // 振替を置くグループは、関わる口座で決める。画面からは送らせない。0069
     const groupId = to.isPersonal ? from.row.groupId : to.row.groupId;
     return {
-      groupId,
-      type: "transfer",
-      date: input.date,
-      amount: input.amount,
-      category: "transfer",
-      accountId: from.row.id,
-      toAccountId: to.row.id,
+      write: {
+        groupId,
+        type: "transfer",
+        date: input.date,
+        amount: input.amount,
+        category: "transfer",
+        accountId: from.row.id,
+        toAccountId: to.row.id,
+        paidBy: null,
+        splitMode: null,
+      },
+      shares: [],
     };
   }
 
   if (!input.groupId) throw new HttpError(400, "記録するグループを選んでください。");
-  await requireKakeiboGroup(db, userId, input.groupId);
+  const groupRow = (await usableGroups(db, userId, [input.groupId]))[0];
+  if (!groupRow) throw new HttpError(404, "見つかりません。");
   const allowed = input.type === "expense" ? KAKEIBO_EXPENSE_CATEGORY_KEYS : KAKEIBO_INCOME_CATEGORY_KEYS;
   if (!input.category || !(allowed as readonly string[]).includes(input.category))
     throw new HttpError(400, "カテゴリを選んでください。");
 
   let accountId: string | null = null;
+  let account: { row: KakeiboAccountRow; isPersonal: boolean } | null = null;
   if (input.accountId !== undefined) {
     if (input.accountId !== null) {
-      const account = await loadWritableAccount(db, userId, input.accountId);
-      if (account.row.groupId !== input.groupId) throw new HttpError(400, "その口座は、このグループでは選べません。");
+      account = await loadWritableAccount(db, userId, input.accountId);
+      // 記録と同じグループの口座(共有口座を含む)か、支出でグループが共有のときだけ、自分の口座も選べる。F-319
+      const sameGroup = account.row.groupId === input.groupId;
+      const ownPersonalForSplit = input.type === "expense" && !groupRow.isPersonal && account.isPersonal;
+      if (!sameGroup && !ownPersonalForSplit) throw new HttpError(400, "その口座は、このグループでは選べません。");
       const unchanged = current?.accountId === account.row.id;
       if (account.row.archivedAt && !unchanged)
         throw new HttpError(400, "この口座は使えません。「使わない」にした口座です。");
@@ -105,15 +125,38 @@ async function resolveWrite(
     }
   } else {
     accountId = current?.accountId ?? null;
+    // PATCH で口座を送らなかったとき。いまの口座のまま、割るかどうかの判定にも使う
+    if (accountId) account = await loadWritableAccount(db, userId, accountId);
   }
+
+  const plan = await resolveSplitPlan(
+    db,
+    userId,
+    {
+      type: input.type,
+      groupId: input.groupId,
+      amount: input.amount,
+      paidBy: input.paidBy,
+      splitMode: input.splitMode,
+      splits: input.splits,
+    },
+    groupRow.isPersonal,
+    account ? { groupId: account.row.groupId, isPersonal: account.isPersonal } : null,
+  );
+
   return {
-    groupId: input.groupId,
-    type: input.type,
-    date: input.date,
-    amount: input.amount,
-    category: input.category,
-    accountId,
-    toAccountId: null,
+    write: {
+      groupId: input.groupId,
+      type: input.type,
+      date: input.date,
+      amount: input.amount,
+      category: input.category,
+      accountId,
+      toAccountId: null,
+      paidBy: plan.paidBy,
+      splitMode: plan.splitMode,
+    },
+    shares: plan.shares,
   };
 }
 
@@ -122,6 +165,11 @@ export const kakeiboRoutes = createRouter()
   .use("*", requireUser, requireAgreement)
   // `/:id` より先に載せる。後に置くと `/accounts` が記録の ID として読まれる
   .route("/accounts", kakeiboAccountsRoutes)
+  .route("/settlement", kakeiboSettlementRoutes)
+  .route("/settlements", kakeiboSettlementsRoutes)
+  .route("/budgets", kakeiboBudgetsRoutes)
+  .route("/recurrings", kakeiboRecurringsRoutes)
+  .route("/templates", kakeiboTemplatesRoutes)
   .get("/usage", async (c) => {
     const db = c.get("db");
     const userId = c.get("user").id;
@@ -215,6 +263,14 @@ export const kakeiboRoutes = createRouter()
       }
     }
 
+    // 自分だけで絞ったときだけ、その月にグループで負担した額と、いま立て替え中の額を別に出す。0072、F-322
+    let sharedBurden: number | null = null;
+    let debts: { groupId: string; receivable: number; payable: number }[] | null = null;
+    if (personalGroupId && groupParam === personalGroupId) {
+      sharedBurden = await sharedBurdenThisMonth(db, userId, from, to);
+      debts = await myShareDebts(db, userId);
+    }
+
     const visibleGroupIds = new Set(await usableGroupIds(db, userId));
     return c.json({
       totalExpense: sumByType(rows, "expense"),
@@ -222,6 +278,8 @@ export const kakeiboRoutes = createRouter()
       byCategory: summarizeExpenseByCategory(rows),
       toShared,
       fromShared,
+      sharedBurden,
+      debts,
       records: await toExpenseDtos(db, rows, visibleGroupIds),
     });
   })
@@ -229,9 +287,10 @@ export const kakeiboRoutes = createRouter()
     const db = c.get("db");
     const userId = c.get("user").id;
     const input = c.req.valid("json");
-    const resolved = await resolveWrite(db, userId, input);
+    const { write, shares } = await resolveWrite(db, userId, input);
     const id = crypto.randomUUID();
-    await db.insert(kakeiboExpenses).values({ id, createdBy: userId, memo: input.memo || null, ...resolved });
+    await db.insert(kakeiboExpenses).values({ id, createdBy: userId, memo: input.memo || null, ...write });
+    await writeSplits(db, id, shares);
     const row = await db.select().from(kakeiboExpenses).where(eq(kakeiboExpenses.id, id)).get();
     const visibleGroupIds = new Set(await usableGroupIds(db, userId));
     return c.json((await toExpenseDtos(db, [row!], visibleGroupIds))[0], 201);
@@ -241,11 +300,12 @@ export const kakeiboRoutes = createRouter()
     const userId = c.get("user").id;
     const current = await loadOwned(db, userId, c.req.param("id"));
     const input = c.req.valid("json");
-    const resolved = await resolveWrite(db, userId, input, current);
+    const { write, shares } = await resolveWrite(db, userId, input, current);
     await db
       .update(kakeiboExpenses)
-      .set({ memo: input.memo === undefined ? current.memo : input.memo || null, updatedAt: new Date(), ...resolved })
+      .set({ memo: input.memo === undefined ? current.memo : input.memo || null, updatedAt: new Date(), ...write })
       .where(eq(kakeiboExpenses.id, current.id));
+    await writeSplits(db, current.id, shares);
     const row = await db.select().from(kakeiboExpenses).where(eq(kakeiboExpenses.id, current.id)).get();
     const visibleGroupIds = new Set(await usableGroupIds(db, userId));
     return c.json((await toExpenseDtos(db, [row!], visibleGroupIds))[0]);

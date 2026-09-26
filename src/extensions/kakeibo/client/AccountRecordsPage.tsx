@@ -15,13 +15,17 @@ import { formatYen } from "../shared/format";
 import { AccountSheet } from "./AccountSheet";
 import type { KakeiboAccountRef, KakeiboExpense } from "./api";
 import { useKakeiboAccountDetail, useKakeiboGroups } from "./api";
-import { addMonthsToKey, formatMonthLabel, KAKEIBO_ACCOUNT_KIND_ICONS, monthKeyOf } from "./parts";
+import {
+  addMonthsToKey,
+  formatMonthLabel,
+  KAKEIBO_ACCOUNT_KIND_ICONS,
+  monthKeyOf,
+  accountRefLabel as sharedAccountRefLabel,
+} from "./parts";
 
-/** 相手の口座の表示。見えなければ「〇〇さんの口座」 */
+/** 相手の口座の表示。見えなければ「〇〇さんの口座」。口座なしのときは「口座なし」 */
 function accountRefLabel(ref: KakeiboAccountRef): string {
-  if (!ref) return "口座なし";
-  if ("hidden" in ref) return `${ref.ownerName}さんの口座`;
-  return ref.name;
+  return sharedAccountRefLabel(ref) ?? "口座なし";
 }
 
 /** この口座から見た金額。出ていけばマイナス、入ってくればプラス */
@@ -43,8 +47,8 @@ function RecordRow({ record, accountId }: { record: KakeiboExpense; accountId: s
       : kakeiboCategoryLabel(record.category);
   return (
     <li className="border-line not-first:border-t">
-      <div className="grid min-h-11 grid-cols-[46px_1fr] items-center gap-1 py-1 text-left">
-        <time className="text-sm font-medium text-ink-2">{formatShortDate(record.date)}</time>
+      <div className="grid min-h-11 grid-cols-[4.75rem_1fr] items-center gap-1 py-1 text-left">
+        <time className="text-sm font-medium whitespace-nowrap text-ink-2">{formatShortDate(record.date)}</time>
         <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <span className="min-w-0 truncate">{relation}</span>
           {record.memo && <span className="min-w-0 truncate text-xs font-normal text-ink-2">{record.memo}</span>}

@@ -1,8 +1,26 @@
 import { kakeiboAccountKindLabel } from "@extensions/kakeibo/shared/accounts";
+import { upcomingOrCurrentBudgets } from "@extensions/kakeibo/shared/budgets";
 import { isExpenseCategory, isIncomeCategory, kakeiboCategoryLabel } from "@extensions/kakeibo/shared/categories";
 import { dateKeyOfJst, isDateKey, isMonthKey, monthRange, startOfDateJst } from "@extensions/kakeibo/shared/dates";
 import { formatSignedYen, formatYen } from "@extensions/kakeibo/shared/format";
-import { kakeiboAccountInput, kakeiboAccountPatchInput, kakeiboInput } from "@extensions/kakeibo/shared/schemas";
+import {
+  daysInMonth,
+  dueDayOfMonth,
+  isRecurringActiveInMonth,
+  monthKeyOfDate,
+} from "@extensions/kakeibo/shared/recurring";
+import {
+  kakeiboAccountInput,
+  kakeiboAccountPatchInput,
+  kakeiboBudgetInput,
+  kakeiboBudgetPatchInput,
+  kakeiboInput,
+  kakeiboRecurringInput,
+  kakeiboSettlementInput,
+  kakeiboTemplateInput,
+} from "@extensions/kakeibo/shared/schemas";
+import { minimalTransfers, netBalances } from "@extensions/kakeibo/shared/settlement";
+import { splitEqually, splitNone, sumSplitShares } from "@extensions/kakeibo/shared/splits";
 import { sumByType, summarizeExpenseByCategory } from "@extensions/kakeibo/shared/totals";
 import { describe, expect, it } from "vitest";
 
@@ -167,5 +185,304 @@ describe("口座の入力。F-309", () => {
     expect(kakeiboAccountPatchInput.safeParse({}).success).toBe(true);
     expect(kakeiboAccountPatchInput.safeParse({ archived: true }).success).toBe(true);
     expect(kakeiboAccountPatchInput.safeParse({ name: "" }).success).toBe(false);
+  });
+});
+
+describe("割り勘。0072、F-318", () => {
+  it("全員で同じ額に割る。割り切れる", () => {
+    const shares = splitEqually(3000, ["a", "b", "c"], "a");
+    expect(shares).toEqual([
+      { userId: "a", amount: 1000 },
+      { userId: "b", amount: 1000 },
+      { userId: "c", amount: 1000 },
+    ]);
+    expect(sumSplitShares(shares)).toBe(3000);
+  });
+
+  it("割り切れない 1 円は、払った人から順に足す", () => {
+    const shares = splitEqually(1000, ["a", "b", "c"], "b");
+    // 1000 / 3 = 333 あまり 1。払った b が先頭、次に a、c の順で 1 円を足す
+    expect(shares.find((s) => s.userId === "b")!.amount).toBe(334);
+    expect(shares.find((s) => s.userId === "a")!.amount).toBe(333);
+    expect(shares.find((s) => s.userId === "c")!.amount).toBe(333);
+    expect(sumSplitShares(shares)).toBe(1000);
+  });
+
+  it("端数が 2 人分でも、払った人から順に足して合計が合う", () => {
+    const shares = splitEqually(100, ["a", "b", "c", "d"], "c");
+    // 100 / 4 = 25 ちょうど、あまり無し
+    expect(sumSplitShares(shares)).toBe(100);
+    const shares2 = splitEqually(101, ["a", "b", "c", "d"], "c");
+    expect(shares2.find((s) => s.userId === "c")!.amount).toBe(26);
+    expect(sumSplitShares(shares2)).toBe(101);
+  });
+
+  it("1 人だけのグループでも、その人の全額になる", () => {
+    const shares = splitEqually(500, ["a"], "a");
+    expect(shares).toEqual([{ userId: "a", amount: 500 }]);
+  });
+
+  it("割らないときは、払った人の全額になる", () => {
+    expect(splitNone(2000, "a")).toEqual([{ userId: "a", amount: 2000 }]);
+  });
+
+  it("どの金額・人数の組み合わせでも、負担額の合計は必ず金額と同じ", () => {
+    for (const amount of [1, 2, 3, 10, 999, 12345, 100_000_000]) {
+      for (const n of [1, 2, 3, 5, 7]) {
+        const members = Array.from({ length: n }, (_, i) => `u${i}`);
+        for (const payer of members) {
+          expect(sumSplitShares(splitEqually(amount, members, payer))).toBe(amount);
+        }
+      }
+    }
+  });
+});
+
+describe("精算の計算。0072、F-320", () => {
+  it("払った額と負担額の差し引きを出す", () => {
+    const net = netBalances(
+      [{ userId: "a", amount: 3000 }],
+      [
+        { userId: "a", amount: 1000 },
+        { userId: "b", amount: 1000 },
+        { userId: "c", amount: 1000 },
+      ],
+    );
+    expect(net.get("a")).toBe(2000);
+    expect(net.get("b")).toBe(-1000);
+    expect(net.get("c")).toBe(-1000);
+  });
+
+  it("精算した記録の分だけ、差し引きを 0 に近づける", () => {
+    const net = netBalances(
+      [{ userId: "a", amount: 3000 }],
+      [{ userId: "a", amount: 1000 }],
+      [{ from: "b", to: "a", amount: 1000 }],
+    );
+    expect(net.get("a")).toBe(2000 - 1000);
+    expect(net.get("b")).toBe(1000);
+  });
+
+  it("送る回数がいちばん少ない組み合わせを、貸しの多い人と借りの多い人から順に当てて作る", () => {
+    const net = new Map([
+      ["a", 2000],
+      ["b", -1000],
+      ["c", -1000],
+    ]);
+    const transfers = minimalTransfers(net);
+    expect(transfers).toEqual(
+      expect.arrayContaining([
+        { from: "b", to: "a", amount: 1000 },
+        { from: "c", to: "a", amount: 1000 },
+      ]),
+    );
+    expect(transfers).toHaveLength(2);
+  });
+
+  it("3 人で 1 人が立て替えたときは、残りの 2 人がそれぞれ払うだけで済む", () => {
+    // 3 万円を a が立て替え、3 人で均等割り
+    const shares = splitEqually(30_000, ["a", "b", "c"], "a");
+    const net = netBalances([{ userId: "a", amount: 30_000 }], shares);
+    const transfers = minimalTransfers(net);
+    expect(transfers.sort((x, y) => x.from.localeCompare(y.from))).toEqual([
+      { from: "b", to: "a", amount: 10_000 },
+      { from: "c", to: "a", amount: 10_000 },
+    ]);
+  });
+
+  it("貸し借りが無ければ、送る組み合わせは無い", () => {
+    expect(minimalTransfers(netBalances([{ userId: "a", amount: 1000 }], [{ userId: "a", amount: 1000 }]))).toEqual([]);
+  });
+
+  it("複雑な組み合わせでも、必ず全員の差し引きが 0 になるまで割り当てる", () => {
+    const net = new Map([
+      ["a", 500],
+      ["b", 300],
+      ["c", -200],
+      ["d", -600],
+    ]);
+    const transfers = minimalTransfers(new Map(net));
+    const settled = new Map(net);
+    for (const t of transfers) {
+      settled.set(t.from, (settled.get(t.from) ?? 0) + t.amount);
+      settled.set(t.to, (settled.get(t.to) ?? 0) - t.amount);
+    }
+    for (const v of settled.values()) expect(v).toBe(0);
+    // 4 人の貸し借りは、多くて 3 回で済む
+    expect(transfers.length).toBeLessThanOrEqual(3);
+  });
+
+  it("0 になる部分集合に分けられるときは、部分集合をまたがず、貪欲法より少ない回数になる", () => {
+    // a・b・c は 8-3-5=0 で 1 つの部分集合(2 回で済む)。d・e は 4-4=0 でもう 1 つの部分集合(1 回で済む)。
+    // 全員をまとめて大きい順に貪欲法で当てると、部分集合をまたいで 4 回になってしまう。分けてから当てると 3 回で済む
+    const net = new Map([
+      ["a", 8000],
+      ["b", -3000],
+      ["c", -5000],
+      ["d", 4000],
+      ["e", -4000],
+    ]);
+    const transfers = minimalTransfers(new Map(net));
+    expect(transfers.length).toBe(3);
+
+    const settled = new Map(net);
+    for (const t of transfers) {
+      settled.set(t.from, (settled.get(t.from) ?? 0) + t.amount);
+      settled.set(t.to, (settled.get(t.to) ?? 0) - t.amount);
+    }
+    for (const v of settled.values()) expect(v).toBe(0);
+
+    // d・e の部分集合の外(a・b・c)へは送らない。部分集合をまたぐ送金が無いことも確かめる
+    for (const t of transfers) {
+      const deGroup = new Set(["d", "e"]);
+      expect(deGroup.has(t.from)).toBe(deGroup.has(t.to));
+    }
+  });
+
+  it("人数が多くても、時間がかかりすぎずに全員の差し引きが 0 になる組み合わせを作る", () => {
+    const net = new Map<string, number>();
+    for (let i = 0; i < 30; i++) net.set(`u${i}`, i % 2 === 0 ? 1000 : -1000);
+    const transfers = minimalTransfers(net);
+    const settled = new Map(net);
+    for (const t of transfers) {
+      settled.set(t.from, (settled.get(t.from) ?? 0) + t.amount);
+      settled.set(t.to, (settled.get(t.to) ?? 0) - t.amount);
+    }
+    for (const v of settled.values()) expect(v).toBe(0);
+  });
+});
+
+describe("定期の記録の日付。0072、F-325", () => {
+  it("月の日数を返す", () => {
+    expect(daysInMonth(2026, 2)).toBe(28);
+    expect(daysInMonth(2024, 2)).toBe(29);
+    expect(daysInMonth(2026, 9)).toBe(30);
+    expect(daysInMonth(2026, 1)).toBe(31);
+  });
+
+  it("31 日を指定した月は、その月の月末になる", () => {
+    expect(dueDayOfMonth(31, 2026, 9)).toBe(30);
+    expect(dueDayOfMonth(31, 2026, 1)).toBe(31);
+    expect(dueDayOfMonth(15, 2026, 9)).toBe(15);
+  });
+
+  it("始まりの月より前、終わりの月より後、止めた記録は動かない", () => {
+    const base = {
+      dayOfMonth: 27,
+      startMonth: "2026-06",
+      endMonth: null as string | null,
+      lastMonth: null as string | null,
+      pausedAt: null as number | null,
+    };
+    expect(isRecurringActiveInMonth(base, "2026-05")).toBe(false);
+    expect(isRecurringActiveInMonth(base, "2026-06")).toBe(true);
+    expect(isRecurringActiveInMonth({ ...base, endMonth: "2026-08" }, "2026-09")).toBe(false);
+    expect(isRecurringActiveInMonth({ ...base, pausedAt: Date.now() }, "2026-09")).toBe(false);
+  });
+
+  it("同じ月にすでに入れていれば動かない", () => {
+    const base = {
+      dayOfMonth: 27,
+      startMonth: "2026-06",
+      endMonth: null as string | null,
+      lastMonth: "2026-09",
+      pausedAt: null as number | null,
+    };
+    expect(isRecurringActiveInMonth(base, "2026-09")).toBe(false);
+    expect(isRecurringActiveInMonth(base, "2026-10")).toBe(true);
+  });
+
+  it("`2026-09-24` から `2026-09` を作る", () => {
+    expect(monthKeyOfDate("2026-09-24")).toBe("2026-09");
+  });
+});
+
+describe("精算の入力。0072、F-321", () => {
+  const settlement = { groupId: "g", fromUser: "a", toUser: "b", amount: 1000, date: "2026-09-24" };
+
+  it("形がそろえば通す", () => {
+    expect(kakeiboSettlementInput.safeParse(settlement).success).toBe(true);
+  });
+
+  it("送った人と受け取った人が同じなら断る", () => {
+    expect(kakeiboSettlementInput.safeParse({ ...settlement, toUser: "a" }).success).toBe(false);
+  });
+
+  it("0 円以下は断る", () => {
+    expect(kakeiboSettlementInput.safeParse({ ...settlement, amount: 0 }).success).toBe(false);
+  });
+});
+
+describe("定期の記録の入力。0072、F-325", () => {
+  const recurring = {
+    groupId: "g",
+    type: "expense" as const,
+    amount: 80_000,
+    category: "housing" as const,
+    dayOfMonth: 27,
+    startMonth: "2026-09",
+  };
+
+  it("形がそろえば通す", () => {
+    expect(kakeiboRecurringInput.safeParse(recurring).success).toBe(true);
+  });
+
+  it("毎月の日は 1 から 31 まで", () => {
+    expect(kakeiboRecurringInput.safeParse({ ...recurring, dayOfMonth: 0 }).success).toBe(false);
+    expect(kakeiboRecurringInput.safeParse({ ...recurring, dayOfMonth: 32 }).success).toBe(false);
+    expect(kakeiboRecurringInput.safeParse({ ...recurring, dayOfMonth: 31 }).success).toBe(true);
+  });
+
+  it("始まりの月・終わりの月は `2026-09` の形", () => {
+    expect(kakeiboRecurringInput.safeParse({ ...recurring, startMonth: "2026/09" }).success).toBe(false);
+    expect(kakeiboRecurringInput.safeParse({ ...recurring, endMonth: "2026-12" }).success).toBe(true);
+  });
+});
+
+describe("よく使う記録の入力。0072、F-326", () => {
+  const template = { name: "スーパー", type: "expense" as const, category: "food" as const };
+
+  it("形がそろえば通す。金額は省ける", () => {
+    expect(kakeiboTemplateInput.safeParse(template).success).toBe(true);
+    expect(kakeiboTemplateInput.safeParse({ ...template, amount: 1000 }).success).toBe(true);
+  });
+
+  it("名前は 1 から 30 字", () => {
+    expect(kakeiboTemplateInput.safeParse({ ...template, name: "" }).success).toBe(false);
+    expect(kakeiboTemplateInput.safeParse({ ...template, name: "あ".repeat(31) }).success).toBe(false);
+  });
+});
+
+describe("期間の予算の入力。0072、F-323", () => {
+  const budget = { groupId: "g", name: "旅行", startDate: "2026-09-01", endDate: "2026-09-30", amount: 30000 };
+
+  it("形がそろえば通す", () => {
+    expect(kakeiboBudgetInput.safeParse(budget).success).toBe(true);
+  });
+
+  it("終わりの日は始まりの日と同じか後", () => {
+    expect(kakeiboBudgetInput.safeParse({ ...budget, endDate: "2026-08-31" }).success).toBe(false);
+    expect(kakeiboBudgetInput.safeParse({ ...budget, endDate: budget.startDate }).success).toBe(true);
+  });
+
+  it("直すときも、送った項目の組み合わせで終わりの日を確かめる", () => {
+    expect(kakeiboBudgetPatchInput.safeParse({ endDate: "2026-08-31" }).success).toBe(true);
+    expect(kakeiboBudgetPatchInput.safeParse({ startDate: "2026-09-10", endDate: "2026-09-01" }).success).toBe(false);
+  });
+});
+
+describe("家計簿の画面の上に出す予算。0072、F-324", () => {
+  const budgets = [
+    { id: "past", startDate: "2026-08-01", endDate: "2026-08-31" },
+    { id: "current", startDate: "2026-09-01", endDate: "2026-09-30" },
+    { id: "future", startDate: "2026-10-01", endDate: "2026-10-31" },
+  ];
+
+  it("終わった予算は出さない。今日を含む予算とこれからの予算を、始まりの日が早い順に出す", () => {
+    expect(upcomingOrCurrentBudgets(budgets, "2026-09-15").map((b) => b.id)).toEqual(["current", "future"]);
+  });
+
+  it("今日がちょうど終わりの日でも出す", () => {
+    expect(upcomingOrCurrentBudgets(budgets, "2026-08-31").map((b) => b.id)).toEqual(["past", "current", "future"]);
   });
 });

@@ -70,8 +70,8 @@ test("ひとコマは思い出を消しても残り、つなぎ直せる。F-128
 
   // 思い出を消す
   await page.getByRole("button", { name: "思い出を編集" }).click();
-  await page.getByRole("dialog", { name: "思い出を編集" }).getByRole("button", { name: "削除" }).click();
-  await page.getByRole("dialog", { name: "思い出を削除しますか" }).getByRole("button", { name: "削除する" }).click();
+  await page.getByRole("dialog", { name: "思い出を編集" }).getByRole("button", { name: "消す" }).click();
+  await page.getByRole("dialog", { name: "思い出を消しますか" }).getByRole("button", { name: "消す" }).click();
   await expect(page).toHaveURL(/\/memories$/);
 
   // 確認画面には、つなぎの外れた今日のひとコマが残る

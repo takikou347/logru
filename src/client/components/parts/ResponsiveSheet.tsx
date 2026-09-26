@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { sheetOpened } from "@/lib/pwa-update";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +54,8 @@ export function ResponsiveSheet({
   fullScreen?: boolean;
 }) {
   const desktop = useMediaQuery("(min-width: 1024px)");
+  // 新しい版が出ても、開いている間は読み込み直しを延ばす。0073
+  useEffect(() => sheetOpened(), []);
   const onOpenChange = (open: boolean) => !open && onClose();
   const body = cn("glass flex flex-col gap-3.5 text-ink");
   // 中身だけを流す欄。見出しと閉じるボタンの行が属す flex の gap-3.5 と同じ間隔を、この中でも保つ

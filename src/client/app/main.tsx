@@ -12,6 +12,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { clientErrorReporter, describeError } from "@/lib/error-report";
 import { detectInAppBrowser, externalBrowserRedirectUrl, withoutExternalBrowserParam } from "@/lib/in-app-browser";
 import { listenInstallPrompt } from "@/lib/pwa";
+import { listenAutoUpdate } from "@/lib/pwa-update";
 import { isSessionExpired, markSessionExpired } from "@/lib/session-expired";
 import { applyTheme, readStoredTheme, watchSystemTheme } from "@/lib/theme";
 import { AuthProvider, signOut } from "./auth";
@@ -75,6 +76,9 @@ if (redirectUrl) {
 
   // Android の Chrome が「追加できる」と知らせるのは画面の部品より先のことがある。最初に受け始める。F-34
   listenInstallPrompt();
+
+  // 新しい版を出したら、開き直さなくても画面を切り替える。F-41、0073
+  listenAutoUpdate();
 
   const stored = readStoredTheme();
   applyTheme(stored.mode, stored.bgTheme, stored.accent);

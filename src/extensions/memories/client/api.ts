@@ -120,13 +120,10 @@ export function useItemMutations(memoryId: string) {
     onError: rollback,
     onSettled: settle,
   });
+  // 消す本体は 5 秒の「元に戻す」の後に呼ぶ。画面から隠すところは呼び出し側が useUndoableDelete で持つ。issue #12
   const remove = useMutation({
-    mutationFn: (id: string) => api(`/memories/${memoryId}/items/${id}`, { method: "DELETE" }),
-    onMutate: async (id) => {
-      await qc.cancelQueries({ queryKey: key });
-      return patchLocal((items) => items.filter((i) => i.id !== id));
-    },
-    onError: rollback,
+    mutationFn: ({ id, keepalive }: { id: string; keepalive?: boolean }) =>
+      api(`/memories/${memoryId}/items/${id}`, { method: "DELETE", keepalive }),
     onSettled: settle,
   });
   const copy = useMutation({
@@ -184,7 +181,7 @@ export function useSaveMemory() {
   });
 }
 
-/** 思い出を削除する。しおりは消えるが、記録と写真は残る */
+/** 思い出を消す。しおりは消えるが、記録と写真は残る */
 export function useDeleteMemory() {
   return useMutation({
     mutationFn: (id: string) => api(`/memories/${id}`, { method: "DELETE" }),

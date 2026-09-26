@@ -23,10 +23,10 @@ import { useDeleteMemory, useInvalidateMemories, useLinkEventToMemory, useMemory
 const deviceTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Tokyo";
 
 /**
- * 思い出のシート。作る、編集する、削除する。F-101、F-107
+ * 思い出のシート。作る、編集する、消す。F-101、F-107
  *
  * 期間は日付で選び、サーバーが時間帯での 0 時に直す。共有するグループは、作るときだけ選べる。
- * 削除できるのは作った人だけ。削除するとしおりは消えるが、記録と写真は残る。
+ * 消せるのは作った人だけ。消すとしおりは消えるが、記録と写真は残る。
  *
  * @param groups 思い出に使えるグループ
  * @param memory 編集する思い出。無ければ新しく作る
@@ -154,7 +154,7 @@ export function MemorySheet({
     try {
       await deleteMemory.mutateAsync(memory.id);
       await invalidate();
-      toast("思い出を削除しました。記録と写真は残っています");
+      toast("思い出を消しました。記録と写真は残っています");
       onClose();
       navigate("/memories", { replace: true });
     } catch (err) {
@@ -166,7 +166,7 @@ export function MemorySheet({
   if (confirm && memory) {
     return (
       <ResponsiveSheet
-        title="思い出を削除しますか"
+        title="思い出を消しますか"
         description={`「${memory.title}」のしおりが消えます。元に戻せません。記録と写真 ${memory.photoCount} 枚は、その日のまま残ります。`}
         onClose={() => setConfirm(false)}
       >
@@ -175,7 +175,7 @@ export function MemorySheet({
             やめる
           </Button>
           <Button variant="destructive" onClick={remove}>
-            削除する
+            消す
           </Button>
         </div>
       </ResponsiveSheet>
@@ -299,7 +299,7 @@ export function MemorySheet({
         <div className="flex gap-2">
           {canDelete ? (
             <Button type="button" variant="danger" onClick={() => setConfirm(true)}>
-              削除
+              消す
             </Button>
           ) : (
             <Button type="button" variant="ghost" onClick={onClose}>

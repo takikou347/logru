@@ -1,10 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { BellOff, Camera, ChevronLeft } from "lucide-react";
+import { BellOff, Camera } from "lucide-react";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
+import { PageBar } from "@/components/layout/AppLayout";
 import { useAppFrame } from "@/components/layout/AppShell";
 import { UserAvatar } from "@/components/parts/Avatars";
 import { LoadFailure } from "@/components/parts/Failure";
@@ -12,7 +13,6 @@ import { FieldMessage } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { auth } from "@/lib/firebase";
-import { useBack } from "@/lib/use-back";
 import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { useInvalidateMemories, useMemoryGroups } from "./api";
@@ -42,7 +42,6 @@ export function KomaNowPage() {
   const now = useKomaNow();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const goBack = useBack("/memories/koma");
   const invalidate = useInvalidateMemories();
   const saveKomaNow = useSaveKomaNow();
   const saveKomaDay = useSaveKomaDay();
@@ -140,20 +139,18 @@ export function KomaNowPage() {
     <>
       <Ambient photo={data?.last ?? null} />
       <div className="flex w-full max-w-[560px] flex-col gap-3">
-        <header className="glass flex min-h-[58px] items-center gap-1 rounded-full px-1.5 py-1.5">
-          <Button asChild variant="ghost" size="icon">
-            <Link to={goBack.to} aria-label="ひとコマの確認へ" onClick={goBack.onClick}>
-              <ChevronLeft className="size-5" />
-            </Link>
-          </Button>
-          <h1 className="min-w-0 flex-1 truncate text-[17px] font-bold">{data?.memory?.title ?? "ひとコマ"}</h1>
-          {data?.started && (
-            <Button variant="ghost" size="sm" onClick={mute}>
-              <BellOff className="size-4" />
-              {data.muted ? "今日の通知をオン" : "今日の通知をオフ"}
-            </Button>
-          )}
-        </header>
+        <PageBar
+          title={data?.memory?.title ?? "ひとコマ"}
+          back="/memories/koma"
+          action={
+            data?.started && (
+              <Button variant="ghost" size="sm" onClick={mute}>
+                <BellOff className="size-4" />
+                {data.muted ? "今日の通知をオン" : "今日の通知をオフ"}
+              </Button>
+            )
+          }
+        />
         {now.error && !now.data && (
           <LoadFailure what="今日のひとコマ" error={now.error} onRetry={() => void now.refetch()} />
         )}

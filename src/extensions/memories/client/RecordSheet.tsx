@@ -228,7 +228,7 @@ export function RecordSheet({
       }
       await invalidate();
     }, 5000);
-    toast("記録を削除しました", {
+    toast("記録を消しました", {
       duration: 5000,
       action: {
         label: "元に戻す",
@@ -386,7 +386,7 @@ export function RecordSheet({
       <div className="flex gap-2">
         {record ? (
           <Button variant="danger" onClick={remove}>
-            削除
+            消す
           </Button>
         ) : (
           <Button variant="ghost" onClick={close}>

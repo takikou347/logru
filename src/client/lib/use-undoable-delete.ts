@@ -12,11 +12,38 @@ import { toast } from "sonner";
 
 const UNDO_MS = 5000;
 
+// 画面を離れた後の keepalive 送信が失敗したことを覚える鍵。#204
+const FAILURE_KEY = "logru-undoable-delete-failed";
+
 function without(s: Set<string>, key: string): Set<string> {
   if (!s.has(key)) return s;
   const next = new Set(s);
   next.delete(key);
   return next;
+}
+
+/**
+ * keepalive で送った消す操作が失敗したことを、端末に覚えさせる。#204
+ * 画面はもう閉じているので、その場では知らせられない。読めない・書けないときは諦める
+ */
+function rememberFailure(): void {
+  try {
+    const n = Number(localStorage.getItem(FAILURE_KEY) ?? "0") + 1;
+    localStorage.setItem(FAILURE_KEY, String(n));
+  } catch {
+    // 覚えられなくても、消す操作自体は送っている
+  }
+}
+
+/** 前に覚えた失敗の件数を取り出す。読んだら消す */
+function takeRememberedFailures(): number {
+  try {
+    const n = Number(localStorage.getItem(FAILURE_KEY) ?? "0");
+    localStorage.removeItem(FAILURE_KEY);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
 }
 
 /**
@@ -36,12 +63,23 @@ export function useUndoableDelete(message: string, onRestore?: (key: string) => 
       try {
         await run({ keepalive });
       } catch (e) {
+        // 画面を離れて keepalive で送ったときの失敗は、その場では出せないので端末に覚えさせる。#204
         if (!keepalive) toast.error((e as Error).message);
+        else rememberFailure();
       }
       if (!keepalive) setPending((s) => without(s, key));
     },
     [],
   );
+
+  // 前に開いていたときの keepalive の失敗があれば、開き直したときに知らせる。#204
+  useEffect(() => {
+    const n = takeRememberedFailures();
+    if (n > 0)
+      toast.error(
+        n === 1 ? "消す操作が終わっていないものがあります" : `消す操作が終わっていないものが ${n} 件あります`,
+      );
+  }, []);
 
   const restore = useCallback(
     (key: string) => {

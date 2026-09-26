@@ -2,7 +2,6 @@
 import type { GroupSummary, Me } from "@shared/api-types";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
-import { Chip } from "@/components/parts/Chip";
 import { Field } from "@/components/parts/Field";
 import { FieldMessage } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
@@ -11,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { dateKey } from "@/lib/dates";
 import { useKakeiboAccounts, useSaveSettlement } from "./api";
 import { sanitizeAmountInput } from "./numeric-input";
-import { kakeiboPersonName } from "./parts";
+import { AccountPickerRow, kakeiboPersonName } from "./parts";
 
 /** 下の footer のボタンから、シートの中の form を submit するのに使う */
 const SETTLEMENT_FORM_ID = "kakeibo-settlement-form";
@@ -120,28 +119,13 @@ export function SettlementSheet({
         </Field>
         {(fromUser === me.user.id || toUser === me.user.id) && myAccounts.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-ink-2" id="kakeibo-settlement-account-label">
-              自分の口座
-            </span>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="kakeibo-settlement-account-label">
-              <Chip
-                role="radio"
-                aria-checked={(fromUser === me.user.id ? fromAccountId : toAccountId) === null}
-                onClick={() => (fromUser === me.user.id ? setFromAccountId(null) : setToAccountId(null))}
-              >
-                口座なし
-              </Chip>
-              {myAccounts.map((a) => (
-                <Chip
-                  key={a.id}
-                  role="radio"
-                  aria-checked={(fromUser === me.user.id ? fromAccountId : toAccountId) === a.id}
-                  onClick={() => (fromUser === me.user.id ? setFromAccountId(a.id) : setToAccountId(a.id))}
-                >
-                  {a.name}
-                </Chip>
-              ))}
-            </div>
+            <AccountPickerRow
+              label="自分の口座"
+              accounts={myAccounts}
+              value={fromUser === me.user.id ? fromAccountId : toAccountId}
+              onChange={fromUser === me.user.id ? setFromAccountId : setToAccountId}
+              allowNone
+            />
             <FieldMessage>口座を選ぶと、その口座の残高が動きます。</FieldMessage>
           </div>
         )}

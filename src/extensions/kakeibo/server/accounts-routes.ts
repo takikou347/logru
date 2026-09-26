@@ -138,7 +138,8 @@ export const kakeiboAccountsRoutes = createRouter()
           lt(kakeiboExpenses.date, to),
         ),
       )
-      .orderBy(desc(kakeiboExpenses.date), desc(kakeiboExpenses.id))
+      // 同じ日は、作った時刻の新しい順。id は作った順とは関係ない UUID なので並びが決まらなかった。#201
+      .orderBy(desc(kakeiboExpenses.date), desc(kakeiboExpenses.createdAt))
       .limit(ACCOUNT_RECORDS_LIMIT);
     const visibleGroupIds = new Set(await usableGroupIds(db, userId));
     const balances = await computeBalances(db, [account]);

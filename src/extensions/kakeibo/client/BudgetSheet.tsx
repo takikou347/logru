@@ -1,8 +1,9 @@
 /** 期間の予算を作る、直すシート。F-323 */
 import type { GroupSummary, Me } from "@shared/api-types";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Field } from "@/components/parts/Field";
+import { LoadableSection, PanelSkeleton } from "@/components/parts/LoadableSection";
 import { Empty, FieldMessage } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { SharePickerRow } from "@/components/parts/SharePicker";
@@ -10,9 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DAY_MS, dateKey, formatSpan } from "@/lib/dates";
 import { defaultShareGroupId } from "@/lib/share-default";
-import { useCalendar } from "@/modules/calendar/api";
 import type { KakeiboBudget } from "./api";
-import { useDeleteBudget, useSaveBudget } from "./api";
+import { useKakeiboMemories, useSaveBudget } from "./api";
 import { sanitizeAmountInput } from "./numeric-input";
 
 /** 下の footer のボタンから、シートの中の form を submit するのに使う */
@@ -20,6 +20,11 @@ const BUDGET_FORM_ID = "kakeibo-budget-form";
 
 /** 端末の時間帯。祝日や期間を表すのに使う */
 const deviceTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Tokyo";
+
+/** その月の終わりの日。予算の終わりの日の既定に使う。#196 */
+function endOfMonthKey(d: Date): string {
+  return dateKey(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+}
 
 /**
  * 「思い出から選ぶ」の一覧。選んだグループの思い出(期間のある項目)を、選ぶと名前と期間が入る。F-323
@@ -34,41 +39,41 @@ function MemoryPickerSheet({
   onPick: (name: string, startDate: string, endDate: string) => void;
   onClose: () => void;
 }) {
-  // 前後およそ 1 年ぶんから選べれば、旅行など期間のある思い出はたいてい入る
-  const from = Date.now() - 365 * DAY_MS;
-  const to = Date.now() + 365 * DAY_MS;
-  const calendar = useCalendar(from, to);
-  const memories = (calendar.data ?? [])
-    .filter((i) => i.extension === "memories" && i.groupId === groupId)
-    .sort((a, b) => b.startsAt - a.startsAt);
+  // 前後およそ 1 年ぶんから選べれば、旅行など期間のある思い出はたいてい入る。0078、#196
+  const memories = useKakeiboMemories(groupId);
   const tz = deviceTimeZone();
 
   return (
     <ResponsiveSheet title="思い出から選ぶ" onClose={onClose}>
-      {memories.length === 0 ? (
-        <Empty>このグループに、期間のある思い出がまだありません。</Empty>
-      ) : (
-        <ul className="flex flex-col">
-          {memories.map((m) => (
-            <li key={m.id} className="border-line not-first:border-t">
-              <button
-                type="button"
-                className="flex min-h-12 w-full flex-col items-start gap-0.5 py-1.5 text-left"
-                onClick={() => {
-                  const endsAt = m.endsAt ?? m.startsAt + DAY_MS;
-                  onPick(m.title, dateKey(new Date(m.startsAt)), dateKey(new Date(endsAt - 1)));
-                  onClose();
-                }}
-              >
-                <span className="min-w-0 truncate text-[15px] font-medium">{m.title}</span>
-                <span className="text-xs text-ink-2">
-                  {formatSpan(m.startsAt, m.endsAt ?? m.startsAt + DAY_MS, tz)}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <LoadableSection query={memories} what="思い出" skeleton={<PanelSkeleton lines={4} />}>
+        {(items) => {
+          const sorted = [...items].sort((a, b) => b.startsAt - a.startsAt);
+          return sorted.length === 0 ? (
+            <Empty>このグループに、期間のある思い出がまだありません。</Empty>
+          ) : (
+            <ul className="flex flex-col">
+              {sorted.map((m) => (
+                <li key={m.id} className="border-line not-first:border-t">
+                  <button
+                    type="button"
+                    className="flex min-h-12 w-full flex-col items-start gap-0.5 py-1.5 text-left"
+                    onClick={() => {
+                      const endsAt = m.endsAt ?? m.startsAt + DAY_MS;
+                      onPick(m.title, dateKey(new Date(m.startsAt)), dateKey(new Date(endsAt - 1)));
+                      onClose();
+                    }}
+                  >
+                    <span className="min-w-0 truncate text-[15px] font-medium">{m.title}</span>
+                    <span className="text-xs text-ink-2">
+                      {formatSpan(m.startsAt, m.endsAt ?? m.startsAt + DAY_MS, tz)}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          );
+        }}
+      </LoadableSection>
     </ResponsiveSheet>
   );
 }
@@ -83,17 +88,21 @@ export function BudgetSheet({
   budget,
   defaultGroupId,
   onClose,
+  onDelete,
 }: {
   groups: GroupSummary[];
   me: Me;
   budget?: KakeiboBudget;
   defaultGroupId?: string | null;
   onClose: () => void;
+  /** 「消す」を押したとき。budget があるときだけ渡る。#194 */
+  onDelete?: (budget: KakeiboBudget) => void;
 }) {
   const saveBudget = useSaveBudget();
-  const deleteBudget = useDeleteBudget();
   // 開いているか。閉じる動きは ResponsiveSheet に任せ、終わってから onClose を呼ぶ。#192
   const [open, setOpen] = useState(true);
+  // 閉じる動きが終わってから消す。消す先を、閉じ始めた時点で覚えておく。#192、#194
+  const afterClose = useRef<KakeiboBudget | null>(null);
 
   const [groupId, setGroupId] = useState(
     budget?.groupId ??
@@ -105,12 +114,12 @@ export function BudgetSheet({
   );
   const [name, setName] = useState(budget?.name ?? "");
   const [startDate, setStartDate] = useState(budget?.startDate ?? dateKey(new Date()));
-  const [endDate, setEndDate] = useState(budget?.endDate ?? dateKey(new Date()));
+  // 終わりの日の既定は月末。旅行のように月をまたぐ予算は、始まりの日を変えれば追いつく。#196
+  const [endDate, setEndDate] = useState(budget?.endDate ?? endOfMonthKey(new Date()));
   const [amountText, setAmountText] = useState(budget ? String(budget.amount) : "");
   const [pickingMemory, setPickingMemory] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const amountValue = Number(amountText);
   const amountOk = amountText !== "" && Number.isInteger(amountValue) && amountValue > 0 && amountValue <= 100_000_000;
@@ -140,17 +149,22 @@ export function BudgetSheet({
     }
   }
 
-  async function remove() {
+  /**
+   * 消す。押すとシートを閉じ始め、5 秒の「元に戻す」は呼び出し側(BudgetsPage)に任せる。
+   * ExpenseSheet と同じ、閉じる動きが終わってから知らせる形。#192、#194
+   */
+  function remove() {
     if (!budget) return;
-    setBusy(true);
-    try {
-      await deleteBudget.mutateAsync(budget.id);
-      toast("予算を消しました");
-      setOpen(false);
-    } catch (err) {
-      setError((err as Error).message);
-      setBusy(false);
-    }
+    afterClose.current = budget;
+    setOpen(false);
+  }
+
+  /** 閉じる動きが終わってから、親に知らせる。消す先を覚えていたら、そのあと消す。#192、#194 */
+  function handleClosed() {
+    onClose();
+    const pending = afterClose.current;
+    afterClose.current = null;
+    if (pending) onDelete?.(pending);
   }
 
   return (
@@ -158,19 +172,13 @@ export function BudgetSheet({
       title={budget ? "予算を直す" : "予算を作る"}
       open={open}
       onOpenChange={() => setOpen(false)}
-      onClose={onClose}
+      onClose={handleClosed}
       footer={
         <div className="flex justify-between gap-2">
           {budget ? (
-            confirmDelete ? (
-              <Button type="button" variant="danger" disabled={busy} onClick={() => void remove()}>
-                {busy ? "消しています" : "本当に消す"}
-              </Button>
-            ) : (
-              <Button type="button" variant="ghost" onClick={() => setConfirmDelete(true)}>
-                消す
-              </Button>
-            )
+            <Button type="button" variant="danger" onClick={remove}>
+              消す
+            </Button>
           ) : (
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               やめる
@@ -198,7 +206,7 @@ export function BudgetSheet({
               autoFocus
               value={name}
               maxLength={30}
-              placeholder="旅行、今月の食費"
+              placeholder="9月の生活費、箱根旅行"
               onChange={(e) => setName(e.target.value)}
             />
           )}
@@ -229,7 +237,7 @@ export function BudgetSheet({
               inputMode="numeric"
               value={amountText}
               onChange={(e) => setAmountText(sanitizeAmountInput(e.target.value))}
-              className="text-right"
+              className="text-right text-xl font-bold"
             />
           )}
         </Field>

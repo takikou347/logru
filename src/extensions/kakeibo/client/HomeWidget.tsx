@@ -8,7 +8,8 @@ import { monthKeyOf } from "./parts";
 export function RecordHomeWidget() {
   return (
     <Link
-      to="/kakeibo?record=1"
+      // from=widget は、シートを閉じたときホームへ戻すための印。#201
+      to="/kakeibo?record=1&from=widget"
       data-testid="widget-kakeibo-record"
       className="glass grid min-h-16 grid-cols-[44px_1fr_auto] items-center gap-3 rounded-panel py-2.5 pr-3 pl-2.5 text-ink no-underline"
     >
@@ -35,6 +36,8 @@ export function useMonthTotalHint(enabled: boolean): string | null {
 export function MonthTotalWidget() {
   const month = monthKeyOf(new Date());
   const summary = useKakeiboSummary(null, month);
+  // 届いていなければ読み込み中の「…」、届かずに失敗したときは、失敗と分かる短い文にする。0078、#195
+  const hint = summary.data ? formatYen(summary.data.totalExpense) : summary.error ? "読み込めません" : "…";
   return (
     <Link
       to="/kakeibo"
@@ -46,9 +49,7 @@ export function MonthTotalWidget() {
       </span>
       <span className="flex min-w-0 flex-col">
         <b className="truncate text-[15px]">今月の合計</b>
-        <small className="truncate text-xs text-ink-2">
-          {summary.data ? formatYen(summary.data.totalExpense) : "…"}
-        </small>
+        <small className="truncate text-xs text-ink-2">{hint}</small>
       </span>
       <ChevronRight className="size-5 text-ink-2" aria-hidden="true" />
     </Link>
@@ -60,11 +61,14 @@ export function AssetsWidget() {
   const { groups, ready } = useKakeiboGroups();
   const personalGroupId = groups.find((g) => g.isPersonal)?.id ?? null;
   const accounts = useKakeiboAccounts(personalGroupId, ready && Boolean(personalGroupId));
+  // data が届くまでは、口座が無いとは決まらない。読み込み中や失敗のときに「口座を作る」を出さない。0078、#195
+  const loaded = accounts.data !== undefined;
   const hasAccounts = (accounts.data?.length ?? 0) > 0;
   const total = accounts.data?.reduce((n, a) => n + a.balance, 0) ?? 0;
+  const hint = !loaded ? (accounts.error ? "読み込めません" : "…") : hasAccounts ? formatYen(total) : "口座を作る";
   return (
     <Link
-      to={hasAccounts ? "/kakeibo" : "/kakeibo/accounts"}
+      to={loaded && !hasAccounts ? "/kakeibo/accounts" : "/kakeibo"}
       data-testid="widget-kakeibo-assets"
       className="glass grid min-h-16 grid-cols-[44px_1fr_auto] items-center gap-3 rounded-panel py-2.5 pr-3 pl-2.5 text-ink no-underline"
     >
@@ -73,7 +77,7 @@ export function AssetsWidget() {
       </span>
       <span className="flex min-w-0 flex-col">
         <b className="truncate text-[15px]">総資産</b>
-        <small className="truncate text-xs text-ink-2">{hasAccounts ? formatYen(total) : "口座を作る"}</small>
+        <small className="truncate text-xs text-ink-2">{hint}</small>
       </span>
       <ChevronRight className="size-5 text-ink-2" aria-hidden="true" />
     </Link>

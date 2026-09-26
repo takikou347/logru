@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { kakeiboCategoryLabel } from "../shared/categories";
+import { formatYen } from "../shared/format";
 import type { KakeiboTemplate } from "./api";
 import { useDeleteTemplate, useKakeiboGroups, useKakeiboTemplates, useSaveTemplate } from "./api";
 
@@ -54,7 +55,7 @@ function TemplateRow({ template, onRemove }: { template: KakeiboTemplate; onRemo
   const detail = [
     template.type === "income" ? "収入" : "支出",
     template.category ? kakeiboCategoryLabel(template.category) : null,
-    template.amount ? `${template.amount.toLocaleString("ja-JP")}円` : null,
+    template.amount ? formatYen(template.amount) : null,
   ]
     .filter(Boolean)
     .join(" ・ ");

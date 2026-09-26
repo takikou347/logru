@@ -7,14 +7,14 @@ import { KAKEIBO_EXPENSE_CATEGORY_KEYS, KAKEIBO_INCOME_CATEGORY_KEYS } from "../
 import { DAY_MS, dateKeyOfJst, isMonthKey, monthRange } from "../shared/dates";
 import { kakeiboInput } from "../shared/schemas";
 import { sumByType, summarizeExpenseByCategory } from "../shared/totals";
-import { requireKakeiboGroup, usableGroupIds, usableGroups } from "./access";
+import { usableGroupIds, usableGroups } from "./access";
 import { kakeiboAccountsRoutes } from "./accounts-routes";
 import { kakeiboBudgetsRoutes } from "./budgets-routes";
 import { toExpenseDtos } from "./dto";
 import { kakeiboRecurringsRoutes } from "./recurring-routes";
 import { type KakeiboAccountRow, type KakeiboExpenseRow, kakeiboAccounts, kakeiboExpenses } from "./schema";
 import { kakeiboSettlementRoutes, kakeiboSettlementsRoutes } from "./settlement-routes";
-import { myShareDebts, sharedBurdenThisMonth } from "./settlement-summary";
+import { mySettlementTransfers, myShareDebts, sharedBurdenThisMonth } from "./settlement-summary";
 import { resolveSplitPlan, splitStatements } from "./splits";
 import { kakeiboTemplatesRoutes } from "./templates-routes";
 
@@ -24,7 +24,9 @@ const RECORDS_LIMIT = 500;
 const USAGE_WINDOW_DAYS = 90;
 
 /**
- * 記録を読み、直せる人か確かめる。無ければ 404、グループが使えなければ 404、書いた人でなければ 403。F-307
+ * 記録を読み、直せる人か確かめる。無ければ 404、グループが使えなければ 404。
+ * 共有のグループの記録は、そのグループを使えるメンバーなら誰でも直せる。自分だけのグループの
+ * 記録は、書いた人でなければ 403。0079
  * @param db D1 を包んだ Drizzle
  * @param userId 直そうとする人
  * @param id 記録の ID
@@ -32,8 +34,11 @@ const USAGE_WINDOW_DAYS = 90;
 async function loadOwned(db: DB, userId: string, id: string): Promise<KakeiboExpenseRow> {
   const row = await db.select().from(kakeiboExpenses).where(eq(kakeiboExpenses.id, id)).get();
   if (!row) throw new HttpError(404, "見つかりません。");
-  await requireKakeiboGroup(db, userId, row.groupId);
-  if (row.createdBy !== userId) throw new HttpError(403, "直せるのは、書いた人だけです。");
+  const usable = await usableGroups(db, userId, [row.groupId]);
+  if (usable.length === 0) throw new HttpError(404, "見つかりません。");
+  if (usable[0]!.isPersonal && row.createdBy !== userId) {
+    throw new HttpError(403, "自分だけの記録は、書いた人だけが直せます。");
+  }
   return row;
 }
 
@@ -220,7 +225,8 @@ export const kakeiboRoutes = createRouter()
             .select()
             .from(kakeiboExpenses)
             .where(monthWhere)
-            .orderBy(desc(kakeiboExpenses.date), desc(kakeiboExpenses.id))
+            // 同じ日は、作った時刻の新しい順。id は作った順とは関係ない UUID なので並びが決まらなかった。#201
+            .orderBy(desc(kakeiboExpenses.date), desc(kakeiboExpenses.createdAt))
             .limit(RECORDS_LIMIT);
 
     // 合計とカテゴリ別の合計は、一覧を RECORDS_LIMIT で切る前の全件から、SQL の GROUP BY で出す。
@@ -309,6 +315,15 @@ export const kakeiboRoutes = createRouter()
       );
     }
 
+    // 「すべて」で絞ったときだけ、精算が残っているグループごとの送る組み合わせを出す。#197
+    const settlements = groupParam
+      ? null
+      : await mySettlementTransfers(
+          db,
+          userId,
+          allUsable.map((g) => g.id),
+        );
+
     const visibleGroupIds = new Set(allUsable.map((g) => g.id));
     return c.json({
       totalExpense: sumByType(totalsRows, "expense"),
@@ -318,6 +333,7 @@ export const kakeiboRoutes = createRouter()
       fromShared,
       sharedBurden,
       debts,
+      settlements,
       recordsTruncated,
       records: await toExpenseDtos(db, rows, visibleGroupIds),
     });

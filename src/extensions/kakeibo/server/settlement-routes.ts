@@ -88,8 +88,12 @@ export const kakeiboSettlementsRoutes = createRouter()
       .where(eq(kakeiboSettlements.id, c.req.param("id")))
       .get();
     if (!row) throw new HttpError(404, "見つかりません。");
-    await requireKakeiboGroup(db, userId, row.groupId);
-    if (row.createdBy !== userId) throw new HttpError(403, "消せるのは、作った人だけです。");
+    // 共有のグループの精算は、そのグループを使えるメンバーなら誰でも消せる。0079
+    const usable = await usableGroups(db, userId, [row.groupId]);
+    if (usable.length === 0) throw new HttpError(404, "見つかりません。");
+    if (usable[0]!.isPersonal && row.createdBy !== userId) {
+      throw new HttpError(403, "自分だけの記録は、書いた人だけが消せます。");
+    }
     await db.delete(kakeiboSettlements).where(eq(kakeiboSettlements.id, row.id));
     return c.body(null, 204);
   });

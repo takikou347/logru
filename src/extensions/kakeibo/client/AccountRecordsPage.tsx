@@ -1,20 +1,21 @@
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
-import { useState } from "react";
-import { useParams, useSearchParams } from "react-router";
+import { useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { Page, PageBar } from "@/components/layout/AppLayout";
 import { useAppFrame } from "@/components/layout/AppShell";
-import { LoadFailure } from "@/components/parts/Failure";
+import { LoadableSection, PanelSkeleton } from "@/components/parts/LoadableSection";
 import { Empty, Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { formatShortDate } from "@/lib/dates";
+import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
 import { formatYen } from "../shared/format";
 import { AccountSheet } from "./AccountSheet";
-import type { KakeiboAccountRef, KakeiboExpense } from "./api";
-import { useKakeiboAccountDetail, useKakeiboGroups } from "./api";
+import type { KakeiboAccount, KakeiboAccountDetail, KakeiboAccountRef, KakeiboExpense } from "./api";
+import { useDeleteAccount, useKakeiboAccountDetail, useKakeiboGroups } from "./api";
 import {
   addMonthsToKey,
   formatMonthLabel,
@@ -66,52 +67,43 @@ function RecordRow({ record, accountId }: { record: KakeiboExpense; accountId: s
 export function AccountRecordsPage() {
   const { id } = useParams<{ id: string }>();
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const me = useMe();
   const { groups } = useKakeiboGroups();
   const monthParam = params.get("month");
   const month = monthParam && isMonthKey(monthParam) ? monthParam : monthKeyOf(new Date());
   const detail = useKakeiboAccountDetail(id ?? null, month);
   const [editing, setEditing] = useState(false);
+  // もう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。
+  // key に積んで、確実に新しい `AccountSheet` を作る。#211
+  const editGen = useRef(0);
   const setMonth = (key: string) => setParams((p) => (p.set("month", key), p), { replace: true });
+  const deleteAccount = useDeleteAccount();
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。#194
+  const { remove } = useUndoableDelete("口座を消しました");
   // 口座ごとの色は付けていない画面。0071
   useAppFrame({ poolColors: [] });
 
-  if (!id) return null;
-  if (detail.isPending || !me.data) return <Loading />;
-  if (detail.error || !detail.data) {
-    return (
-      <Page>
-        <PageBar title="口座" back="/kakeibo/accounts" />
-        <LoadFailure what="口座" error={detail.error} onRetry={() => void detail.refetch()} />
-      </Page>
-    );
+  /**
+   * 消す。シートはもう閉じているので、この画面はそのまま残す。5 秒たって実際に消えたら
+   * 一覧へ移る。「元に戻す」を押したときは、この画面のまま何も起きない。#194
+   */
+  function handleDelete(account: KakeiboAccount) {
+    remove(account.id, async ({ keepalive }) => {
+      await deleteAccount.mutateAsync({ id: account.id, keepalive });
+      if (!keepalive) navigate("/kakeibo/accounts", { replace: true });
+    });
   }
 
-  const { account, records } = detail.data;
-  const Icon = KAKEIBO_ACCOUNT_KIND_ICONS[account.kind];
+  if (!id) return null;
+  if (!me.data) return <Loading />;
 
   return (
     <>
       <Page>
-        <PageBar title={account.name} back="/kakeibo/accounts" />
-        <Panel>
-          <div className="flex items-center justify-between gap-2">
-            <span className="flex min-w-0 items-center gap-2.5">
-              <Icon className="size-5 flex-none text-ink-2" aria-hidden="true" />
-              <span className="flex min-w-0 flex-col">
-                <b className="truncate text-[17px]">{account.name}</b>
-                {account.archivedAt && <span className="text-xs text-ink-2">使わない</span>}
-              </span>
-            </span>
-            <Button type="button" variant="ghost" size="icon" aria-label="口座を直す" onClick={() => setEditing(true)}>
-              <Pencil className="size-4" />
-            </Button>
-          </div>
-          <p className="text-2xl font-extrabold tabular-nums" data-testid="kakeibo-account-balance">
-            {formatYen(account.balance)}
-          </p>
-        </Panel>
+        <PageBar title={detail.data?.account.name ?? "口座"} back="/kakeibo/accounts" />
 
+        {/* 月の帯は、読み込み中や読めなかったときも操作できるよう、下の面より外に置く。issue #195 */}
         <div className="glass flex items-center justify-between rounded-full px-2 py-1.5">
           <Button
             type="button"
@@ -134,19 +126,65 @@ export function AccountRecordsPage() {
           </Button>
         </div>
 
-        <Panel title="記録">
-          {records.length === 0 ? (
-            <Empty>この月の記録はありません。</Empty>
-          ) : (
-            <ul className="flex flex-col">
-              {records.map((r) => (
-                <RecordRow key={r.id} record={r} accountId={account.id} />
-              ))}
-            </ul>
-          )}
-        </Panel>
+        <LoadableSection query={detail} what="口座" skeleton={<PanelSkeleton lines={5} />}>
+          {(data: KakeiboAccountDetail) => {
+            const { account, records } = data;
+            const Icon = KAKEIBO_ACCOUNT_KIND_ICONS[account.kind];
+            return (
+              <>
+                <Panel>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <Icon className="size-5 flex-none text-ink-2" aria-hidden="true" />
+                      <span className="flex min-w-0 flex-col">
+                        <b className="truncate text-[17px]">{account.name}</b>
+                        {account.archivedAt && <span className="text-xs text-ink-2">使わない</span>}
+                      </span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="口座を直す"
+                      onClick={() => {
+                        editGen.current += 1;
+                        setEditing(true);
+                      }}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                  </div>
+                  <p className="text-2xl font-extrabold tabular-nums" data-testid="kakeibo-account-balance">
+                    {formatYen(account.balance)}
+                  </p>
+                </Panel>
+
+                <Panel title="記録">
+                  {records.length === 0 ? (
+                    <Empty>この月の記録はありません。</Empty>
+                  ) : (
+                    <ul className="flex flex-col">
+                      {records.map((r) => (
+                        <RecordRow key={r.id} record={r} accountId={account.id} />
+                      ))}
+                    </ul>
+                  )}
+                </Panel>
+              </>
+            );
+          }}
+        </LoadableSection>
       </Page>
-      {editing && <AccountSheet groups={groups} me={me.data} account={account} onClose={() => setEditing(false)} />}
+      {editing && detail.data && (
+        <AccountSheet
+          key={editGen.current}
+          groups={groups}
+          me={me.data}
+          account={detail.data.account}
+          onClose={() => setEditing(false)}
+          onDelete={handleDelete}
+        />
+      )}
     </>
   );
 }

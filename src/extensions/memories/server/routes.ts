@@ -1,6 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { type AppEnv, createRouter, HttpError, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import { runBatch } from "@server/core/db/batch";
 import type { DB } from "@server/core/db/client";
 import { groupMembers, notifications } from "@server/core/db/schema";
 import { enforceRateLimit } from "@server/core/rate-limit";
@@ -299,7 +300,7 @@ export const memoryRoutes = createRouter()
     }
     const id = crypto.randomUUID();
     const now = new Date();
-    await db.batch([
+    await runBatch(db, [
       db.insert(memoryRecords).values({
         id,
         groupId: input.groupId,
@@ -319,7 +320,7 @@ export const memoryRoutes = createRouter()
               .where(eq(memoryItems.id, item.id)),
           ]
         : []),
-    ] as unknown as Parameters<typeof db.batch>[0]);
+    ]);
     return c.json(await loadRecord(db, signer(c), id), 201);
   })
   .patch("/records/:recordId", zValidator("json", recordPatchInput, validationHook), async (c) => {
@@ -340,7 +341,7 @@ export const memoryRoutes = createRouter()
       throw new HttpError(400, "ひとコマの写真は外せません。不要なときは記録ごと消してください。");
     await requirePhotos(db, me.id, row.groupId, nextIds, row.id);
     const removed = current.map((p) => p.id).filter((id) => !nextIds.includes(id));
-    await db.batch([
+    await runBatch(db, [
       db
         .update(memoryRecords)
         .set({
@@ -353,7 +354,7 @@ export const memoryRoutes = createRouter()
       ...nextIds.map((pid, i) =>
         db.update(memoryPhotos).set({ recordId: row.id, sortOrder: i }).where(eq(memoryPhotos.id, pid)),
       ),
-    ] as unknown as Parameters<typeof db.batch>[0]);
+    ]);
     return c.json(await loadRecord(db, signer(c), row.id));
   })
   .delete("/records/:recordId", async (c) => {
@@ -394,7 +395,7 @@ export const memoryRoutes = createRouter()
             .get()
         : undefined;
     // いいねと通知の書き込みを 1 つの batch にまとめ、通知だけが失敗して二度と知らせなくなることを防ぐ。#32
-    await db.batch([
+    await runBatch(db, [
       db.insert(memoryLikes).values({ recordId: row.id, userId: me.id }).onConflictDoNothing(),
       ...(shouldNotify && !dupe && recipient
         ? [
@@ -407,7 +408,7 @@ export const memoryRoutes = createRouter()
             }),
           ]
         : []),
-    ] as unknown as Parameters<typeof db.batch>[0]);
+    ]);
     return c.json({ likes: await likesOf(db, row.id) });
   })
   .delete("/records/:recordId/like", async (c) => {
@@ -463,12 +464,12 @@ export const memoryRoutes = createRouter()
       .where(eq(memories.id, row.id));
     if (input.excludedEventIds) {
       const ids = [...new Set(input.excludedEventIds)];
-      await db.batch([
+      await runBatch(db, [
         db.delete(memoryEventExclusions).where(eq(memoryEventExclusions.memoryId, row.id)),
         ...(ids.length
           ? [db.insert(memoryEventExclusions).values(ids.map((eventId) => ({ memoryId: row.id, eventId })))]
           : []),
-      ] as unknown as Parameters<typeof db.batch>[0]);
+      ]);
     }
     return c.json(
       await toMemory(db, signer(c), (await db.select().from(memories).where(eq(memories.id, row.id)).get())!),

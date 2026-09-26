@@ -18,6 +18,9 @@ async function enableKakeibo(page: Page) {
  * 消す・直すの動きは 220〜320ms しか続かない。動きを起こす操作(クリックなど)の後で見張り始めると、
  * ブラウザとの往復の遅さの分だけ、短い窓を取りこぼすことがある。この環境は往復が遅いことがあるため、
  * 動きを起こす操作より前に見張りを仕掛け、`MutationObserver` で待つ。
+ *
+ * `locator` は role ではなく CSS・文字で見分けたものを渡す。シートが開くと背後の一覧は
+ * aria-hidden になり、role で見分ける locator はその間解決できなくなるため。
  * @returns 呼ぶと、value になるまで(すでにそうならすぐ)待つ関数
  */
 async function watchAttribute(locator: Locator, attr: string, value: string): Promise<() => Promise<void>> {
@@ -53,6 +56,9 @@ async function watchAttribute(locator: Locator, attr: string, value: string): Pr
  *
  * 足した行に item-enter、消した行に data-leaving が付き、縮んでから一覧から外れる。
  * 直した行には data-edited が短く付く。動きを減らす設定では、これらが出ない。
+ *
+ * 行は、消す・直すシートを開いたまま見分けられるよう、role ではなく `<li>`・`<button>` と
+ * 文字(hasText)で見分ける。シートが開くと背後は aria-hidden になり、role の locator は使えないため。
  */
 
 test("口座を作ると膨らんで入り、直すと光り、消すと縮んで一覧から外れる", async ({ page }) => {
@@ -66,7 +72,7 @@ test("口座を作ると膨らんで入り、直すと光り、消すと縮ん�
   await create.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("口座を作りました")).toBeVisible();
 
-  const row = page.getByRole("listitem").filter({ hasText: "現金" });
+  const row = page.locator("li").filter({ hasText: "現金" });
   await expect(row).toHaveClass(/item-enter/);
 
   // 直すと、保存した直後だけ data-edited が付く
@@ -80,7 +86,7 @@ test("口座を作ると膨らんで入り、直すと光り、消すと縮ん�
   await expect(row).not.toHaveAttribute("data-edited", "true", { timeout: 2000 });
 
   // 消すと、縮んで消える動きの間だけ一覧に残り、動きが終わってから外れる
-  await page.getByLabel("現金 を直す").click();
+  await row.getByLabel("現金 を直す").click();
   const leaving = await watchAttribute(row, "data-leaving", "true");
   await page.getByRole("dialog", { name: "口座を直す" }).getByRole("button", { name: "消す" }).click();
   await expect(page.getByText("口座を消しました")).toBeVisible();
@@ -100,7 +106,7 @@ test("予算を作ると膨らんで入り、消すと縮んで一覧から外�
   await create.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("予算を作りました")).toBeVisible();
 
-  const row = page.getByRole("button", { name: /食費/ });
+  const row = page.locator("button").filter({ hasText: "食費" });
   await expect(row).toHaveClass(/item-enter/);
 
   await row.click();
@@ -127,8 +133,10 @@ test("定期の記録を作ると膨らんで入り、消すと縮んで一覧�
   await create.getByLabel("始まりの月").fill(nextMonthKey());
   await create.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("定期の記録を作りました")).toBeVisible();
+  // 作るシートが閉じ切るまで待つ。カテゴリの選択肢にも同じ「住まい」の文字を持つ button があるため
+  await expect(create).toBeHidden();
 
-  const button = page.getByRole("button", { name: /住まい/ });
+  const button = page.locator("button").filter({ hasText: "住まい" });
   const row = button.locator("..");
   await expect(row).toHaveClass(/item-enter/);
 
@@ -158,10 +166,10 @@ test("よく使う記録を作ると膨らんで入り、直すと光り、消�
 
   // 作った直後(3 秒以内)に、画面を移らず(SPA のリンクで)その一覧を開くと、膨らんで入る動きが付く。
   // page.goto は本当のページ遷移になり、足した直後を覚える印(JS の Map)が消えてしまうため使わない。
-  // 行は「消す」ボタンの親で見分ける(名前を直すと文字が変わるので、行そのものは名前の文字では追わない)
+  // 行は「消す」の文字を持つ li で見分ける(名前を直すと文字が変わるので、行そのものは名前の文字では追わない)
   await page.getByRole("link", { name: "よく使う記録" }).click();
   await expect(page).toHaveURL(/\/kakeibo\/templates$/);
-  const row = page.getByRole("button", { name: "消す" }).locator("..");
+  const row = page.locator("li").filter({ hasText: "消す" });
   await expect(row).toHaveClass(/item-enter/);
 
   // その場で名前を直すと、直後だけ光る印が付く
@@ -196,14 +204,12 @@ test("思い出の記録を作ると膨らんで入り、消すと縮んで一�
   await record.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("記録しました")).toBeVisible();
 
-  const flow = page.getByRole("list", { name: "1 日の流れ" });
-  const row = flow.getByRole("listitem").filter({ hasText: "湯本に着いた" });
+  // 「1 日の流れ」は role(list)ではなく aria-label で見分ける。シートが開くと背後は aria-hidden になるため
+  const flow = page.locator('[aria-label="1 日の流れ"]');
+  const row = flow.locator("li").filter({ hasText: "湯本に着いた" });
   await expect(row).toHaveClass(/item-enter/);
 
-  await flow
-    .getByRole("article", { name: /の記録/ })
-    .getByRole("button", { name: "編集" })
-    .click();
+  await row.getByRole("button", { name: "編集" }).click();
   const leaving = await watchAttribute(row, "data-leaving", "true");
   await page.getByRole("dialog", { name: "記録を編集" }).getByRole("button", { name: "消す" }).click();
   await expect(page.getByText("記録を消しました")).toBeVisible();
@@ -223,12 +229,12 @@ test("動きを減らす設定では、足す・消すの動きが出ない", as
   await create.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("口座を作りました")).toBeVisible();
 
-  const row = page.getByRole("listitem").filter({ hasText: "現金" });
+  const row = page.locator("li").filter({ hasText: "現金" });
   await expect(row).toHaveClass(/item-enter/);
   const enterDuration = await row.evaluate((el) => getComputedStyle(el).animationDuration);
   expect(Number.parseFloat(enterDuration)).toBeLessThanOrEqual(0.001);
 
-  await page.getByLabel("現金 を直す").click();
+  await row.getByLabel("現金 を直す").click();
   const leaving = await watchAttribute(row, "data-leaving", "true");
   await page.getByRole("dialog", { name: "口座を直す" }).getByRole("button", { name: "消す" }).click();
   await expect(page.getByText("口座を消しました")).toBeVisible();

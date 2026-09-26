@@ -1,14 +1,7 @@
-import { XIcon } from "lucide-react";
 import { type AnimationEvent, type ReactNode, useEffect, useRef } from "react";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { CloseButton } from "@/components/parts/CloseButton";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { sheetOpened } from "@/lib/pwa-update";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
@@ -30,10 +23,6 @@ function keepOpenWhileDateInputFocused(event: { preventDefault: () => void }) {
     event.preventDefault();
   }
 }
-
-/** 閉じるボタン(X)の見た目。ガラスの面(position: relative)の右上に留める */
-const CLOSE_BUTTON_CLASS =
-  "absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none";
 
 /**
  * 閉じる動き(--dur-base、220ms)より長く待っても `animationend` が来なければ、代わりに呼ぶ。
@@ -150,7 +139,7 @@ export function ResponsiveSheet({
           >
             {top}
             <DialogHeader>
-              <DialogTitle className="text-[17px] font-bold">{title}</DialogTitle>
+              <DialogTitle className={cn("text-[17px] font-bold", showCloseButton && "pr-9")}>{title}</DialogTitle>
               {description ? (
                 <DialogDescription className="text-ink-2">{description}</DialogDescription>
               ) : (
@@ -159,13 +148,8 @@ export function ResponsiveSheet({
             </DialogHeader>
             <div className={scrollBody}>{children}</div>
             {footer}
-            {/* 見出しなど他の中身より後ろに置く。同じ position: relative の兄弟は DOM の後の方が上に重なるため */}
-            {showCloseButton && (
-              <DialogClose className={CLOSE_BUTTON_CLASS}>
-                <XIcon className="size-4" />
-                <span className="sr-only">閉じる</span>
-              </DialogClose>
-            )}
+            {/* DOM の後ろに置く。footer の中の明示の「閉じる」ボタンより読み上げの順を後にするため。#223 */}
+            {showCloseButton && <CloseButton className="absolute top-3.5 right-4" />}
           </div>
         </DialogContent>
       </Dialog>
@@ -175,7 +159,6 @@ export function ResponsiveSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        showCloseButton={false}
         onInteractOutside={keepOpenWhileDateInputFocused}
         onAnimationEnd={onMotionEnd}
         className={cn(
@@ -194,7 +177,7 @@ export function ResponsiveSheet({
         >
           {top}
           <SheetHeader className="p-0">
-            <SheetTitle className="text-[17px] font-bold text-ink">{title}</SheetTitle>
+            <SheetTitle className={cn("text-[17px] font-bold text-ink", showCloseButton && "pr-9")}>{title}</SheetTitle>
             {description ? (
               <SheetDescription className="text-ink-2">{description}</SheetDescription>
             ) : (
@@ -203,13 +186,8 @@ export function ResponsiveSheet({
           </SheetHeader>
           <div className={scrollBody}>{children}</div>
           {footer}
-          {/* 見出しなど他の中身より後ろに置く。同じ position: relative の兄弟は DOM の後の方が上に重なるため */}
-          {showCloseButton && (
-            <SheetClose className={CLOSE_BUTTON_CLASS}>
-              <XIcon className="size-4" />
-              <span className="sr-only">閉じる</span>
-            </SheetClose>
-          )}
+          {/* DOM の後ろに置く。footer の中の明示の「閉じる」ボタンより読み上げの順を後にするため。#223 */}
+          {showCloseButton && <CloseButton className="absolute top-2.5 right-4" />}
         </div>
       </SheetContent>
     </Sheet>

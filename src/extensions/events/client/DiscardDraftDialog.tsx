@@ -22,7 +22,8 @@ export function DiscardDraftDialog({ onDiscard, onClose }: { onDiscard: () => vo
         className="glass gap-4 rounded-panel border-(--glass-edge) bg-(--glass-flat) p-6 text-ink sm:max-w-[360px]"
       >
         <DialogHeader>
-          <DialogTitle className="text-[17px] font-bold">書きかけを捨てて開きますか</DialogTitle>
+          {/* 見出しが長くなっても、右上の閉じるボタンに重ならないよう余白を空ける */}
+          <DialogTitle className="pr-9 text-[17px] font-bold">書きかけを捨てて開きますか</DialogTitle>
           <DialogDescription className="text-ink-2">まだ保存していない内容が消えます。</DialogDescription>
         </DialogHeader>
         <DialogFooter>

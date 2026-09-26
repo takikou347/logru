@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { addExtension, addMemories, signUp } from "./helpers";
+import { addExtension, addMemories, signUp, swipeRowLeft } from "./helpers";
 
 // 写真は Unsplash License のフリー写真を小さくしたもの。出どころは develop-docs の docs/logru/extensions/memories/images/photos/sources.txt
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
@@ -124,8 +124,10 @@ test("しおりにやること、持ち物を足して済みにできる。思�
   await page.getByRole("button", { name: "足す", exact: true }).click();
   await expect(page.getByRole("checkbox", { name: "充電器 を完了にする" })).toBeVisible();
 
-  // 消すと、確認は出ず 5 秒だけ「元に戻す」を出す。issue #12
-  await page.getByRole("button", { name: "充電器 を消す" }).click();
+  // 左へ引くと「消す」が出る。消すと、確認は出ず 5 秒だけ「元に戻す」を出す。issue #12、0084
+  const packingRow = page.locator("li", { hasText: "充電器" });
+  await swipeRowLeft(page, packingRow, 90);
+  await packingRow.getByRole("button", { name: "消す", exact: true }).click();
   await expect(page.getByRole("checkbox", { name: "充電器 を完了にする" })).toBeHidden();
   await page.getByRole("button", { name: "元に戻す" }).click();
   await expect(page.getByRole("checkbox", { name: "充電器 を完了にする" })).toBeVisible();

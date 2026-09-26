@@ -1,10 +1,25 @@
 import type { DB } from "@server/core/db/client";
 import type { CalendarItem } from "@shared/api-types";
-import { and, between, eq, inArray, like } from "drizzle-orm";
+import { and, between, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import { DAY_MS, dateKeyOfJst, startOfDateJst } from "../shared/dates";
 import { formatYen } from "../shared/format";
 import { sumAmount } from "../shared/totals";
 import { kakeiboExpenses } from "./schema";
+
+/**
+ * 一致した日を、新しい順に切る数。検索の結果は最終的に search/routes.ts で全体を 30 件に切るので、
+ * ここで先に切ってから合計を読めば、その先の合計のクエリも 30 件分ぶんで済む。#199
+ */
+const SEARCH_DAY_LIMIT = 30;
+
+/**
+ * memo に対する LIKE の条件。`%` と `_` はワイルドカードなので、検索文字列に含まれていたら
+ * `\` を前置いて逃がす。`\` 自身も先に逃がす。#199
+ */
+function memoLikeCondition(query: string): SQL {
+  const escaped = query.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+  return sql`${kakeiboExpenses.memo} like ${`%${escaped}%`} escape '\\'`;
+}
 
 /**
  * グループと日ごとの合計を、カレンダーの項目の形にする。0008、0047
@@ -73,6 +88,7 @@ export async function listKakeiboItems(db: DB, groupIds: string[], from: number,
  *
  * 家計簿は記録ごとの題名を持たず、日ごとの合計だけをカレンダーの項目にしている。0047
  * メモが見つかった日は、その日全体の合計を検索結果として返す。個別の金額は家計簿の画面で見る。
+ * 一致した日を新しい順に SEARCH_DAY_LIMIT へ切ってから、合計を 1 本のクエリ(GROUP BY)で読む。#199
  * @param db D1 を包んだ Drizzle
  * @param groupIds 呼んでよいグループ
  * @param query 探す文字列
@@ -85,26 +101,28 @@ export async function searchKakeibo(db: DB, groupIds: string[], query: string): 
     .where(
       and(
         inArray(kakeiboExpenses.groupId, groupIds),
-        like(kakeiboExpenses.memo, `%${query}%`),
+        memoLikeCondition(query),
         // 探すも支出だけ。収入と振替のメモは探さない。0069
         eq(kakeiboExpenses.type, "expense"),
       ),
     );
   const days = new Map(matched.map((r) => [`${r.groupId}\u0000${r.date}`, r]));
+  const top = [...days.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, SEARCH_DAY_LIMIT);
+  if (top.length === 0) return [];
 
-  return Promise.all(
-    [...days.values()].map(async ({ groupId, date }) => {
-      const rows = await db
-        .select({ amount: kakeiboExpenses.amount })
-        .from(kakeiboExpenses)
-        .where(
-          and(
-            eq(kakeiboExpenses.groupId, groupId),
-            eq(kakeiboExpenses.date, date),
-            eq(kakeiboExpenses.type, "expense"),
-          ),
-        );
-      return toDayItem(groupId, date, sumAmount(rows));
-    }),
-  );
+  const sums = await db
+    .select({
+      groupId: kakeiboExpenses.groupId,
+      date: kakeiboExpenses.date,
+      amount: sql<number>`coalesce(sum(${kakeiboExpenses.amount}), 0)`,
+    })
+    .from(kakeiboExpenses)
+    .where(
+      and(
+        eq(kakeiboExpenses.type, "expense"),
+        or(...top.map((d) => and(eq(kakeiboExpenses.groupId, d.groupId), eq(kakeiboExpenses.date, d.date)))),
+      ),
+    )
+    .groupBy(kakeiboExpenses.groupId, kakeiboExpenses.date);
+  return sums.map((s) => toDayItem(s.groupId, s.date, s.amount));
 }

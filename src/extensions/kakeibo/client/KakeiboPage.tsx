@@ -22,7 +22,7 @@ import { upcomingOrCurrentBudgets } from "../shared/budgets";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
 import { formatSignedYen, formatYen } from "../shared/format";
-import { sumByType, summarizeExpenseByCategory } from "../shared/totals";
+import { subtractPendingFromCategories, sumByType } from "../shared/totals";
 import type { KakeiboExpense, KakeiboSummary } from "./api";
 import { useDeleteExpense, useKakeiboAccounts, useKakeiboBudgets, useKakeiboGroups, useKakeiboSummary } from "./api";
 import { BudgetRow } from "./BudgetPanel";
@@ -135,10 +135,13 @@ export function KakeiboPage() {
 
   /** 「この月の合計」から「記録」までの、summary から作る面。data が届いてから呼ぶ。0078、#195 */
   function summaryPanels(data: KakeiboSummary) {
+    // 消す途中(元に戻せる 5 秒の間)の記録は、一覧からすぐ外して見せる。実際に消す API は後から呼ばれる。issue #12
     const records = data.records.filter((r) => !pending.has(r.id));
-    const totalExpense = sumByType(records, "expense");
-    const totalIncome = sumByType(records, "income");
-    const byCategory = summarizeExpenseByCategory(records);
+    // 合計とカテゴリ別の合計は、一覧(500 件で切れることがある)ではなく API がその月の全件から出した値を使う。#199
+    const pendingRecords = data.records.filter((r) => pending.has(r.id));
+    const totalExpense = data.totalExpense - sumByType(pendingRecords, "expense");
+    const totalIncome = data.totalIncome - sumByType(pendingRecords, "income");
+    const byCategory = subtractPendingFromCategories(data.byCategory, pendingRecords);
     // 「すべて」で絞ったときだけ、精算が残っているグループを 1 行ずつ出す。押すとそのグループで絞る。#197
     const allSettlements = data.settlements ?? [];
 
@@ -248,6 +251,11 @@ export function KakeiboPage() {
         )}
 
         <Panel title="記録">
+          {data.recordsTruncated && (
+            <p className="text-xs text-ink-2" data-testid="kakeibo-records-truncated">
+              新しい {records.length} 件を出しています。合計はこの月の全部の記録から計算しています。
+            </p>
+          )}
           {records.length === 0 ? (
             <EmptyState pose="coin" bordered={false} action={{ label: "支出を記録する", onClick: openRecordSheet }}>
               この月の記録はまだありません。
@@ -279,7 +287,16 @@ export function KakeiboPage() {
     <>
       <Page>
         {/* 見出しを押すと機能のシートが開き、ほかの拡張の画面へ近道できる。issue #26 */}
-        <PageBar title="家計簿" onTitleClick={() => setFeatures(true)} />
+        {/* PC は中身が長く、下の帯(Dock)が末尾まで遠くなるため、ここに主な「+」を置く。issue #202 */}
+        <PageBar
+          title="家計簿"
+          onTitleClick={() => setFeatures(true)}
+          action={
+            <div className="hidden lg:block">
+              <PrimaryAddButton label="支出を記録する" addables={addables} />
+            </div>
+          }
+        />
         <GroupFilterBand options={filterOptions} />
 
         <div className="glass flex items-center justify-between rounded-full px-2 py-1.5">
@@ -400,7 +417,8 @@ export function KakeiboPage() {
         {/* 空の月は中身が短く、浮いた「+」が中身に重なるので、下の帯と同じ高さの余白を足す。issue #24 */}
         <div className="h-[var(--dock-clearance)] lg:hidden" aria-hidden="true" />
 
-        <Dock label="家計簿の操作">
+        {/* PC の主な「+」は上の見出しの帯にある。ここは PC で隠す。issue #202 */}
+        <Dock label="家計簿の操作" className="lg:hidden">
           <PrimaryAddButton label="支出を記録する" addables={addables} />
         </Dock>
       </Page>

@@ -74,6 +74,8 @@ export const kakeiboExpenses = sqliteTable(
     // 口座ごとの記録と残高を、口座で引く。振替は入れる先でも引く
     index("kakeibo_expenses_account_idx").on(t.accountId),
     index("kakeibo_expenses_to_account_idx").on(t.toAccountId),
+    // よく使うカテゴリ(/usage)を、書いた人と日付の範囲で絞るのに使う。移行 0026、#199
+    index("kakeibo_expenses_created_by_date_idx").on(t.createdBy, t.date),
   ],
 );
 
@@ -94,8 +96,12 @@ export const kakeiboSplits = sqliteTable(
     userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     amount: integer("amount").notNull(),
   },
-  // 記録を保存し直すとき、その記録の負担の行をまとめて消してから作り直すのに使う
-  (t) => [index("kakeibo_splits_expense_idx").on(t.expenseId)],
+  (t) => [
+    // 記録を保存し直すとき、その記録の負担の行をまとめて消してから作り直すのに使う
+    index("kakeibo_splits_expense_idx").on(t.expenseId),
+    // sharedBurdenThisMonth が user_id で絞るのに使う。移行 0026、#199
+    index("kakeibo_splits_user_idx").on(t.userId),
+  ],
 );
 
 /** 表の 1 行 */

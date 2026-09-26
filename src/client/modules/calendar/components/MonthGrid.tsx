@@ -140,7 +140,8 @@ export function MonthGridBody({
               const isSelected = sameDay(d, selected);
               const isOut = d.getMonth() !== month;
               // 曜日は月の表そのものの曜日の列なので、日付の書き方(決定 0059)の外。ここだけ WEEKDAYS を直に足す
-              const label = `${formatDay(d)} ${WEEKDAYS[d.getDay()]}曜${hol ? ` ${hol}` : ""}${isToday ? " 今日" : ""}。予定 ${all.length} 件`;
+              // 予定だけでなく天気・家計簿など拡張の項目も all に混ざるので、「予定」と呼ばず件数だけ伝える。issue #202
+              const label = `${formatDay(d)} ${WEEKDAYS[d.getDay()]}曜${hol ? ` ${hol}` : ""}${isToday ? " 今日" : ""}。${all.length} 件`;
               const moreDots = Math.max(0, mine.length - MAX_DOTS) + hidden[col]!;
               const moreChips = Math.max(0, mine.length - chipSlots) + hidden[col]!;
               return (

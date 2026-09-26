@@ -16,12 +16,17 @@ import {
   kakeiboBudgetPatchInput,
   kakeiboInput,
   kakeiboRecurringInput,
+  kakeiboRecurringPatchInput,
   kakeiboSettlementInput,
   kakeiboTemplateInput,
 } from "@extensions/kakeibo/shared/schemas";
 import { minimalTransfers, netBalances } from "@extensions/kakeibo/shared/settlement";
 import { splitEqually, splitNone, sumSplitShares } from "@extensions/kakeibo/shared/splits";
-import { sumByType, summarizeExpenseByCategory } from "@extensions/kakeibo/shared/totals";
+import {
+  subtractPendingFromCategories,
+  sumByType,
+  summarizeExpenseByCategory,
+} from "@extensions/kakeibo/shared/totals";
 import { describe, expect, it } from "vitest";
 
 describe("家計簿の日付", () => {
@@ -117,6 +122,38 @@ describe("種類ごとの合計と、支出のカテゴリ別の合計。F-303",
       { category: "food", total: 1500 },
       { category: "transport", total: 500 },
     ]);
+  });
+});
+
+describe("消す途中の記録を、カテゴリ別の合計から即座に差し引く。issue #12、#199", () => {
+  const byCategory = [
+    { category: "food" as const, total: 1500 },
+    { category: "transport" as const, total: 500 },
+  ];
+
+  it("消す途中の支出の分だけ減らす", () => {
+    const pending = [{ type: "expense" as const, category: "food" as const, amount: 300 }];
+    expect(subtractPendingFromCategories(byCategory, pending)).toEqual([
+      { category: "food", total: 1200 },
+      { category: "transport", total: 500 },
+    ]);
+  });
+
+  it("0 になったカテゴリは出さない。多い順は保つ", () => {
+    const pending = [{ type: "expense" as const, category: "transport" as const, amount: 500 }];
+    expect(subtractPendingFromCategories(byCategory, pending)).toEqual([{ category: "food", total: 1500 }]);
+  });
+
+  it("振替・収入は数えない", () => {
+    const pending = [
+      { type: "income" as const, category: "salary" as const, amount: 3000 },
+      { type: "transfer" as const, category: "transfer" as const, amount: 1000 },
+    ];
+    expect(subtractPendingFromCategories(byCategory, pending)).toEqual(byCategory);
+  });
+
+  it("消す途中が無ければそのまま", () => {
+    expect(subtractPendingFromCategories(byCategory, [])).toEqual(byCategory);
   });
 });
 
@@ -436,6 +473,26 @@ describe("定期の記録の入力。0072、F-325", () => {
   it("始まりの月・終わりの月は `2026-09` の形", () => {
     expect(kakeiboRecurringInput.safeParse({ ...recurring, startMonth: "2026/09" }).success).toBe(false);
     expect(kakeiboRecurringInput.safeParse({ ...recurring, endMonth: "2026-12" }).success).toBe(true);
+  });
+
+  it("月が 13 以上など、範囲の外の月は断る。#198", () => {
+    expect(kakeiboRecurringInput.safeParse({ ...recurring, startMonth: "2026-13" }).success).toBe(false);
+    expect(kakeiboRecurringInput.safeParse({ ...recurring, endMonth: "2026-00" }).success).toBe(false);
+  });
+
+  it("終わりの月が始まりの月より前は断る。#198", () => {
+    expect(kakeiboRecurringInput.safeParse({ ...recurring, startMonth: "2026-09", endMonth: "2026-08" }).success).toBe(
+      false,
+    );
+    expect(kakeiboRecurringInput.safeParse({ ...recurring, startMonth: "2026-09", endMonth: "2026-09" }).success).toBe(
+      true,
+    );
+  });
+
+  it("直すときも、送った項目の組み合わせで終わりの月を確かめる。#198", () => {
+    expect(kakeiboRecurringPatchInput.safeParse({ endMonth: "2026-08" }).success).toBe(true);
+    expect(kakeiboRecurringPatchInput.safeParse({ startMonth: "2026-09", endMonth: "2026-08" }).success).toBe(false);
+    expect(kakeiboRecurringPatchInput.safeParse({ startMonth: "2026-13" }).success).toBe(false);
   });
 });
 

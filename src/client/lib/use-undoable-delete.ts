@@ -55,13 +55,15 @@ export function useUndoableDelete(message: string, onRestore?: (key: string) => 
    * 消す。すぐには commitFn を呼ばず、5 秒たってから呼ぶ。「元に戻す」を押すと呼ばずに戻す。
    * @param key 項目を見分ける名前。同じ画面で重ならない ID にする
    * @param commitFn 5 秒後に呼ぶ、実際に消す関数。画面を閉じて送り切るときは keepalive が true で渡る
+   * @param opts.message この 1 回だけ、フックに渡した既定の文の代わりに出す文。日付など、呼ぶたびに変わる
+   *   文言を出したいとき(定期の記録をすぐ 1 件入れたときの知らせなど)に使う。#198
    */
   const remove = useCallback(
-    (key: string, commitFn: (opts: { keepalive: boolean }) => Promise<unknown>) => {
+    (key: string, commitFn: (opts: { keepalive: boolean }) => Promise<unknown>, opts?: { message?: string }) => {
       setPending((s) => (s.has(key) ? s : new Set(s).add(key)));
       const timer = window.setTimeout(() => void commit(key, commitFn), UNDO_MS);
       timers.current.set(key, { timer, commit: commitFn });
-      toast(message, {
+      toast(opts?.message ?? message, {
         duration: UNDO_MS,
         action: {
           label: "元に戻す",

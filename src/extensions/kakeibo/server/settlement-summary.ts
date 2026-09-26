@@ -2,9 +2,8 @@
  * 精算の計算に要る、DB からの読み出し。計算そのものは shared/settlement.ts の純粋な関数に任せる。0072、F-320〜F-322
  */
 import type { DB } from "@server/core/db/client";
-import { and, eq, gte, inArray, isNotNull, lt } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { minimalTransfers, netBalances, type Transfer } from "../shared/settlement";
-import { usableGroupIds } from "./access";
 import { kakeiboExpenses, kakeiboSettlements, kakeiboSplits } from "./schema";
 
 /** 1 つのグループの精算の中身 */
@@ -83,13 +82,17 @@ export async function sharedBurdenThisMonth(db: DB, userId: string, from: string
 
 /**
  * いま立て替え中の額を、共有のグループごとに出す。自分だけの画面に出す。0072、F-322
- * 貸し借りが無いグループは含めない
+ * 貸し借りが無いグループは含めない。
+ *
+ * 自分の差し引きだけが要るので、グループごとに全期間を読んで送る組み合わせまで計算する
+ * computeGroupSettlement は使わない。4 本の GROUP BY で、グループと人ごとの合計だけを読む。#199
+ * @param groupIds 利用者が家計簿に使える、全部のグループ。呼び出し側で 1 回だけ読んで渡す。#199
  */
 export async function myShareDebts(
   db: DB,
   userId: string,
+  groupIds: string[],
 ): Promise<{ groupId: string; receivable: number; payable: number }[]> {
-  const groupIds = (await usableGroupIds(db, userId)).filter(Boolean);
   if (groupIds.length === 0) return [];
   // 自分だけのグループは割り勘が起きないので、割った記録があるグループだけに絞ってから計算する
   const splitGroupRows = await db
@@ -97,25 +100,68 @@ export async function myShareDebts(
     .from(kakeiboExpenses)
     .where(and(inArray(kakeiboExpenses.groupId, groupIds), isNotNull(kakeiboExpenses.splitMode)));
   const sharedGroupIds = [...new Set(splitGroupRows.map((r) => r.groupId))];
+  if (sharedGroupIds.length === 0) return [];
+
+  // グループと人ごとの差し引き。key は `groupId\u0000userId`
+  const net = new Map<string, number>();
+  const add = (groupId: string, uid: string | null, delta: number) => {
+    if (!uid) return;
+    const key = `${groupId}\u0000${uid}`;
+    net.set(key, (net.get(key) ?? 0) + delta);
+  };
+  const sum = sql<number>`coalesce(sum(${kakeiboExpenses.amount}), 0)`;
+  const settlementSum = sql<number>`coalesce(sum(${kakeiboSettlements.amount}), 0)`;
+
+  const paidRows = await db
+    .select({ groupId: kakeiboExpenses.groupId, userId: kakeiboExpenses.paidBy, amount: sum })
+    .from(kakeiboExpenses)
+    .where(and(inArray(kakeiboExpenses.groupId, sharedGroupIds), isNotNull(kakeiboExpenses.splitMode)))
+    .groupBy(kakeiboExpenses.groupId, kakeiboExpenses.paidBy);
+  for (const r of paidRows) add(r.groupId, r.userId, r.amount);
+
+  const owedSum = sql<number>`coalesce(sum(${kakeiboSplits.amount}), 0)`;
+  const owedRows = await db
+    .select({ groupId: kakeiboExpenses.groupId, userId: kakeiboSplits.userId, amount: owedSum })
+    .from(kakeiboSplits)
+    .innerJoin(kakeiboExpenses, eq(kakeiboExpenses.id, kakeiboSplits.expenseId))
+    .where(inArray(kakeiboExpenses.groupId, sharedGroupIds))
+    .groupBy(kakeiboExpenses.groupId, kakeiboSplits.userId);
+  for (const r of owedRows) add(r.groupId, r.userId, -r.amount);
+
+  // 精算(from が to に送った)は、from の差し引きを増やし(借りを返した)、to の差し引きを減らす(受け取った)
+  const sentRows = await db
+    .select({ groupId: kakeiboSettlements.groupId, userId: kakeiboSettlements.fromUser, amount: settlementSum })
+    .from(kakeiboSettlements)
+    .where(inArray(kakeiboSettlements.groupId, sharedGroupIds))
+    .groupBy(kakeiboSettlements.groupId, kakeiboSettlements.fromUser);
+  for (const r of sentRows) add(r.groupId, r.userId, r.amount);
+
+  const receivedRows = await db
+    .select({ groupId: kakeiboSettlements.groupId, userId: kakeiboSettlements.toUser, amount: settlementSum })
+    .from(kakeiboSettlements)
+    .where(inArray(kakeiboSettlements.groupId, sharedGroupIds))
+    .groupBy(kakeiboSettlements.groupId, kakeiboSettlements.toUser);
+  for (const r of receivedRows) add(r.groupId, r.userId, -r.amount);
+
   const results: { groupId: string; receivable: number; payable: number }[] = [];
   for (const groupId of sharedGroupIds) {
-    const { balances } = await computeGroupSettlement(db, groupId);
-    const mine = balances.find((b) => b.userId === userId);
-    if (!mine || mine.net === 0) continue;
-    results.push({ groupId, receivable: mine.net > 0 ? mine.net : 0, payable: mine.net < 0 ? -mine.net : 0 });
+    const value = net.get(`${groupId}\u0000${userId}`) ?? 0;
+    if (value === 0) continue;
+    results.push({ groupId, receivable: value > 0 ? value : 0, payable: value < 0 ? -value : 0 });
   }
   return results;
 }
 
 /**
  * グループごとの、自分が関わる送る組み合わせ。「すべて」で絞った家計簿の画面に出す。#197
- * 貸し借りが無いグループ、自分が関わらない組み合わせは含めない
+ * 貸し借りが無いグループ、自分が関わらない組み合わせは含めない。
+ * @param groupIds 利用者が家計簿に使える、全部のグループ。呼び出し側で 1 回だけ読んで渡す。#199
  */
 export async function mySettlementTransfers(
   db: DB,
   userId: string,
+  groupIds: string[],
 ): Promise<{ groupId: string; transfers: Transfer[] }[]> {
-  const groupIds = (await usableGroupIds(db, userId)).filter(Boolean);
   if (groupIds.length === 0) return [];
   const splitGroupRows = await db
     .select({ groupId: kakeiboExpenses.groupId })

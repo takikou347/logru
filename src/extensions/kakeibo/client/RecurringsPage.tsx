@@ -10,9 +10,12 @@ import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Panel } from "@/components/parts/Panel";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
+import { formatShortDate } from "@/lib/dates";
+import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { kakeiboCategoryLabel } from "../shared/categories";
-import { useKakeiboGroups, useKakeiboRecurrings } from "./api";
+import type { KakeiboRecurringOccurrence } from "./api";
+import { useDeleteExpense, useKakeiboGroups, useKakeiboRecurrings } from "./api";
 import { formatMonthLabel } from "./parts";
 import { RecurringSheet } from "./RecurringSheet";
 
@@ -23,11 +26,25 @@ export function RecurringsPage() {
   const recurrings = useKakeiboRecurrings();
   const [params, setParams] = useSearchParams();
   useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
+  const deleteExpense = useDeleteExpense();
+  // 定期の記録を作った直後に、決めた日をもう過ぎていてその場で入った 1 件を、5 秒だけ元に戻せるようにする。
+  // 消す操作の型とは逆に、既定は「何もしない(記録を残す)」で、「元に戻す」を押した(onRestore)ときだけ消す。
+  // シートは閉じて消えるので、この画面(閉じても残る)側でフックを持つ。#198
+  const { remove: removeOccurrence } = useUndoableDelete("記録しました", (id) => {
+    void deleteExpense.mutateAsync({ id });
+  });
 
   const creating = params.get("create") === "1";
   const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
   const editingId = params.get("edit");
   const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
+  const handleCreated = (occurrence: KakeiboRecurringOccurrence | null) => {
+    if (!occurrence) return;
+    // 5 秒たっても、画面を離れても、この記録は消さない(そのまま残す)。commitFn は何もしない
+    removeOccurrence(occurrence.id, async () => {}, {
+      message: `${formatShortDate(occurrence.date)}の分を記録しました`,
+    });
+  };
 
   if (!me.data || !ready) return <Loading />;
   const rows = recurrings.data ?? [];
@@ -107,8 +124,16 @@ export function RecurringsPage() {
           />
         </Dock>
       </Page>
-      {creating && <RecurringSheet groups={groups} me={me.data} onClose={closeCreate} />}
-      {editing && <RecurringSheet groups={groups} me={me.data} recurring={editing} onClose={closeEdit} />}
+      {creating && <RecurringSheet groups={groups} me={me.data} onClose={closeCreate} onCreated={handleCreated} />}
+      {editing && (
+        <RecurringSheet
+          groups={groups}
+          me={me.data}
+          recurring={editing}
+          onClose={closeEdit}
+          onCreated={handleCreated}
+        />
+      )}
     </>
   );
 }

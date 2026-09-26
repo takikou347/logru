@@ -129,7 +129,7 @@ export function OnboardingSheet({
         )}
         {step === 1 && (
           <>
-            <p>カレンダーの日付を押すと、その日の予定を足せます。下の「＋」からも足せます。</p>
+            <p>下の「＋」で、選んでいる日に予定を足せます。</p>
             <Button variant="secondary" className="self-start" onClick={onAddEvent}>
               予定を 1 つ足してみる
             </Button>

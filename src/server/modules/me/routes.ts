@@ -11,6 +11,7 @@ import {
   randomAvatarToken,
   verifyAvatarUrl,
 } from "@server/core/avatar";
+import { runBatch } from "@server/core/db/batch";
 import type { DB } from "@server/core/db/client";
 import {
   colorPrefs,
@@ -199,7 +200,7 @@ export const meRoutes = createRouter()
       .from(userSettings)
       .where(eq(userSettings.userId, me.id))
       .get();
-    await db.batch([
+    await runBatch(db, [
       ...(toDelete.length
         ? [
             db.delete(groups).where(inArray(groups.id, toDelete)),
@@ -211,7 +212,7 @@ export const meRoutes = createRouter()
       db.delete(colorPrefs).where(and(eq(colorPrefs.targetType, "user"), eq(colorPrefs.targetId, me.id))),
       // 共有グループに残る予定などは、外部キーで作った人が空になる
       db.delete(users).where(eq(users.id, me.id)),
-    ] as unknown as Parameters<typeof db.batch>[0]);
+    ]);
     if (avatar?.avatarPhotoKey) await cleanUpOldAvatar(c.env.AVATAR_BUCKET, me.id, avatar.avatarPhotoKey);
     return c.body(null, 204);
   })

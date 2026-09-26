@@ -74,6 +74,32 @@ test("思い出を作り、写真付きで記録し、いいねを付け、カ�
   await expect(day.getByRole("button", { name: /記録 1/ })).toBeVisible();
 });
 
+test("いいねが失敗したら、押した数を元に戻す。#204", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableMemories(page);
+  await page.goto("/memories");
+  await addMemories(page, "思い出を作る");
+  const create = page.getByRole("dialog", { name: "思い出を作る" });
+  await create.getByLabel("題名").fill("箱根 日帰り");
+  await create.getByRole("button", { name: "作る" }).click();
+  await expect(page.getByRole("heading", { name: "箱根 日帰り" })).toBeVisible();
+
+  await page.getByRole("toolbar", { name: "1 日の操作" }).getByRole("button", { name: "記録する" }).click();
+  const record = page.getByRole("dialog", { name: "記録する" });
+  await record.getByLabel("文章").fill("湯本に着いた。");
+  await record.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  const flow = page.getByRole("list", { name: "1 日の流れ" });
+  const article = flow.getByRole("article", { name: "こた の記録" });
+
+  // いいねの API を失敗させる。押した瞬間に 1 へ増えても、失敗したら 0 へ戻る
+  await page.context().route("**/api/memories/records/*/like", (route) => route.fulfill({ status: 500, json: {} }));
+  await article.getByRole("button", { name: /いいねを付ける/ }).click();
+  await expect(page.getByText("サーバーでうまくいきませんでした。少し待って、もう一度試してください。")).toBeVisible();
+  await expect(article.getByRole("button", { name: /いいねを付ける。いま 0/ })).toBeVisible();
+});
+
 test("しおりにやること、持ち物を足して済みにできる。思い出を消しても記録は残る", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await enableMemories(page);

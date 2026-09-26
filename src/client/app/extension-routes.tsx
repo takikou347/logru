@@ -4,6 +4,7 @@ import { extensionTourId } from "@shared/tours";
 import type { ComponentType } from "react";
 import { Navigate, type RouteObject } from "react-router";
 import { useGroups } from "@/api/common";
+import { LoadFailure } from "@/components/parts/Failure";
 import { ScreenTour } from "@/components/parts/ScreenTour";
 import { enabledKeys } from "@/lib/extensions";
 import { Loading } from "./guards";
@@ -16,6 +17,14 @@ import { Loading } from "./guards";
 function ExtensionGate({ manifest, Page }: { manifest: ExtensionManifest; Page: ComponentType }) {
   const groups = useGroups();
   if (groups.isPending) return <Loading />;
+  // グループを読めなかったとき。「使っていない」と決めつけて設定へ流さず、読み直させる。#204
+  if (groups.error) {
+    return (
+      <div className="mx-auto grid min-h-[60dvh] max-w-[560px] place-items-center px-4">
+        <LoadFailure what="グループ" error={groups.error} onRetry={() => void groups.refetch()} className="w-full" />
+      </div>
+    );
+  }
   const on = enabledKeys(clientExtensions, groups.data ?? []).has(manifest.key);
   // 近道などから、使っていない拡張の画面を開こうとしたとき。設定の「機能」へ案内する。#110
   if (!on) return <Navigate to={`/settings/extensions?off=${encodeURIComponent(manifest.label)}`} replace />;

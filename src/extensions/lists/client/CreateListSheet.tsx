@@ -1,5 +1,5 @@
 import type { GroupSummary, Me } from "@shared/api-types";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Field } from "@/components/parts/Field";
 import { FieldMessage } from "@/components/parts/Panel";
@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { useCreateList } from "./api";
+
+/** 下の footer のボタンから、シートの中の form を submit するのに使う */
+const CREATE_LIST_FORM_ID = "create-list-form";
 
 /**
  * リストを作るシート。F-201
@@ -28,6 +31,9 @@ export function CreateListSheet({
 }) {
   const navigate = useNavigate();
   const createList = useCreateList();
+  // シートを閉じる動きが終わってから、実際に移る先。#192
+  const afterClose = useRef<string | null>(null);
+  const [open, setOpen] = useState(true);
 
   const [groupId, setGroupId] = useState(
     defaultShareGroupId(groups, defaultGroupId, {
@@ -52,17 +58,38 @@ export function CreateListSheet({
     setBusy(true);
     try {
       const created = await createList.mutateAsync({ groupId, title: title.trim(), date: date || null });
-      onClose();
-      navigate(`/lists/${created.id}`);
+      afterClose.current = `/lists/${created.id}`;
+      setOpen(false);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
     }
   }
 
+  /** 閉じる動きが終わってから、親に知らせ、作ったリストの画面へ移る。#192 */
+  function handleClosed() {
+    onClose();
+    if (afterClose.current) navigate(afterClose.current);
+  }
+
   return (
-    <ResponsiveSheet title="リストを作る" onClose={onClose}>
-      <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
+    <ResponsiveSheet
+      title="リストを作る"
+      open={open}
+      onOpenChange={() => setOpen(false)}
+      onClose={handleClosed}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+            やめる
+          </Button>
+          <Button type="submit" form={CREATE_LIST_FORM_ID} disabled={busy || !canSubmit}>
+            {busy ? "作っています" : "作る"}
+          </Button>
+        </div>
+      }
+    >
+      <form id={CREATE_LIST_FORM_ID} className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         <Field label="名前">
           {(p) => (
             <Input
@@ -87,14 +114,6 @@ export function CreateListSheet({
           {(p) => <Input {...p} type="date" value={date} onChange={(e) => setDate(e.target.value)} />}
         </Field>
         {error && <FieldMessage error>{error}</FieldMessage>}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            やめる
-          </Button>
-          <Button type="submit" disabled={busy || !canSubmit}>
-            {busy ? "作っています" : "作る"}
-          </Button>
-        </div>
       </form>
     </ResponsiveSheet>
   );

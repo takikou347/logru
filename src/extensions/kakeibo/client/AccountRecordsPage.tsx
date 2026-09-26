@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
-import { useState } from "react";
-import { useParams, useSearchParams } from "react-router";
+import { useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { Page, PageBar } from "@/components/layout/AppLayout";
@@ -9,12 +9,13 @@ import { LoadableSection, PanelSkeleton } from "@/components/parts/LoadableSecti
 import { Empty, Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { formatShortDate } from "@/lib/dates";
+import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
 import { formatYen } from "../shared/format";
 import { AccountSheet } from "./AccountSheet";
-import type { KakeiboAccountDetail, KakeiboAccountRef, KakeiboExpense } from "./api";
-import { useKakeiboAccountDetail, useKakeiboGroups } from "./api";
+import type { KakeiboAccount, KakeiboAccountDetail, KakeiboAccountRef, KakeiboExpense } from "./api";
+import { useDeleteAccount, useKakeiboAccountDetail, useKakeiboGroups } from "./api";
 import {
   addMonthsToKey,
   formatMonthLabel,
@@ -66,15 +67,33 @@ function RecordRow({ record, accountId }: { record: KakeiboExpense; accountId: s
 export function AccountRecordsPage() {
   const { id } = useParams<{ id: string }>();
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const me = useMe();
   const { groups } = useKakeiboGroups();
   const monthParam = params.get("month");
   const month = monthParam && isMonthKey(monthParam) ? monthParam : monthKeyOf(new Date());
   const detail = useKakeiboAccountDetail(id ?? null, month);
   const [editing, setEditing] = useState(false);
+  // もう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。
+  // key に積んで、確実に新しい `AccountSheet` を作る。#211
+  const editGen = useRef(0);
   const setMonth = (key: string) => setParams((p) => (p.set("month", key), p), { replace: true });
+  const deleteAccount = useDeleteAccount();
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。#194
+  const { remove } = useUndoableDelete("口座を消しました");
   // 口座ごとの色は付けていない画面。0071
   useAppFrame({ poolColors: [] });
+
+  /**
+   * 消す。シートはもう閉じているので、この画面はそのまま残す。5 秒たって実際に消えたら
+   * 一覧へ移る。「元に戻す」を押したときは、この画面のまま何も起きない。#194
+   */
+  function handleDelete(account: KakeiboAccount) {
+    remove(account.id, async ({ keepalive }) => {
+      await deleteAccount.mutateAsync({ id: account.id, keepalive });
+      if (!keepalive) navigate("/kakeibo/accounts", { replace: true });
+    });
+  }
 
   if (!id) return null;
   if (!me.data) return <Loading />;
@@ -127,7 +146,10 @@ export function AccountRecordsPage() {
                       variant="ghost"
                       size="icon"
                       aria-label="口座を直す"
-                      onClick={() => setEditing(true)}
+                      onClick={() => {
+                        editGen.current += 1;
+                        setEditing(true);
+                      }}
                     >
                       <Pencil className="size-4" />
                     </Button>
@@ -154,7 +176,14 @@ export function AccountRecordsPage() {
         </LoadableSection>
       </Page>
       {editing && detail.data && (
-        <AccountSheet groups={groups} me={me.data} account={detail.data.account} onClose={() => setEditing(false)} />
+        <AccountSheet
+          key={editGen.current}
+          groups={groups}
+          me={me.data}
+          account={detail.data.account}
+          onClose={() => setEditing(false)}
+          onDelete={handleDelete}
+        />
       )}
     </>
   );

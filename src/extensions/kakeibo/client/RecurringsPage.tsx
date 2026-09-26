@@ -1,5 +1,6 @@
 /** 定期の記録の画面。F-325 */
 import { Repeat } from "lucide-react";
+import { useRef } from "react";
 import { useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
@@ -14,8 +15,9 @@ import { formatShortDate } from "@/lib/dates";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { kakeiboCategoryLabel } from "../shared/categories";
-import type { KakeiboRecurringOccurrence } from "./api";
-import { useDeleteExpense, useKakeiboGroups, useKakeiboRecurrings } from "./api";
+import { formatSignedYen, formatYen } from "../shared/format";
+import type { KakeiboRecurring, KakeiboRecurringOccurrence } from "./api";
+import { useDeleteExpense, useDeleteRecurring, useKakeiboGroups, useKakeiboRecurrings } from "./api";
 import { formatMonthLabel } from "./parts";
 import { RecurringSheet } from "./RecurringSheet";
 
@@ -33,11 +35,17 @@ export function RecurringsPage() {
   const { remove: removeOccurrence } = useUndoableDelete("記録しました", (id) => {
     void deleteExpense.mutateAsync({ id });
   });
+  const deleteRecurring = useDeleteRecurring();
+  // 定期の記録そのものを消すときは確認を出さず、5 秒だけ「元に戻す」を出す。#194
+  const { pending, remove: removeRecurring } = useUndoableDelete("定期の記録を消しました");
 
   const creating = params.get("create") === "1";
   const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
   const editingId = params.get("edit");
   const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
+  // 同じ記録をもう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。
+  // key に積んで、確実に新しい `RecurringSheet` を作る。#211
+  const editGen = useRef(0);
   const handleCreated = (occurrence: KakeiboRecurringOccurrence | null) => {
     if (!occurrence) return;
     // 5 秒たっても、画面を離れても、この記録は消さない(そのまま残す)。commitFn は何もしない
@@ -45,9 +53,11 @@ export function RecurringsPage() {
       message: `${formatShortDate(occurrence.date)}の分を記録しました`,
     });
   };
+  const handleDelete = (recurring: KakeiboRecurring) =>
+    removeRecurring(recurring.id, ({ keepalive }) => deleteRecurring.mutateAsync({ id: recurring.id, keepalive }));
 
   if (!me.data || !ready) return <Loading />;
-  const rows = recurrings.data ?? [];
+  const rows = (recurrings.data ?? []).filter((r) => !pending.has(r.id));
   const editing = rows.find((r) => r.id === editingId);
   const groupLabel = (groupId: string) => {
     const g = groups.find((x) => x.id === groupId);
@@ -87,7 +97,10 @@ export function RecurringsPage() {
                   <button
                     type="button"
                     className="flex w-full items-center justify-between gap-3 py-2 text-left"
-                    onClick={() => setParams((p) => (p.set("edit", r.id), p), { replace: true })}
+                    onClick={() => {
+                      editGen.current += 1;
+                      setParams((p) => (p.set("edit", r.id), p), { replace: true });
+                    }}
                   >
                     <span className="flex min-w-0 flex-col">
                       <span className="min-w-0 truncate text-[15px] font-medium">
@@ -100,8 +113,7 @@ export function RecurringsPage() {
                       </span>
                     </span>
                     <span className="flex-none font-bold tabular-nums">
-                      {r.type === "income" ? "+" : ""}
-                      {r.amount.toLocaleString("ja-JP")}円
+                      {r.type === "income" ? formatSignedYen(r.amount) : formatYen(r.amount)}
                     </span>
                   </button>
                 </li>
@@ -127,11 +139,13 @@ export function RecurringsPage() {
       {creating && <RecurringSheet groups={groups} me={me.data} onClose={closeCreate} onCreated={handleCreated} />}
       {editing && (
         <RecurringSheet
+          key={`${editingId}-${editGen.current}`}
           groups={groups}
           me={me.data}
           recurring={editing}
           onClose={closeEdit}
           onCreated={handleCreated}
+          onDelete={handleDelete}
         />
       )}
     </>

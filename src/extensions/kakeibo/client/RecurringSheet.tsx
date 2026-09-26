@@ -1,6 +1,6 @@
 /** 定期の記録を作る、直すシート。F-325 */
 import type { GroupSummary, Me } from "@shared/api-types";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Chip } from "@/components/parts/Chip";
 import { Field } from "@/components/parts/Field";
@@ -12,11 +12,14 @@ import { Input, Textarea } from "@/components/ui/input";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_EXPENSE_CATEGORIES, KAKEIBO_INCOME_CATEGORIES, type KakeiboCategory } from "../shared/categories";
 import type { KakeiboRecurring, KakeiboRecurringOccurrence } from "./api";
-import { useDeleteRecurring, useKakeiboAccounts, useSaveRecurring } from "./api";
+import { useKakeiboAccounts, useSaveRecurring } from "./api";
 import { sanitizeAmountInput } from "./numeric-input";
-import { monthKeyOf } from "./parts";
+import { AccountPickerRow, monthKeyOf } from "./parts";
 
 const TYPE_LABELS: Record<"expense" | "income", string> = { expense: "支出", income: "収入" };
+
+/** 下の footer のボタンから、シートの中の form を submit するのに使う */
+const RECURRING_FORM_ID = "kakeibo-recurring-form";
 
 /**
  * 定期の記録を作る、直すシート。種類、金額、カテゴリ、口座、メモ、グループ、毎月の日、始まりの月、
@@ -28,6 +31,7 @@ export function RecurringSheet({
   recurring,
   onClose,
   onCreated,
+  onDelete,
 }: {
   groups: GroupSummary[];
   me: Me;
@@ -38,11 +42,16 @@ export function RecurringSheet({
    * 呼び出し側(RecurringsPage)が、閉じても消えない「元に戻す」を出す。#198
    */
   onCreated: (occurrence: KakeiboRecurringOccurrence | null) => void;
+  /** 「消す」を押したとき。recurring があるときだけ渡る。#194 */
+  onDelete?: (recurring: KakeiboRecurring) => void;
 }) {
   const saveRecurring = useSaveRecurring();
-  const deleteRecurring = useDeleteRecurring();
+  // 開いているか。閉じる動きは ResponsiveSheet に任せ、終わってから onClose を呼ぶ。#192
+  const [open, setOpen] = useState(true);
+  // 閉じる動きが終わってから消す。消す先を、閉じ始めた時点で覚えておく。#192、#194
+  const afterClose = useRef<KakeiboRecurring | null>(null);
 
-  const [groupId, setGroupId] = useState(
+  const [groupId, setGroupIdState] = useState(
     recurring?.groupId ??
       defaultShareGroupId(groups, null, {
         groupId: me.settings.usualShareGroupId,
@@ -61,7 +70,12 @@ export function RecurringSheet({
   const [paused, setPaused] = useState(Boolean(recurring?.paused));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // グループを変えると選べる口座が変わるので、選び直させる。#194
+  function setGroupId(next: string) {
+    setGroupIdState(next);
+    setAccountId(null);
+  }
 
   const selectedGroup = groups.find((g) => g.id === groupId);
   const personalGroupId = groups.find((g) => g.isPersonal)?.id ?? null;
@@ -135,32 +149,55 @@ export function RecurringSheet({
           toast("定期の記録を作りました");
         }
       }
-      onClose();
+      setOpen(false);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
     }
   }
 
-  async function remove() {
+  /**
+   * 消す。押すとシートを閉じ始め、5 秒の「元に戻す」は呼び出し側(RecurringsPage)に任せる。#194
+   * ExpenseSheet と同じ、閉じる動きが終わってから知らせる形。#192
+   */
+  function remove() {
     if (!recurring) return;
-    setBusy(true);
-    try {
-      await deleteRecurring.mutateAsync(recurring.id);
-      toast("定期の記録を消しました");
-      onClose();
-    } catch (err) {
-      setError((err as Error).message);
-      setBusy(false);
-    }
+    afterClose.current = recurring;
+    setOpen(false);
+  }
+
+  /** 閉じる動きが終わってから、親に知らせる。消す先を覚えていたら、そのあと消す。#192、#194 */
+  function handleClosed() {
+    onClose();
+    const pending = afterClose.current;
+    afterClose.current = null;
+    if (pending) onDelete?.(pending);
   }
 
   return (
-    <ResponsiveSheet title={recurring ? "定期の記録を直す" : "定期の記録を作る"} onClose={onClose}>
-      <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
-        {!recurring && (
-          <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} extensionLabel="家計簿" />
-        )}
+    <ResponsiveSheet
+      title={recurring ? "定期の記録を直す" : "定期の記録を作る"}
+      open={open}
+      onOpenChange={() => setOpen(false)}
+      onClose={handleClosed}
+      footer={
+        <div className="flex justify-between gap-2">
+          {recurring ? (
+            <Button type="button" variant="danger" onClick={remove}>
+              消す
+            </Button>
+          ) : (
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              やめる
+            </Button>
+          )}
+          <Button type="submit" form={RECURRING_FORM_ID} disabled={busy || !canSubmit}>
+            {busy ? "保存しています" : "保存する"}
+          </Button>
+        </div>
+      }
+    >
+      <form id={RECURRING_FORM_ID} className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         <div className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-2" id="kakeibo-recurring-type-label">
             種類
@@ -190,7 +227,7 @@ export function RecurringSheet({
               pattern="[0-9]*"
               value={amountText}
               onChange={(e) => setAmountText(sanitizeAmountInput(e.target.value))}
-              className="text-right"
+              className="text-right text-xl font-bold"
             />
           )}
         </Field>
@@ -206,23 +243,11 @@ export function RecurringSheet({
             ))}
           </div>
         </div>
-        {accountOptions.length > 0 && (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-ink-2" id="kakeibo-recurring-account-label">
-              口座
-            </span>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="kakeibo-recurring-account-label">
-              <Chip role="radio" aria-checked={accountId === null} onClick={() => setAccountId(null)}>
-                口座なし
-              </Chip>
-              {accountOptions.map((a) => (
-                <Chip key={a.id} role="radio" aria-checked={accountId === a.id} onClick={() => setAccountId(a.id)}>
-                  {a.name}
-                </Chip>
-              ))}
-            </div>
-          </div>
+        {/* 共有を口座の上に置き、選んだ直後に選べる口座が下に出る並びにする。0067、#194 */}
+        {!recurring && (
+          <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} extensionLabel="家計簿" />
         )}
+        <AccountPickerRow label="口座" accounts={accountOptions} value={accountId} onChange={setAccountId} allowNone />
         <Field label="毎月の日" hint="31 を選ぶと、その月の月末になります">
           {(p) => (
             <Input
@@ -259,26 +284,6 @@ export function RecurringSheet({
           </Button>
         )}
         {error && <FieldMessage error>{error}</FieldMessage>}
-        <div className="flex justify-between gap-2">
-          {recurring ? (
-            confirmDelete ? (
-              <Button type="button" variant="danger" disabled={busy} onClick={() => void remove()}>
-                {busy ? "消しています" : "本当に消す"}
-              </Button>
-            ) : (
-              <Button type="button" variant="ghost" onClick={() => setConfirmDelete(true)}>
-                消す
-              </Button>
-            )
-          ) : (
-            <Button type="button" variant="ghost" onClick={onClose}>
-              やめる
-            </Button>
-          )}
-          <Button type="submit" disabled={busy || !canSubmit}>
-            {busy ? "保存しています" : "保存する"}
-          </Button>
-        </div>
       </form>
     </ResponsiveSheet>
   );

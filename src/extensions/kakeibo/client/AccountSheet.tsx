@@ -1,5 +1,5 @@
 import type { GroupSummary, Me } from "@shared/api-types";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Chip } from "@/components/parts/Chip";
 import { Field } from "@/components/parts/Field";
@@ -11,9 +11,12 @@ import { Input } from "@/components/ui/input";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_ACCOUNT_KINDS, type KakeiboAccountKind } from "../shared/accounts";
 import type { KakeiboAccount } from "./api";
-import { useDeleteAccount, useSaveAccount } from "./api";
+import { useSaveAccount } from "./api";
 import { sanitizeAmountInput } from "./numeric-input";
 import { GroupLabel } from "./parts";
+
+/** 下の footer のボタンから、シートの中の form を submit するのに使う */
+const ACCOUNT_FORM_ID = "kakeibo-account-form";
 
 /**
  * 口座を作る、直すシート。F-309
@@ -26,15 +29,21 @@ export function AccountSheet({
   account,
   defaultGroupId,
   onClose,
+  onDelete,
 }: {
   groups: GroupSummary[];
   me: Me;
   account?: KakeiboAccount;
   defaultGroupId?: string | null;
   onClose: () => void;
+  /** 「消す」を押したとき。account があるときだけ渡る。#194 */
+  onDelete?: (account: KakeiboAccount) => void;
 }) {
   const saveAccount = useSaveAccount();
-  const deleteAccount = useDeleteAccount();
+  // 開いているか。閉じる動きは ResponsiveSheet に任せ、終わってから onClose を呼ぶ。#192
+  const [open, setOpen] = useState(true);
+  // 閉じる動きが終わってから消す。消す先を、閉じ始めた時点で覚えておく。#192、#194
+  const afterClose = useRef<KakeiboAccount | null>(null);
 
   const [groupId, setGroupId] = useState(
     account?.groupId ??
@@ -50,7 +59,6 @@ export function AccountSheet({
   const [archived, setArchived] = useState(Boolean(account?.archivedAt));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const balanceValue = Number(openingBalance);
   const canSubmit =
@@ -78,29 +86,55 @@ export function AccountSheet({
         await saveAccount.mutateAsync({ body: { groupId, name: name.trim(), kind, openingBalance: balanceValue } });
         toast("口座を作りました");
       }
-      onClose();
+      setOpen(false);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
     }
   }
 
-  async function remove() {
+  /**
+   * 消す。押すとシートを閉じ始め、5 秒の「元に戻す」は呼び出し側(AccountsPage、AccountRecordsPage)に
+   * 任せる。ExpenseSheet と同じ、閉じる動きが終わってから知らせる形。#192、#194
+   */
+  function remove() {
     if (!account) return;
-    setBusy(true);
-    try {
-      await deleteAccount.mutateAsync(account.id);
-      toast("口座を消しました");
-      onClose();
-    } catch (err) {
-      setError((err as Error).message);
-      setBusy(false);
-    }
+    afterClose.current = account;
+    setOpen(false);
+  }
+
+  /** 閉じる動きが終わってから、親に知らせる。消す先を覚えていたら、そのあと消す。#192、#194 */
+  function handleClosed() {
+    onClose();
+    const pending = afterClose.current;
+    afterClose.current = null;
+    if (pending) onDelete?.(pending);
   }
 
   return (
-    <ResponsiveSheet title={account ? "口座を直す" : "口座を作る"} onClose={onClose}>
-      <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
+    <ResponsiveSheet
+      title={account ? "口座を直す" : "口座を作る"}
+      open={open}
+      onOpenChange={() => setOpen(false)}
+      onClose={handleClosed}
+      footer={
+        <div className="flex justify-between gap-2">
+          {account ? (
+            <Button type="button" variant="danger" onClick={remove}>
+              消す
+            </Button>
+          ) : (
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              やめる
+            </Button>
+          )}
+          <Button type="submit" form={ACCOUNT_FORM_ID} disabled={busy || !canSubmit}>
+            {busy ? "保存しています" : "保存する"}
+          </Button>
+        </div>
+      }
+    >
+      <form id={ACCOUNT_FORM_ID} className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         <Field label="名前">
           {(p) => (
             <Input
@@ -153,26 +187,6 @@ export function AccountSheet({
           </Button>
         )}
         {error && <FieldMessage error>{error}</FieldMessage>}
-        <div className="flex justify-between gap-2">
-          {account ? (
-            confirmDelete ? (
-              <Button type="button" variant="danger" disabled={busy} onClick={() => void remove()}>
-                {busy ? "消しています" : "本当に消す"}
-              </Button>
-            ) : (
-              <Button type="button" variant="ghost" onClick={() => setConfirmDelete(true)}>
-                消す
-              </Button>
-            )
-          ) : (
-            <Button type="button" variant="ghost" onClick={onClose}>
-              やめる
-            </Button>
-          )}
-          <Button type="submit" disabled={busy || !canSubmit}>
-            {busy ? "保存しています" : "保存する"}
-          </Button>
-        </div>
       </form>
     </ResponsiveSheet>
   );

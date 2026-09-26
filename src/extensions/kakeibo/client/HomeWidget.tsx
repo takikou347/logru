@@ -8,7 +8,8 @@ import { monthKeyOf } from "./parts";
 export function RecordHomeWidget() {
   return (
     <Link
-      to="/kakeibo?record=1"
+      // from=widget は、シートを閉じたときホームへ戻すための印。#201
+      to="/kakeibo?record=1&from=widget"
       data-testid="widget-kakeibo-record"
       className="glass grid min-h-16 grid-cols-[44px_1fr_auto] items-center gap-3 rounded-panel py-2.5 pr-3 pl-2.5 text-ink no-underline"
     >

@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addExtension, dayPanel, signUp } from "./helpers";
+import { addExtension, dayPanel, signUp, swipeRowLeft } from "./helpers";
 
 /** 機能の一覧で、リストを自分だけで使えるようにする */
 async function enableLists(page: Page) {
@@ -89,8 +89,10 @@ test("リストを作り、項目を足す、チェックする、消す。日�
   const rows = page.locator("li", { has: page.getByRole("checkbox") });
   await expect(rows.last()).toContainText("にんじん");
 
-  // 消せる。5 秒だけ元に戻せるので、実際に消えるまで待つ。F-205、issue #12
-  await page.getByRole("button", { name: "たまねぎ を消す" }).click();
+  // 左へ引くと「直す」「消す」が出る。消せる。5 秒だけ元に戻せるので、実際に消えるまで待つ。F-205、issue #12、0084
+  const onionRow = page.locator("li", { hasText: "たまねぎ" });
+  await swipeRowLeft(page, onionRow, 120);
+  await onionRow.getByRole("button", { name: "消す", exact: true }).click();
   await expect(page.getByText("たまねぎ")).toBeHidden();
   await page.waitForTimeout(6_000);
 
@@ -173,7 +175,9 @@ test("項目を消すと 5 秒だけ元に戻せる。issue #12", async ({ page 
   await addInput.press("Enter");
   await expect(page.getByText("にんじん")).toBeVisible();
 
-  await page.getByRole("button", { name: "にんじん を消す" }).click();
+  const row = page.locator("li", { hasText: "にんじん" });
+  await swipeRowLeft(page, row, 120);
+  await row.getByRole("button", { name: "消す", exact: true }).click();
   await expect(page.getByText("にんじん")).toBeHidden();
   await page.getByRole("button", { name: "元に戻す" }).click();
   await expect(page.getByText("にんじん")).toBeVisible();

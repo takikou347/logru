@@ -30,7 +30,12 @@ export function Segmented<T extends string>({
       value={value}
       onValueChange={(v) => v && onChange(v as T)}
       aria-label={label}
-      className={cn("rounded-full bg-line p-[3px]", full && "w-full")}
+      className={cn(
+        "rounded-full bg-line p-[3px]",
+        full && "w-full",
+        // Dock の帯はガラスで裏が薄く透けるので、地の色をここだけ濃く塗って字が透けないようにする。issue #202
+        compact && "bg-(--ground)/55",
+      )}
     >
       {options.map((o) => (
         <ToggleGroupItem

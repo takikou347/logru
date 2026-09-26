@@ -53,6 +53,8 @@
   --transition-duration-fast: var(--dur-fast);
   --transition-duration-base: var(--dur-base);
   --transition-duration-slow: var(--dur-slow);
+  /* インクだまりの膨らみ・引きだけの例外。0044、issue #203 */
+  --transition-duration-ambient: var(--dur-ambient);
   /*
    * 緩急は 2 種だけ。抜ける動きは ease-out、行って戻る動きは ease-in-out。
    * 値は Tailwind の既定と同じにして、見た目を変えない。ライト・ダークで変わらないのでここで直に持つ。0044
@@ -293,6 +295,12 @@
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    /*
+     * 時間を 0.01ms にするだけでは、animate-spin や animate-pulse のように infinite な動きは
+     * 極めて速い速さで繰り返り続け、震えて見える。繰り返しも 1 回に止める。issue #203
+     * .mascot-bob は no-preference の中でだけ animation を付けるので、ここには来ない。
+     */
+    animation-iteration-count: 1 !important;
   }
 }
 

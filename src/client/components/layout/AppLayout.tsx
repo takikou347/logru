@@ -101,6 +101,9 @@ export function AccountMenu({ wide = false }: { wide?: boolean }) {
  * @param onTitleClick 渡すと見出しがボタンになる。拡張の画面どうしの行き来を近くするため、
  *   機能のシートを開くのに使う。スマホで下の帯が無い画面(設定など)でも同じ道が開ける。issue #26
  * @param action 見出しの右に置く、その画面だけの操作。1 つだけ。下の帯の「+」とは別の、頻度の低い操作に使う。issue #150
+ *   ただし中身が長い画面では、PC の Dock(中身の末尾に置く)だと主な「+」が下端まで遠くなる。
+ *   そのときは Dock を `lg:hidden` にし、この action に PC だけの `<PrimaryAddButton>` を渡してよい。
+ *   カレンダーの PC の帯(独自の見出し)と同じ考え方。issue #202
  */
 export function PageBar({
   title,

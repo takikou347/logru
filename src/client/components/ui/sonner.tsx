@@ -24,6 +24,8 @@ const Toaster = (props: ToasterProps) => (
        */
       classNames: {
         toast: "!rounded-[26px] !border-0 !shadow-lg",
+        // 説明の字は toast の文字色より薄いが、80% あれば比が保てる。既定はライトで 1.6:1 まで落ちていた。issue #202
+        description: "!text-primary-foreground/80",
         default: "!bg-primary !text-primary-foreground",
         success: "!bg-primary !text-primary-foreground",
         info: "!bg-primary !text-primary-foreground",

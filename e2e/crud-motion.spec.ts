@@ -136,12 +136,14 @@ test("定期の記録を作ると膨らんで入り、消すと縮んで一覧�
   // 作るシートが閉じ切るまで待つ。カテゴリの選択肢にも同じ「住まい」の文字を持つ button があるため
   await expect(create).toBeHidden();
 
-  const button = page.locator("button").filter({ hasText: "住まい" });
-  const row = button.locator("..");
+  // カテゴリの選択肢は role が radio なので、role で button だけに絞る。行は、その button を持つ li
+  const button = page.getByRole("button").filter({ hasText: "住まい" });
+  const row = page.locator("li").filter({ has: button });
   await expect(row).toHaveClass(/item-enter/);
 
-  await button.click();
+  // 直すシートが開くと一覧は aria-hidden になり role で引けなくなるので、開く前に行を捕まえる
   const leaving = await watchAttribute(row, "data-leaving", "true");
+  await button.click();
   await page.getByRole("dialog", { name: "定期の記録を直す" }).getByRole("button", { name: "消す" }).click();
   await expect(page.getByText("定期の記録を消しました")).toBeVisible();
   await leaving();

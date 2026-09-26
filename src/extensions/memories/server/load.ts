@@ -1,5 +1,6 @@
 /** 思い出と記録を、画面に返す形に読む */
 
+import { readByChunk } from "@server/core/db/chunk";
 import type { DB } from "@server/core/db/client";
 import { and, asc, count, desc, eq, gte, inArray, lt } from "drizzle-orm";
 import type { Memory, MemoryItem, MemoryRecord } from "../shared/types";
@@ -13,9 +14,6 @@ import {
   memoryRecords,
 } from "./schema";
 
-/** D1 は 1 つの問い合わせに渡せる値の数に上限がある。ID はこの数ずつ渡す */
-const CHUNK = 90;
-
 /**
  * 記録の行に、写真といいねを付ける。
  * @param db D1 を包んだ Drizzle
@@ -28,25 +26,16 @@ export async function withPhotos(
   rows: (typeof memoryRecords.$inferSelect)[],
 ): Promise<MemoryRecord[]> {
   const ids = rows.map((r) => r.id);
-  const photos: (typeof memoryPhotos.$inferSelect)[] = [];
-  const likes: { recordId: string; userId: string }[] = [];
-  for (let i = 0; i < ids.length; i += CHUNK) {
-    const part = ids.slice(i, i + CHUNK);
-    photos.push(
-      ...(await db
-        .select()
-        .from(memoryPhotos)
-        .where(inArray(memoryPhotos.recordId, part))
-        .orderBy(asc(memoryPhotos.sortOrder))),
-    );
-    likes.push(
-      ...(await db
-        .select({ recordId: memoryLikes.recordId, userId: memoryLikes.userId })
-        .from(memoryLikes)
-        .where(inArray(memoryLikes.recordId, part))
-        .orderBy(asc(memoryLikes.createdAt))),
-    );
-  }
+  const photos = await readByChunk(ids, (part) =>
+    db.select().from(memoryPhotos).where(inArray(memoryPhotos.recordId, part)).orderBy(asc(memoryPhotos.sortOrder)),
+  );
+  const likes = await readByChunk(ids, (part) =>
+    db
+      .select({ recordId: memoryLikes.recordId, userId: memoryLikes.userId })
+      .from(memoryLikes)
+      .where(inArray(memoryLikes.recordId, part))
+      .orderBy(asc(memoryLikes.createdAt)),
+  );
   const signed = new Map(await Promise.all(photos.map(async (p) => [p.id, await signer.photo(p)] as const)));
   return rows.map((r) => ({
     id: r.id,

@@ -1,12 +1,10 @@
 import type { CalendarContext } from "@extensions/server/types";
+import { readByChunk } from "@server/core/db/chunk";
 import type { DB } from "@server/core/db/client";
 import type { Attendee, CalendarItem, RepeatRule as ClientRepeatRule } from "@shared/api-types";
 import { and, gte, inArray, isNotNull, isNull, like, lt, or } from "drizzle-orm";
 import { expandOccurrences, type RepeatRule, repeatRuleOf } from "./repeat";
 import { type EventOccurrenceEditRow, type EventRow, eventAttendees, eventOccurrenceEdits, events } from "./schema";
-
-/** D1 は 1 つの問い合わせに渡せる値の数に上限がある。予定の ID はこの数ずつ渡す */
-const CHUNK = 90;
 
 /**
  * 予定ごとの参加者を読む。作った人を先頭に、返事を付けて返す。#28
@@ -14,17 +12,17 @@ const CHUNK = 90;
  * @param eventIds 予定の ID
  */
 export async function loadAttendees(db: DB, eventIds: string[]): Promise<Map<string, Attendee[]>> {
-  const byEvent = new Map<string, Attendee[]>();
-  for (let i = 0; i < eventIds.length; i += CHUNK) {
-    const rows = await db
+  const rows = await readByChunk(eventIds, (part) =>
+    db
       .select({ eventId: eventAttendees.eventId, userId: eventAttendees.userId, response: eventAttendees.response })
       .from(eventAttendees)
-      .where(inArray(eventAttendees.eventId, eventIds.slice(i, i + CHUNK)));
-    for (const r of rows) {
-      const list = byEvent.get(r.eventId) ?? [];
-      list.push({ userId: r.userId, response: r.response });
-      byEvent.set(r.eventId, list);
-    }
+      .where(inArray(eventAttendees.eventId, part)),
+  );
+  const byEvent = new Map<string, Attendee[]>();
+  for (const r of rows) {
+    const list = byEvent.get(r.eventId) ?? [];
+    list.push({ userId: r.userId, response: r.response });
+    byEvent.set(r.eventId, list);
   }
   return byEvent;
 }
@@ -40,16 +38,13 @@ async function loadOccurrenceEdits(
 ): Promise<Map<string, Map<number, EventOccurrenceEditRow>>> {
   const byEvent = new Map<string, Map<number, EventOccurrenceEditRow>>();
   if (eventIds.length === 0) return byEvent;
-  for (let i = 0; i < eventIds.length; i += CHUNK) {
-    const rows = await db
-      .select()
-      .from(eventOccurrenceEdits)
-      .where(inArray(eventOccurrenceEdits.eventId, eventIds.slice(i, i + CHUNK)));
-    for (const r of rows) {
-      const byOccurrence = byEvent.get(r.eventId) ?? new Map<number, EventOccurrenceEditRow>();
-      byOccurrence.set(r.occurrenceAt.getTime(), r);
-      byEvent.set(r.eventId, byOccurrence);
-    }
+  const rows = await readByChunk(eventIds, (part) =>
+    db.select().from(eventOccurrenceEdits).where(inArray(eventOccurrenceEdits.eventId, part)),
+  );
+  for (const r of rows) {
+    const byOccurrence = byEvent.get(r.eventId) ?? new Map<number, EventOccurrenceEditRow>();
+    byOccurrence.set(r.occurrenceAt.getTime(), r);
+    byEvent.set(r.eventId, byOccurrence);
   }
   return byEvent;
 }

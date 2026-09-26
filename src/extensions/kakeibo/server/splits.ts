@@ -78,15 +78,20 @@ export async function resolveSplitPlan(
 }
 
 /**
- * 記録の負担の行を作り直す。0072
+ * 記録の負担の行を作り直す文を組み立てる。呼び出し側が、記録そのものの書き込みと合わせて
+ * `db.batch` に渡し、1 回の書き込みにする。#198
  * @param db D1 を包んだ Drizzle
  * @param expenseId 記録の ID
- * @param shares 人ごとの負担額。空なら消すだけ
+ * @param shares 人ごとの負担額。空なら消す文だけを返す
  */
-export async function writeSplits(db: DB, expenseId: string, shares: KakeiboSplitShare[]): Promise<void> {
-  await db.delete(kakeiboSplits).where(eq(kakeiboSplits.expenseId, expenseId));
-  if (shares.length === 0) return;
-  await db
-    .insert(kakeiboSplits)
-    .values(shares.map((s) => ({ id: crypto.randomUUID(), expenseId, userId: s.userId, amount: s.amount })));
+export function splitStatements(db: DB, expenseId: string, shares: KakeiboSplitShare[]): unknown[] {
+  const statements: unknown[] = [db.delete(kakeiboSplits).where(eq(kakeiboSplits.expenseId, expenseId))];
+  if (shares.length > 0) {
+    statements.push(
+      db
+        .insert(kakeiboSplits)
+        .values(shares.map((s) => ({ id: crypto.randomUUID(), expenseId, userId: s.userId, amount: s.amount }))),
+    );
+  }
+  return statements;
 }

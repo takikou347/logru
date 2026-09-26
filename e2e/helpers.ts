@@ -190,6 +190,19 @@ export async function touchDrag(page: Page, from: { x: number; y: number }, to: 
 }
 
 /**
+ * 行を左へ dx だけ引く。SwipeRow(0084、#225)の swipe を、touchDrag と同じ CDP の指で試す。
+ * @param row 引く行(li など)の locator
+ * @param dx 引く距離(px)。行の幅の 6 割ほどで「消す」まで引き切る
+ */
+export async function swipeRowLeft(page: Page, row: Locator, dx: number) {
+  const box = await row.boundingBox();
+  if (!box) throw new Error("行の位置が取れなかった");
+  const y = box.y + box.height / 2;
+  const startX = box.x + box.width - 16;
+  await touchDrag(page, { x: startX, y }, { x: startX - dx, y });
+}
+
+/**
  * 「機能を足す」画面で、指定した機能を自分だけで使えるようにする。issue #145
  * @param label 拡張の manifest.label(カードの見出し)
  */

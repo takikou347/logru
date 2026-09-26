@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { dateKey, deviceTimeZone, formatDay, formatTime } from "@/lib/dates";
 import { defaultShareGroupId } from "@/lib/share-default";
+import { useExitOnly } from "@/lib/use-row-motion";
 import { useCalendar } from "@/modules/calendar/api";
 import { addDaysToKey, dayKeyIn, daysBetween, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
 import { memoryOfEvent, overlaps } from "../shared/links";
@@ -72,6 +73,8 @@ export function MemorySheet({
   const [komaEnabled, setKomaEnabled] = useState(memory?.komaEnabled ?? false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
+  // 消すときは確認を出さず、縮んで消える動きだけ付ける。元に戻すは無い。0085、#226
+  const { leaving: leavingMemory, remove: removeMemory } = useExitOnly();
 
   const length = daysBetween(firstDay, lastDay) + 1;
   const canDelete = memory && memory.createdBy === me.user.id;
@@ -146,10 +149,9 @@ export function MemorySheet({
     }
   }
 
-  async function remove() {
-    if (!memory) return;
+  async function commitDelete(id: string) {
     try {
-      await deleteMemory.mutateAsync(memory.id);
+      await deleteMemory.mutateAsync(id);
       await invalidate();
       toast("思い出を消しました。記録と写真は残っています");
       onClose();
@@ -160,18 +162,25 @@ export function MemorySheet({
     }
   }
 
+  /** 消す。元に戻すは無いので、縮んで消える動きが終わってから実際に消す。0085、#226 */
+  function remove() {
+    if (!memory) return;
+    removeMemory(memory.id, () => void commitDelete(memory.id));
+  }
+
   if (confirm && memory) {
+    const isLeaving = leavingMemory.has(memory.id);
     return (
       <ResponsiveSheet
         title="思い出を消しますか"
         description={`「${memory.title}」のしおりが消えます。元に戻せません。記録と写真 ${memory.photoCount} 枚は、その日のまま残ります。`}
         onClose={() => setConfirm(false)}
       >
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setConfirm(false)}>
+        <div className="flex justify-end gap-2" data-leaving={isLeaving || undefined}>
+          <Button variant="ghost" onClick={() => setConfirm(false)} disabled={isLeaving}>
             やめる
           </Button>
-          <Button variant="destructive" onClick={remove}>
+          <Button variant="destructive" onClick={remove} disabled={isLeaving}>
             消す
           </Button>
         </div>

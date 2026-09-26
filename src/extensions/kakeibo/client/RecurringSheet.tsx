@@ -35,6 +35,7 @@ export function RecurringSheet({
   onClose,
   onCreated,
   onDelete,
+  onSaved,
 }: {
   groups: GroupSummary[];
   me: Me;
@@ -47,6 +48,8 @@ export function RecurringSheet({
   onCreated: (occurrence: KakeiboRecurringOccurrence | null) => void;
   /** 「消す」を押したとき。recurring があるときだけ渡る。#194 */
   onDelete?: (recurring: KakeiboRecurring) => void;
+  /** 直して保存できたとき。recurring があるときだけ渡る。一覧の行を光らせる印に使う。0085、#226 */
+  onSaved?: (id: string) => void;
 }) {
   const saveRecurring = useSaveRecurring();
   // 開いているか・送信中か・失敗を、シートの骨組みとしてまとめて持つ。0081
@@ -126,6 +129,7 @@ export function RecurringSheet({
           },
         });
         toast("定期の記録を直しました");
+        onSaved?.(recurring.id);
       } else {
         const created = await saveRecurring.mutateAsync({
           body: {

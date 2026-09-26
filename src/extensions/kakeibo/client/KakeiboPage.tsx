@@ -1,11 +1,12 @@
 import type { GroupMember, Me } from "@shared/api-types";
 import { ChevronLeft, ChevronRight, Coins } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { Page, PageBar } from "@/components/layout/AppLayout";
 import { useAppFrame } from "@/components/layout/AppShell";
+import { AnimatedAmount } from "@/components/parts/AnimatedAmount";
 import { Dock } from "@/components/parts/Dock";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { FeatureSheet } from "@/components/parts/FeatureSheet";
@@ -17,10 +18,10 @@ import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
 import { dateKey, formatShortDate } from "@/lib/dates";
 import { useBack } from "@/lib/use-back";
-import { useUndoableDelete } from "@/lib/use-undoable-delete";
+import { useRowMotion } from "@/lib/use-row-motion";
 import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
-import { markJustAdded, takeJustAdded } from "@/modules/calendar/recent-items";
+import { takeJustAdded } from "@/modules/calendar/recent-items";
 import { upcomingOrCurrentBudgets } from "../shared/budgets";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { isMonthKey } from "../shared/dates";
@@ -98,80 +99,21 @@ function RecordRow({
   );
 }
 
-/** 縮んで消える動きの長さ。globals.css の [data-leaving] と同じ --dur-base(220ms)。0044、0048、#201 */
-const EXIT_MS = 220;
-
-function without(s: Set<string>, key: string): Set<string> {
-  if (!s.has(key)) return s;
-  const next = new Set(s);
-  next.delete(key);
-  return next;
-}
-
-function withKey(s: Set<string>, key: string): Set<string> {
-  if (s.has(key)) return s;
-  const next = new Set(s);
-  next.add(key);
-  return next;
-}
-
 /**
- * 記録を消す。5 秒の「元に戻す」そのものは lib/use-undoable-delete が持つ。ここで足すのは、消した瞬間に
- * 縮んで消える動き(leaving)と、動きが終わってから一覧から外す(hidden)の 2 段階。
- * modules/calendar/CalendarPage.tsx の useCalendarDelete と同じ仕組み。0044、0048、#201
+ * 記録を消す。足す・消す・元に戻すの動きそのものは lib/use-row-motion が持つ。ここで足すのは、実際に
+ * deleteExpense を呼ぶこと。modules/calendar/CalendarPage.tsx の useCalendarDelete と同じ仕組み。0044、0048、0085、#201
  *
  * @returns hidden は一覧から外す記録の id。leaving は縮んで消える動きの途中の記録の id。remove は消す関数
  */
 function useKakeiboRecordDelete() {
   const deleteExpense = useDeleteExpense();
-  const [leaving, setLeaving] = useState<Set<string>>(new Set());
-  const [hidden, setHidden] = useState<Set<string>>(new Set());
-  const exitTimers = useRef(new Map<string, number>());
-
-  const clearExit = useCallback((key: string) => {
-    const t = exitTimers.current.get(key);
-    if (t != null) {
-      window.clearTimeout(t);
-      exitTimers.current.delete(key);
-    }
-  }, []);
-
-  const onRestore = useCallback(
-    (key: string) => {
-      clearExit(key);
-      markJustAdded(key);
-      setLeaving((s) => without(s, key));
-      setHidden((s) => without(s, key));
-    },
-    [clearExit],
-  );
-
-  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
-  const { remove: removePending } = useUndoableDelete("記録を消しました", onRestore);
+  const { hidden, leaving, remove: removeRow } = useRowMotion("記録を消しました");
 
   const remove = useCallback(
     (expense: KakeiboExpense) => {
-      const key = expense.id;
-      setLeaving((s) => withKey(s, key));
-      exitTimers.current.set(
-        key,
-        window.setTimeout(() => {
-          exitTimers.current.delete(key);
-          setHidden((s) => withKey(s, key));
-        }, EXIT_MS),
-      );
-      removePending(key, async ({ keepalive }) => {
-        try {
-          await deleteExpense.mutateAsync({ id: expense.id, keepalive });
-        } finally {
-          if (!keepalive) {
-            setHidden((s) => without(s, key));
-            setLeaving((s) => without(s, key));
-          }
-        }
-      });
+      removeRow(expense.id, ({ keepalive }) => deleteExpense.mutateAsync({ id: expense.id, keepalive }));
     },
-    [removePending, deleteExpense],
+    [removeRow, deleteExpense],
   );
 
   return { hidden, leaving, remove };
@@ -246,8 +188,8 @@ export function KakeiboPage() {
     return (
       <>
         <Panel title="この月の合計">
-          <p className="text-3xl font-extrabold" data-testid="kakeibo-total">
-            {formatYen(totalExpense)}
+          <p className="text-3xl font-extrabold">
+            <AnimatedAmount value={formatYen(totalExpense)} data-testid="kakeibo-total" />
           </p>
           <div className="flex flex-col">
             <PanelRow>

@@ -10,11 +10,12 @@ import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/componen
 import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { formatDay, formatSpan, parseDateKey } from "@/lib/dates";
+import { useRowMotion } from "@/lib/use-row-motion";
 import { useCalendar } from "@/modules/calendar/api";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { DAY_MS, DEFAULT_TIME_ZONE, startOfDayIn } from "../shared/days";
 import type { MemoryRecord } from "../shared/types";
-import { useMemoryGroups, useMemoryList, useRecords } from "./api";
+import { useDeleteRecord, useInvalidateMemories, useMemoryGroups, useMemoryList, useRecords } from "./api";
 import { Flow } from "./Flow";
 import { entriesOf, Lightbox } from "./Lightbox";
 import { Ambient, PhotoImg } from "./parts";
@@ -37,6 +38,15 @@ export function OnDayPage() {
   const records = useRecords(ids, from, to, valid);
   const calendar = useCalendar(from, to);
   const list = useMemoryList(group);
+  const invalidate = useInvalidateMemories();
+  const deleteRecord = useDeleteRecord();
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。縮んで消える動きも持つ。0085、#226
+  const { hidden, leaving, remove: removeRecord } = useRowMotion("記録を消しました");
+  const handleDeleteRecord = (record: MemoryRecord) =>
+    removeRecord(record.id, async ({ keepalive }) => {
+      await deleteRecord.mutateAsync(record.id);
+      if (!keepalive) await invalidate();
+    });
   const [recording, setRecording] = useState(false);
   const [editing, setEditing] = useState<MemoryRecord | null>(null);
   const [photoAt, setPhotoAt] = useState<number | null>(null);
@@ -53,6 +63,7 @@ export function OnDayPage() {
   const usable = new Set(group ? [group] : groups.map((g) => g.id));
   const events = (calendar.data ?? []).filter((e) => e.extension === "events" && usable.has(e.groupId));
   const memory = (list.data?.memories ?? []).find((m) => m.startsAt < to && m.endsAt > from);
+  const visibleRecords = (records.data ?? []).filter((r) => !hidden.has(r.id));
   const entries = entriesOf(records.data ?? []);
   // 日付の書き方は決定 0059。parseDateKey は端末の時間帯で Date を作るので、UTC のずれを気にせず使える
   const parsedDate = valid ? parseDateKey(date) : null;
@@ -89,7 +100,8 @@ export function OnDayPage() {
         )}
         <Flow
           events={events}
-          records={records.data ?? []}
+          records={visibleRecords}
+          leaving={leaving}
           groups={groups}
           me={data}
           empty="この日の記録はありません。"
@@ -121,6 +133,7 @@ export function OnDayPage() {
           record={editing}
           range={{ min: from, max: to - 1 }}
           onClose={() => setEditing(null)}
+          onDelete={handleDeleteRecord}
         />
       )}
       {photoAt !== null && photoAt >= 0 && (

@@ -1,6 +1,6 @@
 /** 定期の記録の画面。F-325 */
 import { Repeat } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
@@ -12,14 +12,62 @@ import { LoadFailure } from "@/components/parts/Failure";
 import { Panel } from "@/components/parts/Panel";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { formatShortDate } from "@/lib/dates";
+import { useRowMotion } from "@/lib/use-row-motion";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
+import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
+import { takeJustAdded } from "@/modules/calendar/recent-items";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { formatSignedYen, formatYen } from "../shared/format";
 import type { KakeiboRecurring, KakeiboRecurringOccurrence } from "./api";
 import { useDeleteExpense, useDeleteRecurring, useKakeiboGroups, useKakeiboRecurrings } from "./api";
 import { formatMonthLabel } from "./parts";
 import { RecurringSheet } from "./RecurringSheet";
+
+/**
+ * 定期の記録 1 件の行。押すと直すシートが開く。足した(元に戻した)直後は膨らんで入り、消す途中は縮んで消える。
+ * 直した直後は短く光る。0044、0048、0085、#226
+ */
+function RecurringListRow({
+  recurring,
+  groupLabel,
+  isLeaving,
+  isEdited,
+  onClick,
+}: {
+  recurring: KakeiboRecurring;
+  groupLabel: string;
+  isLeaving: boolean;
+  isEdited: boolean;
+  onClick: () => void;
+}) {
+  const [entering] = useState(() => takeJustAdded(recurring.id));
+  return (
+    <li
+      className={cn("border-line not-first:border-t", entering && "item-enter")}
+      data-leaving={isLeaving || undefined}
+      data-edited={isEdited || undefined}
+    >
+      <button type="button" className="flex w-full items-center justify-between gap-3 py-2 text-left" onClick={onClick}>
+        <span className="flex min-w-0 flex-col">
+          <span className="min-w-0 truncate text-[15px] font-medium">
+            {kakeiboCategoryLabel(recurring.category)}
+            {recurring.paused && "(止めている)"}
+          </span>
+          <span className="text-xs text-ink-2">
+            毎月{recurring.dayOfMonth}日 ・ {groupLabel}
+            {recurring.endMonth
+              ? ` ・ ${formatMonthLabel(recurring.startMonth)}〜${formatMonthLabel(recurring.endMonth)}`
+              : ""}
+          </span>
+        </span>
+        <span className="flex-none font-bold tabular-nums">
+          {recurring.type === "income" ? formatSignedYen(recurring.amount) : formatYen(recurring.amount)}
+        </span>
+      </button>
+    </li>
+  );
+}
 
 /** 定期の記録の画面。すべて並べる。作る、直す、止める、消す */
 export function RecurringsPage() {
@@ -36,8 +84,9 @@ export function RecurringsPage() {
     void deleteExpense.mutateAsync({ id });
   });
   const deleteRecurring = useDeleteRecurring();
-  // 定期の記録そのものを消すときは確認を出さず、5 秒だけ「元に戻す」を出す。#194
-  const { pending, remove: removeRecurring } = useUndoableDelete("定期の記録を消しました");
+  // 定期の記録そのものを消すときは確認を出さず、5 秒だけ「元に戻す」を出す。縮んで消える動きと、
+  // 直した行を光らせる印も持つ。#194、0085、#226
+  const { hidden, leaving, remove: removeRecurring, flashing, flash } = useRowMotion("定期の記録を消しました");
 
   const creating = params.get("create") === "1";
   const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
@@ -57,7 +106,7 @@ export function RecurringsPage() {
     removeRecurring(recurring.id, ({ keepalive }) => deleteRecurring.mutateAsync({ id: recurring.id, keepalive }));
 
   if (!me.data || !ready) return <Loading />;
-  const rows = (recurrings.data ?? []).filter((r) => !pending.has(r.id));
+  const rows = (recurrings.data ?? []).filter((r) => !hidden.has(r.id));
   const editing = rows.find((r) => r.id === editingId);
   const groupLabel = (groupId: string) => {
     const g = groups.find((x) => x.id === groupId);
@@ -93,30 +142,17 @@ export function RecurringsPage() {
           <Panel>
             <ul className="flex flex-col">
               {rows.map((r) => (
-                <li key={r.id} className="border-line not-first:border-t">
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between gap-3 py-2 text-left"
-                    onClick={() => {
-                      editGen.current += 1;
-                      setParams((p) => (p.set("edit", r.id), p), { replace: true });
-                    }}
-                  >
-                    <span className="flex min-w-0 flex-col">
-                      <span className="min-w-0 truncate text-[15px] font-medium">
-                        {kakeiboCategoryLabel(r.category)}
-                        {r.paused && "(止めている)"}
-                      </span>
-                      <span className="text-xs text-ink-2">
-                        毎月{r.dayOfMonth}日 ・ {groupLabel(r.groupId)}
-                        {r.endMonth ? ` ・ ${formatMonthLabel(r.startMonth)}〜${formatMonthLabel(r.endMonth)}` : ""}
-                      </span>
-                    </span>
-                    <span className="flex-none font-bold tabular-nums">
-                      {r.type === "income" ? formatSignedYen(r.amount) : formatYen(r.amount)}
-                    </span>
-                  </button>
-                </li>
+                <RecurringListRow
+                  key={r.id}
+                  recurring={r}
+                  groupLabel={groupLabel(r.groupId)}
+                  isLeaving={leaving.has(r.id)}
+                  isEdited={flashing.has(r.id)}
+                  onClick={() => {
+                    editGen.current += 1;
+                    setParams((p) => (p.set("edit", r.id), p), { replace: true });
+                  }}
+                />
               ))}
             </ul>
           </Panel>
@@ -146,6 +182,7 @@ export function RecurringsPage() {
           onClose={closeEdit}
           onCreated={handleCreated}
           onDelete={handleDelete}
+          onSaved={flash}
         />
       )}
     </>

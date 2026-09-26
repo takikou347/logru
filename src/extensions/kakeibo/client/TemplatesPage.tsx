@@ -10,16 +10,34 @@ import { LoadFailure } from "@/components/parts/Failure";
 import { Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useUndoableDelete } from "@/lib/use-undoable-delete";
+import { useRowMotion } from "@/lib/use-row-motion";
+import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
+import { takeJustAdded } from "@/modules/calendar/recent-items";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { formatYen } from "../shared/format";
 import type { KakeiboTemplate } from "./api";
 import { useDeleteTemplate, useKakeiboGroups, useKakeiboTemplates, useSaveTemplate } from "./api";
 
-/** よく使う記録 1 件の行。名前を押すとその場で直せる。issue #12 と同じ「元に戻す」で消す */
-function TemplateRow({ template, onRemove }: { template: KakeiboTemplate; onRemove: () => void }) {
+/**
+ * よく使う記録 1 件の行。名前を押すとその場で直せる。issue #12 と同じ「元に戻す」で消す。
+ * 足した直後は膨らんで入り、消す途中は縮んで消える。直した直後は短く光る。0044、0048、0085、#226
+ */
+function TemplateRow({
+  template,
+  isLeaving,
+  isEdited,
+  onFlash,
+  onRemove,
+}: {
+  template: KakeiboTemplate;
+  isLeaving: boolean;
+  isEdited: boolean;
+  onFlash: () => void;
+  onRemove: () => void;
+}) {
   const saveTemplate = useSaveTemplate();
+  const [entering] = useState(() => takeJustAdded(template.id));
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(template.name);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -37,6 +55,7 @@ function TemplateRow({ template, onRemove }: { template: KakeiboTemplate; onRemo
     if (!value || value === template.name) return;
     try {
       await saveTemplate.mutateAsync({ id: template.id, body: { name: value } });
+      onFlash();
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -62,7 +81,14 @@ function TemplateRow({ template, onRemove }: { template: KakeiboTemplate; onRemo
     .join(" ・ ");
 
   return (
-    <li className="grid min-h-14 grid-cols-[1fr_auto] items-center gap-2 border-line py-1 not-first:border-t">
+    <li
+      className={cn(
+        "grid min-h-14 grid-cols-[1fr_auto] items-center gap-2 border-line py-1 not-first:border-t",
+        entering && "item-enter",
+      )}
+      data-leaving={isLeaving || undefined}
+      data-edited={isEdited || undefined}
+    >
       {editing ? (
         <Input
           ref={inputRef}
@@ -100,11 +126,12 @@ export function TemplatesPage() {
   const { groups } = useKakeiboGroups();
   const templates = useKakeiboTemplates();
   const deleteTemplate = useDeleteTemplate();
-  const { pending, remove } = useUndoableDelete("よく使う記録を消しました");
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。縮んで消える動きと、直した行を光らせる印も持つ。0085、#226
+  const { hidden, leaving, remove, flashing, flash } = useRowMotion("よく使う記録を消しました");
   useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
 
   if (!me.data) return <Loading />;
-  const rows = (templates.data ?? []).filter((t) => !pending.has(t.id));
+  const rows = (templates.data ?? []).filter((t) => !hidden.has(t.id));
 
   return (
     <Page>
@@ -127,6 +154,9 @@ export function TemplatesPage() {
                 <TemplateRow
                   key={t.id}
                   template={t}
+                  isLeaving={leaving.has(t.id)}
+                  isEdited={flashing.has(t.id)}
+                  onFlash={() => flash(t.id)}
                   onRemove={() => remove(t.id, ({ keepalive }) => deleteTemplate.mutateAsync({ id: t.id, keepalive }))}
                 />
               ))}

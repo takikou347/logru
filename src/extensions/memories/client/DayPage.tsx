@@ -6,11 +6,12 @@ import { Dock } from "@/components/parts/Dock";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Button } from "@/components/ui/button";
 import { formatShortDate } from "@/lib/dates";
+import { useRowMotion } from "@/lib/use-row-motion";
 import { useCalendar } from "@/modules/calendar/api";
 import { DAY_MS, memoryDays, startOfDayIn } from "../shared/days";
 import { memoryOfEvent } from "../shared/links";
 import type { MemoryRecord } from "../shared/types";
-import { useMemoryList, useRecords } from "./api";
+import { useDeleteRecord, useInvalidateMemories, useMemoryList, useRecords } from "./api";
 import { Flow } from "./Flow";
 import { KomaStrip } from "./KomaStrip";
 import { entriesOf, Lightbox } from "./Lightbox";
@@ -33,6 +34,16 @@ function Day({ detail, me, groups, group }: ShellProps) {
   const from = startOfDayIn(day, memory.timeZone);
   const to = from + DAY_MS;
   const records = useRecords(memory.groupId, from, to);
+  const invalidate = useInvalidateMemories();
+  const deleteRecord = useDeleteRecord();
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。縮んで消える動きも持つ。0085、#226
+  const { hidden, leaving, remove: removeRecord } = useRowMotion("記録を消しました");
+  const handleDeleteRecord = (record: MemoryRecord) =>
+    removeRecord(record.id, async ({ keepalive }) => {
+      await deleteRecord.mutateAsync(record.id);
+      if (!keepalive) await invalidate();
+    });
+  const visibleRecords = (records.data ?? []).filter((r) => !hidden.has(r.id));
   // この思い出に入る予定だけを並べる。外した予定と、先に始まる思い出に入った予定は出さない。0020
   const groupList = useMemoryList(memory.groupId);
   const groupMemories = groupList.data?.memories.filter((m) => m.groupId === memory.groupId) ?? [memory];
@@ -101,7 +112,8 @@ function Day({ detail, me, groups, group }: ShellProps) {
           )}
           <Flow
             events={events}
-            records={(records.data ?? []).filter((r) => r.kind !== "koma")}
+            records={visibleRecords.filter((r) => r.kind !== "koma")}
+            leaving={leaving}
             wishes={doneToday}
             groups={groups}
             me={me}
@@ -136,6 +148,7 @@ function Day({ detail, me, groups, group }: ShellProps) {
           record={editing}
           range={{ min: from, max: to - 1 }}
           onClose={() => setEditing(null)}
+          onDelete={handleDeleteRecord}
         />
       )}
       {photoAt !== null && photoAt >= 0 && (

@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 import { api } from "@/api/client";
 import { useGroups } from "@/api/common";
+import { markJustAdded } from "@/modules/calendar/recent-items";
 import { memoriesManifest } from "../manifest";
 import type { ItemKind, Memory, MemoryDetail, MemoryItem, MemoryList, MemoryRecord } from "../shared/types";
 
@@ -206,8 +207,12 @@ export function useSaveRecord() {
   return useMutation({
     mutationFn: ({ id, body }: { id?: string; body: Record<string, unknown> }) =>
       id
-        ? api(`/memories/records/${id}`, { method: "PATCH", body })
-        : api("/memories/records", { method: "POST", body }),
+        ? api<MemoryRecord>(`/memories/records/${id}`, { method: "PATCH", body })
+        : api<MemoryRecord>("/memories/records", { method: "POST", body }),
+    // 新しく作った記録だけ、一覧に出たときに膨らんで入る動きを付ける。0044、0048、0085、#226
+    onSuccess: (saved, { id }) => {
+      if (!id) markJustAdded(saved.id);
+    },
   });
 }
 

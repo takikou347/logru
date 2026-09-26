@@ -32,6 +32,7 @@ export function AccountSheet({
   defaultGroupId,
   onClose,
   onDelete,
+  onSaved,
 }: {
   groups: GroupSummary[];
   me: Me;
@@ -40,6 +41,8 @@ export function AccountSheet({
   onClose: () => void;
   /** 「消す」を押したとき。account があるときだけ渡る。#194 */
   onDelete?: (account: KakeiboAccount) => void;
+  /** 直して保存できたとき。account があるときだけ渡る。一覧の行を光らせる印に使う。0085、#226 */
+  onSaved?: (id: string) => void;
 }) {
   const saveAccount = useSaveAccount();
   // 開いているか・送信中か・失敗を、シートの骨組みとしてまとめて持つ。0081
@@ -78,6 +81,7 @@ export function AccountSheet({
           body: { name: name.trim(), kind, openingBalance: balanceValue, archived },
         });
         toast("口座を直しました");
+        onSaved?.(account.id);
       } else {
         await saveAccount.mutateAsync({ body: { groupId, name: name.trim(), kind, openingBalance: balanceValue } });
         toast("口座を作りました");

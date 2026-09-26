@@ -120,5 +120,8 @@ test("予定を足すシートで日付を変えると、その日の予定に�
   const again = page.getByRole("dialog", { name: "新しい予定" });
   await expect(again.getByRole("region", { name: /の予定$/ })).toHaveCount(0);
   await again.getByLabel("日付").fill(key);
-  await expect(again.getByRole("region", { name: `${month}月${day}日の予定` }).getByText("明日の用事")).toBeVisible();
+  const list = again.getByRole("region", { name: `${month}月${day}日の予定` });
+  // 一覧は畳んだ 1 行で出るので、開いてから中身を確かめる。issue #200
+  await list.getByRole("button", { name: `${month}月${day}日の予定` }).click();
+  await expect(list.getByText("明日の用事")).toBeVisible();
 });

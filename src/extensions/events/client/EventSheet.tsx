@@ -1,7 +1,8 @@
 import type { DayItem, ItemEditorProps, ItemEditScope } from "@extensions/client/types";
 import type { Attendee, AttendeeResponse, CalendarItem } from "@shared/api-types";
 import { useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useCallback, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 // biome-ignore lint/style/noRestrictedImports: エラーの型 ApiError だけを使う。api() 本体は ./api から呼ぶ
 import { ApiError } from "@/api/client";
@@ -11,6 +12,7 @@ import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { SharePickerRow } from "@/components/parts/SharePicker";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input, Textarea } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { groupColor, memberColor } from "@/lib/colors";
@@ -34,6 +36,7 @@ import { itemKey } from "@/modules/calendar/model";
 import { markJustAdded } from "@/modules/calendar/recent-items";
 import { canDeleteEvent, canEditEvent, canRespond, inviteeIds } from "../shared/permissions";
 import { createEvent, respondToEvent, updateEvent } from "./api";
+import { DiscardDraftDialog } from "./DiscardDraftDialog";
 import { AttendeeList, InvitePicker, RsvpBar } from "./Invitees";
 import { RepeatFields, repeatDraftFromRule, repeatDraftToInput } from "./RepeatFields";
 import { ScopeDialog } from "./ScopeDialog";
@@ -54,34 +57,52 @@ function defaultStart(date: Date): number {
 }
 
 /**
- * 新しい予定のシートの上に出す、その日に既にある予定。押すと、その予定を直すシートに切り替わる。0012
+ * 新しい予定のシートの題名の下に出す、その日に既にある予定。畳んだ 1 行で出し、押すと開く。issue #200
+ * 一覧の行を押すと、その予定を直すシートに切り替わる。0012
  * @param day 予定を足す日。見出しに使う
  */
 function DayItemList({ day, items, onOpen }: { day: Date; items: DayItem[]; onOpen: (item: CalendarItem) => void }) {
   const heading = `${formatDay(day)}の予定`;
+  // 題名のすぐ下に置くと押し間違えやすいので、既定は畳んでおく。issue #200
+  const [open, setOpen] = useState(false);
   return (
     <section aria-label={heading} className="rounded-2xl bg-field px-3.5 py-2">
-      <h3 className="pt-0.5 text-xs font-bold text-ink-2">{heading}</h3>
-      <ul className="flex min-w-0 flex-col">
-        {items.map((i) => (
-          <li key={`${i.extension}:${i.id}`} className="border-line not-first:border-t">
-            <button
-              type="button"
-              className="grid min-h-10 w-full grid-cols-[42px_1fr] items-center gap-1 py-0.5 text-left"
-              onClick={() => onOpen(i)}
-            >
-              <time className="text-[13px] font-medium text-ink-2">{i.allDay ? "終日" : formatTime(i.startsAt)}</time>
-              <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                <Dot color={i.color} response={i.myResponse} />
-                <span className={cn("truncate", i.myResponse === "declined" && "text-ink-3 line-through")}>
-                  {i.title}
-                </span>
-                <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      <Collapsible open={open} onOpenChange={setOpen} className="group/daylist">
+        <CollapsibleTrigger className="flex min-h-9 w-full items-center gap-2 py-0.5 text-left">
+          <h3 className="min-w-0 flex-1 truncate text-xs font-bold text-ink-2">
+            {heading}
+            <span className="font-normal"> {items.length} 件</span>
+          </h3>
+          <ChevronDown
+            className="size-4 shrink-0 text-ink-2 transition-transform group-data-[state=open]/daylist:rotate-180 motion-reduce:transition-none"
+            aria-hidden="true"
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <ul className="flex min-w-0 flex-col pt-0.5">
+            {items.map((i) => (
+              <li key={`${i.extension}:${i.id}`} className="border-line not-first:border-t">
+                <button
+                  type="button"
+                  className="grid min-h-10 w-full grid-cols-[42px_1fr] items-center gap-1 py-0.5 text-left"
+                  onClick={() => onOpen(i)}
+                >
+                  <time className="text-[13px] font-medium text-ink-2">
+                    {i.allDay ? "終日" : formatTime(i.startsAt)}
+                  </time>
+                  <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                    <Dot color={i.color} response={i.myResponse} />
+                    <span className={cn("truncate", i.myResponse === "declined" && "text-ink-3 line-through")}>
+                      {i.title}
+                    </span>
+                    <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </CollapsibleContent>
+      </Collapsible>
     </section>
   );
 }
@@ -124,6 +145,9 @@ export function EventSheet({
   const initialEnd = editing ? editing.endsAt : initialStart + 60 * 60 * 1000;
 
   const [title, setTitle] = useState(editing?.title ?? "");
+  const titleRef = useRef<HTMLInputElement>(null);
+  // 開いたら題名にフォーカスする。直すときは選んだ状態にし、すぐ書き直せるようにする。issue #200
+  useEffect(() => titleRef.current?.select(), []);
   const [allDay, setAllDay] = useState(editing?.allDay ?? false);
   const [startDate, setStartDate] = useState(dateKey(new Date(initialStart)));
   const [endDate, setEndDate] = useState(() => {
@@ -169,6 +193,17 @@ export function EventSheet({
   // 新しく作るときは、選んでいる日の予定を並べる。日付を変えたら、その日の予定に切り替える
   const listDay = target.mode === "new" ? (parseDateKey(startDate) ?? target.date) : null;
   const dayItems = listDay && dayItemsOf ? dayItemsOf(listDay) : [];
+  // 題名を入れていたら書きかけとみなす。一覧から別の予定を開くと、直すシートに切り替わって消えるため。issue #200
+  const hasDraft = title.trim() !== "";
+  const [discardTarget, setDiscardTarget] = useState<CalendarItem | null>(null);
+  /** その日の一覧の行を押したとき。書きかけがあれば先に確かめる */
+  function openDayItem(item: CalendarItem) {
+    if (hasDraft) {
+      setDiscardTarget(item);
+      return;
+    }
+    onOpenItem?.(item);
+  }
 
   // 招待。作った人はいつも参加するので、選ぶ対象にも送る値にも入れない。#28
   const [attendees, setAttendees] = useState<Attendee[]>(editing?.attendees ?? []);
@@ -381,9 +416,6 @@ export function EventSheet({
         )
       }
     >
-      {listDay && dayItems.length > 0 && onOpenItem && (
-        <DayItemList day={listDay} items={dayItems} onOpen={onOpenItem} />
-      )}
       {showRsvp && (
         <RsvpBar
           color={chosen ? groupColor(chosen, me.colorPrefs) : "nezumi"}
@@ -401,6 +433,7 @@ export function EventSheet({
             {(p) => (
               <Input
                 {...p}
+                ref={titleRef}
                 value={title}
                 maxLength={100}
                 placeholder="例: 歯医者"
@@ -408,6 +441,9 @@ export function EventSheet({
               />
             )}
           </Field>
+          {listDay && dayItems.length > 0 && onOpenItem && (
+            <DayItemList day={listDay} items={dayItems} onOpen={openDayItem} />
+          )}
           <PanelRow>
             <span>終日</span>
             <Switch checked={allDay} onCheckedChange={setAllDay} aria-label="終日" disabled={!canEdit} />
@@ -504,6 +540,16 @@ export function EventSheet({
             setScopeAction(null);
             setPendingPayload(null);
           }}
+        />
+      )}
+      {discardTarget && (
+        <DiscardDraftDialog
+          onDiscard={() => {
+            const item = discardTarget;
+            setDiscardTarget(null);
+            onOpenItem?.(item);
+          }}
+          onClose={() => setDiscardTarget(null)}
         />
       )}
     </ResponsiveSheet>

@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_EXPENSE_CATEGORIES, KAKEIBO_INCOME_CATEGORIES, type KakeiboCategory } from "../shared/categories";
-import type { KakeiboRecurring } from "./api";
+import type { KakeiboRecurring, KakeiboRecurringOccurrence } from "./api";
 import { useDeleteRecurring, useKakeiboAccounts, useSaveRecurring } from "./api";
+import { sanitizeAmountInput } from "./numeric-input";
 import { monthKeyOf } from "./parts";
 
 const TYPE_LABELS: Record<"expense" | "income", string> = { expense: "支出", income: "収入" };
@@ -29,11 +30,17 @@ export function RecurringSheet({
   me,
   recurring,
   onClose,
+  onCreated,
 }: {
   groups: GroupSummary[];
   me: Me;
   recurring?: KakeiboRecurring;
   onClose: () => void;
+  /**
+   * 作ったときに呼ぶ。決めた日をもう過ぎていて、その場で今月の分を入れたときは occurrence が入る。
+   * 呼び出し側(RecurringsPage)が、閉じても消えない「元に戻す」を出す。#198
+   */
+  onCreated: (occurrence: KakeiboRecurringOccurrence | null) => void;
 }) {
   const saveRecurring = useSaveRecurring();
   const deleteRecurring = useDeleteRecurring();
@@ -114,7 +121,7 @@ export function RecurringSheet({
         });
         toast("定期の記録を直しました");
       } else {
-        await saveRecurring.mutateAsync({
+        const created = await saveRecurring.mutateAsync({
           body: {
             groupId,
             type,
@@ -127,7 +134,11 @@ export function RecurringSheet({
             endMonth: endMonth || null,
           },
         });
-        toast("定期の記録を作りました");
+        if (created.occurrence) {
+          onCreated(created.occurrence);
+        } else {
+          toast("定期の記録を作りました");
+        }
       }
       setOpen(false);
     } catch (err) {
@@ -208,8 +219,9 @@ export function RecurringSheet({
               {...p}
               type="text"
               inputMode="numeric"
+              pattern="[0-9]*"
               value={amountText}
-              onChange={(e) => setAmountText(e.target.value.replace(/[^\d]/g, ""))}
+              onChange={(e) => setAmountText(sanitizeAmountInput(e.target.value))}
               className="text-right"
             />
           )}
@@ -247,17 +259,17 @@ export function RecurringSheet({
           {(p) => (
             <Input
               {...p}
-              type="number"
-              min={1}
-              max={31}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={dayOfMonth}
-              onChange={(e) => setDayOfMonth(e.target.value)}
+              onChange={(e) => setDayOfMonth(sanitizeAmountInput(e.target.value))}
               className="text-right"
             />
           )}
         </Field>
         {!recurring && (
-          <Field label="始まりの月">
+          <Field label="始まりの月" hint="決めた日をもう過ぎていれば、今月の分をすぐ記録します">
             {(p) => <Input {...p} type="month" value={startMonth} onChange={(e) => setStartMonth(e.target.value)} />}
           </Field>
         )}

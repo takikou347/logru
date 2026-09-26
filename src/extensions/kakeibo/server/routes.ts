@@ -11,10 +11,12 @@ import { personalKakeiboGroupId, requireKakeiboGroup, usableGroupIds, usableGrou
 import { kakeiboAccountsRoutes } from "./accounts-routes";
 import { kakeiboBudgetsRoutes } from "./budgets-routes";
 import { toExpenseDtos } from "./dto";
+import { kakeiboRecurringsRoutes } from "./recurring-routes";
 import { type KakeiboAccountRow, type KakeiboExpenseRow, kakeiboAccounts, kakeiboExpenses } from "./schema";
 import { kakeiboSettlementRoutes, kakeiboSettlementsRoutes } from "./settlement-routes";
 import { myShareDebts, sharedBurdenThisMonth } from "./settlement-summary";
 import { resolveSplitPlan, writeSplits } from "./splits";
+import { kakeiboTemplatesRoutes } from "./templates-routes";
 
 /** 月に 1 度に読む記録の上限。家計簿は個人か少人数の想定なので十分な余白を取る */
 const RECORDS_LIMIT = 500;
@@ -166,6 +168,8 @@ export const kakeiboRoutes = createRouter()
   .route("/settlement", kakeiboSettlementRoutes)
   .route("/settlements", kakeiboSettlementsRoutes)
   .route("/budgets", kakeiboBudgetsRoutes)
+  .route("/recurrings", kakeiboRecurringsRoutes)
+  .route("/templates", kakeiboTemplatesRoutes)
   .get("/usage", async (c) => {
     const db = c.get("db");
     const userId = c.get("user").id;

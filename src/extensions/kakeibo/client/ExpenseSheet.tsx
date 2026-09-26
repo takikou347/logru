@@ -14,9 +14,9 @@ import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_EXPENSE_CATEGORIES, KAKEIBO_INCOME_CATEGORIES, type KakeiboCategory } from "../shared/categories";
 import type { KakeiboSplitMode } from "../shared/splits";
 import type { KakeiboType } from "../shared/types";
-import type { KakeiboAccount, KakeiboExpense, KakeiboUsage } from "./api";
-import { useKakeiboAccounts, useKakeiboUsage, useSaveExpense } from "./api";
-import { loadLastRecord, saveLastRecord } from "./local-prefs";
+import type { KakeiboAccount, KakeiboExpense, KakeiboTemplate, KakeiboUsage } from "./api";
+import { useKakeiboAccounts, useKakeiboTemplates, useKakeiboUsage, useSaveExpense, useSaveTemplate } from "./api";
+import { loadCategoryAccount, loadLastRecord, saveCategoryAccount, saveLastRecord } from "./local-prefs";
 import { sanitizeAmountInput } from "./numeric-input";
 import { KAKEIBO_ACCOUNT_KIND_ICONS } from "./parts";
 import { PayerPickerRow, SplitModeSection } from "./SplitSection";
@@ -151,9 +151,13 @@ export function ExpenseSheet({
 }) {
   const saveExpense = useSaveExpense();
   const usage = useKakeiboUsage();
+  const templates = useKakeiboTemplates();
+  const saveTemplate = useSaveTemplate();
   const canEdit = !expense || expense.createdBy === me.user.id;
   const last = useMemo(() => (expense ? null : loadLastRecord()), [expense]);
   const amountRef = useRef<HTMLInputElement>(null);
+  const [namingTemplate, setNamingTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState("");
 
   const [type, setType] = useState<KakeiboType>(expense?.type ?? last?.type ?? "expense");
   const [groupId, setGroupId] = useState(
@@ -241,12 +245,52 @@ export function ExpenseSheet({
     setCustomShares({});
   }
 
+  // カテゴリを選ぶと、そのカテゴリで前回使った口座が選ばれる。口座を手で選んだら、そちらを使う。F-327
+  function changeCategory(next: KakeiboCategory) {
+    setCategory(next);
+    const remembered = loadCategoryAccount(next);
+    if (remembered && accountOptions.some((a) => a.id === remembered)) setAccountId(remembered);
+  }
+
   function changeGroup(next: string) {
     setGroupId(next);
     setAccountId(null);
     setPayerId(me.user.id);
     setSplitMode("equal");
     setCustomShares({});
+  }
+
+  /** よく使う記録を押すと、種類・カテゴリ・口座・グループ・メモが入り、金額を持つものは金額も入る。F-326 */
+  function applyTemplate(t: KakeiboTemplate) {
+    setType(t.type);
+    if (t.category) setCategory(t.category);
+    setAccountId(t.accountId);
+    if (t.groupId) setGroupId(t.groupId);
+    setMemo(t.memo ?? "");
+    if (t.amount !== null) setAmount(String(t.amount));
+  }
+
+  async function saveAsTemplate() {
+    const value = templateName.trim();
+    if (!value || type === "transfer") return;
+    try {
+      await saveTemplate.mutateAsync({
+        body: {
+          name: value,
+          type,
+          groupId,
+          category,
+          accountId,
+          memo: memo.trim() || null,
+          amount: amountOk ? amountValue : null,
+        },
+      });
+      toast("よく使う記録にしました");
+      setNamingTemplate(false);
+      setTemplateName("");
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
   }
 
   const amountValue = Number(amount);
@@ -285,6 +329,7 @@ export function ExpenseSheet({
         },
       });
       saveLastRecord({ type, accountId, toAccountId, groupId });
+      if (type !== "transfer" && category) saveCategoryAccount(category, accountId);
       toast(expense ? "記録を直しました" : "記録しました");
       if (keepOpen) {
         setAmount("");
@@ -326,6 +371,15 @@ export function ExpenseSheet({
         noValidate
       >
         <fieldset disabled={!canEdit} className="contents">
+          {!expense && (templates.data?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {templates.data!.map((t) => (
+                <Chip key={t.id} type="button" onClick={() => applyTemplate(t)}>
+                  {t.name}
+                </Chip>
+              ))}
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <span className="text-xs font-medium text-ink-2" id="kakeibo-type-label">
               種類
@@ -373,7 +427,7 @@ export function ExpenseSheet({
                     role="radio"
                     aria-checked={category === key}
                     disabled={!canEdit}
-                    onClick={() => setCategory(key as KakeiboCategory)}
+                    onClick={() => changeCategory(key as KakeiboCategory)}
                   >
                     {categoryLabels.get(key)}
                   </Chip>
@@ -469,6 +523,37 @@ export function ExpenseSheet({
               />
             )}
           </Field>
+          {!expense && type !== "transfer" && (
+            <div className="flex flex-col gap-1.5">
+              {namingTemplate ? (
+                <Field label="よく使う記録の名前">
+                  {(p) => (
+                    <div className="flex gap-2">
+                      <Input
+                        {...p}
+                        autoFocus
+                        value={templateName}
+                        maxLength={30}
+                        onChange={(e) => setTemplateName(e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={!templateName.trim()}
+                        onClick={() => void saveAsTemplate()}
+                      >
+                        残す
+                      </Button>
+                    </div>
+                  )}
+                </Field>
+              ) : (
+                <Button type="button" variant="ghost" onClick={() => setNamingTemplate(true)}>
+                  よく使う記録にする
+                </Button>
+              )}
+            </div>
+          )}
         </fieldset>
         {error && <FieldMessage error>{error}</FieldMessage>}
         {canEdit ? (

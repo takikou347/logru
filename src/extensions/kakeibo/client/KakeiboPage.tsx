@@ -322,6 +322,13 @@ export function KakeiboPage() {
           )}
         </Panel>
 
+        <Panel>
+          <div className="flex items-center gap-4 text-xs text-ink-2 underline underline-offset-2">
+            <Link to="/kakeibo/recurrings">定期の記録</Link>
+            <Link to="/kakeibo/templates">よく使う記録</Link>
+          </div>
+        </Panel>
+
         <Panel title="記録">
           {records.length === 0 ? (
             <EmptyState

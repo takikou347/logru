@@ -156,3 +156,74 @@ export const kakeiboBudgets = sqliteTable(
 
 /** 表の 1 行 */
 export type KakeiboBudgetRow = typeof kakeiboBudgets.$inferSelect;
+
+/**
+ * 定期の記録。毎月決めた日に、毎日の定期の処理(server/scheduled.ts)が記録を 1 件入れる。0072、F-325
+ * 移行 0025
+ */
+export const kakeiboRecurrings = sqliteTable(
+  "kakeibo_recurrings",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    type: text("type", { enum: KAKEIBO_TYPES }).notNull(),
+    /** 円の整数 */
+    amount: integer("amount").notNull(),
+    /** 支出・収入のカテゴリ、または振替の `transfer` */
+    category: text("category", { enum: KAKEIBO_CATEGORY_KEYS }).notNull(),
+    accountId: text("account_id").references(() => kakeiboAccounts.id, { onDelete: "set null" }),
+    toAccountId: text("to_account_id").references(() => kakeiboAccounts.id, { onDelete: "set null" }),
+    memo: text("memo"),
+    /** 毎月の日。1〜31。31 は月末として扱う */
+    dayOfMonth: integer("day_of_month").notNull(),
+    /** `2026-09` の形。この月から動く */
+    startMonth: text("start_month").notNull(),
+    /** `2026-09` の形。この月まで動く。無ければ終わりを決めていない */
+    endMonth: text("end_month"),
+    /** 最後に記録を入れた月。同じ月に 2 回入れないために見る。0072 */
+    lastMonth: text("last_month"),
+    /** 入っていれば止めている */
+    pausedAt: integer("paused_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  // 毎日の定期の処理が、動いている定期の記録をグループを問わず総なめするのに使う
+  (t) => [index("kakeibo_recurrings_group_idx").on(t.groupId)],
+);
+
+/** 表の 1 行 */
+export type KakeiboRecurringRow = typeof kakeiboRecurrings.$inferSelect;
+
+/**
+ * よく使う記録。本人のものだけ。記録のシートの上にチップで並べ、押すと欄が埋まる。0072、F-326
+ * 移行 0025
+ */
+export const kakeiboTemplates = sqliteTable(
+  "kakeibo_templates",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    groupId: text("group_id").references(() => groups.id, { onDelete: "set null" }),
+    /** 1 から 30 字 */
+    name: text("name").notNull(),
+    type: text("type", { enum: KAKEIBO_TYPES }).notNull(),
+    category: text("category", { enum: KAKEIBO_CATEGORY_KEYS }),
+    accountId: text("account_id").references(() => kakeiboAccounts.id, { onDelete: "set null" }),
+    toAccountId: text("to_account_id").references(() => kakeiboAccounts.id, { onDelete: "set null" }),
+    memo: text("memo"),
+    /** 円の整数。省ける */
+    amount: integer("amount"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  // 本人のよく使う記録の一覧を引くのに使う
+  (t) => [index("kakeibo_templates_user_idx").on(t.userId)],
+);
+
+/** 表の 1 行 */
+export type KakeiboTemplateRow = typeof kakeiboTemplates.$inferSelect;

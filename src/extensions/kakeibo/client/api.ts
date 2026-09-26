@@ -106,6 +106,37 @@ export type KakeiboSettlementSummary = {
   settlements: KakeiboSettlement[];
 };
 
+/** 定期の記録 1 件。0072、F-325 */
+export type KakeiboRecurring = {
+  id: string;
+  groupId: string;
+  createdBy: string | null;
+  type: KakeiboType;
+  amount: number;
+  category: KakeiboCategory;
+  accountId: string | null;
+  toAccountId: string | null;
+  memo: string | null;
+  dayOfMonth: number;
+  startMonth: string;
+  endMonth: string | null;
+  lastMonth: string | null;
+  paused: boolean;
+};
+
+/** よく使う記録 1 件。本人のものだけ。0072、F-326 */
+export type KakeiboTemplate = {
+  id: string;
+  name: string;
+  type: KakeiboType;
+  groupId: string | null;
+  category: KakeiboCategory | null;
+  accountId: string | null;
+  toAccountId: string | null;
+  memo: string | null;
+  amount: number | null;
+};
+
 /** 期間の予算 1 件。使った額を添える。0072、F-323、F-324 */
 export type KakeiboBudget = {
   id: string;
@@ -127,6 +158,8 @@ const kakeiboKeys = {
   usage: ["kakeibo", "usage"] as const,
   settlement: (group: string) => ["kakeibo", "settlement", group] as const,
   budgets: (group: string | null) => ["kakeibo", "budgets", group ?? "all"] as const,
+  recurrings: ["kakeibo", "recurrings"] as const,
+  templates: ["kakeibo", "templates"] as const,
 };
 
 /**
@@ -341,6 +374,95 @@ export function useDeleteBudget() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api(`/kakeibo/budgets/${id}`, { method: "DELETE" }),
+    onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
+  });
+}
+
+/** 本人が作った定期の記録を読む。F-325 */
+export function useKakeiboRecurrings() {
+  return useQuery({
+    queryKey: kakeiboKeys.recurrings,
+    queryFn: () => api<{ recurrings: KakeiboRecurring[] }>("/kakeibo/recurrings"),
+    select: (data) => data.recurrings,
+  });
+}
+
+/** 定期の記録を作る、直す入力 */
+export type KakeiboRecurringSaveInput = {
+  groupId?: string;
+  type?: KakeiboType;
+  amount?: number;
+  category?: KakeiboCategory;
+  accountId?: string | null;
+  memo?: string | null;
+  dayOfMonth?: number;
+  startMonth?: string;
+  endMonth?: string | null;
+  paused?: boolean;
+};
+
+/** 定期の記録を作る、直す。F-325 */
+export function useSaveRecurring() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id?: string; body: KakeiboRecurringSaveInput }) =>
+      id
+        ? api<KakeiboRecurring>(`/kakeibo/recurrings/${id}`, { method: "PATCH", body })
+        : api<KakeiboRecurring>("/kakeibo/recurrings", { method: "POST", body }),
+    onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
+  });
+}
+
+/** 定期の記録を消す。F-325 */
+export function useDeleteRecurring() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api(`/kakeibo/recurrings/${id}`, { method: "DELETE" }),
+    onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
+  });
+}
+
+/** 本人のよく使う記録を読む。F-326 */
+export function useKakeiboTemplates() {
+  return useQuery({
+    queryKey: kakeiboKeys.templates,
+    queryFn: () => api<{ templates: KakeiboTemplate[] }>("/kakeibo/templates"),
+    select: (data) => data.templates,
+  });
+}
+
+/** よく使う記録を作る、直す入力 */
+export type KakeiboTemplateSaveInput = {
+  name?: string;
+  type?: KakeiboType;
+  groupId?: string | null;
+  category?: KakeiboCategory | null;
+  accountId?: string | null;
+  memo?: string | null;
+  amount?: number | null;
+};
+
+/** よく使う記録を作る、直す。F-326 */
+export function useSaveTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id?: string; body: KakeiboTemplateSaveInput }) =>
+      id
+        ? api<KakeiboTemplate>(`/kakeibo/templates/${id}`, { method: "PATCH", body })
+        : api<KakeiboTemplate>("/kakeibo/templates", { method: "POST", body }),
+    onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
+  });
+}
+
+/**
+ * よく使う記録を消す。F-326
+ * @param keepalive 画面を閉じるときに送り切る。5 秒の「元に戻す」の間に画面を離れたとき。issue #12
+ */
+export function useDeleteTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, keepalive }: { id: string; keepalive?: boolean }) =>
+      api(`/kakeibo/templates/${id}`, { method: "DELETE", keepalive }),
     onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
   });
 }

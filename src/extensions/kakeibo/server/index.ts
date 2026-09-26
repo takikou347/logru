@@ -2,6 +2,7 @@ import type { ServerExtension } from "@extensions/server/types";
 import { kakeiboManifest } from "../manifest";
 import { listKakeiboItems, searchKakeibo } from "./provider";
 import { kakeiboRoutes } from "./routes";
+import { insertDueRecurringRecords } from "./scheduled";
 import * as schema from "./schema";
 
 /**
@@ -14,4 +15,6 @@ export const kakeiboServer: ServerExtension = {
   listCalendarItems: listKakeiboItems,
   search: searchKakeibo,
   routes: { basePath: "/kakeibo", router: kakeiboRoutes },
+  // 5 分おきの Cron から呼ばれる。決めた日になった定期の記録を入れる。0072、F-325
+  scheduled: (db) => insertDueRecurringRecords(db),
 };

@@ -423,3 +423,129 @@ test("期間の予算を作ると、家計簿の画面の上と予算の画面�
   await expect(page.getByText("予算を消しました")).toBeVisible();
   await expect(page.getByText("まだ予算がありません。")).toBeVisible();
 });
+
+test("決めた日をもう過ぎて定期の記録を作ると、すぐその月の分が入り、共有のグループでは作った人が払って割る。kota の決定(2026-09-26)。0072、F-325", async ({
+  page,
+  browser,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await page.goto("/groups");
+  await page.getByLabel("グループの名前").fill("暮らし");
+  await page.getByRole("button", { name: "作る" }).click();
+  await page.getByRole("button", { name: "招待リンクを作る" }).click();
+  const inviteUrl = await page.getByLabel("招待リンク").inputValue();
+
+  await page.goto("/settings/extensions/kakeibo");
+  await page.getByRole("region", { name: "足すグループ" }).getByRole("button", { name: "暮らしを足す" }).click();
+  await expect(page.getByText("足しました")).toBeVisible();
+
+  const mikaPage = await (await browser.newContext()).newPage();
+  await signUp(mikaPage, { name: "みか", next: new URL(inviteUrl).pathname });
+  await mikaPage.getByRole("button", { name: "参加する" }).click();
+  await expect(mikaPage).toHaveURL(/group=/);
+  await addExtension(mikaPage, "家計簿");
+
+  await createAccount(page, "現金", { openingBalance: "0" });
+
+  // 毎月の日を 1 にすると、今日が何日でも必ずもう過ぎている。共有のグループで、自分の口座(共有口座でない)から払う
+  await page.goto("/kakeibo/recurrings");
+  await page
+    .getByRole("toolbar", { name: "定期の記録の操作" })
+    .getByRole("button", { name: "定期の記録を作る" })
+    .click();
+  const sheet = page.getByRole("dialog", { name: "定期の記録を作る" });
+  await pickShare(page, sheet, "暮らし");
+  await sheet.getByLabel("金額").fill("12000");
+  await sheet.getByRole("radio", { name: "住まい" }).click();
+  await sheet.getByRole("radio", { name: "現金" }).click();
+  await sheet.getByLabel("毎月の日").fill("1");
+  await sheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("定期の記録を作りました")).toBeVisible();
+
+  // すぐその月の分が家計簿に入る。作った人(こた)が払い、みかと同じ額に割る
+  await page.goto("/kakeibo");
+  await page.getByRole("button", { name: "暮らし", exact: true }).click();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥12,000");
+  // 自分(こた)が払った側から見るので、「自分が払った」と自分の負担が出る
+  await expect(page.getByText(/自分が払った.*自分の負担.*¥6,000/)).toBeVisible();
+
+  // 現金の残高からすぐ引かれる
+  await page.goto("/kakeibo/accounts");
+  await expect(page.getByRole("link", { name: "現金" })).toContainText("-¥12,000");
+});
+
+test("カテゴリを選ぶと、そのカテゴリで前回使った口座が選ばれる。口座を手で選べばそちらが残る。0072、F-327", async ({
+  page,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await createAccount(page, "現金", { openingBalance: "0" });
+  await createAccount(page, "銀行", { kind: "銀行" });
+
+  // 日用品は銀行、食費は現金で覚えさせる。前回使った口座(直近は現金)と食費の記憶(銀行)をわざと違えて確かめる
+  const first = await openRecordSheet(page);
+  await first.getByLabel("金額").fill("1000");
+  await first.getByRole("radio", { name: "食費" }).click();
+  await pickAccount(page, first, "口座", "銀行");
+  await first.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  const second = await openRecordSheet(page);
+  await second.getByLabel("金額").fill("500");
+  await second.getByRole("radio", { name: "日用品" }).click();
+  await pickAccount(page, second, "口座", "現金");
+  await second.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  // 新しく開くと、前回(日用品・現金)の口座が既定で選ばれている
+  const third = await openRecordSheet(page);
+  await expect(third.getByRole("button", { name: /^口座/ })).toContainText("現金");
+  // 食費を選ぶと、前回使った口座(現金)ではなく、食費で覚えた銀行に変わる
+  await third.getByRole("radio", { name: "食費" }).click();
+  await expect(third.getByRole("button", { name: /^口座/ })).toContainText("銀行");
+
+  // 口座を手で現金に選び直して保存すると、次から食費は現金が選ばれる
+  await third.getByLabel("金額").fill("300");
+  await pickAccount(page, third, "口座", "現金");
+  await third.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  const fourth = await openRecordSheet(page);
+  await fourth.getByRole("radio", { name: "食費" }).click();
+  await expect(fourth.getByRole("button", { name: /^口座/ })).toContainText("現金");
+});
+
+test("記録のシートで「よく使う記録にする」と、次からチップで呼び出せる。F-326", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+  await createAccount(page, "現金", { openingBalance: "0" });
+
+  const sheet = await openRecordSheet(page);
+  await sheet.getByLabel("金額").fill("500");
+  await sheet.getByRole("radio", { name: "日用品" }).click();
+  await pickAccount(page, sheet, "口座", "現金");
+  await sheet.getByRole("button", { name: "よく使う記録にする" }).click();
+  await sheet.getByLabel("よく使う記録の名前").fill("いつもの買い物");
+  await sheet.getByRole("button", { name: "残す" }).click();
+  await expect(page.getByText("よく使う記録にしました")).toBeVisible();
+  await sheet.getByRole("button", { name: "やめる" }).click();
+
+  // 次に開くと、チップに並び、押すと欄が埋まる
+  const next = await openRecordSheet(page);
+  await next.getByRole("button", { name: "いつもの買い物" }).click();
+  await expect(next.getByLabel("金額")).toHaveValue("500");
+  await expect(next.getByRole("radio", { name: "日用品", checked: true })).toBeVisible();
+  await next.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥500");
+
+  // よく使う記録の画面にも出て、名前を直せる
+  await page.goto("/kakeibo/templates");
+  await page.getByText("いつもの買い物").click();
+  await page.getByLabel("いつもの買い物 を直す").fill("スーパー");
+  await page.getByLabel("いつもの買い物 を直す").press("Enter");
+  await expect(page.getByText("スーパー")).toBeVisible();
+});

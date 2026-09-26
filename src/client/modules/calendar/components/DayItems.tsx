@@ -77,7 +77,7 @@ function KindHeading({ id, label, total }: { id: string; label: string; total?: 
  * @param empty 1 件も無いときに出す文
  * @param leaving 消した直後、縮んで消える動きの途中にある項目の itemKey。0044、0048、#98
  */
-export function ItemList({
+function ItemList({
   items,
   onOpen,
   empty,

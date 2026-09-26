@@ -11,16 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { dateKey, formatDay, formatTime } from "@/lib/dates";
+import { dateKey, deviceTimeZone, formatDay, formatTime } from "@/lib/dates";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { useCalendar } from "@/modules/calendar/api";
 import { addDaysToKey, dayKeyIn, daysBetween, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
 import { memoryOfEvent, overlaps } from "../shared/links";
 import type { Memory } from "../shared/types";
 import { useDeleteMemory, useInvalidateMemories, useLinkEventToMemory, useMemoryList, useSaveMemory } from "./api";
-
-/** 端末の時間帯の名前 */
-const deviceTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Tokyo";
 
 /**
  * 思い出のシート。作る、編集する、消す。F-101、F-107

@@ -3,6 +3,8 @@
  * 1 年で 1 周だけ回るらせん。1 月 1 日が底、12 月 31 日が上。半径は変えない
  */
 
+import { sameDay } from "@/lib/dates";
+
 export type SpiralPoint = { x: number; y: number; z: number; angle: number };
 
 /**
@@ -21,4 +23,15 @@ export function spiralPoint(index: number, total: number, radius: number, height
     y: t * height - height / 2,
     angle,
   };
+}
+
+/**
+ * 年の日の並びの中で、ある日が何日目か(0 始まり)。年に含まれない日は null。
+ * インクのしずくの「ぽつ」が、今日の日で止まる位置を求めるのに使う。0075、F-42
+ * @param days `daysInYear` が返す、その年の日の並び
+ * @param target 位置を知りたい日
+ */
+export function indexOfDay(days: readonly Date[], target: Date): number | null {
+  const idx = days.findIndex((d) => sameDay(d, target));
+  return idx === -1 ? null : idx;
 }

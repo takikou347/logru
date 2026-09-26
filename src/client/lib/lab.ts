@@ -42,8 +42,21 @@ const MONTH_SLIDE_EXPERIMENT: LabExperiment = {
   },
 };
 
+/**
+ * 1 年のらせんに、インクのしずくの「ぽつ」を転がす。既定は出さない。0075、F-42
+ * SpiralScene は、開くたびにこの属性の有無を読み直す
+ */
+const SPIRAL_POCHI_EXPERIMENT: LabExperiment = {
+  key: "spiral-pochi",
+  label: "らせん: ぽつを転がす",
+  description: "1 年のらせんの上を、インクのしずくの「ぽつ」が今日の日まで転がって止まります。",
+  apply: (enabled) => {
+    document.documentElement.toggleAttribute("data-lab-spiral-pochi", enabled);
+  },
+};
+
 /** 試している見た目。足すのはここへ 1 件 */
-export const LAB_EXPERIMENTS: LabExperiment[] = [SAMPLE_EXPERIMENT, MONTH_SLIDE_EXPERIMENT];
+export const LAB_EXPERIMENTS: LabExperiment[] = [SAMPLE_EXPERIMENT, MONTH_SLIDE_EXPERIMENT, SPIRAL_POCHI_EXPERIMENT];
 
 const PREFIX = "logru:lab:";
 

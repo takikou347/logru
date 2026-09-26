@@ -6,7 +6,9 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { spiralPoint } from "./geometry";
+import { pochiProgress } from "./pochi";
 import type { DaySummary } from "./summarize";
+import { REDUCED_MOTION_QUERY } from "./support";
 
 const RADIUS = 3.2;
 const HEIGHT = 7;
@@ -18,6 +20,17 @@ const MAX_DISTANCE = 16;
 const ROTATE_SPEED = 0.008;
 const TAP_MOVE_LIMIT = 6;
 const TAP_TIME_LIMIT = 450;
+
+/** ぽつの球の半径 */
+const POCHI_RADIUS = 0.16;
+
+/** 今日の日まで転がる、インクのしずくの「ぽつ」。今日がその年に無ければ null。0075、F-42 */
+export type PochiTarget = { index: number; total: number; color: string };
+
+/** ラボで「ぽつを転がす」を入れているか。開くたびに読み直す。0039 */
+function pochiEnabled(): boolean {
+  return typeof document !== "undefined" && document.documentElement.hasAttribute("data-lab-spiral-pochi");
+}
 
 /** 色の名前から、テーマに合わせた 16 進の色を読む。無ければ地味な灰色 */
 function resolveColorHex(name: string): number {
@@ -37,7 +50,16 @@ function pinchDistance(pointers: Map<number, { x: number; y: number }>): number 
   return Math.hypot(a!.x - b!.x, a!.y - b!.y);
 }
 
-export function SpiralScene({ summaries, onPressDay }: { summaries: DaySummary[]; onPressDay: (date: Date) => void }) {
+export function SpiralScene({
+  summaries,
+  onPressDay,
+  pochi,
+}: {
+  summaries: DaySummary[];
+  onPressDay: (date: Date) => void;
+  /** 今日の日まで転がる「ぽつ」の行き先。今日がこの年に無ければ null。ラボの入り切りはこの画面が読む */
+  pochi: PochiTarget | null;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: シーンは summaries が変わったときだけ作り直す
@@ -130,6 +152,40 @@ export function SpiralScene({ summaries, onPressDay }: { summaries: DaySummary[]
       group.add(sprite);
       photoSprites.push(sprite);
       photoDay.push(day.date);
+    }
+
+    // インクのしずくの「ぽつ」。ラボで入れていて、今日がこの年にあるときだけ作る。0075、F-42
+    // 半透明のガラスの材質(MeshPhysicalMaterial の transmission)にし、体の中の色をグループの色にする
+    const showPochi = pochi != null && pochiEnabled();
+    let pochiMesh: THREE.Mesh | null = null;
+    let pochiGeometry: THREE.SphereGeometry | null = null;
+    let pochiMaterial: THREE.MeshPhysicalMaterial | null = null;
+    let pochiLights: THREE.Light[] = [];
+    const pochiReducedMotion = window.matchMedia(REDUCED_MOTION_QUERY).matches;
+    const pochiStart = performance.now();
+    if (showPochi) {
+      pochiGeometry = new THREE.SphereGeometry(POCHI_RADIUS, 24, 16);
+      pochiMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        transmission: 1,
+        thickness: POCHI_RADIUS * 2,
+        roughness: 0.16,
+        ior: 1.4,
+        attenuationColor: new THREE.Color(resolveColorHex(pochi.color)),
+        attenuationDistance: POCHI_RADIUS * 1.1,
+      });
+      pochiMesh = new THREE.Mesh(pochiGeometry, pochiMaterial);
+      const start = spiralPoint(0, pochi.total, RADIUS, HEIGHT);
+      pochiMesh.position.set(start.x, start.y, start.z);
+      group.add(pochiMesh);
+
+      const ambient = new THREE.HemisphereLight(0xffffff, 0x445566, 1.3);
+      const key = new THREE.DirectionalLight(0xffffff, 1.1);
+      key.position.set(2, 3, 4);
+      pochiLights = [ambient, key];
+      for (const light of pochiLights) scene.add(light);
+
+      el.dataset.pochi = pochiReducedMotion ? "stopped" : "rolling";
     }
 
     // 大きさの調整。表示する枠の大きさに合わせる
@@ -226,6 +282,23 @@ export function SpiralScene({ summaries, onPressDay }: { summaries: DaySummary[]
     host.addEventListener("pointercancel", onPointerUp);
     host.addEventListener("wheel", onWheel, { passive: false });
 
+    // ぽつを、今日の位置まで転がす。0075、F-42
+    function updatePochi(now: number) {
+      if (!pochiMesh || !pochi) return;
+      const progress = pochiProgress(now - pochiStart, pochiReducedMotion);
+      const p = spiralPoint(pochi.index * progress, pochi.total, RADIUS, HEIGHT);
+      const next = new THREE.Vector3(p.x, p.y, p.z);
+      if (progress < 1) {
+        // 動いた向きへ、動いた分だけ転がって見えるよう、その軸で回す
+        const delta = next.clone().sub(pochiMesh.position);
+        const dist = delta.length();
+        const axis = new THREE.Vector3(0, 1, 0).cross(delta);
+        if (dist > 1e-6 && axis.lengthSq() > 1e-9) pochiMesh.rotateOnWorldAxis(axis.normalize(), dist / POCHI_RADIUS);
+      }
+      pochiMesh.position.copy(next);
+      if (progress >= 1 && el.dataset.pochi !== "stopped") el.dataset.pochi = "stopped";
+    }
+
     // 24fps ぶんの時間が経つより前は描き直さない。低い端末の重さの頭打ち
     let raf = 0;
     let lastFrame = 0;
@@ -237,6 +310,7 @@ export function SpiralScene({ summaries, onPressDay }: { summaries: DaySummary[]
       lastFrame = now;
       camera.position.set(0, 0.6, distance);
       camera.lookAt(0, 0, 0);
+      updatePochi(now);
       renderer.render(scene, camera);
     }
     raf = requestAnimationFrame(tick);
@@ -266,9 +340,13 @@ export function SpiralScene({ summaries, onPressDay }: { summaries: DaySummary[]
       dotMaterial.dispose();
       for (const sprite of photoSprites) sprite.material.dispose();
       for (const texture of photoTextures) texture.dispose();
+      pochiGeometry?.dispose();
+      pochiMaterial?.dispose();
+      for (const light of pochiLights) scene.remove(light);
       renderer.dispose();
       if (renderer.domElement.parentElement === host) host.removeChild(renderer.domElement);
     };
+    // pochi は summaries と同じ年替わりのタイミングでしか変わらないので、依存には入れない。0051 と同じ方針
   }, [summaries]);
 
   return <div ref={hostRef} className="size-full touch-none" aria-hidden="true" />;

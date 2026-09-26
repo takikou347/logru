@@ -518,7 +518,8 @@ export function CalendarPage() {
             </span>
             <span className="text-[17px] font-bold">月</span>
             <Link
-              to={`/spiral/${selected.getFullYear()}`}
+              // らせんの上を転がる「ぽつ」の色に使えるよう、絞り込み中のグループを引き継ぐ。0075、F-42
+              to={`/spiral/${selected.getFullYear()}${groupFilter ? `?group=${groupFilter}` : ""}`}
               // 押せる範囲を指の目安 44px に広げる。文字の大きさは変えない。#22
               className="-my-2.5 ml-2 inline-flex min-h-11 items-center rounded-md px-2 text-[17px] font-medium text-ink-2 underline decoration-dotted underline-offset-4"
               aria-label={`${selected.getFullYear()} 年を、らせんで見る`}

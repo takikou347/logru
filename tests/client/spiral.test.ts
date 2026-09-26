@@ -2,7 +2,8 @@
 
 import { describe, expect, it } from "vitest";
 import type { ViewItem } from "@/modules/calendar/model";
-import { spiralPoint } from "@/modules/calendar/spiral/geometry";
+import { indexOfDay, spiralPoint } from "@/modules/calendar/spiral/geometry";
+import { pochiProgress } from "@/modules/calendar/spiral/pochi";
 import { summarizeDays } from "@/modules/calendar/spiral/summarize";
 import { supportsWebGL } from "@/modules/calendar/spiral/support";
 import { daysInYear, yearChunks } from "@/modules/calendar/spiral/year-range";
@@ -55,6 +56,57 @@ describe("spiralPoint", () => {
     const a = spiralPoint(10, 365, 3, 8);
     const b = spiralPoint(200, 365, 3, 8);
     expect(b.y).toBeGreaterThan(a.y);
+  });
+});
+
+describe("indexOfDay", () => {
+  const days = daysInYear(2026);
+
+  it("年の最初の日は 0", () => {
+    expect(indexOfDay(days, new Date(2026, 0, 1))).toBe(0);
+  });
+
+  it("年の最後の日は総日数 - 1", () => {
+    expect(indexOfDay(days, new Date(2026, 11, 31))).toBe(days.length - 1);
+  });
+
+  it("年に含まれない日は null", () => {
+    expect(indexOfDay(days, new Date(2027, 0, 1))).toBeNull();
+  });
+
+  it("時刻が違っても同じ日なら同じ番号(ぽつが止まる位置と、日の点の位置がずれない)", () => {
+    const target = new Date(2026, 5, 15, 23, 59);
+    const idx = indexOfDay(days, target);
+    expect(idx).not.toBeNull();
+    const fromDots = spiralPoint(
+      days.findIndex((d) => d.getTime() === new Date(2026, 5, 15).getTime()),
+      365,
+      3,
+      8,
+    );
+    const fromPochi = spiralPoint(idx as number, 365, 3, 8);
+    expect(fromPochi).toEqual(fromDots);
+  });
+});
+
+describe("pochiProgress", () => {
+  it("動きを減らす設定では、経過に関わらずいつも 1(今日の位置)", () => {
+    expect(pochiProgress(0, true)).toBe(1);
+    expect(pochiProgress(999999, true)).toBe(1);
+  });
+
+  it("始まりは 0、転がり切ると 1", () => {
+    expect(pochiProgress(0, false)).toBe(0);
+    expect(pochiProgress(100000, false)).toBe(1);
+  });
+
+  it("経過とともに進む。負や 1 を超える経過でもはみ出さない", () => {
+    const early = pochiProgress(200, false);
+    const late = pochiProgress(1800, false);
+    expect(early).toBeGreaterThan(0);
+    expect(late).toBeGreaterThan(early);
+    expect(late).toBeLessThanOrEqual(1);
+    expect(pochiProgress(-100, false)).toBe(0);
   });
 });
 

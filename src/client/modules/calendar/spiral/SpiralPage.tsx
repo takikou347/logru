@@ -1,21 +1,28 @@
 import { ChevronLeft, ChevronRight, Grid3x3, X } from "lucide-react";
 import type { ComponentType } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Button } from "@/components/ui/button";
+import { groupColor } from "@/lib/colors";
 import { dateKey } from "@/lib/dates";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { decorate } from "../model";
 import { useYearCalendar } from "./api";
 import { FlatYear } from "./FlatYear";
+import { indexOfDay } from "./geometry";
+import type { PochiTarget } from "./SpiralScene";
 import { summarizeDays } from "./summarize";
 import { REDUCED_MOTION_QUERY, supportsWebGL } from "./support";
 import { daysInYear } from "./year-range";
 
-type ScenePropsShape = { summaries: ReturnType<typeof summarizeDays>; onPressDay: (date: Date) => void };
+type ScenePropsShape = {
+  summaries: ReturnType<typeof summarizeDays>;
+  onPressDay: (date: Date) => void;
+  pochi: PochiTarget | null;
+};
 
 /**
  * 1 年を 3D のらせんで見る画面。F-39、0051
@@ -29,6 +36,11 @@ export function SpiralPage() {
   const navigate = useNavigate();
   const year = Number(params.year);
   const validYear = Number.isFinite(year) ? year : new Date().getFullYear();
+
+  // カレンダーで絞り込んでいたグループ。ぽつの色に使う。無ければ既定の色。0075、F-42
+  const [searchParams] = useSearchParams();
+  const groupFilter = searchParams.get("group");
+  const yearLinkQuery = groupFilter ? `?group=${groupFilter}` : "";
 
   const me = useMe();
   const groups = useGroups();
@@ -62,6 +74,18 @@ export function SpiralPage() {
   );
   const summaries = useMemo(() => summarizeDays(days, decorated), [days, decorated]);
 
+  // ぽつが転がって止まる先。今日がこの年に無ければ null(ラボが切のときも SpiralScene 側で出さない)。0075、F-42
+  const todayIdx = indexOfDay(days, new Date());
+  const pochiColor = useMemo(() => {
+    if (!me.data) return "nezumi";
+    const group = groupFilter ? (groups.data ?? []).find((g) => g.id === groupFilter) : undefined;
+    return group ? groupColor(group, me.data.colorPrefs) : "nezumi";
+  }, [groupFilter, groups.data, me.data]);
+  const pochi = useMemo<PochiTarget | null>(
+    () => (todayIdx == null ? null : { index: todayIdx, total: days.length, color: pochiColor }),
+    [todayIdx, days.length, pochiColor],
+  );
+
   const onPressDay = (date: Date) => navigate(`/?date=${dateKey(date)}&view=day`);
 
   return (
@@ -72,13 +96,13 @@ export function SpiralPage() {
         </Button>
         <div className="flex flex-1 items-center justify-center gap-1">
           <Button variant="ghost" size="icon" aria-label="前の年" asChild>
-            <Link to={`/spiral/${validYear - 1}`}>
+            <Link to={`/spiral/${validYear - 1}${yearLinkQuery}`}>
               <ChevronLeft className="size-5" />
             </Link>
           </Button>
           <span className="w-16 text-center text-[20px] font-bold">{validYear}</span>
           <Button variant="ghost" size="icon" aria-label="次の年" asChild>
-            <Link to={`/spiral/${validYear + 1}`}>
+            <Link to={`/spiral/${validYear + 1}${yearLinkQuery}`}>
               <ChevronRight className="size-5" />
             </Link>
           </Button>
@@ -106,7 +130,7 @@ export function SpiralPage() {
             onRetry={() => location.reload()}
           />
         ) : want3D && Scene ? (
-          <Scene summaries={summaries} onPressDay={onPressDay} />
+          <Scene summaries={summaries} onPressDay={onPressDay} pochi={pochi} />
         ) : (
           <FlatYear year={validYear} summaries={summaries} today={new Date()} />
         )}

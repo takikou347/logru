@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronLeft } from "lucide-react";
+import { ChevronDown, ChevronLeft, House } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { useMe } from "@/api/common";
@@ -104,6 +104,8 @@ export function AccountMenu({ wide = false }: { wide?: boolean }) {
  *   ただし中身が長い画面では、PC の Dock(中身の末尾に置く)だと主な「+」が下端まで遠くなる。
  *   そのときは Dock を `lg:hidden` にし、この action に PC だけの `<PrimaryAddButton>` を渡してよい。
  *   カレンダーの PC の帯(独自の見出し)と同じ考え方。issue #202
+ * @param home ホームへ戻るボタンを出すか。既定は出す。PC(lg 以上)は左の列に道があるので常に隠す。
+ *   スマホは「‹」で 3 回戻らずに 1 回でホームへ移れるようにする。false を渡すと個別の画面で消せる。issue #220
  */
 export function PageBar({
   title,
@@ -111,12 +113,14 @@ export function PageBar({
   backMobileOnly,
   onTitleClick,
   action,
+  home = true,
 }: {
   title: string;
   back?: string;
   backMobileOnly?: boolean;
   onTitleClick?: () => void;
   action?: ReactNode;
+  home?: boolean;
 }) {
   const hideOnDesktop = !back || backMobileOnly;
   const titleClass = cn("min-w-0 flex-1 truncate pl-2 text-[17px] font-bold", hideOnDesktop && "lg:pl-3");
@@ -140,6 +144,13 @@ export function PageBar({
         <h1 className={titleClass}>{title}</h1>
       )}
       {action}
+      {home && (
+        <Button asChild variant="ghost" size="icon" className="lg:hidden">
+          <Link to="/" aria-label="ホームへ">
+            <House className="size-5" />
+          </Link>
+        </Button>
+      )}
     </header>
   );
 }

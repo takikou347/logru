@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { addExtension, removeExtension, signUp } from "./helpers";
 
 /**
  * 機能の一覧はアイコンのタイルで並べ、拡張ごとの詳細に「自分に足す」「足すグループ」「その拡張の設定」を集める。
@@ -14,6 +14,24 @@ test("タイルの並びには、いつも足された拡張が先頭に出る�
   await expect(grid.getByTestId("extension-tile-external")).toBeVisible();
   await expect(grid.getByTestId("extension-tile-memories")).toHaveCount(0);
   await expect(grid.getByRole("link", { name: "機能を足す" })).toBeVisible();
+});
+
+test("足せる機能が無ければ「+」を出さない。機能のシートも同じ。1 つ外すとまた出る。issue #224", async ({ page }) => {
+  await signUp(page);
+  for (const label of ["思い出", "家計簿", "リスト"]) {
+    await addExtension(page, label);
+  }
+
+  await page.goto("/settings/extensions");
+  const grid = page.getByTestId("extension-tile-grid");
+  await expect(grid.getByRole("link", { name: "機能を足す" })).toHaveCount(0);
+
+  await page.goto("/");
+  await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
+  await expect(page.getByRole("dialog", { name: "機能" }).getByRole("link", { name: "機能を足す" })).toHaveCount(0);
+
+  await removeExtension(page, "思い出");
+  await expect(page.getByTestId("extension-tile-grid").getByRole("link", { name: "機能を足す" })).toBeVisible();
 });
 
 test("拡張の詳細で自分に足すを切り替えられる。足すとタイルの並びに出て、外すとまた消える", async ({ page }) => {

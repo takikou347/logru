@@ -3,7 +3,7 @@ import { createContext, type ReactNode, useContext, useLayoutEffect, useState } 
 import { Link, NavLink, Outlet } from "react-router";
 import { useMe } from "@/api/common";
 import { OfflineBand } from "@/components/parts/Failure";
-import { useEnabledExtensions } from "@/lib/extensions";
+import { useAddableExtensions, useEnabledExtensions } from "@/lib/extensions";
 import { useApplyLabExperiments } from "@/lib/lab";
 import { cn } from "@/lib/utils";
 import { Pools } from "../parts/Pools";
@@ -51,6 +51,8 @@ export function useAppFrame({ poolColors, poolFocus, side }: AppFrame) {
  */
 export function AppShell() {
   const navs = useEnabledExtensions().flatMap((x) => (x.nav ? [x.nav] : []));
+  // 足せる機能が無ければ、「機能を足す、外す」ではなく「機能を外す」にする。行き先は変えない。issue #224、0086
+  const canAddExtension = useAddableExtensions().length > 0;
   const [frame, setFrame] = useState<AppFrame>(emptyFrame);
   // ログインした画面はすべてこの枠を通るので、ここで 1 か所、ラボの入り切りを掛け直す。0039、F-35
   const me = useMe();
@@ -88,7 +90,7 @@ export function AppShell() {
                 ここは NavLink ではなく Link にして「いま開いている場所」の印を持たせない。issue #13 */}
             <Link className={cn(navItem, "min-h-9 text-xs text-ink-2")} to="/settings/extensions">
               <SlidersHorizontal className="size-4" aria-hidden="true" />
-              機能を足す、外す
+              {canAddExtension ? "機能を足す、外す" : "機能を外す"}
             </Link>
           </nav>
           <ShortcutBand compact />

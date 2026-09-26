@@ -1,7 +1,7 @@
 import type { DB } from "./client";
 
-/** db.batch に渡す 1 件分の文の型 */
-type BatchQuery = Parameters<DB["batch"]>[0][number];
+/** db.batch に渡す 1 件分の文の型。複数の文を配列で組み立てる側でも、この型を付けられる */
+export type BatchQuery = Parameters<DB["batch"]>[0][number];
 
 /**
  * db.batch を呼ぶ。#205

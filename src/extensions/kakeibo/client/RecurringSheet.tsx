@@ -1,16 +1,19 @@
 /** 定期の記録を作る、直すシート。F-325 */
 import type { GroupSummary, Me } from "@shared/api-types";
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { Chip } from "@/components/parts/Chip";
 import { Field } from "@/components/parts/Field";
 import { FieldMessage } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { SharePickerRow } from "@/components/parts/SharePicker";
+import { SheetFooterActions } from "@/components/parts/SheetFooterActions";
+import { useSheetSubmit } from "@/components/parts/use-sheet-submit";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_EXPENSE_CATEGORIES, KAKEIBO_INCOME_CATEGORIES, type KakeiboCategory } from "../shared/categories";
+import { isValidKakeiboAmount } from "../shared/format";
 import type { KakeiboRecurring, KakeiboRecurringOccurrence } from "./api";
 import { useKakeiboAccounts, useSaveRecurring } from "./api";
 import { sanitizeAmountInput } from "./numeric-input";
@@ -46,10 +49,8 @@ export function RecurringSheet({
   onDelete?: (recurring: KakeiboRecurring) => void;
 }) {
   const saveRecurring = useSaveRecurring();
-  // 開いているか。閉じる動きは ResponsiveSheet に任せ、終わってから onClose を呼ぶ。#192
-  const [open, setOpen] = useState(true);
-  // 閉じる動きが終わってから消す。消す先を、閉じ始めた時点で覚えておく。#192、#194
-  const afterClose = useRef<KakeiboRecurring | null>(null);
+  // 開いているか・送信中か・失敗を、シートの骨組みとしてまとめて持つ。0081
+  const { open, busy, error, submit: submitSheet, close, closeAndThen, handleClosed } = useSheetSubmit(onClose);
 
   const [groupId, setGroupIdState] = useState(
     recurring?.groupId ??
@@ -68,8 +69,6 @@ export function RecurringSheet({
   const [startMonth, setStartMonth] = useState(recurring?.startMonth ?? monthKeyOf(new Date()));
   const [endMonth, setEndMonth] = useState(recurring?.endMonth ?? "");
   const [paused, setPaused] = useState(Boolean(recurring?.paused));
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   // グループを変えると選べる口座が変わるので、選び直させる。#194
   function setGroupId(next: string) {
@@ -96,7 +95,7 @@ export function RecurringSheet({
   const categories = type === "income" ? KAKEIBO_INCOME_CATEGORIES : KAKEIBO_EXPENSE_CATEGORIES;
   const amountValue = Number(amountText);
   const dayValue = Number(dayOfMonth);
-  const amountOk = amountText !== "" && Number.isInteger(amountValue) && amountValue > 0 && amountValue <= 100_000_000;
+  const amountOk = isValidKakeiboAmount(amountText);
   const canSubmit =
     Boolean(groupId) &&
     Boolean(category) &&
@@ -109,10 +108,8 @@ export function RecurringSheet({
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setError(null);
     if (!canSubmit || !category) return;
-    setBusy(true);
-    try {
+    await submitSheet(async () => {
       if (recurring) {
         await saveRecurring.mutateAsync({
           id: recurring.id,
@@ -149,11 +146,7 @@ export function RecurringSheet({
           toast("定期の記録を作りました");
         }
       }
-      setOpen(false);
-    } catch (err) {
-      setError((err as Error).message);
-      setBusy(false);
-    }
+    });
   }
 
   /**
@@ -162,39 +155,23 @@ export function RecurringSheet({
    */
   function remove() {
     if (!recurring) return;
-    afterClose.current = recurring;
-    setOpen(false);
-  }
-
-  /** 閉じる動きが終わってから、親に知らせる。消す先を覚えていたら、そのあと消す。#192、#194 */
-  function handleClosed() {
-    onClose();
-    const pending = afterClose.current;
-    afterClose.current = null;
-    if (pending) onDelete?.(pending);
+    closeAndThen(() => onDelete?.(recurring));
   }
 
   return (
     <ResponsiveSheet
       title={recurring ? "定期の記録を直す" : "定期の記録を作る"}
       open={open}
-      onOpenChange={() => setOpen(false)}
+      onOpenChange={close}
       onClose={handleClosed}
       footer={
-        <div className="flex justify-between gap-2">
-          {recurring ? (
-            <Button type="button" variant="danger" onClick={remove}>
-              消す
-            </Button>
-          ) : (
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-              やめる
-            </Button>
-          )}
-          <Button type="submit" form={RECURRING_FORM_ID} disabled={busy || !canSubmit}>
-            {busy ? "保存しています" : "保存する"}
-          </Button>
-        </div>
+        <SheetFooterActions
+          formId={RECURRING_FORM_ID}
+          busy={busy}
+          canSubmit={canSubmit}
+          onCancel={close}
+          onDelete={recurring ? remove : undefined}
+        />
       }
     >
       <form id={RECURRING_FORM_ID} className="flex flex-col gap-3.5" onSubmit={submit} noValidate>

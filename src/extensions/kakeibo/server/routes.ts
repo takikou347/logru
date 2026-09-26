@@ -1,6 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { createRouter, HttpError, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import { runBatch } from "@server/core/db/batch";
 import type { DB } from "@server/core/db/client";
 import { and, count, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { KAKEIBO_EXPENSE_CATEGORY_KEYS, KAKEIBO_INCOME_CATEGORY_KEYS } from "../shared/categories";
@@ -345,10 +346,10 @@ export const kakeiboRoutes = createRouter()
     const { write, shares } = await resolveWrite(db, userId, input);
     const id = crypto.randomUUID();
     // 記録と負担の行を 1 回の書き込みにする。途中で切れて負担の行だけ無い記録が残らないよう。#198
-    await db.batch([
+    await runBatch(db, [
       db.insert(kakeiboExpenses).values({ id, createdBy: userId, memo: input.memo || null, ...write }),
       ...splitStatements(db, id, shares),
-    ] as unknown as Parameters<typeof db.batch>[0]);
+    ]);
     const row = await db.select().from(kakeiboExpenses).where(eq(kakeiboExpenses.id, id)).get();
     const visibleGroupIds = new Set(await usableGroupIds(db, userId));
     return c.json((await toExpenseDtos(db, [row!], visibleGroupIds))[0], 201);
@@ -360,13 +361,13 @@ export const kakeiboRoutes = createRouter()
     const input = c.req.valid("json");
     const { write, shares } = await resolveWrite(db, userId, input, current);
     // 記録と負担の行を 1 回の書き込みにする。#198
-    await db.batch([
+    await runBatch(db, [
       db
         .update(kakeiboExpenses)
         .set({ memo: input.memo === undefined ? current.memo : input.memo || null, updatedAt: new Date(), ...write })
         .where(eq(kakeiboExpenses.id, current.id)),
       ...splitStatements(db, current.id, shares),
-    ] as unknown as Parameters<typeof db.batch>[0]);
+    ]);
     const row = await db.select().from(kakeiboExpenses).where(eq(kakeiboExpenses.id, current.id)).get();
     const visibleGroupIds = new Set(await usableGroupIds(db, userId));
     return c.json((await toExpenseDtos(db, [row!], visibleGroupIds))[0]);

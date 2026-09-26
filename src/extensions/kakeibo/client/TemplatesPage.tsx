@@ -5,8 +5,9 @@ import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { Page, PageBar } from "@/components/layout/AppLayout";
 import { useAppFrame } from "@/components/layout/AppShell";
+import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
-import { Empty, Panel } from "@/components/parts/Panel";
+import { Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
@@ -117,7 +118,9 @@ export function TemplatesPage() {
       {templates.data && (
         <Panel>
           {rows.length === 0 ? (
-            <Empty>まだよく使う記録がありません。記録のシートの「よく使う記録にする」で残せます。</Empty>
+            <EmptyState pose="coin" bordered={false} action={{ label: "支出を記録する", to: "/kakeibo?record=1" }}>
+              まだよく使う記録がありません。記録のシートの「よく使う記録にする」で残せます。
+            </EmptyState>
           ) : (
             <ul className="flex flex-col">
               {rows.map((t) => (

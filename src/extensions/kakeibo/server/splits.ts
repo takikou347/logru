@@ -5,6 +5,7 @@
  * (自分の口座か、口座なし)ときだけ割る。それ以外は payer も割り方も持たない。
  */
 import { HttpError } from "@server/core/app";
+import type { BatchQuery } from "@server/core/db/batch";
 import { chunk } from "@server/core/db/chunk";
 import type { DB } from "@server/core/db/client";
 import { eq } from "drizzle-orm";
@@ -91,8 +92,8 @@ const INSERT_CHUNK = 20;
  * @param expenseId 記録の ID
  * @param shares 人ごとの負担額。空なら消す文だけを返す
  */
-export function splitStatements(db: DB, expenseId: string, shares: KakeiboSplitShare[]): unknown[] {
-  const statements: unknown[] = [db.delete(kakeiboSplits).where(eq(kakeiboSplits.expenseId, expenseId))];
+export function splitStatements(db: DB, expenseId: string, shares: KakeiboSplitShare[]): BatchQuery[] {
+  const statements: BatchQuery[] = [db.delete(kakeiboSplits).where(eq(kakeiboSplits.expenseId, expenseId))];
   const rows = shares.map((s) => ({ id: crypto.randomUUID(), expenseId, userId: s.userId, amount: s.amount }));
   for (const part of chunk(rows, INSERT_CHUNK)) {
     statements.push(db.insert(kakeiboSplits).values(part));

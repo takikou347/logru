@@ -5,8 +5,9 @@ import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { Page, PageBar } from "@/components/layout/AppLayout";
 import { useAppFrame } from "@/components/layout/AppShell";
+import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadableSection, PanelSkeleton } from "@/components/parts/LoadableSection";
-import { Empty, Panel } from "@/components/parts/Panel";
+import { Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { formatShortDate } from "@/lib/dates";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
@@ -15,7 +16,8 @@ import { isMonthKey } from "../shared/dates";
 import { formatYen } from "../shared/format";
 import { AccountSheet } from "./AccountSheet";
 import type { KakeiboAccount, KakeiboAccountDetail, KakeiboAccountRef, KakeiboExpense } from "./api";
-import { useDeleteAccount, useKakeiboAccountDetail, useKakeiboGroups } from "./api";
+import { useDeleteAccount, useDeleteExpense, useKakeiboAccountDetail, useKakeiboGroups } from "./api";
+import { ExpenseSheet } from "./ExpenseSheet";
 import {
   addMonthsToKey,
   formatMonthLabel,
@@ -37,8 +39,8 @@ function signedAmountFor(record: KakeiboExpense, accountId: string): number {
   return record.account?.id === accountId ? -record.amount : record.amount;
 }
 
-/** 記録の行。振替は相手の口座を、支出・収入はカテゴリを添える */
-function RecordRow({ record, accountId }: { record: KakeiboExpense; accountId: string }) {
+/** 記録の行。振替は相手の口座を、支出・収入はカテゴリを添える。押すと記録のシートが開く。issue #205 */
+function RecordRow({ record, accountId, onClick }: { record: KakeiboExpense; accountId: string; onClick: () => void }) {
   const signed = signedAmountFor(record, accountId);
   const relation =
     record.type === "transfer"
@@ -48,14 +50,18 @@ function RecordRow({ record, accountId }: { record: KakeiboExpense; accountId: s
       : kakeiboCategoryLabel(record.category);
   return (
     <li className="border-line not-first:border-t">
-      <div className="grid min-h-11 grid-cols-[4.75rem_1fr] items-center gap-1 py-1 text-left">
+      <button
+        type="button"
+        className="grid min-h-11 w-full grid-cols-[4.75rem_1fr] items-center gap-1 py-1 text-left"
+        onClick={onClick}
+      >
         <time className="text-sm font-medium whitespace-nowrap text-ink-2">{formatShortDate(record.date)}</time>
         <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <span className="min-w-0 truncate">{relation}</span>
           {record.memo && <span className="min-w-0 truncate text-xs font-normal text-ink-2">{record.memo}</span>}
           <span className="ml-auto flex-none font-bold tabular-nums">{formatYen(signed)}</span>
         </span>
-      </div>
+      </button>
     </li>
   );
 }
@@ -75,12 +81,14 @@ export function AccountRecordsPage() {
   const detail = useKakeiboAccountDetail(id ?? null, month);
   const [editing, setEditing] = useState(false);
   // もう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。
-  // key に積んで、確実に新しい `AccountSheet` を作る。#211
+  // key に積んで、確実に新しい `AccountSheet`・`ExpenseSheet` を作る。#211
   const editGen = useRef(0);
   const setMonth = (key: string) => setParams((p) => (p.set("month", key), p), { replace: true });
   const deleteAccount = useDeleteAccount();
+  const deleteExpense = useDeleteExpense();
   // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。#194
   const { remove } = useUndoableDelete("口座を消しました");
+  const { remove: removeExpense } = useUndoableDelete("記録を消しました");
   // 口座ごとの色は付けていない画面。0071
   useAppFrame({ poolColors: [] });
 
@@ -94,6 +102,22 @@ export function AccountRecordsPage() {
       if (!keepalive) navigate("/kakeibo/accounts", { replace: true });
     });
   }
+
+  // 記録のシート。`?record=1` で新しく記録、`?record=<id>` で直す。行を押すと開く。issue #205
+  const recordParam = params.get("record");
+  const closeRecord = () => setParams((p) => (p.delete("record"), p), { replace: true });
+  const openNewRecord = () => {
+    editGen.current += 1;
+    setParams((p) => (p.set("record", "1"), p), { replace: true });
+  };
+  const openRecord = (recordId: string) => {
+    editGen.current += 1;
+    setParams((p) => (p.set("record", recordId), p), { replace: true });
+  };
+  function handleDeleteExpense(expense: KakeiboExpense) {
+    removeExpense(expense.id, ({ keepalive }) => deleteExpense.mutateAsync({ id: expense.id, keepalive }));
+  }
+  const editingExpense = detail.data?.records.find((r) => r.id === recordParam);
 
   if (!id) return null;
   if (!me.data) return <Loading />;
@@ -161,11 +185,13 @@ export function AccountRecordsPage() {
 
                 <Panel title="記録">
                   {records.length === 0 ? (
-                    <Empty>この月の記録はありません。</Empty>
+                    <EmptyState pose="coin" bordered={false} action={{ label: "記録する", onClick: openNewRecord }}>
+                      この月の記録はありません。
+                    </EmptyState>
                   ) : (
                     <ul className="flex flex-col">
                       {records.map((r) => (
-                        <RecordRow key={r.id} record={r} accountId={account.id} />
+                        <RecordRow key={r.id} record={r} accountId={account.id} onClick={() => openRecord(r.id)} />
                       ))}
                     </ul>
                   )}
@@ -183,6 +209,25 @@ export function AccountRecordsPage() {
           account={detail.data.account}
           onClose={() => setEditing(false)}
           onDelete={handleDelete}
+        />
+      )}
+      {recordParam === "1" && detail.data && (
+        <ExpenseSheet
+          key={editGen.current}
+          groups={groups}
+          me={me.data}
+          defaultGroupId={detail.data.account.groupId}
+          onClose={closeRecord}
+        />
+      )}
+      {editingExpense && (
+        <ExpenseSheet
+          key={`${recordParam}-${editGen.current}`}
+          groups={groups}
+          me={me.data}
+          expense={editingExpense}
+          onClose={closeRecord}
+          onDelete={handleDeleteExpense}
         />
       )}
     </>

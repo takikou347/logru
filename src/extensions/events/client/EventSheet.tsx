@@ -11,6 +11,8 @@ import { Field } from "@/components/parts/Field";
 import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { SharePickerRow } from "@/components/parts/SharePicker";
+import { SheetFooterActions } from "@/components/parts/SheetFooterActions";
+import { useSheetSubmit } from "@/components/parts/use-sheet-submit";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input, Textarea } from "@/components/ui/input";
@@ -177,13 +179,18 @@ export function EventSheet({
   const needsScope = Boolean(editing?.repeat);
   const [scopeAction, setScopeAction] = useState<"edit" | "delete" | null>(null);
   const [pendingPayload, setPendingPayload] = useState<Record<string, unknown> | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const online = useOnline();
-  // 開いているか。閉じる動きは ResponsiveSheet に任せ、終わってから onClose を呼ぶ。#192
-  const [open, setOpen] = useState(true);
-  // 閉じる動きが終わってから消す。消す先の予定と範囲を、閉じ始めた時点で覚えておく
-  const afterClose = useRef<{ item: CalendarItem; scope?: ItemEditScope } | null>(null);
+  // 開いているか・送信中か・失敗を、シートの骨組みとしてまとめて持つ。0081
+  const {
+    open,
+    busy,
+    error,
+    setError,
+    submit: submitSheet,
+    close,
+    closeAndThen,
+    handleClosed,
+  } = useSheetSubmit(onClose);
   // ほかの拡張が足した欄の、保存した後の仕事。0019
   const afterSaves = useRef(new Set<(itemId: string) => Promise<void>>());
   const register = useCallback((fn: (itemId: string) => Promise<void>) => {
@@ -294,32 +301,34 @@ export function EventSheet({
 
   /** 実際に保存する。繰り返す予定を直すときは、範囲(scope)を添える。0043 */
   async function persist(payload: Record<string, unknown>, scope?: ItemEditScope) {
-    setBusy(true);
-    try {
-      const opts = scope ? { occurrenceAt: editing?.occurrenceAt, scope } : {};
-      const saved = editing ? await updateEvent(editing.id, payload, opts) : await createEvent(payload);
-      // 足された欄の仕事は、予定の保存が済んでから行う。失敗しても予定は保存できている
-      await Promise.all([...afterSaves.current].map((fn) => fn(saved.id).catch((e: Error) => toast.error(e.message))));
-      await qc.invalidateQueries({ queryKey: ["calendar"] });
-      if (!editing) {
-        // 新しく足したチップだけ、膨らんで入る動きにする。直したときは動かさない。0044、0048、#98、#112
-        markJustAdded(itemKey(saved));
-        vibrateShort();
-      }
-      toast(editing ? "予定を保存しました" : "予定を足しました");
-      setOpen(false);
-    } catch (err) {
-      if (editing && err instanceof ApiError && err.status === 404) {
+    await submitSheet(async () => {
+      try {
+        const opts = scope ? { occurrenceAt: editing?.occurrenceAt, scope } : {};
+        const saved = editing ? await updateEvent(editing.id, payload, opts) : await createEvent(payload);
+        // 足された欄の仕事は、予定の保存が済んでから行う。失敗しても予定は保存できている
+        await Promise.all(
+          [...afterSaves.current].map((fn) => fn(saved.id).catch((e: Error) => toast.error(e.message))),
+        );
         await qc.invalidateQueries({ queryKey: ["calendar"] });
-        toast.error("この予定は消されています");
-        setOpen(false);
-        return;
+        if (!editing) {
+          // 新しく足したチップだけ、膨らんで入る動きにする。直したときは動かさない。0044、0048、#98、#112
+          markJustAdded(itemKey(saved));
+          vibrateShort();
+        }
+        toast(editing ? "予定を保存しました" : "予定を足しました");
+      } catch (err) {
+        if (editing && err instanceof ApiError && err.status === 404) {
+          await qc.invalidateQueries({ queryKey: ["calendar"] });
+          toast.error("この予定は消されています");
+          return;
+        }
+        // 入力の誤りでなければ、入れた内容が残っていることも伝える
+        const retryable = err instanceof ApiError && (err.status === 0 || err.status >= 500);
+        throw new Error(
+          retryable ? `保存できませんでした。入れた内容はそのままです。${err.message}` : (err as Error).message,
+        );
       }
-      // 入力の誤りでなければ、入れた内容が残っていることも伝える
-      const retryable = err instanceof ApiError && (err.status === 0 || err.status >= 500);
-      setError(retryable ? `保存できませんでした。入れた内容はそのままです。${err.message}` : (err as Error).message);
-      setBusy(false);
-    }
+    });
   }
 
   async function submit(e: FormEvent) {
@@ -356,60 +365,41 @@ export function EventSheet({
     const action = scopeAction;
     setScopeAction(null);
     if (action === "delete") {
-      if (editing) {
-        afterClose.current = { item: editing, scope };
-        setOpen(false);
-      }
+      if (editing) closeAndThen(() => onDelete(editing, scope));
       return;
     }
     if (action === "edit" && pendingPayload) void persist(pendingPayload, scope);
     setPendingPayload(null);
   }
 
-  /** 閉じる動きが終わってから、親に知らせる。消す予定を覚えていたら、そのあと消す。#192 */
-  function handleClosed() {
-    onClose();
-    const pending = afterClose.current;
-    afterClose.current = null;
-    if (pending) onDelete(pending.item, pending.scope);
+  /** 「予定を消す」を押したとき。繰り返す予定は範囲を先に選ばせる。#192、0043 */
+  function handleDeleteClick() {
+    if (needsScope) {
+      setScopeAction("delete");
+      return;
+    }
+    if (editing) closeAndThen(() => onDelete(editing));
   }
 
   return (
     <ResponsiveSheet
       title={!editing ? "新しい予定" : canEdit ? "予定を直す" : "予定"}
       open={open}
-      onOpenChange={() => setOpen(false)}
+      onOpenChange={close}
       onClose={handleClosed}
       footer={
         canEdit ? (
-          <div className="flex justify-between gap-2">
-            {editing && canDelete ? (
-              <Button
-                type="button"
-                variant="danger"
-                onClick={() => {
-                  if (needsScope) {
-                    setScopeAction("delete");
-                    return;
-                  }
-                  afterClose.current = { item: editing };
-                  setOpen(false);
-                }}
-              >
-                予定を消す
-              </Button>
-            ) : (
-              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-                やめる
-              </Button>
-            )}
-            <Button type="submit" form={EVENT_FORM_ID} disabled={busy || !online || !title.trim() || !groupId}>
-              {busy ? "保存しています" : "保存する"}
-            </Button>
-          </div>
+          <SheetFooterActions
+            formId={EVENT_FORM_ID}
+            busy={busy}
+            canSubmit={online && Boolean(title.trim()) && Boolean(groupId)}
+            deleteLabel="予定を消す"
+            onCancel={close}
+            onDelete={editing && canDelete ? handleDeleteClick : undefined}
+          />
         ) : (
           <div className="flex justify-end">
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+            <Button type="button" variant="secondary" onClick={close}>
               閉じる
             </Button>
           </div>

@@ -11,6 +11,7 @@
  * 記録を入れない。onMemberLeave でグループを抜けた時点で止めるのが本筋だが、ここでも確かめて二重に守る。0076
  */
 
+import { runBatch } from "@server/core/db/batch";
 import type { DB } from "@server/core/db/client";
 import { groups } from "@server/core/db/schema";
 import { and, eq, gte, isNull, lte, ne, or } from "drizzle-orm";
@@ -110,7 +111,7 @@ export async function tryInsertOccurrence(
   const id = crypto.randomUUID();
   // 記録と負担の行を 1 回の書き込みにする。last_month の取り合いは前段の CAS な UPDATE で先に決めるので、
   // ここではもう「入れる」と決まっている。#198
-  await db.batch([
+  await runBatch(db, [
     db.insert(kakeiboExpenses).values({
       id,
       groupId: recurring.groupId,
@@ -126,7 +127,7 @@ export async function tryInsertOccurrence(
       splitMode,
     }),
     ...splitStatements(db, id, shares),
-  ] as unknown as Parameters<typeof db.batch>[0]);
+  ]);
   return { id, date };
 }
 

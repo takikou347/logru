@@ -11,3 +11,15 @@ export function formatYen(amount: number): string {
 export function formatSignedYen(amount: number): string {
   return amount < 0 ? formatYen(amount) : `+${formatYen(amount)}`;
 }
+
+/** 記録・予算・定期の記録・精算の金額の上限。1 億円。0081 */
+export const KAKEIBO_AMOUNT_MAX = 100_000_000;
+
+/**
+ * 金額の入力欄の値が正しいか。1 円から {@link KAKEIBO_AMOUNT_MAX} までの整数であること。
+ * 記録、予算、定期の記録、精算の 4 か所で同じ式だったのをここへ集める。issue #207
+ */
+export function isValidKakeiboAmount(text: string): boolean {
+  const value = Number(text);
+  return text !== "" && Number.isInteger(value) && value > 0 && value <= KAKEIBO_AMOUNT_MAX;
+}

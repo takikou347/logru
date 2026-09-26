@@ -5,9 +5,11 @@ import { toast } from "sonner";
 import { Field } from "@/components/parts/Field";
 import { FieldMessage } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
-import { Button } from "@/components/ui/button";
+import { SheetFooterActions } from "@/components/parts/SheetFooterActions";
+import { useSheetSubmit } from "@/components/parts/use-sheet-submit";
 import { Input } from "@/components/ui/input";
 import { dateKey } from "@/lib/dates";
+import { isValidKakeiboAmount } from "../shared/format";
 import { useKakeiboAccounts, useSaveSettlement } from "./api";
 import { sanitizeAmountInput } from "./numeric-input";
 import { AccountPickerRow, kakeiboPersonName } from "./parts";
@@ -44,25 +46,21 @@ export function SettlementSheet({
   const personalAccounts = useKakeiboAccounts(isMine ? personalGroupId : null, isMine && Boolean(personalGroupId));
   const myAccounts = personalAccounts.data ?? [];
 
-  // 開いているか。閉じる動きは ResponsiveSheet に任せ、終わってから onClose を呼ぶ。#192
-  const [open, setOpen] = useState(true);
+  // 開いているか・送信中か・失敗を、シートの骨組みとしてまとめて持つ。0081
+  const { open, busy, error, submit: submitSheet, close, handleClosed } = useSheetSubmit(onClose);
   const [amountText, setAmountText] = useState(String(amount));
   const [date, setDate] = useState(dateKey(new Date()));
   const [fromAccountId, setFromAccountId] = useState<string | null>(null);
   const [toAccountId, setToAccountId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   const amountValue = Number(amountText);
-  const amountOk = amountText !== "" && Number.isInteger(amountValue) && amountValue > 0 && amountValue <= 100_000_000;
+  const amountOk = isValidKakeiboAmount(amountText);
   const canSubmit = Boolean(date) && amountOk;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setError(null);
     if (!canSubmit) return;
-    setBusy(true);
-    try {
+    await submitSheet(async () => {
       await saveSettlement.mutateAsync({
         groupId: group.id,
         fromUser,
@@ -73,29 +71,16 @@ export function SettlementSheet({
         toAccountId: toUser === me.user.id ? toAccountId : undefined,
       });
       toast("精算しました");
-      setOpen(false);
-    } catch (err) {
-      setError((err as Error).message);
-      setBusy(false);
-    }
+    });
   }
 
   return (
     <ResponsiveSheet
       title="精算した"
       open={open}
-      onOpenChange={() => setOpen(false)}
-      onClose={onClose}
-      footer={
-        <div className="flex justify-between gap-2">
-          <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-            やめる
-          </Button>
-          <Button type="submit" form={SETTLEMENT_FORM_ID} disabled={busy || !canSubmit}>
-            {busy ? "保存しています" : "保存する"}
-          </Button>
-        </div>
-      }
+      onOpenChange={close}
+      onClose={handleClosed}
+      footer={<SheetFooterActions formId={SETTLEMENT_FORM_ID} busy={busy} canSubmit={canSubmit} onCancel={close} />}
     >
       <form id={SETTLEMENT_FORM_ID} className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         <p className="text-sm text-ink-2">

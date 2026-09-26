@@ -6,11 +6,14 @@ import { Field } from "@/components/parts/Field";
 import { FieldMessage } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { SharePickerRow } from "@/components/parts/SharePicker";
+import { SheetFooterActions } from "@/components/parts/SheetFooterActions";
+import { useSheetSubmit } from "@/components/parts/use-sheet-submit";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { dateKey } from "@/lib/dates";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_EXPENSE_CATEGORIES, KAKEIBO_INCOME_CATEGORIES, type KakeiboCategory } from "../shared/categories";
+import { isValidKakeiboAmount } from "../shared/format";
 import type { KakeiboSplitMode } from "../shared/splits";
 import type { KakeiboType } from "../shared/types";
 import type { KakeiboExpense, KakeiboTemplate, KakeiboUsage } from "./api";
@@ -186,13 +189,9 @@ export function ExpenseSheet({
     state;
   // 新しく記録するときだけ、いつもの共有先から選ばれたことが分かる印を出す。0063、F-40
   const usualDefault = !expense && groupId === me.settings.usualShareGroupId;
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [expandCategories, setExpandCategories] = useState(false);
-  // 開いているか。閉じる動きは ResponsiveSheet に任せ、終わってから onClose を呼ぶ。#192
-  const [open, setOpen] = useState(true);
-  // 閉じる動きが終わってから消す。消す先の記録を、閉じ始めた時点で覚えておく
-  const afterClose = useRef<KakeiboExpense | null>(null);
+  // 開いているか・送信中か・失敗を、シートの骨組みとしてまとめて持つ。0081
+  const { open, busy, error, submit: submitSheet, close, closeAndThen, handleClosed } = useSheetSubmit(onClose);
 
   const selectedGroup = groups.find((g) => g.id === groupId);
   const personalGroupId = groups.find((g) => g.isPersonal)?.id ?? null;
@@ -297,7 +296,7 @@ export function ExpenseSheet({
   }
 
   const amountValue = Number(amount);
-  const amountOk = amount !== "" && Number.isInteger(amountValue) && amountValue > 0 && amountValue <= 100_000_000;
+  const amountOk = isValidKakeiboAmount(amount);
   const dateOk = Boolean(date);
   const categoryOk = type === "transfer" || category !== null;
   const transferOk = type !== "transfer" || (Boolean(accountId) && Boolean(toAccountId) && accountId !== toAccountId);
@@ -315,7 +314,6 @@ export function ExpenseSheet({
       : null;
 
   async function submit(keepOpen: boolean) {
-    setError(null);
     if (!canSubmit) {
       setAttempted(true);
       const target = !dateOk
@@ -330,45 +328,41 @@ export function ExpenseSheet({
       target?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    setBusy(true);
-    try {
-      // 表示している選択とそろえ、いまは選べない口座が残っていても送らない。#193
-      const submittedAccountId = selectedAccount?.id ?? null;
-      const submittedToAccountId = selectedToAccount?.id ?? null;
-      await saveExpense.mutateAsync({
-        id: expense?.id,
-        body: {
-          type,
-          groupId: type === "transfer" ? undefined : groupId,
-          date,
-          amount: amountValue,
-          category: type === "transfer" ? undefined : category,
-          accountId: submittedAccountId,
-          toAccountId: type === "transfer" ? submittedToAccountId : undefined,
-          memo: memo.trim() || null,
-          paidBy: splitting ? payerId : undefined,
-          splitMode: splitting ? splitMode : undefined,
-          splits:
-            splitting && splitMode === "custom"
-              ? splitPeopleIds.map((id) => ({ userId: id, amount: Number(customShares[id]) || 0 }))
-              : undefined,
-        },
-      });
-      saveLastRecord({ type, accountId: submittedAccountId, toAccountId: submittedToAccountId, groupId });
-      if (type !== "transfer" && category) saveCategoryAccount(category, submittedAccountId);
-      toast(expense ? "記録を直しました" : "記録しました");
-      setAttempted(false);
-      if (keepOpen) {
-        dispatch({ kind: "set", patch: { amount: "", memo: "" } });
-        amountRef.current?.focus();
-      } else {
-        setOpen(false);
-      }
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    await submitSheet(
+      async () => {
+        // 表示している選択とそろえ、いまは選べない口座が残っていても送らない。#193
+        const submittedAccountId = selectedAccount?.id ?? null;
+        const submittedToAccountId = selectedToAccount?.id ?? null;
+        await saveExpense.mutateAsync({
+          id: expense?.id,
+          body: {
+            type,
+            groupId: type === "transfer" ? undefined : groupId,
+            date,
+            amount: amountValue,
+            category: type === "transfer" ? undefined : category,
+            accountId: submittedAccountId,
+            toAccountId: type === "transfer" ? submittedToAccountId : undefined,
+            memo: memo.trim() || null,
+            paidBy: splitting ? payerId : undefined,
+            splitMode: splitting ? splitMode : undefined,
+            splits:
+              splitting && splitMode === "custom"
+                ? splitPeopleIds.map((id) => ({ userId: id, amount: Number(customShares[id]) || 0 }))
+                : undefined,
+          },
+        });
+        saveLastRecord({ type, accountId: submittedAccountId, toAccountId: submittedToAccountId, groupId });
+        if (type !== "transfer" && category) saveCategoryAccount(category, submittedAccountId);
+        toast(expense ? "記録を直しました" : "記録しました");
+        setAttempted(false);
+        if (keepOpen) {
+          dispatch({ kind: "set", patch: { amount: "", memo: "" } });
+          amountRef.current?.focus();
+        }
+      },
+      { keepOpen },
+    );
   }
 
   /**
@@ -378,50 +372,33 @@ export function ExpenseSheet({
    */
   function remove() {
     if (!expense) return;
-    afterClose.current = expense;
-    setOpen(false);
-  }
-
-  /** 閉じる動きが終わってから、親に知らせる。消す記録を覚えていたら、そのあと消す。#192 */
-  function handleClosed() {
-    onClose();
-    const pending = afterClose.current;
-    afterClose.current = null;
-    if (pending) onDelete?.(pending);
+    closeAndThen(() => onDelete?.(expense));
   }
 
   return (
     <ResponsiveSheet
       title={!expense ? "記録する" : canEdit ? "記録を直す" : "記録"}
       open={open}
-      onOpenChange={() => setOpen(false)}
+      onOpenChange={close}
       onClose={handleClosed}
       footer={
         canEdit ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex justify-between gap-2">
-              {expense ? (
-                <Button type="button" variant="danger" onClick={remove}>
-                  消す
+          <SheetFooterActions
+            formId={EXPENSE_FORM_ID}
+            busy={busy}
+            onCancel={close}
+            onDelete={expense ? remove : undefined}
+            extra={
+              !expense && (
+                <Button type="button" variant="secondary" disabled={busy} onClick={() => void submit(true)}>
+                  続けて記録
                 </Button>
-              ) : (
-                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-                  やめる
-                </Button>
-              )}
-              <Button type="submit" form={EXPENSE_FORM_ID} disabled={busy}>
-                {busy ? "保存しています" : "保存する"}
-              </Button>
-            </div>
-            {!expense && (
-              <Button type="button" variant="secondary" disabled={busy} onClick={() => void submit(true)}>
-                続けて記録
-              </Button>
-            )}
-          </div>
+              )
+            }
+          />
         ) : (
           <div className="flex justify-end">
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+            <Button type="button" variant="secondary" onClick={close}>
               閉じる
             </Button>
           </div>

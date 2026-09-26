@@ -140,13 +140,18 @@ export function useItemMutations(memoryId: string) {
   return { add, update, remove, copy };
 }
 
-/** いいねを付ける、外す。押した瞬間に数を変え、失敗したら戻す。F-116 */
+/** いいねを付ける、外す。押した瞬間に数を変え、失敗したら戻す。F-116、#204 */
 export function useLike() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ record, on }: { record: MemoryRecord; on: boolean; me: string }) =>
       api<{ likes: string[] }>(`/memories/records/${record.id}/like`, { method: on ? "PUT" : "DELETE" }),
     onMutate: async ({ record, on, me }) => {
+      await qc.cancelQueries({ queryKey: ["memories", "records"] });
+      await qc.cancelQueries({ queryKey: ["memories", "list"] });
+      // 失敗したときに戻すため、書き換える前の値を全部覚えておく
+      const prevRecords = qc.getQueriesData<MemoryRecord[]>({ queryKey: ["memories", "records"] });
+      const prevLists = qc.getQueriesData<MemoryList>({ queryKey: ["memories", "list"] });
       const patch = (r: MemoryRecord) =>
         r.id === record.id
           ? { ...r, likes: on ? [...r.likes.filter((u) => u !== me), me] : r.likes.filter((u) => u !== me) }
@@ -155,9 +160,17 @@ export function useLike() {
       qc.setQueriesData<MemoryList>({ queryKey: ["memories", "list"] }, (old) =>
         old ? { ...old, recent: old.recent.map(patch) } : old,
       );
+      return { prevRecords, prevLists };
     },
-    onError: (e) => toast.error((e as Error).message),
-    onSettled: () => qc.invalidateQueries({ queryKey: ["memories", "records"] }),
+    onError: (e, _v, ctx) => {
+      toast.error((e as Error).message);
+      for (const [key, data] of ctx?.prevRecords ?? []) qc.setQueryData(key, data);
+      for (const [key, data] of ctx?.prevLists ?? []) qc.setQueryData(key, data);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["memories", "records"] });
+      qc.invalidateQueries({ queryKey: ["memories", "list"] });
+    },
   });
 }
 

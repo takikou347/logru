@@ -113,7 +113,7 @@ function expenseFormReducer(state: ExpenseFormState, action: ExpenseFormAction):
  *
  * 金額の欄は開くと自動でフォーカスし、数字の入力盤が開くようにする。カテゴリは、その人がよく使う順に並ぶ。
  * 前回の種類・口座・共有先はこの端末に覚えさせ、次に開いたときの既定にする。サーバーには持たない。
- * 直すときは、書いた人だけが編集でき、消せる。ほかの人が開くと見るだけになる。
+ * 直すときは、共有のグループの記録ならメンバーの誰でも編集でき、消せる。自分だけの記録は書いた人だけ。0079
  *
  * @param expense 直す記録。無ければ新しく作る
  * @param defaultGroupId 最初に選ぶグループ。無ければ前回か自分だけ
@@ -138,7 +138,10 @@ export function ExpenseSheet({
   const usage = useKakeiboUsage();
   const templates = useKakeiboTemplates();
   const saveTemplate = useSaveTemplate();
-  const canEdit = !expense || expense.createdBy === me.user.id;
+  // 共有のグループの記録は誰でも直せる。自分だけのグループは書いた人だけ。0079
+  const expenseGroup = groups.find((g) => g.id === expense?.groupId);
+  const isSharedGroupRecord = expenseGroup !== undefined && !expenseGroup.isPersonal;
+  const canEdit = !expense || isSharedGroupRecord || expense.createdBy === me.user.id;
   const amountRef = useRef<HTMLInputElement>(null);
   const dateFieldRef = useRef<HTMLDivElement>(null);
   const amountFieldRef = useRef<HTMLDivElement>(null);
@@ -425,7 +428,9 @@ export function ExpenseSheet({
         )
       }
     >
-      {!canEdit && <FieldMessage>この記録は見るだけです。直せて消せるのは、書いた人だけです。</FieldMessage>}
+      {!canEdit && (
+        <FieldMessage>この記録は見るだけです。自分だけの記録は、書いた人だけが直せて、消せます。</FieldMessage>
+      )}
       <form
         id={EXPENSE_FORM_ID}
         className="flex flex-col gap-3.5"

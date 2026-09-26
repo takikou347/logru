@@ -10,14 +10,14 @@ import { LoadFailure } from "@/components/parts/Failure";
 import { Dot, Empty } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { groupColor } from "@/lib/colors";
-import { formatShortDate } from "@/lib/dates";
+import { deviceTimeZone, formatShortDate } from "@/lib/dates";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { startOfDayIn } from "../shared/days";
 import type { KomaDay, MemoryRecord } from "../shared/types";
 import { useMemoryGroups } from "./api";
 import { KomaLinkSheet } from "./KomaLinkSheet";
 import { KomaStrip } from "./KomaStrip";
-import { deviceTimeZone, useKomaDays, useKomaNow } from "./koma-api";
+import { useKomaDays, useKomaNow } from "./koma-api";
 import { RecordSheet } from "./RecordSheet";
 
 /**

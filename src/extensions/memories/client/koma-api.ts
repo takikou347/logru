@@ -1,12 +1,10 @@
 /** ひとコマの読み書き。0022 */
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/api/client";
+import { deviceTimeZone } from "@/lib/dates";
 import type { KomaDay, KomaNow } from "../shared/types";
 
 export const komaKeys = { now: ["memories", "koma", "now"] as const, days: ["memories", "koma", "days"] as const };
-
-/** 端末の時間帯 */
-export const deviceTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Tokyo";
 
 /**
  * 今日のひとコマの状態。1 分おきに読み直す。枠が変わったら近道の帯も変わる。

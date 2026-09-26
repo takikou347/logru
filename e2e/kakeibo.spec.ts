@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addExtension, dayPanel, pickShare, signUp, tokyoDateParts } from "./helpers";
+import { addExtension, addMemories, dayPanel, pickShare, signUp, tokyoDateParts } from "./helpers";
 
 /** 機能の一覧で、家計簿を自分だけで使えるようにする */
 async function enableKakeibo(page: Page) {
@@ -135,6 +135,54 @@ test("記録を直す、消すのは書いた人の家計簿の画面から。F-
   await page.getByRole("dialog", { name: "記録を直す" }).getByRole("button", { name: "消す" }).click();
   await expect(page.getByTestId("kakeibo-total")).toHaveText("¥0");
   await expect(page.getByText("この月の記録はまだありません。")).toBeVisible();
+});
+
+test("共有のグループの立て替えは、書いた人でなくてもメンバーが直せて消せ、消すと「元に戻す」が出る。issue #206、0079", async ({
+  page,
+  browser,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await page.goto("/groups");
+  await page.getByLabel("グループの名前").fill("ふたり");
+  await page.getByRole("button", { name: "作る" }).click();
+  await page.getByRole("button", { name: "招待リンクを作る" }).click();
+  const inviteUrl = await page.getByLabel("招待リンク").inputValue();
+
+  await page.goto("/settings/extensions/kakeibo");
+  await page.getByRole("region", { name: "足すグループ" }).getByRole("button", { name: "ふたりを足す" }).click();
+  await expect(page.getByText("足しました")).toBeVisible();
+
+  const mikaPage = await (await browser.newContext()).newPage();
+  await signUp(mikaPage, { name: "みか", next: new URL(inviteUrl).pathname });
+  await mikaPage.getByRole("button", { name: "参加する" }).click();
+  await expect(mikaPage).toHaveURL(/group=/);
+  await addExtension(mikaPage, "家計簿");
+
+  // みかが、共有のグループに立て替えを記録する。口座を選ばないので、こたとみかで均等に割る
+  const expenseSheet = await openRecordSheet(mikaPage);
+  await expenseSheet.getByLabel("金額").fill("2000");
+  await expenseSheet.getByRole("radio", { name: "食費" }).click();
+  await pickShare(mikaPage, expenseSheet, "ふたり");
+  await expenseSheet.getByRole("button", { name: "保存する" }).click();
+  await expect(mikaPage.getByText("記録しました")).toBeVisible();
+
+  // こたが「ふたり」に絞ると、みかが書いた記録が出る。開いて金額を直せる
+  await page.goto("/kakeibo");
+  await page.getByRole("button", { name: "ふたり", exact: true }).click();
+  await page.getByRole("button", { name: /食費/ }).click();
+  const edit = page.getByRole("dialog", { name: "記録を直す" });
+  await edit.getByLabel("金額").fill("3000");
+  await edit.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録を直しました")).toBeVisible();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥3,000");
+
+  // 消すと、書いた人でなくても消せ、5 秒だけ「元に戻す」が出る
+  await page.getByRole("button", { name: /食費/ }).click();
+  await page.getByRole("dialog", { name: "記録を直す" }).getByRole("button", { name: "消す" }).click();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥0");
+  await expect(page.getByRole("button", { name: "元に戻す" })).toBeVisible();
 });
 
 test("記録を消すと 5 秒だけ元に戻せる。issue #12", async ({ page }) => {
@@ -709,4 +757,143 @@ test("割り方の 3 つのチップは、390px でも折り返して切れな�
   await pickShare(page, sheet, "シェア");
   await expect(sheet.getByRole("button", { name: "払った人" })).toBeVisible();
   await expect(sheet.getByRole("radio", { name: "割らない" })).toBeInViewport();
+});
+
+test("家計簿で月を移ると、新しい月が読めるまで前の月の中身が残り、空の案内は出ない。#195", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  const create = await openRecordSheet(page);
+  await create.getByLabel("金額").fill("1500");
+  await create.getByRole("radio", { name: "食費" }).click();
+  await create.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥1,500");
+
+  // 前の月への切り替えをわざと遅らせる。届くまで、今月の中身が残ったままになる
+  await page.context().route("**/api/kakeibo?**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname !== "/api/kakeibo") return route.continue();
+    await new Promise((r) => setTimeout(r, 1000));
+    return route.continue();
+  });
+  await page.getByRole("button", { name: "前の月" }).click();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥1,500");
+  await expect(page.getByText("この月の記録はまだありません。")).toHaveCount(0);
+
+  // 届くと、前の月には記録が無いので 0 になる
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥0", { timeout: 5_000 });
+  await expect(page.getByText("この月の記録はまだありません。")).toBeVisible();
+});
+
+test("家計簿の月が読めなかったときは、失敗の面だけが出て、空の案内は並ばない。#195", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await page.context().route("**/api/kakeibo?**", (route) => {
+    const url = new URL(route.request().url());
+    return url.pathname === "/api/kakeibo" ? route.abort() : route.continue();
+  });
+  await page.goto("/kakeibo");
+  await expect(page.getByText("家計簿を読み込めませんでした")).toBeVisible();
+  // 記録の空の案内(summary から作る)は失敗の面と並ばない。口座は別の問い合わせなので、無ければ普通に空の案内が出る
+  await expect(page.getByText("この月の記録はまだありません。")).toHaveCount(0);
+});
+
+test("予算の無い新しい利用者が、家計簿の画面から予算を作れる。0072、#196", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await page.goto("/kakeibo");
+  const budgetPanel = page.getByRole("region", { name: "予算" });
+  await budgetPanel.getByRole("link", { name: "予算を作る" }).click();
+  await expect(page).toHaveURL(/\/kakeibo\/budgets$/);
+
+  await page.getByRole("toolbar", { name: "予算の操作" }).getByRole("button", { name: "予算を作る" }).click();
+  const sheet = page.getByRole("dialog", { name: "予算を作る" });
+  await sheet.getByLabel("名前").fill("食費");
+  await sheet.getByLabel("金額").fill("10000");
+  await sheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("予算を作りました")).toBeVisible();
+
+  // 定期の記録・よく使う記録と並ぶ帯からも、いつでも予算の画面へ行ける
+  await page.goto("/kakeibo");
+  await page.getByRole("link", { name: "予算", exact: true }).click();
+  await expect(page).toHaveURL(/\/kakeibo\/budgets$/);
+  await expect(page.getByText("食費")).toBeVisible();
+});
+
+test("期間のある思い出があるグループで「思い出から選ぶ」を押すと並び、選ぶと名前と期間が入る。0072、#196", async ({
+  page,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+  await addExtension(page, "思い出");
+
+  // 3 泊 4 日の思い出を作る
+  await page.goto("/memories");
+  await addMemories(page, "思い出を作る");
+  const createMemory = page.getByRole("dialog", { name: "思い出を作る" });
+  await createMemory.getByLabel("題名").fill("箱根旅行");
+  await createMemory.getByLabel("終わりの日").fill(tokyoDateParts(3).key);
+  await createMemory.getByRole("button", { name: "作る" }).click();
+  await expect(page.getByRole("heading", { name: "箱根旅行" })).toBeVisible();
+
+  await page.goto("/kakeibo/budgets");
+  await page.getByRole("toolbar", { name: "予算の操作" }).getByRole("button", { name: "予算を作る" }).click();
+  const sheet = page.getByRole("dialog", { name: "予算を作る" });
+  await sheet.getByRole("button", { name: "思い出から選ぶ" }).click();
+  const picker = page.getByRole("dialog", { name: "思い出から選ぶ" });
+  await expect(picker.getByText("箱根旅行")).toBeVisible();
+  await picker.getByText("箱根旅行").click();
+
+  await expect(sheet.getByLabel("名前")).toHaveValue("箱根旅行");
+  const startVal = await sheet.getByLabel("始まりの日").inputValue();
+  const endVal = await sheet.getByLabel("終わりの日").inputValue();
+  expect(startVal).not.toBe(endVal);
+});
+
+test("2 人で立て替えを記録したあと「すべて」で開くと、精算が残るグループが出て、押すと精算の面が見える。0072、#197", async ({
+  page,
+  browser,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await page.goto("/groups");
+  await page.getByLabel("グループの名前").fill("ふたり");
+  await page.getByRole("button", { name: "作る" }).click();
+  await page.getByRole("button", { name: "招待リンクを作る" }).click();
+  const inviteUrl = await page.getByLabel("招待リンク").inputValue();
+
+  await page.goto("/settings/extensions/kakeibo");
+  await page.getByRole("region", { name: "足すグループ" }).getByRole("button", { name: "ふたりを足す" }).click();
+  await expect(page.getByText("足しました")).toBeVisible();
+
+  const mikaPage = await (await browser.newContext()).newPage();
+  await signUp(mikaPage, { name: "みか", next: new URL(inviteUrl).pathname });
+  await mikaPage.getByRole("button", { name: "参加する" }).click();
+  await expect(mikaPage).toHaveURL(/group=/);
+  await addExtension(mikaPage, "家計簿");
+
+  // こたが 2000 円を立て替え、既定の「全員で同じ額」でふたりに割る
+  const expenseSheet = await openRecordSheet(page);
+  await expenseSheet.getByLabel("金額").fill("2000");
+  await expenseSheet.getByRole("radio", { name: "食費" }).click();
+  await pickShare(page, expenseSheet, "ふたり");
+  await expenseSheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  // 「すべて」(既定)で開くと、精算が残るグループが 1 行出る
+  await page.goto("/kakeibo");
+  const settlementPanel = page.getByRole("region", { name: "精算" });
+  const row = settlementPanel.locator("li", { hasText: "みか" });
+  await expect(row).toContainText("ふたり");
+  await expect(row).toContainText("¥1,000");
+
+  // 押すと、そのグループで絞られ、精算の面(送る組み合わせ)が見える
+  await row.click();
+  await expect(page).toHaveURL(/group=/);
+  await expect(page.getByRole("button", { name: "ふたり", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(settlementPanel.getByText(/みか.*→.*自分.*¥1,000/)).toBeVisible();
 });

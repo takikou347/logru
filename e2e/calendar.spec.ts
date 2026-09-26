@@ -142,9 +142,11 @@ test("日付を選んでから下の帯の「+」を押すと、選んでいる�
   await expect(page.getByText("予定を足しました")).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  // もう一度「+」を押すと、その日の予定がシートに並び、押すと直すシートに切り替わる
+  // もう一度「+」を押すと、その日の予定が畳んだ 1 行で並ぶ。開くと押すと直すシートに切り替わる
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   const list = sheet.getByRole("region", { name: /15日の予定$/ });
+  await expect(list.getByRole("button", { name: /歯医者/ })).toHaveCount(0);
+  await list.getByRole("button", { name: /15日の予定/ }).click();
   await expect(list.getByRole("button", { name: /歯医者/ })).toBeVisible();
   await expect(list.getByText("自分")).toBeVisible();
   await list.getByRole("button", { name: /歯医者/ }).click();
@@ -152,6 +154,40 @@ test("日付を選んでから下の帯の「+」を押すと、選んでいる�
   await expect(edit).toBeVisible();
   await expect(edit.getByLabel("題名")).toHaveValue("歯医者");
   await expect(page.getByRole("dialog", { name: "新しい予定" })).toHaveCount(0);
+});
+
+test("新しい予定のシートを開くと、題名にフォーカスがある。issue #200", async ({ page }) => {
+  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  const sheet = page.getByRole("dialog", { name: "新しい予定" });
+  await expect(sheet.getByLabel("題名")).toBeFocused();
+});
+
+test("題名を入れてからその日の予定の行を押すと確かめが出て、やめると書きかけが残る。issue #200", async ({ page }) => {
+  await addEvent(page, "歯医者");
+
+  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  const sheet = page.getByRole("dialog", { name: "新しい予定" });
+  await sheet.getByLabel("題名").fill("買い物");
+  const list = sheet.getByRole("region", { name: /日の予定$/ });
+  // 畳んだ行を開いてから、既にある予定を押す
+  await list.getByRole("button", { name: /日の予定/ }).click();
+  await list.getByRole("button", { name: /歯医者/ }).click();
+
+  const confirm = page.getByRole("dialog", { name: "書きかけを捨てて開きますか" });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole("button", { name: "やめる" }).click();
+  await expect(confirm).toBeHidden();
+  // シートは切り替わらず、書きかけの題名がそのまま残る
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByLabel("題名")).toHaveValue("買い物");
+
+  // もう一度押して、今度は「開く」を選ぶと直すシートに切り替わり、書きかけは消える
+  await list.getByRole("button", { name: /歯医者/ }).click();
+  await confirm.getByRole("button", { name: "開く" }).click();
+  const edit = page.getByRole("dialog", { name: "予定を直す" });
+  await expect(edit).toBeVisible();
+  await expect(edit.getByLabel("題名")).toHaveValue("歯医者");
+  await expect(sheet).toHaveCount(0);
 });
 
 test("長押しでも、押すのと同じくその日を選ぶだけになる。#148", async ({ page }) => {

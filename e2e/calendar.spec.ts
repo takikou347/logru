@@ -205,6 +205,9 @@ test("長押しでも、押すのと同じくその日を選ぶだけになる�
 test("今日には読み上げ用の印が付き、月を移ると今日のボタンが出る", async ({ page }) => {
   await expect(page.locator('[aria-current="date"]')).toHaveCount(1);
   await expect(page.getByRole("button", { name: "今日", exact: true })).toHaveCount(0);
+  // 月末の数日は、次の月の表の先頭の週に今日が入る。2 か月先なら今日は表に出ない
+  await page.getByRole("button", { name: "次の月" }).click();
+  await expect(page.getByRole("button", { name: "今日", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "次の月" }).click();
   await expect(page.locator('[aria-current="date"]')).toHaveCount(0);
   await page.getByRole("button", { name: "今日", exact: true }).click();

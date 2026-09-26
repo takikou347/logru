@@ -66,7 +66,7 @@ test("飛ばすと、読み込み直しても、入り直しても出ない。�
   await expect(monthTable(page)).toBeVisible();
   await expect(guide(page)).toBeHidden();
 
-  await page.goto("/settings");
+  await page.goto("/settings/usage");
   const help = page.getByRole("region", { name: "使い方" });
   await help.getByRole("link", { name: "はじめての案内をもう一度見る" }).click();
   await expect(guide(page).getByRole("heading", { name: "Logru へようこそ" })).toBeVisible();

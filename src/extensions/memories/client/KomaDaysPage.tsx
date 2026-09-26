@@ -3,19 +3,21 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
+import { Dock } from "@/components/parts/Dock";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Dot, Empty } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { groupColor } from "@/lib/colors";
+import { deviceTimeZone, formatShortDate } from "@/lib/dates";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { startOfDayIn } from "../shared/days";
 import type { KomaDay, MemoryRecord } from "../shared/types";
 import { useMemoryGroups } from "./api";
-import { Dock } from "./Dock";
 import { KomaLinkSheet } from "./KomaLinkSheet";
 import { KomaStrip } from "./KomaStrip";
-import { deviceTimeZone, useKomaDays, useKomaNow } from "./koma-api";
+import { useKomaDays, useKomaNow } from "./koma-api";
 import { RecordSheet } from "./RecordSheet";
 
 /**
@@ -31,6 +33,7 @@ export function KomaDaysPage() {
   const navigate = useNavigate();
   const [linking, setLinking] = useState<KomaDay | "today" | null>(null);
   const [editing, setEditing] = useState<MemoryRecord | null>(null);
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
 
   if (!me.data || !ready || days.isPending) return <Loading />;
   const data = me.data;
@@ -39,7 +42,7 @@ export function KomaDaysPage() {
   const startedToday = now.data?.started;
 
   return (
-    <AppLayout poolColors={poolColorsOf(groups, data)}>
+    <>
       <Page>
         <PageBar title="ひとコマ" back="/memories" />
         {days.error && <LoadFailure what="ひとコマ" error={days.error} onRetry={() => void days.refetch()} />}
@@ -54,7 +57,7 @@ export function KomaDaysPage() {
         {list.length === 0 && <Empty>まだひとコマはありません。</Empty>}
         {list.map((d) => {
           const group = groups.find((g) => g.id === d.groupId);
-          const label = `${d.day.slice(5).replace("-", ".")} ${new Intl.DateTimeFormat("ja-JP", { weekday: "short", timeZone: "UTC" }).format(Date.parse(d.day))}`;
+          const label = formatShortDate(d.day);
           return (
             <KomaStrip
               key={d.day}
@@ -114,6 +117,6 @@ export function KomaDaysPage() {
         />
       )}
       {editing && <RecordSheet groups={groups} me={data} record={editing} onClose={() => setEditing(null)} />}
-    </AppLayout>
+    </>
   );
 }

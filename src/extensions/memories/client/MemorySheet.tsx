@@ -3,30 +3,27 @@ import { BookOpen } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { Chip } from "@/components/parts/Chip";
 import { Field } from "@/components/parts/Field";
-import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
+import { FieldMessage, PanelRow } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
+import { SharePickerRow } from "@/components/parts/SharePicker";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { groupColor } from "@/lib/colors";
-import { dateKey, formatTime } from "@/lib/dates";
+import { dateKey, deviceTimeZone, formatDay, formatTime } from "@/lib/dates";
+import { defaultShareGroupId } from "@/lib/share-default";
 import { useCalendar } from "@/modules/calendar/api";
 import { addDaysToKey, dayKeyIn, daysBetween, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
 import { memoryOfEvent, overlaps } from "../shared/links";
 import type { Memory } from "../shared/types";
 import { useDeleteMemory, useInvalidateMemories, useLinkEventToMemory, useMemoryList, useSaveMemory } from "./api";
 
-/** 端末の時間帯の名前 */
-const deviceTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Tokyo";
-
 /**
- * 思い出のシート。作る、編集する、削除する。F-101、F-107
+ * 思い出のシート。作る、編集する、消す。F-101、F-107
  *
  * 期間は日付で選び、サーバーが時間帯での 0 時に直す。共有するグループは、作るときだけ選べる。
- * 削除できるのは作った人だけ。削除するとしおりは消えるが、記録と写真は残る。
+ * 消せるのは作った人だけ。消すとしおりは消えるが、記録と写真は残る。
  *
  * @param groups 思い出に使えるグループ
  * @param memory 編集する思い出。無ければ新しく作る
@@ -56,8 +53,6 @@ export function MemorySheet({
   const invalidate = useInvalidateMemories();
   const linkEvent = useLinkEventToMemory();
   const deleteMemory = useDeleteMemory();
-  const shared = groups.filter((g) => !g.isPersonal);
-  const personal = groups.find((g) => g.isPersonal);
   const tz = memory?.timeZone ?? deviceTimeZone();
   const start = memory ? dayKeyIn(memory.startsAt, tz) : dateKey(defaultDay ?? new Date());
   const [title, setTitle] = useState(memory?.title ?? "");
@@ -66,8 +61,14 @@ export function MemorySheet({
   const [lastDay, setLastDay] = useState(memory ? dayKeyIn(memory.endsAt - 1, tz) : start);
   const [groupId, setGroupId] = useState(
     memory?.groupId ??
-      (groups.some((g) => g.id === defaultGroupId) ? defaultGroupId! : (shared[0]?.id ?? personal?.id ?? "")),
+      defaultShareGroupId(groups, defaultGroupId, {
+        groupId: me.settings.usualShareGroupId,
+        extensionKey: "memories",
+        alwaysOn: false,
+      }),
   );
+  // 新しく作るときだけ、いつもの共有先から選ばれたことが分かる印を出す。0063、F-40
+  const usualDefault = !memory && groupId === me.settings.usualShareGroupId;
   const [komaEnabled, setKomaEnabled] = useState(memory?.komaEnabled ?? false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
@@ -150,7 +151,7 @@ export function MemorySheet({
     try {
       await deleteMemory.mutateAsync(memory.id);
       await invalidate();
-      toast("思い出を削除しました。記録と写真は残っています");
+      toast("思い出を消しました。記録と写真は残っています");
       onClose();
       navigate("/memories", { replace: true });
     } catch (err) {
@@ -162,7 +163,7 @@ export function MemorySheet({
   if (confirm && memory) {
     return (
       <ResponsiveSheet
-        title="思い出を削除しますか"
+        title="思い出を消しますか"
         description={`「${memory.title}」のしおりが消えます。元に戻せません。記録と写真 ${memory.photoCount} 枚は、その日のまま残ります。`}
         onClose={() => setConfirm(false)}
       >
@@ -171,7 +172,7 @@ export function MemorySheet({
             やめる
           </Button>
           <Button variant="destructive" onClick={remove}>
-            削除する
+            消す
           </Button>
         </div>
       </ResponsiveSheet>
@@ -242,21 +243,14 @@ export function MemorySheet({
             : "終わりの日は始まりの日以降にしてください。"}
         </FieldMessage>
         {!memory && (
-          <PanelRow>
-            <span>共有</span>
-            <span
-              className="flex max-w-[70%] flex-wrap justify-end gap-1.5"
-              role="radiogroup"
-              aria-label="共有するグループ"
-            >
-              {groups.map((g) => (
-                <Chip key={g.id} role="radio" aria-checked={groupId === g.id} onClick={() => setGroupId(g.id)}>
-                  <Dot color={groupColor(g, me.colorPrefs)} />
-                  {g.isPersonal ? "共有しない" : g.name}
-                </Chip>
-              ))}
-            </span>
-          </PanelRow>
+          <SharePickerRow
+            groups={groups}
+            me={me}
+            value={groupId}
+            onChange={setGroupId}
+            usualDefault={usualDefault}
+            extensionLabel="思い出"
+          />
         )}
         {events.length > 0 && (
           <fieldset className="flex flex-col gap-1">
@@ -276,8 +270,7 @@ export function MemorySheet({
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate font-medium">{e.title}</span>
                     <span className="text-[11px] text-ink-2">
-                      {new Date(e.startsAt).getMonth() + 1}/{new Date(e.startsAt).getDate()}{" "}
-                      {e.allDay ? "終日" : formatTime(e.startsAt)}
+                      {formatDay(new Date(e.startsAt))} {e.allDay ? "終日" : formatTime(e.startsAt)}
                       {other && !picked.has(e.id) && `・「${other.title}」に入っています`}
                     </span>
                   </span>
@@ -303,7 +296,7 @@ export function MemorySheet({
         <div className="flex gap-2">
           {canDelete ? (
             <Button type="button" variant="danger" onClick={() => setConfirm(true)}>
-              削除
+              消す
             </Button>
           ) : (
             <Button type="button" variant="ghost" onClick={onClose}>

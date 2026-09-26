@@ -1,5 +1,5 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
-import { dayPanel, signUp } from "./helpers";
+import { addExtension, addMemories, dayPanel, pickShare, signUp } from "./helpers";
 
 /**
  * 「ふたり」のグループを作り、ほかの人を招待リンクで入れる。invitations.spec.ts と同じ作り方。
@@ -30,7 +30,7 @@ async function addInvited(page: Page, title: string, names: string[]) {
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill(title);
-  await sheet.getByRole("radio", { name: "ふたり" }).click();
+  await pickShare(page, sheet, "ふたり");
   const picker = sheet.getByRole("group", { name: "招待する人" });
   for (const name of names) await picker.getByRole("button", { name, exact: true }).click();
   await sheet.getByRole("button", { name: "保存する" }).click();
@@ -49,24 +49,27 @@ function bellButton(page: Page) {
   return page.getByRole("button", { name: /お知らせ/ }).filter({ visible: true });
 }
 
-/** グループの設定で思い出を有効にする。groups.spec.ts と同じ、グループの詳細に入って切り替える作り方 */
+/** グループの設定で思い出を足す。groups.spec.ts と同じ、グループの詳細に入って切り替える作り方 */
 async function enableMemoriesForGroup(page: Page, groupName: string) {
   await page.goto("/groups");
   await page.getByRole("link", { name: new RegExp(groupName) }).click();
-  const toggle = page.getByRole("switch", { name: "思い出" });
-  await toggle.click();
-  await expect(toggle).toBeChecked();
+  await page.getByRole("button", { name: "思い出を足す" }).click();
+  await expect(page.getByRole("button", { name: "思い出を外す" })).toBeVisible();
 }
 
-/** 自分でも思い出を使うにする。グループで有効でも、これをしないと入口が出ない。0019 */
+/** 自分でも思い出を足す。グループで足していても、これをしないと入口が出ない。0019 */
 async function enableMemoriesForSelf(page: Page) {
-  await page.goto("/extensions");
-  const toggle = page.getByRole("switch", { name: "思い出を使う" });
-  // 自分だけのグループの ID を読み終えるまで、切り替えは disabled のまま
-  await expect(toggle).toBeEnabled();
-  await toggle.click();
-  await expect(toggle).toBeChecked();
+  await addExtension(page, "思い出");
 }
+
+test("お知らせが 0 件のときは、EmptyState だけで「すべて既読にする」は出さない。issue #18", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await bellButton(page).click();
+  const list = page.getByRole("dialog", { name: "お知らせ" });
+  await expect(list.getByText("お知らせはまだありません。")).toBeVisible();
+  await expect(list.getByRole("button", { name: "すべて既読にする" })).toHaveCount(0);
+  await expect(list.getByRole("button", { name: "グループを見る" })).toBeVisible();
+});
 
 test("招待に参加すると招待した人にお知らせが出る。押すと予定が開き、既読になる。#32", async ({ page, browser }) => {
   test.setTimeout(120_000);
@@ -139,11 +142,12 @@ test("いいねを外して付け直しても、お知らせは 1 件のまま�
   await enableMemoriesForGroup(page, "ふたり");
   await enableMemoriesForSelf(mika!);
 
-  // こたが思い出を作り、記録する
+  // こたが思い出を作り、記録する。既定は共有しないなので、「ふたり」を選ぶ。0063
   await page.goto("/memories");
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("箱根 日帰り");
+  await pickShare(page, create, "ふたり");
   await create.getByRole("button", { name: "作る" }).click();
   await expect(page.getByRole("heading", { name: "箱根 日帰り" })).toBeVisible();
 

@@ -2,13 +2,14 @@ import type { ReactNode } from "react";
 import { useOnline } from "@/lib/online";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
+import { Mascot } from "./Mascot";
 
 /**
  * 面の中で出す失敗。「見つかりません」と「読み込めませんでした」に使う。0025
  *
  * 画面全体は替えず、失敗した面だけをこれにする。上の帯や左の列は残す。
  *
- * @param mark 丸の中の印。見つからないなら `?`、読み込めないなら `!`
+ * @param mark 見つからないなら `?`、読み込めないなら `!`。`!` のときは読み上げで知らせる(role="alert")
  * @param action 次の一手のボタンやリンク
  */
 export function FailurePanel({
@@ -32,12 +33,9 @@ export function FailurePanel({
         className,
       )}
     >
-      <span
-        className="grid size-[46px] place-items-center rounded-full border-2 border-dashed border-ink-3 font-bold text-ink-3"
-        aria-hidden="true"
-      >
-        {mark}
-      </span>
+      {/* しょんぼりしたメクリ。見つからないときも、読み込めないときも同じ絵。0053、#179 */}
+      <Mascot pose="sad" />
+
       <h2 className="text-base font-bold">{title}</h2>
       {children && <p className="text-[13px] leading-[1.8] text-ink-2">{children}</p>}
       {action}

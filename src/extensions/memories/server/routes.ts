@@ -1,11 +1,15 @@
 import { zValidator } from "@hono/zod-validator";
 import { type AppEnv, createRouter, HttpError, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
+import { runBatch } from "@server/core/db/batch";
 import type { DB } from "@server/core/db/client";
 import { groupMembers, notifications } from "@server/core/db/schema";
-import { and, asc, count, desc, eq, inArray, isNull, max, sql } from "drizzle-orm";
+import { enforceRateLimit } from "@server/core/rate-limit";
+import { assertStorageBudget } from "@server/core/storage-budget";
+import { and, asc, count, desc, eq, gte, inArray, isNull, max, sql } from "drizzle-orm";
 import type { Context } from "hono";
-import { addDaysToKey, dayKeyIn, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
+import { bodyLimit } from "hono/body-limit";
+import { addDaysToKey, DEFAULT_TIME_ZONE, dayKeyIn, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
 import {
   eventLinkInput,
   itemCopyInput,
@@ -13,6 +17,7 @@ import {
   itemPatchInput,
   memoryInput,
   memoryPatchInput,
+  PHOTO_DATA_URL_PATTERN,
   PHOTO_LIMITS,
   recordInput,
   recordPatchInput,
@@ -26,6 +31,12 @@ import { isJpeg, PhotoSigner, type PhotoSize, photoKey, verifyPhotoUrl } from ".
 import { memories, memoryEventExclusions, memoryItems, memoryLikes, memoryPhotos, memoryRecords } from "./schema";
 
 const signer = (c: Context<AppEnv>) => new PhotoSigner(c.env.MEMORIES_PHOTO_KEY);
+
+/**
+ * multipart の本文の大きさの上限。full と small と tiny の上限の合計に、multipart の境界や
+ * ほかの項目の分の余白を足す。formData() で全部読み込む前に断り、大きすぎる本文を読ませない。0065、#161
+ */
+const PHOTO_BODY_MAX_BYTES = PHOTO_LIMITS.fullBytes + PHOTO_LIMITS.smallChars + PHOTO_LIMITS.tinyChars + 64 * 1024;
 
 /** 思い出を読み、そのグループで使えるかを確かめる。違えば 404 */
 async function loadMemory(db: DB, userId: string, id: string) {
@@ -169,63 +180,112 @@ export const memoryRoutes = createRouter()
     const groupIds = await usableGroupIds(db, c.get("user").id, group?.split(",").filter(Boolean));
     return c.json({ records: await loadRecords(db, signer(c), groupIds, from, to) });
   })
-  .post("/photos", async (c) => {
+  .post(
+    "/photos",
+    bodyLimit({ maxSize: PHOTO_BODY_MAX_BYTES, onError: (c) => c.json({ error: "写真が大きすぎます。" }, 413) }),
+    async (c) => {
+      const db = c.get("db");
+      const me = c.get("user");
+      await enforceRateLimit(c.env.PHOTO_RATE_LIMIT, me.id);
+      const form = await c.req.formData().catch(() => null);
+      if (!form) throw new HttpError(400, "写真を送り直してください。");
+      const groupId = String(form.get("groupId") ?? "");
+      await requireMemoriesGroup(db, me.id, groupId);
+      const full = form.get("full");
+      const small = String(form.get("small") ?? "");
+      const tiny = String(form.get("tiny") ?? "");
+      const width = Number(form.get("width"));
+      const height = Number(form.get("height"));
+      const takenAtRaw = Number(form.get("takenAt"));
+      if (!(full instanceof File)) throw new HttpError(400, "写真を送り直してください。");
+      if (
+        full.size > PHOTO_LIMITS.fullBytes ||
+        small.length > PHOTO_LIMITS.smallChars ||
+        tiny.length > PHOTO_LIMITS.tinyChars
+      ) {
+        return c.json({ error: "写真が大きすぎます。" }, 413);
+      }
+      if (!PHOTO_DATA_URL_PATTERN.test(tiny) || !PHOTO_DATA_URL_PATTERN.test(small))
+        throw new HttpError(400, "写真を送り直してください。");
+      if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1)
+        throw new HttpError(400, "写真を送り直してください。");
+      const fullBytes = await full.arrayBuffer();
+      if (!isJpeg(new Uint8Array(fullBytes))) throw new HttpError(400, "JPEG の写真だけを受け付けます。");
+      const total = await db.select({ n: count() }).from(memoryPhotos).where(eq(memoryPhotos.groupId, groupId)).get();
+      if ((total?.n ?? 0) >= PHOTO_LIMITS.perGroup) {
+        throw new HttpError(
+          409,
+          `このグループの写真は ${PHOTO_LIMITS.perGroup} 枚までです。古い記録を消してから足してください。`,
+        );
+      }
+      // 1 人が 1 日に送れる枚数。日本時間の 0 時で区切る。0065、#161
+      const todayStart = new Date(startOfDayIn(dayKeyIn(Date.now(), DEFAULT_TIME_ZONE), DEFAULT_TIME_ZONE));
+      const todayCount = await db
+        .select({ n: count() })
+        .from(memoryPhotos)
+        .where(and(eq(memoryPhotos.createdBy, me.id), gte(memoryPhotos.createdAt, todayStart)))
+        .get();
+      if ((todayCount?.n ?? 0) >= PHOTO_LIMITS.perDay) {
+        throw new HttpError(409, `1 日に送れる写真は ${PHOTO_LIMITS.perDay} 枚までです。時間をおいて送ってください。`);
+      }
+      // 写真とアバターの合計が上限に近ければ断る。0066、#162
+      await assertStorageBudget(db, fullBytes.byteLength);
+      const id = crypto.randomUUID();
+      // R2 には full だけを置く。1 枚に 1 つの鍵。#158
+      await c.env.MEMORIES_BUCKET.put(photoKey(id, "full"), fullBytes, {
+        httpMetadata: { contentType: "image/jpeg" },
+      });
+      await db.insert(memoryPhotos).values({
+        id,
+        groupId,
+        createdBy: me.id,
+        width,
+        height,
+        bytes: fullBytes.byteLength,
+        takenAt: Number.isFinite(takenAtRaw) && takenAtRaw > 0 ? new Date(takenAtRaw) : null,
+        tiny,
+        small,
+      });
+      const row = (await db.select().from(memoryPhotos).where(eq(memoryPhotos.id, id)).get())!;
+      return c.json(await signer(c).photo(row), 201);
+    },
+  )
+  /**
+   * 使わなかった写真をすぐ消す。シートを閉じたときや、写真を外したときに呼ぶ。#158
+   * 送った本人の、まだ記録に付いていない写真だけ消せる。ほかの人の写真や、既に付いた写真は 403。
+   */
+  .delete("/photos/:photoId", async (c) => {
     const db = c.get("db");
     const me = c.get("user");
-    const form = await c.req.formData().catch(() => null);
-    if (!form) throw new HttpError(400, "写真を送り直してください。");
-    const groupId = String(form.get("groupId") ?? "");
-    await requireMemoriesGroup(db, me.id, groupId);
-    const full = form.get("full");
-    const thumb = form.get("thumb");
-    const tiny = String(form.get("tiny") ?? "");
-    const width = Number(form.get("width"));
-    const height = Number(form.get("height"));
-    const takenAtRaw = Number(form.get("takenAt"));
-    if (!(full instanceof File) || !(thumb instanceof File)) throw new HttpError(400, "写真を送り直してください。");
-    if (
-      full.size > PHOTO_LIMITS.fullBytes ||
-      thumb.size > PHOTO_LIMITS.thumbBytes ||
-      tiny.length > PHOTO_LIMITS.tinyChars
-    ) {
-      return c.json({ error: "写真が大きすぎます。" }, 413);
-    }
-    if (!tiny.startsWith("data:image/jpeg;base64,")) throw new HttpError(400, "写真を送り直してください。");
-    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1)
-      throw new HttpError(400, "写真を送り直してください。");
-    const [fullBytes, thumbBytes] = await Promise.all([full.arrayBuffer(), thumb.arrayBuffer()]);
-    if (!isJpeg(new Uint8Array(fullBytes)) || !isJpeg(new Uint8Array(thumbBytes)))
-      throw new HttpError(400, "JPEG の写真だけを受け付けます。");
-    const total = await db.select({ n: count() }).from(memoryPhotos).where(eq(memoryPhotos.groupId, groupId)).get();
-    if ((total?.n ?? 0) >= PHOTO_LIMITS.perGroup) {
-      throw new HttpError(
-        409,
-        `このグループの写真は ${PHOTO_LIMITS.perGroup} 枚までです。古い記録を消してから足してください。`,
-      );
-    }
-    const id = crypto.randomUUID();
-    await Promise.all([
-      c.env.MEMORIES_BUCKET.put(photoKey(id, "full"), fullBytes, { httpMetadata: { contentType: "image/jpeg" } }),
-      c.env.MEMORIES_BUCKET.put(photoKey(id, "thumb"), thumbBytes, { httpMetadata: { contentType: "image/jpeg" } }),
-    ]);
-    await db.insert(memoryPhotos).values({
-      id,
-      groupId,
-      createdBy: me.id,
-      width,
-      height,
-      bytes: fullBytes.byteLength + thumbBytes.byteLength,
-      takenAt: Number.isFinite(takenAtRaw) && takenAtRaw > 0 ? new Date(takenAtRaw) : null,
-      tiny,
-    });
-    const row = (await db.select().from(memoryPhotos).where(eq(memoryPhotos.id, id)).get())!;
-    return c.json(await signer(c).photo(row), 201);
+    const row = await db
+      .select()
+      .from(memoryPhotos)
+      .where(eq(memoryPhotos.id, c.req.param("photoId")))
+      .get();
+    if (!row) return c.body(null, 204);
+    if (row.createdBy !== me.id || row.recordId !== null) throw new HttpError(403, "この写真は消せません。");
+    await db.delete(memoryPhotos).where(eq(memoryPhotos.id, row.id));
+    return c.body(null, 204);
   })
   .post("/records", zValidator("json", recordInput, validationHook), async (c) => {
     const db = c.get("db");
     const me = c.get("user");
     const input = c.req.valid("json");
     await requireMemoriesGroup(db, me.id, input.groupId);
+    // 写真を選んだ後に共有先を変えても付けられるよう、送った本人の、まだ記録に付いていない写真だけ
+    // 選んだ共有先に書き換える。ほかの人の写真や、既に記録に付いた写真は書き換えない。#158
+    if (input.photoIds.length) {
+      await db
+        .update(memoryPhotos)
+        .set({ groupId: input.groupId })
+        .where(
+          and(
+            inArray(memoryPhotos.id, input.photoIds),
+            eq(memoryPhotos.createdBy, me.id),
+            isNull(memoryPhotos.recordId),
+          ),
+        );
+    }
     const photos = (await requirePhotos(db, me.id, input.groupId, input.photoIds)) ?? [];
     const firstTaken = input.photoIds.map((id) => photos.find((p) => p.id === id)?.takenAt).find(Boolean);
     const occurredAt = new Date(Math.min(input.occurredAt ?? firstTaken?.getTime() ?? Date.now(), Date.now()));
@@ -240,7 +300,7 @@ export const memoryRoutes = createRouter()
     }
     const id = crypto.randomUUID();
     const now = new Date();
-    await db.batch([
+    await runBatch(db, [
       db.insert(memoryRecords).values({
         id,
         groupId: input.groupId,
@@ -260,7 +320,7 @@ export const memoryRoutes = createRouter()
               .where(eq(memoryItems.id, item.id)),
           ]
         : []),
-    ] as unknown as Parameters<typeof db.batch>[0]);
+    ]);
     return c.json(await loadRecord(db, signer(c), id), 201);
   })
   .patch("/records/:recordId", zValidator("json", recordPatchInput, validationHook), async (c) => {
@@ -278,10 +338,10 @@ export const memoryRoutes = createRouter()
     const body = input.body === undefined ? row.body : input.body || null;
     if (!body && nextIds.length === 0) throw new HttpError(400, "写真か文章を入力してください。");
     if (row.kind === "koma" && nextIds.length === 0)
-      throw new HttpError(400, "ひとコマの写真は外せません。不要なときは記録ごと削除してください。");
+      throw new HttpError(400, "ひとコマの写真は外せません。不要なときは記録ごと消してください。");
     await requirePhotos(db, me.id, row.groupId, nextIds, row.id);
     const removed = current.map((p) => p.id).filter((id) => !nextIds.includes(id));
-    await db.batch([
+    await runBatch(db, [
       db
         .update(memoryRecords)
         .set({
@@ -294,14 +354,14 @@ export const memoryRoutes = createRouter()
       ...nextIds.map((pid, i) =>
         db.update(memoryPhotos).set({ recordId: row.id, sortOrder: i }).where(eq(memoryPhotos.id, pid)),
       ),
-    ] as unknown as Parameters<typeof db.batch>[0]);
+    ]);
     return c.json(await loadRecord(db, signer(c), row.id));
   })
   .delete("/records/:recordId", async (c) => {
     const db = c.get("db");
     const me = c.get("user");
     const row = await loadRecordRow(db, me.id, c.req.param("recordId"));
-    if (row.createdBy !== me.id) throw new HttpError(403, "記録を削除できるのは、記録した人だけです。");
+    if (row.createdBy !== me.id) throw new HttpError(403, "記録を消せるのは、記録した人だけです。");
     // 写真といいねは外部キーで消える。写真の行が消えると、トリガーが R2 の鍵を消す待ちに積む
     await db.delete(memoryRecords).where(eq(memoryRecords.id, row.id));
     return c.body(null, 204);
@@ -335,7 +395,7 @@ export const memoryRoutes = createRouter()
             .get()
         : undefined;
     // いいねと通知の書き込みを 1 つの batch にまとめ、通知だけが失敗して二度と知らせなくなることを防ぐ。#32
-    await db.batch([
+    await runBatch(db, [
       db.insert(memoryLikes).values({ recordId: row.id, userId: me.id }).onConflictDoNothing(),
       ...(shouldNotify && !dupe && recipient
         ? [
@@ -348,7 +408,7 @@ export const memoryRoutes = createRouter()
             }),
           ]
         : []),
-    ] as unknown as Parameters<typeof db.batch>[0]);
+    ]);
     return c.json({ likes: await likesOf(db, row.id) });
   })
   .delete("/records/:recordId/like", async (c) => {
@@ -404,12 +464,12 @@ export const memoryRoutes = createRouter()
       .where(eq(memories.id, row.id));
     if (input.excludedEventIds) {
       const ids = [...new Set(input.excludedEventIds)];
-      await db.batch([
+      await runBatch(db, [
         db.delete(memoryEventExclusions).where(eq(memoryEventExclusions.memoryId, row.id)),
         ...(ids.length
           ? [db.insert(memoryEventExclusions).values(ids.map((eventId) => ({ memoryId: row.id, eventId })))]
           : []),
-      ] as unknown as Parameters<typeof db.batch>[0]);
+      ]);
     }
     return c.json(
       await toMemory(db, signer(c), (await db.select().from(memories).where(eq(memories.id, row.id)).get())!),
@@ -433,7 +493,7 @@ export const memoryRoutes = createRouter()
     const db = c.get("db");
     const me = c.get("user");
     const row = await loadMemory(db, me.id, c.req.param("id"));
-    if (row.createdBy !== me.id) throw new HttpError(403, "思い出を削除できるのは、作った人だけです。");
+    if (row.createdBy !== me.id) throw new HttpError(403, "思い出を消せるのは、作った人だけです。");
     // しおりの行は外部キーで消える。記録は思い出に属さないので残る。0020
     await db.delete(memories).where(eq(memories.id, row.id));
     return c.body(null, 204);
@@ -554,7 +614,7 @@ export const memoryRoutes = createRouter()
       .where(and(eq(memoryItems.id, c.req.param("itemId")), eq(memoryItems.memoryId, row.id)))
       .get();
     if (!item) throw new HttpError(404, "見つかりません。");
-    if (item.createdBy !== me.id) throw new HttpError(403, "削除できるのは、追加した人だけです。");
+    if (item.createdBy !== me.id) throw new HttpError(403, "消せるのは、足した人だけです。");
     await db.delete(memoryItems).where(eq(memoryItems.id, item.id));
     return c.body(null, 204);
   });

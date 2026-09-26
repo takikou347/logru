@@ -1,4 +1,5 @@
-import { createBrowserRouter, type RouteObject } from "react-router";
+import { createBrowserRouter, Outlet, type RouteObject, ScrollRestoration } from "react-router";
+import { AppShell } from "@/components/layout/AppShell";
 import { AgreePage } from "@/modules/auth/AgreePage";
 import { LoginPage } from "@/modules/auth/LoginPage";
 import { ResetPasswordPage } from "@/modules/auth/ResetPasswordPage";
@@ -7,6 +8,7 @@ import { VerifyEmailPage } from "@/modules/auth/VerifyEmailPage";
 import { NotFound, RouteError } from "./errors";
 import { extensionRoutes } from "./extension-routes";
 import { GuestOnly, RequireAuth } from "./guards";
+import { LegacyRedirect } from "./legacy-redirect";
 
 /** 規約とよくある質問の画面は Markdown の変換を使うので、開いたときに読む */
 async function legal(doc: "terms" | "privacy" | "help") {
@@ -40,22 +42,80 @@ const routes: RouteObject[] = [
   {
     element: <RequireAuth />,
     children: [
+      // 規約への同意は、カレンダーなどの外枠(AppShell)を持たない独立した画面。F-16
       { path: "/agree", element: <AgreePage /> },
-      { path: "/", lazy: async () => ({ Component: (await import("@/modules/calendar/CalendarPage")).CalendarPage }) },
-      { path: "/groups", lazy: async () => ({ Component: (await import("@/modules/groups/GroupsPage")).GroupsPage }) },
       {
-        path: "/groups/:id",
-        lazy: async () => ({ Component: (await import("@/modules/groups/GroupDetailPage")).GroupDetailPage }),
+        // ログイン後の画面をまとめる外枠。画面を移っても作り直さないよう、ここに 1 つだけ置く。0071
+        element: <AppShell />,
+        children: [
+          {
+            path: "/",
+            lazy: async () => ({ Component: (await import("@/modules/calendar/CalendarPage")).CalendarPage }),
+          },
+          {
+            path: "/spiral/:year",
+            lazy: async () => ({ Component: (await import("@/modules/calendar/spiral/SpiralPage")).SpiralPage }),
+          },
+          {
+            path: "/groups",
+            lazy: async () => ({ Component: (await import("@/modules/groups/GroupsPage")).GroupsPage }),
+          },
+          {
+            path: "/groups/:id",
+            lazy: async () => ({ Component: (await import("@/modules/groups/GroupDetailPage")).GroupDetailPage }),
+          },
+          // 設定は目次と、見た目・通知・機能・使い方・アカウントの 5 節。issue #102
+          {
+            path: "/settings",
+            lazy: async () => ({
+              Component: (await import("@/modules/settings/SettingsIndexPage")).SettingsIndexPage,
+            }),
+          },
+          {
+            path: "/settings/appearance",
+            lazy: async () => ({
+              Component: (await import("@/modules/settings/AppearanceSettingsPage")).AppearanceSettingsPage,
+            }),
+          },
+          {
+            path: "/settings/notifications",
+            lazy: async () => ({
+              Component: (await import("@/modules/settings/NotificationsSettingsPage")).NotificationsSettingsPage,
+            }),
+          },
+          {
+            path: "/settings/extensions",
+            lazy: async () => ({
+              Component: (await import("@/modules/settings/ExtensionsSettingsPage")).ExtensionsSettingsPage,
+            }),
+          },
+          {
+            path: "/settings/extensions/add",
+            lazy: async () => ({ Component: (await import("@/modules/settings/ExtensionAddPage")).ExtensionAddPage }),
+          },
+          {
+            path: "/settings/extensions/:key",
+            lazy: async () => ({
+              Component: (await import("@/modules/settings/ExtensionDetailPage")).ExtensionDetailPage,
+            }),
+          },
+          {
+            path: "/settings/usage",
+            lazy: async () => ({
+              Component: (await import("@/modules/settings/UsageSettingsPage")).UsageSettingsPage,
+            }),
+          },
+          {
+            path: "/settings/account",
+            lazy: async () => ({
+              Component: (await import("@/modules/settings/AccountSettingsPage")).AccountSettingsPage,
+            }),
+          },
+          // 古い URL。機能の一覧は設定の「機能」へ移した。issue #102
+          { path: "/extensions", element: <LegacyRedirect to="/settings/extensions" /> },
+          ...extensionRoutes,
+        ],
       },
-      {
-        path: "/settings",
-        lazy: async () => ({ Component: (await import("@/modules/settings/SettingsPage")).SettingsPage }),
-      },
-      {
-        path: "/extensions",
-        lazy: async () => ({ Component: (await import("@/modules/extensions/ExtensionsPage")).ExtensionsPage }),
-      },
-      ...extensionRoutes,
     ],
   },
   ...(import.meta.env.DEV
@@ -69,5 +129,18 @@ const routes: RouteObject[] = [
   { path: "*", element: <NotFound /> },
 ];
 
+/**
+ * 新しい画面は上から、ブラウザーの戻る・進むで来た画面は元のスクロール位置に戻す。
+ * どの画面にも掛かるよう、ルートの要素として 1 つだけ置く。#201
+ */
+function Root() {
+  return (
+    <>
+      <Outlet />
+      <ScrollRestoration />
+    </>
+  );
+}
+
 /** アプリの道順 */
-export const router = createBrowserRouter([{ errorElement: <RouteError />, children: routes }]);
+export const router = createBrowserRouter([{ element: <Root />, errorElement: <RouteError />, children: routes }]);

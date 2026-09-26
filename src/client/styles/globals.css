@@ -9,7 +9,15 @@
  * 部品は shadcn の名前で色を指し、値はライトとダークで tokens.css が変える。
  */
 :root {
+  /* 角丸。コンポーネントの scale。ガラスの面の scale は tokens.css の --r-panel、--r-field。0044 */
   --radius: 14px;
+  /*
+   * 下に浮かぶ帯(Dock、カレンダーの下の操作)に中身が隠れないよう空ける、下の余白。
+   * 帯の画面下からの高さ(主な「+」56px、上下の余白 12px、帯の画面下からの余白 24px を足した 94px)
+   * に、息継ぎ 12px と端末の安全な余白を足す。0062
+   * AppShell がこの1か所だけで使う。画面ごとに数値を書かない。0071
+   */
+  --dock-clearance: calc(94px + 12px + env(safe-area-inset-bottom));
   --background: var(--ground);
   --foreground: var(--ink);
   --card: var(--glass-flat);
@@ -37,6 +45,22 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-panel: var(--r-panel);
+
+  /*
+   * 動きの時間。値は tokens.css の --dur-*。Tailwind の duration-* は --transition-duration-* を見るので、
+   * その名前で結ぶ。0044
+   */
+  --transition-duration-fast: var(--dur-fast);
+  --transition-duration-base: var(--dur-base);
+  --transition-duration-slow: var(--dur-slow);
+  /* インクだまりの膨らみ・引きだけの例外。0044、issue #203 */
+  --transition-duration-ambient: var(--dur-ambient);
+  /*
+   * 緩急は 2 種だけ。抜ける動きは ease-out、行って戻る動きは ease-in-out。
+   * 値は Tailwind の既定と同じにして、見た目を変えない。ライト・ダークで変わらないのでここで直に持つ。0044
+   */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -223,13 +247,141 @@
   }
 }
 
+/*
+ * 予定の出入り。動かすのは transform と opacity だけ。ガラスの面自体は動かさない。0044、0048、#98
+ * 入るときは item-enter を付ける。要素が新しくできた瞬間に、その場で 1 度だけ再生される。
+ * 消えるときは data-leaving="true" を付ける。外すと、そのまま 1 に戻る(「元に戻す」)。
+ */
+.item-enter {
+  animation: item-enter var(--dur-base) var(--ease-out);
+}
+@keyframes item-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+[data-leaving="true"] {
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity var(--dur-base) var(--ease-in-out),
+    transform var(--dur-base) var(--ease-in-out);
+  pointer-events: none;
+}
+
+/* いいねのハートが一度はねる。押してハートを付けた瞬間だけ付け、終わったら外す。0044、0048、#98 */
+.heart-bounce {
+  animation: heart-bounce var(--dur-slow) var(--ease-in-out);
+}
+@keyframes heart-bounce {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.3);
+  }
+  60% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    /*
+     * 時間を 0.01ms にするだけでは、animate-spin や animate-pulse のように infinite な動きは
+     * 極めて速い速さで繰り返り続け、震えて見える。繰り返しも 1 回に止める。issue #203
+     * .mascot-bob は no-preference の中でだけ animation を付けるので、ここには来ない。
+     */
+    animation-iteration-count: 1 !important;
   }
+}
+
+/*
+ * 月・週・日をつなぐ View Transitions。0049
+ * 名前(view-transition-name)を付けた「選んでいる日」の要素だけは、位置と大きさがつながる既定の動きを残す。
+ * 名前を付けていない残り(root)は、既定では前後の見た目をまるごと写し取り、クロスフェードで重ねる。
+ * ガラスの面のぼかしや Pools の色は移る前後でわずかに違うことがあり、そのクロスフェードが
+ * 一瞬の二重写し(ちらつき)に見える。root は動かさず、選んだ日だけがつながって見えるようにする。0071
+ *
+ * animation だけを切ると、既定の mix-blend-mode(plus-lighter)が残り、前後の面を足し合わせて
+ * 白っぽく光って見える瞬間ができる。normal に戻して、後ろの面をそのまま覆うようにする
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/*
+ * マスコットのメクリが、ゆっくり上下にゆれる。0053、#179
+ * 待つ間ずっと続く動きなので、0044 の 3 段の時間の外にある。まばたきを待つ間と同じ扱い。
+ * 動きを減らす設定では、上の 0.01ms の決まりで細かく震えるのを避けるため、そもそも付けない。
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .mascot-bob {
+    animation: mascot-bob 3.2s ease-in-out infinite;
+  }
+}
+@keyframes mascot-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/*
+ * ひとコマの現像。送った直後、白からいろへ 1.2 秒で色づく。0044 の 3 段の時間の外にある
+ * 一回限りの動きで、写真の img 要素だけに filter を使う例外にする。動きを減らす設定では
+ * KomaNowPage.tsx 側でこの動きを起こさない。#101
+ */
+@keyframes koma-develop-photo {
+  from {
+    filter: saturate(0) brightness(2.3) contrast(0.6);
+  }
+  to {
+    filter: saturate(1) brightness(1) contrast(1);
+  }
+}
+@keyframes koma-develop-veil {
+  from {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.koma-developing img {
+  animation: koma-develop-photo 1200ms var(--ease-out) both;
+}
+.koma-developing .koma-veil {
+  animation: koma-develop-veil 1200ms var(--ease-out) both;
+}
+
+/*
+ * しおりの 1 日をめくる面の影。ぼかさず、グラデーションを重ねて表す。0050
+ * PageFlip.tsx が、めくる角度に応じて --flip-shade(濃さ)と --flip-shade-dir(向き)を入れる。
+ * transform や backface-visibility など、ほかの見た目は Tailwind の角括弧の書き方でその場に書く
+ */
+.page-flip-shade {
+  background: linear-gradient(
+    to var(--flip-shade-dir, right),
+    transparent 55%,
+    rgba(0, 0, 0, var(--flip-shade, 0)) 100%
+  );
 }
 
 /* 画面の案内が指している場所を囲む。F-33 */

@@ -1,29 +1,33 @@
 import { clientExtension, defaultExtension } from "@extensions/client/registry";
-import type { EditorTarget } from "@extensions/client/types";
-import type { GroupSummary, HomeWidgetEntry } from "@shared/api-types";
+import type { EditorTarget, ItemEditScope } from "@extensions/client/types";
+import type { CalendarItem, HomeWidgetEntry } from "@shared/api-types";
 import { defaultHomeLayout, mergeHomeLayout, visibleHomeLayout } from "@shared/home";
-import { ChevronLeft, ChevronRight, LayoutGrid, Pencil, Plus } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { CalendarPlus, ChevronLeft, ChevronRight, LayoutGrid, Pencil } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useGroups, useMe } from "@/api/common";
-import { AccountMenu, AppLayout, SideHeading, sideItemClass } from "@/components/layout/AppLayout";
-import { Chip } from "@/components/parts/Chip";
+import { AccountMenu, SideHeading, sideItemClass } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
+import { Dock } from "@/components/parts/Dock";
 import { LoadFailure } from "@/components/parts/Failure";
 import { FeatureSheet } from "@/components/parts/FeatureSheet";
+import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
 import { InstallBanner } from "@/components/parts/InstallBanner";
 import { NotificationBell } from "@/components/parts/NotificationBell";
-import { Dot } from "@/components/parts/Panel";
+import type { Addable } from "@/components/parts/PrimaryAddButton";
+import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { ScreenTour } from "@/components/parts/ScreenTour";
 import { Segmented } from "@/components/parts/Segmented";
 import { ShortcutBand } from "@/components/parts/ShortcutBand";
+import { UsualShareOfferBanner } from "@/components/parts/UsualShareBanner";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { groupColor } from "@/lib/colors";
 import {
   addDays,
   addMonths,
   dateKey,
+  formatDay,
   monthGrid,
   onDay,
   parseDateKey,
@@ -33,9 +37,12 @@ import {
 } from "@/lib/dates";
 import { useEnabledExtensions } from "@/lib/extensions";
 import { BASE_TOURS } from "@/lib/tours";
+import { useRecordScreen } from "@/lib/use-back";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { useUndoableDelete as useSharedUndoableDelete } from "@/lib/use-undoable-delete";
+import { withViewTransition } from "@/lib/view-transition";
 import { useSaveHomeLayout } from "../home/api";
-import { CalendarHomeProvider, type CalendarView } from "../home/CalendarContext";
+import { CalendarHomeProvider, type CalendarView, type MonthNav } from "../home/CalendarContext";
 import { AddWidgetSheet } from "../home/components/AddWidgetSheet";
 import { HomeEditBar } from "../home/components/HomeEditBar";
 import { WidgetGrid } from "../home/components/WidgetGrid";
@@ -43,19 +50,21 @@ import { useHomeWidgetVisibility, useVisibleHomeWidgets } from "../home/layout";
 import { HOME_WIDGET_CATALOG, homeWidget } from "../home/widgets";
 import { Onboarding } from "../onboarding/Onboarding";
 import { useCalendar, useMemberVisibility } from "./api";
+import { KindChip, SideKinds, useHiddenKinds } from "./components/KindFilter";
 import { PeopleChip, SideGroup, useOpenGroups } from "./components/PeopleFilter";
 import { RefreshButton } from "./components/RefreshButton";
+import { SearchButton } from "./components/SearchButton";
 import {
-  byPeople,
-  decorate,
   groupPeopleOf,
   hiddenPeople,
+  itemKey,
   type Person,
   peopleOf,
   poolColorsOf,
   type ViewItem,
+  viewItemsOf,
 } from "./model";
-import { itemKey, useUndoableDelete } from "./use-undoable-delete";
+import { markJustAdded } from "./recent-items";
 
 const VIEWS = [
   { value: "month", label: "月" },
@@ -76,6 +85,91 @@ function useToday(): Date {
   return today;
 }
 
+/** 縮んで消える動きの長さ。globals.css の [data-leaving] と同じ --dur-base(220ms)。0044、0048 */
+const EXIT_MS = 220;
+
+function without(s: Set<string>, key: string): Set<string> {
+  if (!s.has(key)) return s;
+  const next = new Set(s);
+  next.delete(key);
+  return next;
+}
+
+function withKey(s: Set<string>, key: string): Set<string> {
+  if (s.has(key)) return s;
+  const next = new Set(s);
+  next.add(key);
+  return next;
+}
+
+/**
+ * カレンダーの項目を消す。5 秒の「元に戻す」そのものは lib/use-undoable-delete が持つ。ここで足すのは、
+ * 消した瞬間に縮んで消える動き(leaving)と、動きが終わってから一覧から外す(hidden)の 2 段階と、
+ * 項目を出した拡張の deleteItem を呼ぶこと。0012、0044、0048、#98
+ *
+ * 「元に戻す」を押すと、動きの途中でも終わった後でも戻り、戻った項目は足したときと同じ膨らむ動きで入る。
+ *
+ * @returns hidden は一覧から外す項目の itemKey。leaving は縮んで消える動きの途中の itemKey。remove は消す関数
+ */
+function useCalendarDelete() {
+  const qc = useQueryClient();
+  const [leaving, setLeaving] = useState<Set<string>>(new Set());
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const exitTimers = useRef(new Map<string, number>());
+
+  const clearExit = useCallback((key: string) => {
+    const t = exitTimers.current.get(key);
+    if (t != null) {
+      window.clearTimeout(t);
+      exitTimers.current.delete(key);
+    }
+  }, []);
+
+  const onRestore = useCallback(
+    (key: string) => {
+      clearExit(key);
+      markJustAdded(key);
+      setLeaving((s) => without(s, key));
+      setHidden((s) => without(s, key));
+    },
+    [clearExit],
+  );
+
+  const { remove: removePending } = useSharedUndoableDelete("予定を消しました", onRestore);
+
+  const remove = useCallback(
+    (item: CalendarItem, scope?: ItemEditScope) => {
+      const key = itemKey(item);
+      setLeaving((s) => withKey(s, key));
+      exitTimers.current.set(
+        key,
+        window.setTimeout(() => {
+          exitTimers.current.delete(key);
+          setHidden((s) => withKey(s, key));
+        }, EXIT_MS),
+      );
+      removePending(key, async (opts) => {
+        try {
+          await clientExtension(item.extension)?.deleteItem?.(item.id, {
+            ...opts,
+            occurrenceAt: item.occurrenceAt,
+            scope,
+          });
+        } finally {
+          if (!opts.keepalive) {
+            await qc.invalidateQueries({ queryKey: ["calendar"] });
+            setHidden((s) => without(s, key));
+            setLeaving((s) => without(s, key));
+          }
+        }
+      });
+    },
+    [removePending, qc],
+  );
+
+  return { hidden, leaving, remove };
+}
+
 /**
  * ホームの画面。カレンダーが土台で、ウィジェットを並べて自分で編集できる。F-05〜F-09、F-20、F-28、0029
  *
@@ -83,6 +177,8 @@ function useToday(): Date {
  * 項目は拡張から集めたもの。押すと、その項目を出した拡張の編集のシートを開く。
  */
 export function CalendarPage() {
+  // ほかの画面から「‹」で戻ったとき、選んだ日や表示の単位を含めてここへ戻れるよう記録する。0070
+  useRecordScreen();
   const [params, setParams] = useSearchParams();
   const today = useToday();
   const me = useMe();
@@ -90,7 +186,7 @@ export function CalendarPage() {
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [features, setFeatures] = useState(false);
   const enabledExtensions = useEnabledExtensions();
-  const { hidden, remove } = useUndoableDelete();
+  const { hidden, leaving, remove } = useCalendarDelete();
 
   const view = (
     ["month", "week", "day"].includes(params.get("view") ?? "") ? params.get("view") : "month"
@@ -140,19 +236,34 @@ export function CalendarPage() {
     (p: Person, hide: boolean) => setVisibility({ userId: p.id, hidden: hide }),
     [setVisibility],
   );
-  const items = useMemo<ViewItem[]>(() => {
-    if (!calendar.data || !me.data) return [];
-    return byPeople(decorate(calendar.data, allGroups, me.data), hiddenIds).filter(
-      (i) => !hidden.has(itemKey(i)) && (!groupFilter || i.groupId === groupFilter),
-    );
-  }, [calendar.data, allGroups, me.data, hidden, groupFilter, hiddenIds]);
+  const { hidden: hiddenKinds, toggle: toggleKind } = useHiddenKinds();
+  const items = useMemo<ViewItem[]>(
+    () => viewItemsOf(calendar.data, allGroups, me.data, hiddenIds, hidden, groupFilter, hiddenKinds),
+    [calendar.data, allGroups, me.data, hidden, groupFilter, hiddenIds, hiddenKinds],
+  );
+
+  // 動きを減らす設定。日めくりの追従や View Transitions を止め、切り替えるだけにする。0049、#99、#100
+  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+
+  // PC の矢印ボタンとキーで月を送るときの合図。id が変わるたびに MonthFlipDeck が 1 回だけめくる。#99
+  const [flipRequest, setFlipRequest] = useState<{ dir: 1 | -1; id: number } | null>(null);
+  const onChangeMonth = useCallback((dir: 1 | -1) => update({ date: addMonths(selected, dir) }), [update, selected]);
 
   const move = useCallback(
     (dir: -1 | 1) => {
-      if (view === "month") update({ date: addMonths(selected, dir) });
-      else update({ date: addDays(selected, dir * (view === "week" ? 7 : 1)) });
+      if (view === "month") {
+        if (reducedMotion) onChangeMonth(dir);
+        else setFlipRequest({ dir, id: Date.now() + Math.random() });
+      } else {
+        update({ date: addDays(selected, dir * (view === "week" ? 7 : 1)) });
+      }
     },
-    [view, selected, update],
+    [view, selected, update, reducedMotion, onChangeMonth],
+  );
+
+  const monthNav = useMemo<MonthNav>(
+    () => ({ groupFilter, hiddenIds, hiddenKinds, deletedKeys: hidden, flipRequest, onChangeMonth, reducedMotion }),
+    [groupFilter, hiddenIds, hiddenKinds, hidden, flipRequest, onChangeMonth, reducedMotion],
   );
 
   const addNew = useCallback(
@@ -161,15 +272,36 @@ export function CalendarPage() {
   );
 
   const open = useCallback((item: ViewItem) => setEditor({ mode: "edit", item }), []);
-  const onPressDay = useCallback(
+  // 探した結果を押したとき。その日を表示し、項目を出した拡張の編集のシートを開く。F-38、0046
+  const openSearchResult = useCallback(
+    (item: CalendarItem) => {
+      update({ date: new Date(item.startsAt), view: "day" });
+      setEditor({ mode: "edit", item });
+    },
+    [update],
+  );
+  // 日付を押したとき。その日を選ぶだけ。その日の中身は日のカード(または右の列)に出る。#148、0061
+  const onPressDay = useCallback((d: Date) => update({ date: d }), [update]);
+  // 日のカードの「+」、PC のマスに乗せたときの「+」から。その日を選び、その日の予定を足すシートを開く。#148、0061
+  const onAddNewDay = useCallback(
     (d: Date) => {
       update({ date: d });
       addNew(d);
     },
     [update, addNew],
   );
-  const onSelectWeekDay = useCallback((d: Date) => update({ date: d, view: "day" }), [update]);
-  const upcoming = useMemo(() => items.filter((i) => i.startsAt >= Date.now()).slice(0, 5), [items]);
+  // 週の一覧で日を選んだとき。View Transitions で、選んだ行が日の見出しへ伸びて移る。0049、#100
+  const onSelectWeekDay = useCallback(
+    (d: Date) => withViewTransition(reducedMotion, () => update({ date: d, view: "day" })),
+    [update, reducedMotion],
+  );
+  // 月・週・日の切り替え。同じく View Transitions で、選んでいる日をつなげる。0049、#100
+  const changeView = useCallback(
+    (v: CalendarView) => withViewTransition(reducedMotion, () => update({ view: v })),
+    [update, reducedMotion],
+  );
+  // 天気などの secondary な項目は、予定の一覧には出さない。日のカードでは出す。0056、#5
+  const upcoming = useMemo(() => items.filter((i) => i.startsAt >= Date.now() && !i.secondary).slice(0, 5), [items]);
 
   // ホームのウィジェットの並び。PC とスマホで別に持つ。0029
   const form = useMediaQuery("(min-width: 1024px)") ? "desktop" : "mobile";
@@ -249,7 +381,10 @@ export function CalendarPage() {
       .then((item) => {
         if (!cancelled) setEditor({ mode: "edit", item });
       })
-      .catch(() => {})
+      // 読めなかったとき(消えた、見られなくなった)。捨てずに知らせる。#204
+      .catch(() => {
+        if (!cancelled) toast.error("見つかりません。消されたか、見られなくなりました。");
+      })
       .finally(() => {
         if (cancelled) return;
         setParams(
@@ -266,6 +401,21 @@ export function CalendarPage() {
       cancelled = true;
     };
   }, [openExt, openId, setParams]);
+
+  // ホーム画面のアイコンの近道「予定を足す」から開いたとき。開いたら消す。#110
+  const shortcutNew = params.get("new");
+  useEffect(() => {
+    if (!shortcutNew) return;
+    addNew(today);
+    setParams(
+      (p) => {
+        const q = new URLSearchParams(p);
+        q.delete("new");
+        return q;
+      },
+      { replace: true },
+    );
+  }, [shortcutNew, today, addNew, setParams]);
 
   // PC のキー。左右で移る、T で今日、N で予定を足す。0012
   useEffect(() => {
@@ -293,74 +443,71 @@ export function CalendarPage() {
     (x.itemAddons ?? []).filter((a) => a.extension === editorKey).map((a) => a.Component),
   );
 
-  /** グループで絞る選択肢の中身。自分だけのグループは「自分だけの予定」と書く。0009 */
-  const groupOption = (g: GroupSummary) => ({
-    key: g.id,
-    pressed: groupFilter === g.id,
-    onClick: () => update({ group: groupFilter === g.id ? null : g.id }),
-    children: (
-      <>
-        <Dot color={me.data ? groupColor(g, me.data.colorPrefs) : g.color} />
-        {g.isPersonal ? "自分だけの予定" : g.name}
-      </>
-    ),
+  /** グループで絞る選択肢。自分だけのグループは「自分だけの予定」と書く。0009、0057 */
+  const filterOptions = groupFilterOptions({
+    groups: allGroups,
+    me: me.data,
+    value: groupFilter,
+    onChange: (id) => update({ group: id }),
+    personalLabel: "自分だけの予定",
   });
 
-  /** 絞り込みの選択肢。スマホは丸いボタン、PC は左の列の行 */
-  const filters = (
-    render: (p: { key: string; pressed: boolean; onClick: () => void; children: React.ReactNode }) => React.ReactNode,
-  ) => [
-    render({ key: "all", pressed: !groupFilter, onClick: () => update({ group: null }), children: "すべて" }),
-    ...allGroups.map((g) => render(groupOption(g))),
+  // 足せるものは予定だけ。「+」を押すと選んでいる日で直接シートが開く。issue #150、拡張のものは拡張の画面が持つ。0019
+  // 読み上げの名前に選んだ日を入れる。予定を足す入口はここだけなので、どの日に足すかを名前で伝える。0012、0062、issue #150
+  const addEventLabel = `${formatDay(selected)}に予定を足す`;
+  const eventAddables: Addable[] = [
+    { key: "event", label: addEventLabel, icon: CalendarPlus, onClick: () => addNew(selected) },
   ];
 
-  /**
-   * 予定を足すボタン。
-   * @param narrow 狭い幅では言葉を隠し、＋の印だけにする。下の操作の帯を折り返さずに収めるため
-   */
-  const addButton = (narrow = false) => (
-    <Button onClick={() => addNew(selected)} aria-label="予定を足す" className={narrow ? "px-4" : undefined}>
-      <Plus className="size-5" />
-      <span aria-hidden="true" className={narrow ? "hidden min-[380px]:inline" : undefined}>
-        予定を足す
-      </span>
-    </Button>
-  );
-
-  return (
-    <AppLayout
-      poolColors={poolColorsOf(allGroups, me.data)}
-      poolFocus={focusIndex >= 0 ? focusIndex : null}
-      side={
-        <div role="group" aria-label="表示するグループ" className="pr-2" data-tour="group-filter">
-          <SideHeading>表示するグループ</SideHeading>
-          {filters(({ key, pressed, onClick, children }) => {
+  useAppFrame({
+    poolColors: poolColorsOf(allGroups, me.data),
+    poolFocus: focusIndex >= 0 ? focusIndex : null,
+    side: (
+      <div className="flex flex-col gap-3">
+        <SideGroupFilter
+          options={filterOptions}
+          tourId="group-filter"
+          renderOption={(o) => {
             // 共有のグループは、矢印でメンバーを開き、人ごとに出し入れできる。F-20
-            const section = sections.find((s) => s.group.id === key);
+            const section = sections.find((s) => s.group.id === o.key);
             if (!section) {
               return (
-                <button key={key} type="button" className={sideItemClass} aria-pressed={pressed} onClick={onClick}>
-                  {children}
+                <button
+                  key={o.key}
+                  type="button"
+                  className={sideItemClass}
+                  aria-pressed={o.pressed}
+                  onClick={o.onClick}
+                >
+                  {o.label}
                 </button>
               );
             }
             return (
               <SideGroup
-                key={key}
+                key={o.key}
                 section={section}
-                label={children}
-                pressed={pressed}
-                onFilter={onClick}
-                open={sideOpen.isOpen(key)}
-                onOpenChange={(o) => sideOpen.setOpen(key, o)}
+                label={o.label}
+                pressed={o.pressed}
+                onFilter={o.onClick}
+                open={sideOpen.isOpen(o.key)}
+                onOpenChange={(v) => sideOpen.setOpen(o.key, v)}
                 hidden={hiddenIds}
                 onToggle={togglePerson}
               />
             );
-          })}
+          }}
+        />
+        <div>
+          <SideHeading>種類で絞る</SideHeading>
+          <SideKinds hidden={hiddenKinds} onToggle={toggleKind} />
         </div>
-      }
-    >
+      </div>
+    ),
+  });
+
+  return (
+    <>
       {/*
         スマホの幅では、月と年に「今日」「前」「次」「読み直す」「知らせ」「アカウント」を足すと 1 行に入らない。
         入る月と入らない月で高さが変わると落ち着かないので、スマホではいつも月と年の下へ操作を置く。
@@ -373,7 +520,14 @@ export function CalendarPage() {
               {selected.getMonth() + 1}
             </span>
             <span className="text-[17px] font-bold">月</span>
-            <span className="ml-2 text-[17px] font-medium text-ink-2">{selected.getFullYear()}</span>
+            <Link
+              to={`/spiral/${selected.getFullYear()}`}
+              // 押せる範囲を指の目安 44px に広げる。文字の大きさは変えない。#22
+              className="-my-2.5 ml-2 inline-flex min-h-11 items-center rounded-md px-2 text-[17px] font-medium text-ink-2 underline decoration-dotted underline-offset-4"
+              aria-label={`${selected.getFullYear()} 年を、らせんで見る`}
+            >
+              {selected.getFullYear()}
+            </Link>
           </h1>
           <div className="flex w-full shrink-0 items-center justify-end gap-0.5 lg:ml-auto lg:w-auto lg:gap-1">
             {showTodayButton && (
@@ -403,18 +557,10 @@ export function CalendarPage() {
             </Button>
             <RefreshButton />
             <div className="ml-2 hidden gap-2.5 lg:flex">
-              <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} />
-              <Button
-                variant="secondary"
-                disabled={layoutLoading || !!layoutError}
-                onClick={startEdit}
-                data-tour="edit-home"
-              >
-                <Pencil className="size-4" />
-                ホームを編集
-              </Button>
-              {addButton()}
+              <Segmented label="表示の単位" value={view} options={VIEWS} onChange={changeView} />
+              <PrimaryAddButton label={addEventLabel} addables={eventAddables} />
             </div>
+            {me.data && <SearchButton groups={allGroups} me={me.data} onOpen={openSearchResult} />}
             <NotificationBell />
             <AccountMenu />
           </div>
@@ -424,23 +570,11 @@ export function CalendarPage() {
       {/* ホーム画面に追加する案内。上の帯のすぐ下に並べる。F-34 */}
       {!editingHome && <InstallBanner className="-order-1" />}
 
+      {/* いつもの共有先にするかの案内。1 回だけ聞く。0063、F-40 */}
+      {!editingHome && me.data && <UsualShareOfferBanner me={me.data} groups={allGroups} className="-order-1" />}
+
       {/* 近道の帯。スマホは上の帯のすぐ下、PC は左の列。F-26、0037 */}
       {!editingHome && <ShortcutBand className="lg:hidden" />}
-
-      {!editingHome && (
-        <div className="-mb-1 lg:hidden">
-          <Button
-            variant="secondary"
-            className="w-full"
-            disabled={layoutLoading || !!layoutError}
-            onClick={startEdit}
-            data-tour="edit-home"
-          >
-            <Pencil className="size-4" />
-            ホームを編集
-          </Button>
-        </div>
-      )}
 
       {/* 編集の間は、上の帯の代わりに編集の帯を出す。月を移る矢印や知らせは要らない。取り消しはここだけ。#76 */}
       {editingHome && (
@@ -455,27 +589,14 @@ export function CalendarPage() {
 
       {/*
         グループが多いときは横に流れる。はみ出すときだけ、流せることが分かるよう下にバーを出す。F-25
-        下の余白 12 px はバーの有無にかかわらず取る。バーは余白の下 4 px に重なり、チップとは 8 px あく。帯の高さは変わらない
+        下の余白 12 px はバーの有無にかかわらず取る。バーは余白の下 4 px に重なり、チップとは 8 px あく。帯の高さは変わらない。0057
       */}
-      <nav className="-mx-4 lg:hidden" aria-label="グループで絞る" data-tour="group-filter">
-        <ScrollArea
-          orientation="horizontal"
-          className="px-4"
-          viewportClassName="pb-3"
-          scrollbarClassName="left-4! right-4!"
-        >
-          <div className="flex w-max gap-2">
-            {filters(({ key, pressed, onClick, children }) => (
-              <Chip key={key} aria-pressed={pressed} onClick={onClick}>
-                {children}
-              </Chip>
-            ))}
-            {sections.length > 0 && (
-              <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />
-            )}
-          </div>
-        </ScrollArea>
-      </nav>
+      <GroupFilterBand options={filterOptions} tourId="group-filter">
+        {sections.length > 0 && (
+          <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />
+        )}
+        <KindChip hidden={hiddenKinds} onToggle={toggleKind} />
+      </GroupFilterBand>
 
       {calendar.error && (!calendar.data || calendar.isPlaceholderData) && (
         <LoadFailure
@@ -487,7 +608,20 @@ export function CalendarPage() {
 
       <div className={calendar.error && (!calendar.data || calendar.isPlaceholderData) ? "hidden" : "contents"}>
         <CalendarHomeProvider
-          value={{ view, today, selected, days, items, upcoming, open, onPressDay, onSelectWeekDay }}
+          value={{
+            view,
+            today,
+            selected,
+            days,
+            items,
+            upcoming,
+            leaving,
+            open,
+            onPressDay,
+            onAddNewDay,
+            onSelectWeekDay,
+            monthNav,
+          }}
         >
           {layoutError ? (
             <LoadFailure what="ホームの並び" error={layoutError} onRetry={refetchLayout} />
@@ -504,18 +638,33 @@ export function CalendarPage() {
         </CalendarHomeProvider>
       </div>
 
+      {/* ウィジェットの並びの最後に、小さな字で置く。使う回数が少ないので、月の表より目立たせない。issue #150 */}
       {!editingHome && (
-        <div
-          role="toolbar"
-          aria-label="カレンダーの操作"
-          className="glass fixed inset-x-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[528px] items-center justify-between gap-1 rounded-full p-1.5 lg:hidden"
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start"
+          disabled={layoutLoading || !!layoutError}
+          onClick={startEdit}
+          data-tour="edit-home"
         >
+          <Pencil className="size-3.5" />
+          ホームを編集
+        </Button>
+      )}
+
+      {/* ウィジェットが少なく中身が短いと、浮いた下の帯にこのボタンが重なるので、帯と同じ高さの余白を足す。issue #24 */}
+      {!editingHome && <div className="h-[var(--dock-clearance)] lg:hidden" aria-hidden="true" />}
+
+      {/* スマホの下の帯。拡張の画面の Dock と同じ、浮いた丸のまとまりにする。左側の操作(機能、表示の単位)は変えない。0012、issue #150 */}
+      {!editingHome && (
+        <Dock label="カレンダーの操作" className="lg:hidden">
           <Button variant="ghost" size="icon" aria-label="機能" onClick={() => setFeatures(true)}>
             <LayoutGrid className="size-5" />
           </Button>
-          <Segmented label="表示の単位" value={view} options={VIEWS} onChange={(v) => update({ view: v })} compact />
-          {addButton(true)}
-        </div>
+          <Segmented label="表示の単位" value={view} options={VIEWS} onChange={changeView} compact />
+          <PrimaryAddButton label={addEventLabel} addables={eventAddables} />
+        </Dock>
       )}
 
       {features && <FeatureSheet onClose={() => setFeatures(false)} />}
@@ -546,6 +695,6 @@ export function CalendarPage() {
           addons={addons}
         />
       )}
-    </AppLayout>
+    </>
   );
 }

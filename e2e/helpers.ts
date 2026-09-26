@@ -1,4 +1,4 @@
-import { type APIRequestContext, expect, type Page } from "@playwright/test";
+import { type APIRequestContext, expect, type Locator, type Page } from "@playwright/test";
 
 /** Firebase の Auth エミュレーター。.env.test と同じ値 */
 export const EMULATOR = "http://127.0.0.1:9099";
@@ -15,6 +15,27 @@ export function uniqueEmail(prefix = "user"): string {
 }
 
 export const PASSWORD = "correct-horse-42";
+
+/**
+ * 日本時間の今日から、指定した日数だけ進んだ日の年・月・日と `yyyy-mm-dd` の形をまとめて返す。
+ * CI は UTC で動くため、素の Date の getFullYear などを使うと、日本時間の「今日」とずれることがある
+ */
+export function tokyoDateParts(offsetDays = 0): { year: number; month: number; day: number; key: string } {
+  const at = new Date(Date.now() + offsetDays * 86_400_000);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(at);
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    key: `${map.year}-${map.month}-${map.day}`,
+  };
+}
 
 type OobCode = { email: string; requestType: "VERIFY_EMAIL" | "PASSWORD_RESET"; oobCode: string; oobLink: string };
 
@@ -134,6 +155,76 @@ export async function resetPassword(request: APIRequestContext, oobCode: string,
 export const dayPanel = (page: Page) => page.getByTestId("day-panel");
 
 /**
+ * タッチの横のスワイプを起こす。月送りの日めくり(#99)のように、指の動きを追う操作を確かめるのに使う。
+ * @param dx 動かす向きと幅。負なら左(次へ)、正なら右(前へ)
+ * @param steps 途中の touchmove の回数。多いほど、指がゆっくり動いたことになる
+ */
+export async function swipeHorizontal(target: Locator, dx: number, steps = 8) {
+  const box = (await target.boundingBox())!;
+  const startX = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  const point = (x: number) => ({ identifier: 1, clientX: x, clientY: y });
+  await target.dispatchEvent("touchstart", { touches: [point(startX)], changedTouches: [point(startX)] });
+  for (let i = 1; i <= steps; i++) {
+    const x = startX + (dx * i) / steps;
+    await target.dispatchEvent("touchmove", { touches: [point(x)], changedTouches: [point(x)] });
+  }
+  const endX = startX + dx;
+  await target.dispatchEvent("touchend", { touches: [], changedTouches: [point(endX)] });
+}
+
+/**
+ * 指で押して引いて離す。CDP の Input.dispatchTouchEvent を直に呼ぶ。持ち手のドラッグは
+ * Pointer Events の pointer capture を使うため、DOM に合成イベントを投げるだけでは
+ * ブラウザが「押されている指」を認識せず捕まらない。実の入力として扱わせるため CDP を使う。#121
+ */
+export async function touchDrag(page: Page, from: { x: number; y: number }, to: { x: number; y: number }, steps = 8) {
+  const client = await page.context().newCDPSession(page);
+  await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: from.x, y: from.y }] });
+  for (let i = 1; i <= steps; i++) {
+    const x = from.x + ((to.x - from.x) * i) / steps;
+    const y = from.y + ((to.y - from.y) * i) / steps;
+    await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y }] });
+  }
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+}
+
+/**
+ * 「機能を足す」画面で、指定した機能を自分だけで使えるようにする。issue #145
+ * @param label 拡張の manifest.label(カードの見出し)
+ */
+export async function addExtension(page: Page, label: string) {
+  await page.goto("/settings/extensions/add");
+  await page.getByRole("region", { name: label }).getByRole("button", { name: "足す" }).click();
+  await expect(page).toHaveURL(/\/settings\/extensions$/);
+}
+
+/**
+ * 設定の「機能」で、並びを変える状態にしてから指定した機能を外す。issue #145
+ * @param label タイルの名前(nav の名前、無ければ manifest の名前)
+ */
+export async function removeExtension(page: Page, label: string) {
+  await page.goto("/settings/extensions");
+  await page.getByRole("button", { name: "並びを変える" }).click();
+  await page.getByRole("button", { name: `${label}を外す` }).click();
+  const confirm = page.getByRole("dialog", { name: `${label}を外しますか` });
+  await confirm.getByRole("button", { name: "外す" }).click();
+  // 外した知らせが出るまで待ち、サーバーの書き込みが終わってから戻す
+  await expect(page.getByText(`${label}を外しました`)).toBeVisible();
+  await expect(confirm).toBeHidden();
+}
+
+/**
+ * 「共有」の選ぶ行を押し、開いた「共有する相手」の一覧から選ぶ。0057
+ * @param host シートかダイアログ。行を探す範囲
+ * @param name 選ぶ相手の名前。「共有しない」「自分だけ」も使える
+ */
+export async function pickShare(page: Page, host: Locator, name: string) {
+  await host.getByRole("button", { name: /^共有/ }).click();
+  await page.getByRole("dialog", { name: "共有する相手" }).getByRole("radio", { name }).click();
+}
+
+/**
  * カレンダーの下の操作から、予定を 1 件足す。
  * @param group 共有するグループの名前。無ければ「共有しない」のまま保存する
  */
@@ -141,7 +232,19 @@ export async function addEvent(page: Page, title: string, group?: string) {
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill(title);
-  if (group) await sheet.getByRole("radio", { name: group }).click();
+  if (group) await pickShare(page, sheet, group);
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("予定を足しました")).toBeVisible();
+}
+
+/**
+ * 思い出の画面で、記録するか思い出を作るを始める。記録するは下の「+」を直に押し、
+ * 思い出を作るは見出しの右のボタンを押す。#164
+ */
+export async function addMemories(page: Page, option: "記録する" | "思い出を作る") {
+  if (option === "記録する") {
+    await page.getByRole("toolbar", { name: "思い出の操作" }).getByRole("button", { name: "記録する" }).click();
+  } else {
+    await page.getByRole("button", { name: "思い出を作る" }).click();
+  }
 }

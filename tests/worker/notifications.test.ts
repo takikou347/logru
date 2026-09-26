@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { knownNotificationKinds } from "../../src/extensions/server/registry";
-import { uniqueUserIds } from "../../src/server/core/notifications/send";
+import { isNotificationCleanupWindow, uniqueUserIds } from "../../src/server/core/notifications/send";
 import {
   buildPage,
   decodeCursor,
@@ -83,5 +83,18 @@ describe("notify() が積む相手の重複", () => {
 
   it("誰も渡さなければ空のまま", () => {
     expect(uniqueUserIds([])).toEqual([]);
+  });
+});
+
+describe("お知らせの掃除の枠。1 日 1 回だけにする。0066、#162", () => {
+  it("協定世界時 18 時台の最初の 5 分だけ、枠の中とみなす", () => {
+    expect(isNotificationCleanupWindow(new Date("2026-09-24T18:00:00Z"))).toBe(true);
+    expect(isNotificationCleanupWindow(new Date("2026-09-24T18:04:59Z"))).toBe(true);
+  });
+
+  it("枠の外は掃除しない", () => {
+    expect(isNotificationCleanupWindow(new Date("2026-09-24T18:05:00Z"))).toBe(false);
+    expect(isNotificationCleanupWindow(new Date("2026-09-24T12:00:00Z"))).toBe(false);
+    expect(isNotificationCleanupWindow(new Date("2026-09-24T17:59:00Z"))).toBe(false);
   });
 });

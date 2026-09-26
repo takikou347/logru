@@ -120,13 +120,10 @@ export function useItemMutations(memoryId: string) {
     onError: rollback,
     onSettled: settle,
   });
+  // 消す本体は 5 秒の「元に戻す」の後に呼ぶ。画面から隠すところは呼び出し側が useUndoableDelete で持つ。issue #12
   const remove = useMutation({
-    mutationFn: (id: string) => api(`/memories/${memoryId}/items/${id}`, { method: "DELETE" }),
-    onMutate: async (id) => {
-      await qc.cancelQueries({ queryKey: key });
-      return patchLocal((items) => items.filter((i) => i.id !== id));
-    },
-    onError: rollback,
+    mutationFn: ({ id, keepalive }: { id: string; keepalive?: boolean }) =>
+      api(`/memories/${memoryId}/items/${id}`, { method: "DELETE", keepalive }),
     onSettled: settle,
   });
   const copy = useMutation({
@@ -143,13 +140,18 @@ export function useItemMutations(memoryId: string) {
   return { add, update, remove, copy };
 }
 
-/** いいねを付ける、外す。押した瞬間に数を変え、失敗したら戻す。F-116 */
+/** いいねを付ける、外す。押した瞬間に数を変え、失敗したら戻す。F-116、#204 */
 export function useLike() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ record, on }: { record: MemoryRecord; on: boolean; me: string }) =>
       api<{ likes: string[] }>(`/memories/records/${record.id}/like`, { method: on ? "PUT" : "DELETE" }),
     onMutate: async ({ record, on, me }) => {
+      await qc.cancelQueries({ queryKey: ["memories", "records"] });
+      await qc.cancelQueries({ queryKey: ["memories", "list"] });
+      // 失敗したときに戻すため、書き換える前の値を全部覚えておく
+      const prevRecords = qc.getQueriesData<MemoryRecord[]>({ queryKey: ["memories", "records"] });
+      const prevLists = qc.getQueriesData<MemoryList>({ queryKey: ["memories", "list"] });
       const patch = (r: MemoryRecord) =>
         r.id === record.id
           ? { ...r, likes: on ? [...r.likes.filter((u) => u !== me), me] : r.likes.filter((u) => u !== me) }
@@ -158,9 +160,17 @@ export function useLike() {
       qc.setQueriesData<MemoryList>({ queryKey: ["memories", "list"] }, (old) =>
         old ? { ...old, recent: old.recent.map(patch) } : old,
       );
+      return { prevRecords, prevLists };
     },
-    onError: (e) => toast.error((e as Error).message),
-    onSettled: () => qc.invalidateQueries({ queryKey: ["memories", "records"] }),
+    onError: (e, _v, ctx) => {
+      toast.error((e as Error).message);
+      for (const [key, data] of ctx?.prevRecords ?? []) qc.setQueryData(key, data);
+      for (const [key, data] of ctx?.prevLists ?? []) qc.setQueryData(key, data);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["memories", "records"] });
+      qc.invalidateQueries({ queryKey: ["memories", "list"] });
+    },
   });
 }
 
@@ -184,7 +194,7 @@ export function useSaveMemory() {
   });
 }
 
-/** 思い出を削除する。しおりは消えるが、記録と写真は残る */
+/** 思い出を消す。しおりは消えるが、記録と写真は残る */
 export function useDeleteMemory() {
   return useMutation({
     mutationFn: (id: string) => api(`/memories/${id}`, { method: "DELETE" }),
@@ -205,5 +215,15 @@ export function useSaveRecord() {
 export function useDeleteRecord() {
   return useMutation({
     mutationFn: (id: string) => api(`/memories/records/${id}`, { method: "DELETE", keepalive: true }),
+  });
+}
+
+/**
+ * 使わなかった写真をすぐ消す。写真を外したときや、記録のシートを保存せずに閉じたときに呼ぶ。
+ * 送った本人の、まだ記録に付いていない写真だけ消せる。シートを閉じた後も送り切るよう keepalive を付ける。#158
+ */
+export function useDiscardPhoto() {
+  return useMutation({
+    mutationFn: (photoId: string) => api(`/memories/photos/${photoId}`, { method: "DELETE", keepalive: true }),
   });
 }

@@ -18,12 +18,16 @@ const me: Me = {
     userColor: "wakatake",
     avatarKind: "initial",
     toursSeen: [],
+    extensionOrder: [],
+    usualShareGroupId: null,
   },
   needsAgreement: [],
   provider: "password",
   colorPrefs: [{ targetType: "user", targetId: "mika", color: "asagi" }],
   hiddenMembers: [],
   onboardedAt: null,
+  showLab: false,
+  usualShareAskedAt: null,
 };
 
 const group = (id: string, members: [string, string][], isPersonal = false): GroupSummary => ({

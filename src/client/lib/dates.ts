@@ -6,6 +6,9 @@ import holidayJp from "@holiday-jp/holiday_jp";
 
 /** 1 日のミリ秒 */
 export const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** 端末の時間帯の名前。#205 */
+export const deviceTimeZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Tokyo";
 /** 日曜から始まる曜日の名前 */
 export const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
@@ -82,9 +85,49 @@ export function formatTime(ms: number): string {
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-/** `9月21日 月曜` の形にする */
-export function formatDay(d: Date): string {
-  return `${d.getMonth() + 1}月${d.getDate()}日 ${WEEKDAYS[d.getDay()]}曜`;
+/**
+ * 日付の書き方はこの 1 つの形にそろえる。曜日は付けない。決定 0059
+ * `9.21`、`9/21`、`9月21日 月曜` は使わない。曜日を見せるのはカレンダーの形の中だけ(月の表の曜日の列、
+ * 日のカードの「木曜」、週と日の表示の日の列、繰り返しの曜日の丸)で、そこは `WEEKDAYS` を直に使う
+ * @param opts.year true なら `2026年9月21日` にする。年をまたぐ一覧など、年も要る場所で使う
+ */
+export function formatDay(d: Date, opts?: { year?: boolean }): string {
+  const year = opts?.year ? `${d.getFullYear()}年` : "";
+  return `${year}${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+/**
+ * `9月21日` の形にする。`dateKey` の文字列から `formatDay` を呼ぶ近道。決定 0059
+ * @param dateKey `2026-09-21` の形。形が違えばそのまま返す
+ */
+export function formatShortDate(dateKey: string): string {
+  const d = parseDateKey(dateKey);
+  return d ? formatDay(d) : dateKey;
+}
+
+/**
+ * ミリ秒を、指定した時間帯で数えて `formatDay` と同じ形にする。思い出など、端末と違う
+ * 時間帯を持つ拡張で使う。画面ごとに Intl.DateTimeFormat を直に組み立てない。決定 0059
+ */
+function formatDayAt(ms: number, timeZone: string | undefined, opts?: { year?: boolean }): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(ms);
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  const d = new Date(Number(map.year), Number(map.month) - 1, Number(map.day));
+  return formatDay(d, opts);
+}
+
+/**
+ * 期間の見出し。同じ日なら 1 つ、違えば `9月19日〜9月20日` のようにつなぐ。決定 0059
+ */
+export function formatSpan(startsAt: number, endsAt: number, timeZone: string): string {
+  const first = formatDayAt(startsAt, timeZone);
+  const last = formatDayAt(endsAt - 1, timeZone);
+  return first === last ? first : `${first}〜${last}`;
 }
 
 /** `<input type="time">` に入れる `09:00` の形にする */

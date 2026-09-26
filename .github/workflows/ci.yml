@@ -8,14 +8,18 @@ on:
   # 同じ版を出し直すとき。main か develop を選んで流す
   workflow_dispatch:
 
+# GITHUB_TOKEN はリポジトリを読むだけにする。出すときの鍵は Environment の secrets で渡す
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: pnpm
@@ -27,14 +31,14 @@ jobs:
       - run: pnpm e2e
         env:
           CI: "true"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:
           name: playwright-report
           path: playwright-report
           retention-days: 7
 
-  # main へ入れてよいのは develop と hotfix/ だけ。ほかの PR は develop へ向ける
+  # main へ入れてよいのは develop、hotfix/、release/ だけ。ほかの PR は develop へ向ける
   branch-rule:
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -45,8 +49,8 @@ jobs:
           HEAD: ${{ github.head_ref }}
         run: |
           case "$HEAD" in
-            develop|hotfix/*) echo "ok: $HEAD" ;;
-            *) echo "::error::main へは develop か hotfix/ からだけ入れる。この PR は develop へ向ける"; exit 1 ;;
+            develop|hotfix/*|release/*) echo "ok: $HEAD" ;;
+            *) echo "::error::main へは develop、hotfix/、release/ からだけ入れる。この PR は develop へ向ける"; exit 1 ;;
           esac
 
   deploy:
@@ -76,11 +80,11 @@ jobs:
             echo "::warning::$CLOUDFLARE_ENV の CLOUDFLARE_API_TOKEN か CLOUDFLARE_ACCOUNT_ID が無いので、出さずに終える"
           fi
       - if: steps.ready.outputs.ready == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - if: steps.ready.outputs.ready == 'true'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
       - if: steps.ready.outputs.ready == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: pnpm

@@ -15,8 +15,9 @@ export const memoriesClient: ClientExtension = {
   manifest: memoriesManifest,
   Editor: MemoryItemSheet,
   nav: { label: "思い出", icon: BookOpen, path: "/memories", description: "しおり、記録、アルバム" },
+  // 機能のシートには出さない。actions は「機能を足す」直後の案内だけに使う。どちらもホームのウィジェットにある。0019
   actions: [
-    { label: "記録する", icon: Camera, path: "/memories?record=1", hint: "写真と一言" },
+    { label: "写真を記録する", icon: Camera, path: "/memories?record=1", hint: "写真と一言" },
     { label: "ひとコマ", icon: Timer, path: "/memories/koma", hint: "1 時間に 1 枚" },
   ],
   useShortcut: useKomaShortcut,
@@ -34,7 +35,7 @@ export const memoriesClient: ClientExtension = {
     },
     {
       key: "memories.record",
-      label: "記録する",
+      label: "写真を記録する",
       description: "記録のシートを開きます。写真と一言を残せます。",
       defaultPlaced: true,
       Component: RecordHomeWidget,

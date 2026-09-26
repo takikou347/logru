@@ -5,6 +5,7 @@ import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "rea
 import { Notice } from "@/components/layout/AuthShell";
 import { ColorSwatches } from "@/components/parts/ColorSwatches";
 import { Field } from "@/components/parts/Field";
+import { Mascot } from "@/components/parts/Mascot";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,6 +93,8 @@ export function OnboardingSheet({
       >
         {step === 0 && (
           <>
+            {/* 手を振るメクリで迎える。0053、#179 */}
+            <Mascot pose="wave" className="self-center" />
             <p>Logru はカレンダーが土台です。要る機能だけを足して使います。</p>
             <p>はじめに、表示名と自分の色を決めましょう。あとから設定で変えられます。</p>
             <Field label="表示名" error={nameError}>
@@ -126,7 +129,7 @@ export function OnboardingSheet({
         )}
         {step === 1 && (
           <>
-            <p>カレンダーの日付を押すと、その日の予定を足せます。下の「＋」からも足せます。</p>
+            <p>下の「＋」で、選んでいる日に予定を足せます。</p>
             <Button variant="secondary" className="self-start" onClick={onAddEvent}>
               予定を 1 つ足してみる
             </Button>
@@ -135,7 +138,7 @@ export function OnboardingSheet({
         {step === 2 && <GroupStep onJoin={(token) => onDone(`/invite/${token}`)} />}
         {step === 3 && (
           <>
-            <p>機能の一覧で、思い出などの機能を選んで足せます。使わない機能は出ません。</p>
+            <p>機能の一覧で、思い出などの機能を「+」から足せます。足していない機能は出ません。</p>
             <p>スマホでは、ホーム画面に追加すると、アプリのように全画面で使えます。</p>
           </>
         )}
@@ -152,7 +155,7 @@ export function OnboardingSheet({
             <Button variant="secondary" className="ml-auto" onClick={() => onDone()}>
               あとで
             </Button>
-            <Button onClick={() => onDone("/extensions")}>機能の一覧へ</Button>
+            <Button onClick={() => onDone("/settings/extensions")}>機能の一覧へ</Button>
           </>
         ) : (
           <Button className="ml-auto min-w-28" onClick={next}>

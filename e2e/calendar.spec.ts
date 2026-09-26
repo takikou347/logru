@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addEvent, dayPanel, signUp } from "./helpers";
+import { addEvent, dayPanel, pickShare, signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
@@ -19,15 +19,15 @@ test("予定は「共有しない」が既定で、「自分だけの予定」�
   await expect(page.getByRole("heading", { name: "ふたり" })).toBeVisible();
   await page.goto("/");
 
-  // シートは「共有しない」を選んだ状態で開く
+  // シートは「共有しない」を選んだ状態で開く。行では「自分だけ」と出す。0059、#164
   await page.getByRole("button", { name: "予定を足す" }).last().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
-  const share = sheet.getByRole("radiogroup", { name: "共有" });
-  await expect(share.getByRole("radio", { name: "共有しない" })).toHaveAttribute("aria-checked", "true");
+  const shareRow = sheet.getByRole("button", { name: /^共有/ });
+  await expect(shareRow).toContainText("自分だけ");
   await expect(sheet.getByText("自分だけに見えます。")).toBeVisible();
-  await share.getByRole("radio", { name: "ふたり" }).click();
+  await pickShare(page, sheet, "ふたり");
   await expect(sheet.getByText("「ふたり」のメンバー全員に見えます。")).toBeVisible();
-  await share.getByRole("radio", { name: "共有しない" }).click();
+  await pickShare(page, sheet, "共有しない");
   await sheet.getByLabel("題名").fill("ひとりの用事");
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("予定を足しました")).toBeVisible();
@@ -42,9 +42,8 @@ test("予定は「共有しない」が既定で、「自分だけの予定」�
   await filter.getByRole("button", { name: "ふたり" }).click();
   await expect(dayPanel(page).getByRole("button", { name: /ひとりの用事/ })).toHaveCount(0);
   await page.getByRole("button", { name: "予定を足す" }).last().click();
-  await expect(page.getByRole("dialog", { name: "新しい予定" }).getByRole("radio", { name: "ふたり" })).toHaveAttribute(
-    "aria-checked",
-    "true",
+  await expect(page.getByRole("dialog", { name: "新しい予定" }).getByRole("button", { name: /^共有/ })).toContainText(
+    "ふたり",
   );
 });
 
@@ -118,32 +117,36 @@ test("消すと 5 秒だけ元に戻せる", async ({ page }) => {
   await expect(dayPanel(page).getByRole("button", { name: /ジム/ })).toHaveCount(0);
 });
 
-test("日付を押すと、その日の予定を足すシートが開く", async ({ page }) => {
+test("日付を押すと、その日を選ぶだけになる。中身は日のカードに出る。#148", async ({ page }) => {
   const grid = page.getByRole("region", { name: "月の表" });
   await grid.locator('[data-date="15"]:not([data-out]) button').first().click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page).toHaveURL(/date=\d{4}-\d{2}-15/);
+  await expect(page.getByTestId("big-day")).toHaveText("15");
+});
+
+test("日付を選んでから下の帯の「+」を押すと、選んでいる日で予定を足すシートが開く。#148、issue #150", async ({
+  page,
+}) => {
+  const grid = page.getByRole("region", { name: "月の表" });
+  await grid.locator('[data-date="15"]:not([data-out]) button').first().click();
+
+  await page.getByRole("button", { name: "予定を足す" }).last().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByLabel("日付")).toHaveValue(/-15$/);
   // 予定が無い日は、一覧を出さない
   await expect(sheet.getByRole("region", { name: /日の予定$/ })).toHaveCount(0);
-  await expect(page).toHaveURL(/date=\d{4}-\d{2}-15/);
-  // 閉じると、押した日が選ばれている
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByTestId("big-day")).toHaveText("15");
-});
-
-test("日付を押すと、シートにその日の予定が並び、押すと直すシートに切り替わる", async ({ page }) => {
-  const day = page.getByRole("region", { name: "月の表" }).locator('[data-date="15"]:not([data-out]) button').first();
-  await day.click();
-  const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill("歯医者");
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("予定を足しました")).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  await day.click();
+  // もう一度「+」を押すと、その日の予定が畳んだ 1 行で並ぶ。開くと押すと直すシートに切り替わる
+  await page.getByRole("button", { name: "予定を足す" }).last().click();
   const list = sheet.getByRole("region", { name: /15日の予定$/ });
+  await expect(list.getByRole("button", { name: /歯医者/ })).toHaveCount(0);
+  await list.getByRole("button", { name: /15日の予定/ }).click();
   await expect(list.getByRole("button", { name: /歯医者/ })).toBeVisible();
   await expect(list.getByText("自分")).toBeVisible();
   await list.getByRole("button", { name: /歯医者/ }).click();
@@ -153,16 +156,50 @@ test("日付を押すと、シートにその日の予定が並び、押すと�
   await expect(page.getByRole("dialog", { name: "新しい予定" })).toHaveCount(0);
 });
 
-test("長押しすると、その日の予定を足すシートが開く", async ({ page }) => {
+test("新しい予定のシートを開くと、題名にフォーカスがある。issue #200", async ({ page }) => {
+  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  const sheet = page.getByRole("dialog", { name: "新しい予定" });
+  await expect(sheet.getByLabel("題名")).toBeFocused();
+});
+
+test("題名を入れてからその日の予定の行を押すと確かめが出て、やめると書きかけが残る。issue #200", async ({ page }) => {
+  await addEvent(page, "歯医者");
+
+  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  const sheet = page.getByRole("dialog", { name: "新しい予定" });
+  await sheet.getByLabel("題名").fill("買い物");
+  const list = sheet.getByRole("region", { name: /日の予定$/ });
+  // 畳んだ行を開いてから、既にある予定を押す
+  await list.getByRole("button", { name: /日の予定/ }).click();
+  await list.getByRole("button", { name: /歯医者/ }).click();
+
+  const confirm = page.getByRole("dialog", { name: "書きかけを捨てて開きますか" });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole("button", { name: "やめる" }).click();
+  await expect(confirm).toBeHidden();
+  // シートは切り替わらず、書きかけの題名がそのまま残る
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByLabel("題名")).toHaveValue("買い物");
+
+  // もう一度押して、今度は「開く」を選ぶと直すシートに切り替わり、書きかけは消える
+  await list.getByRole("button", { name: /歯医者/ }).click();
+  await confirm.getByRole("button", { name: "開く" }).click();
+  const edit = page.getByRole("dialog", { name: "予定を直す" });
+  await expect(edit).toBeVisible();
+  await expect(edit.getByLabel("題名")).toHaveValue("歯医者");
+  await expect(sheet).toHaveCount(0);
+});
+
+test("長押しでも、押すのと同じくその日を選ぶだけになる。#148", async ({ page }) => {
   const cell = page.getByRole("region", { name: "月の表" }).locator('[data-date="12"]:not([data-out]) button').first();
   const box = (await cell.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.waitForTimeout(700);
   await page.mouse.up();
-  const sheet = page.getByRole("dialog", { name: "新しい予定" });
-  await expect(sheet).toBeVisible();
-  await expect(sheet.getByLabel("日付")).toHaveValue(/-12$/);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page).toHaveURL(/date=\d{4}-\d{2}-12/);
+  await expect(page.getByTestId("big-day")).toHaveText("12");
 });
 
 test("今日には読み上げ用の印が付き、月を移ると今日のボタンが出る", async ({ page }) => {

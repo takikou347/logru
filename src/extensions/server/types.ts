@@ -10,8 +10,12 @@ import type { CalendarItem } from "@shared/api-types";
 import type { Hono } from "hono";
 import type { ExtensionManifest } from "../types";
 
-/** 項目を呼ぶ人。利用者ごとの拡張が、本人の項目だけを返すのに使う */
-export type CalendarContext = { userId: string };
+/**
+ * 項目を呼ぶ人。利用者ごとの拡張が、本人の項目だけを返すのに使う。
+ * env と requestUrl は、外の API を呼ぶ拡張が、手元の開発と E2E で自分自身の見本の道へ
+ * 向け直すのに使う。任意なので、要らない拡張は無視してよい。天気の拡張が使う。0055
+ */
+export type CalendarContext = { userId: string; env?: Env; requestUrl?: string };
 
 /**
  * カレンダーに項目を渡す口。カレンダーは拡張の中身を知らず、これを呼ぶだけ。
@@ -30,6 +34,15 @@ type ListCalendarItems = (
 ) => Promise<CalendarItem[]>;
 
 /**
+ * 題名と場所を探す口。カレンダーは拡張の中身を知らず、これを呼ぶだけ。0046
+ * @param db D1 を包んだ Drizzle
+ * @param groupIds 呼んでよいグループ。利用者が入っていて、この拡張が有効なものだけ
+ * @param query 探す文字列。前後の空白を除いた 1 文字以上
+ * @param ctx 探す人
+ */
+type SearchItems = (db: DB, groupIds: string[], query: string, ctx: CalendarContext) => Promise<CalendarItem[]>;
+
+/**
  * Cron Triggers で定期的に呼ぶ処理。
  * @param db D1 を包んだ Drizzle
  * @param env Worker の環境変数
@@ -45,16 +58,26 @@ type ScheduledTask = (db: DB, env: Env) => Promise<void>;
  */
 type MemberLeaveTask = (db: DB, groupId: string, userId: string) => Promise<void>;
 
+/**
+ * その拡張が R2 に置いているものの合計バイト数。D1 の bytes の列から測り、R2 には聞かない。
+ * 写真とアバターの合計に上限を置くために使う。0066、#162
+ * @param db D1 を包んだ Drizzle
+ */
+type StorageBytesTask = (db: DB) => Promise<number>;
+
 /** サーバー側の拡張 */
 export type ServerExtension = {
   manifest: ExtensionManifest;
   /** Drizzle の表の定義。db/client.ts がまとめて読み込む */
   schema: Record<string, unknown>;
   listCalendarItems: ListCalendarItems;
+  search: SearchItems;
   /** `/api/<basePath>` に載せる API。無ければ省く */
   routes?: { basePath: string; router: Hono<AppEnv> };
   /** 定期的に呼ぶ処理。無ければ省く */
   scheduled?: ScheduledTask;
   /** 人がグループを抜けたときの片付け。無ければ省く。予定の拡張は、その人を予定の参加者から外す */
   onMemberLeave?: MemberLeaveTask;
+  /** R2 に置いているものの合計バイト数。無ければ省く。持つのは思い出の拡張だけ。0066 */
+  storageBytes?: StorageBytesTask;
 };

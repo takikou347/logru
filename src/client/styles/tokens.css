@@ -1,11 +1,22 @@
-/* 色と書体の決まり。0010 と docs/logru/images/ui.html に合わせる */
+/*
+ * 色と書体の決まり。0010 と docs/logru/images/ui.html に合わせる。
+ * 値の置き場は 0044。色はここ、角丸はここ(--r-panel、--r-field)と globals.css(--radius)、
+ * 影はここ(--glass-shadow)、ぼかしはここ(--blur、--glass-filter)、動きの時間はここ(--dur-*)、
+ * 緩急は globals.css(--ease-out、--ease-in-out)にある。
+ */
 :root {
   color-scheme: light;
+  /* 色 */
   --ground: #e6ece8;
   --ink: #17202c;
   --ink-2: #4a5563;
   --ink-3: #67707d;
   --sun: #c8402f;
+  /*
+   * 消す操作の文字を、ページの背景(--ground)に直接置いたときだけ使う、少し濃い朱。
+   * --sun のまま置くと比が 4.5:1 に届かない。ガラスの面の上はそのまま --sun を使う。issue #154、0034
+   */
+  --sun-deep: #b93a2a;
   --sat: #2d5fa8;
   --line: rgba(23, 32, 44, 0.08);
   --field: rgba(255, 255, 255, 0.82);
@@ -13,7 +24,14 @@
   --glass: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8));
   --glass-flat: #eef2f0;
   --glass-edge: rgba(255, 255, 255, 0.72);
+  /*
+   * Chip の枠。--glass-edge(白寄りの枠)は、ライトの地(--glass-flat の rgb(238,242,240)のような
+   * 薄い面)とほぼ同じ明るさで、選んでいない種類・カテゴリのチップが地に溶けて見えた。
+   * 文字色(--ink)の 18% にして、境目の比を確保する。issue #202
+   */
+  --chip-edge: rgba(23, 32, 44, 0.18);
   --glass-shine: rgba(255, 255, 255, 0.55);
+  /* 影。ガラスの縁と厚みを出す */
   --glass-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(23, 32, 44, 0.06),
     0 18px 40px -18px rgba(23, 32, 44, 0.35);
@@ -39,15 +57,34 @@
   --on-destructive: #fff;
   --accent: var(--aizumi);
 
+  /* 書体 */
   --font: "Murecho Variable", "Murecho", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  /* 角丸。ガラスの面だけの scale。コンポーネントの scale は globals.css の --radius */
   --r-panel: 28px;
   --r-field: 14px;
+  /* ぼかし */
   --blur: blur(26px) saturate(180%);
   /*
    * 奥を読む加工。ぼかしを切った面では、色を濃くするとインクだまりが強く出て、上の文字が読めなくなる。
    * ぼかす面だけが --blur を読む。#3
    */
   --glass-filter: none;
+
+  /* 動きの時間。速い、普通、遅いの 3 段だけ。緩急は globals.css の --ease-out、--ease-in-out。0044 */
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --dur-slow: 320ms;
+  /*
+   * インクだまりが膨らむ・引く動きだけの例外。開く・閉じるという区切りが無く、フォーカスが
+   * 移るたびに続けて起こるので、3 段のどれに寄せても意味が変わってしまう。0044、issue #203
+   */
+  --dur-ambient: 900ms;
+
+  /*
+   * 画面の上の、ノッチなどにかかる安全な余白。CSS の変数越しに使うのは、シートの高さの上限の計算に
+   * env() をそのまま書くと、Playwright では値を作れず確かめられないため。E2E はこの変数だけ書き換える。#149
+   */
+  --safe-top: env(safe-area-inset-top);
 }
 
 :root[data-theme="dark"] {
@@ -57,6 +94,8 @@
   --ink-2: #a3adb9;
   --ink-3: #949eab;
   --sun: #ff7b68;
+  /* ダークは --sun のままで比が足りるので、そのまま使う。issue #154 */
+  --sun-deep: var(--sun);
   --sat: #82a8ff;
   --line: rgba(255, 255, 255, 0.09);
   --field: rgba(255, 255, 255, 0.09);
@@ -64,6 +103,8 @@
   --glass: linear-gradient(180deg, rgba(30, 37, 48, 0.88), rgba(20, 26, 35, 0.82));
   --glass-flat: #1c222c;
   --glass-edge: rgba(255, 255, 255, 0.14);
+  /* ダークはもとの --glass-edge のままで比が保てているので変えない。issue #202 */
+  --chip-edge: var(--glass-edge);
   --glass-shine: rgba(255, 255, 255, 0.1);
   --glass-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.3), 0 18px 40px -18px rgba(0, 0, 0, 0.7);
@@ -107,17 +148,14 @@
     --glass: var(--glass-flat);
   }
 }
-@media (prefers-reduced-transparency: reduce) {
-  :root {
-    --glass: var(--glass-flat);
-    --blur: none;
-    --glass-filter: none;
-  }
-}
 
 /*
  * 背景のテーマ「平ら」。端末の「透明度を下げる」と同じ --glass-flat を常に使い、ぼかしも切る。
  * インクだまりと思い出の表紙は変えない。グループの色と写真は、奥の色としてそのまま残す。#50、0010、0024
+ *
+ * 端末の「透明度を下げる」が有効なときの既定は、src/client/lib/theme.ts と public/theme-boot.js が決め、
+ * data-bg-theme に反映してから描く。ここでは data-bg-theme だけを見る。利用者がガラスを選んでいれば、
+ * 端末の設定に関わらずガラスのまま描く。#95
  */
 :root[data-bg-theme="flat"] {
   --glass: var(--glass-flat);

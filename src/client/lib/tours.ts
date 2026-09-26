@@ -9,15 +9,18 @@ import type { TourStep } from "@shared/tours";
 /** 土台の画面の案内。ID は tours_seen に入る。変えると、見た人にもう一度出る */
 export const BASE_TOURS = {
   calendar: [
-    { target: '[role="gridcell"][data-today]', text: "日付を押すと、その日の予定を足せます。" },
+    {
+      target: '[role="gridcell"][data-today]',
+      text: "日付を押すと、その日を選べます。下の「+」で、選んでいる日に予定を足せます。",
+    },
     { target: '[data-tour="group-filter"]', text: "グループを選ぶと、そのグループの予定だけになります。" },
     { target: '[data-tour="edit-home"]', text: "「ホームを編集」で、ウィジェットを並べ替えられます。" },
   ],
   group: [{ target: '[data-tour="group-invite"]', text: "招待リンクを渡すと、7 日のあいだ相手がグループに入れます。" }],
   extensions: [
     {
-      target: '[data-tour="extension-toggle"]',
-      text: "「使う」を切ると、自分の画面から入口が消えます。データは消えません。",
+      target: '[data-tour="extension-add"]',
+      text: "「+」から機能を足せます。外しても、記録は消えません。また足すと戻ります。",
     },
   ],
 } satisfies Record<string, TourStep[]>;

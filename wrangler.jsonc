@@ -6,7 +6,10 @@
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/__/auth/*"]
+    // 招待リンクは、OG タグを書き換えるために Worker を通す。#93
+    "run_worker_first": ["/api/*", "/__/auth/*", "/invite/*"],
+    // Worker から index.html を読み直し、OG タグだけ書き換えて返すための束縛。#93
+    "binding": "ASSETS"
   },
   "d1_databases": [
     {
@@ -69,6 +72,15 @@
           "database_id": "d1ec84e4-bb34-4aaa-8847-da5c9031c18f",
           "migrations_dir": "migrations"
         }
+      ],
+      // 利用者ごとの回数の上限。手元の開発と E2E には置かない。束縛が無ければ数えずに素通りする。#94、0045、0065
+      "ratelimits": [
+        { "name": "PHOTO_RATE_LIMIT", "namespace_id": "3001", "simple": { "limit": 30, "period": 60 } },
+        { "name": "INVITE_RATE_LIMIT", "namespace_id": "3002", "simple": { "limit": 10, "period": 60 } },
+        { "name": "CALENDAR_SYNC_RATE_LIMIT", "namespace_id": "3003", "simple": { "limit": 10, "period": 60 } },
+        { "name": "WEATHER_RATE_LIMIT", "namespace_id": "3004", "simple": { "limit": 30, "period": 60 } },
+        // IP を key にする。ログイン前にも呼べる入り口なので、利用者の ID を使えない。0065、#161
+        { "name": "CLIENT_ERROR_RATE_LIMIT", "namespace_id": "3005", "simple": { "limit": 20, "period": 60 } }
       ]
     },
     // 本番の手前で確かめる環境。develop に入ると自動で出る。データと鍵は本番と分け、Firebase だけ本番と同じプロジェクトを使う
@@ -96,6 +108,14 @@
           "database_id": "9b7333a0-d07b-4fd0-896f-42f177ce9531",
           "migrations_dir": "migrations"
         }
+      ],
+      // 本番と同じ束縛の名前。namespace_id は本番と重ならない番号にする。#94、0045、0065
+      "ratelimits": [
+        { "name": "PHOTO_RATE_LIMIT", "namespace_id": "2001", "simple": { "limit": 30, "period": 60 } },
+        { "name": "INVITE_RATE_LIMIT", "namespace_id": "2002", "simple": { "limit": 10, "period": 60 } },
+        { "name": "CALENDAR_SYNC_RATE_LIMIT", "namespace_id": "2003", "simple": { "limit": 10, "period": 60 } },
+        { "name": "WEATHER_RATE_LIMIT", "namespace_id": "2004", "simple": { "limit": 30, "period": 60 } },
+        { "name": "CLIENT_ERROR_RATE_LIMIT", "namespace_id": "2005", "simple": { "limit": 20, "period": 60 } }
       ]
     }
   }

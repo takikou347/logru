@@ -1,12 +1,13 @@
 import type { GroupSummary, Me } from "@shared/api-types";
 import { Plus, Trash2 } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
-import { InitialAvatar } from "@/components/parts/Avatars";
+import { UserAvatar } from "@/components/parts/Avatars";
 import { Chip } from "@/components/parts/Chip";
 import { Empty, Panel } from "@/components/parts/Panel";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { memberColor } from "@/lib/colors";
+import { formatShortDate, formatSpan } from "@/lib/dates";
+import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { cn } from "@/lib/utils";
 import { useCalendar } from "@/modules/calendar/api";
 import { dayKeyIn, memoryDays } from "../shared/days";
@@ -14,7 +15,7 @@ import { memoryOfEvent } from "../shared/links";
 import type { ItemKind, MemoryDetail, MemoryItem } from "../shared/types";
 import { useItemMutations, useMemoryList } from "./api";
 import { MemoryShell, type ShellProps } from "./MemoryShell";
-import { formatClock, formatSpan } from "./parts";
+import { formatClock } from "./parts";
 
 const KINDS = [
   { value: "wish", label: "やりたいこと" },
@@ -57,9 +58,11 @@ function Shiori({ detail, me, group }: ShellProps) {
         <p className="flex items-center gap-2 text-xs text-ink-2">
           <span className="flex">
             {(group?.members ?? []).slice(0, 4).map((m, i) => (
-              <InitialAvatar
+              <UserAvatar
                 key={m.id}
-                person={{ id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs) }}
+                userId={m.id}
+                groups={group ? [group] : []}
+                me={me}
                 className={cn(i > 0 && "-ml-2")}
               />
             ))}
@@ -121,7 +124,7 @@ function Wishes({ detail, group, me }: ListProps) {
           いつでも<span className="ml-auto text-[11px] font-medium text-ink-2">日を決めずにやりたいこと</span>
         </h2>
         <ItemRows items={loose} detail={detail} group={group} me={me} />
-        <AddRow detail={detail} kind="wish" dayIndex={null} placeholder="やりたいことを追加" />
+        <AddRow detail={detail} kind="wish" dayIndex={null} placeholder="やりたいことを足す" />
       </Panel>
       {days.map((day, i) => {
         const dayEvents = events.filter((e) => dayKeyIn(e.startsAt, memory.timeZone) === day);
@@ -129,8 +132,7 @@ function Wishes({ detail, group, me }: ListProps) {
         return (
           <Panel key={day} aria-label={`${day} のしおり`}>
             <h2 className="flex items-baseline gap-2 text-sm font-bold">
-              <span className="text-xl font-extrabold tracking-[-0.02em]">{day.slice(5).replace("-", ".")}</span>
-              {new Intl.DateTimeFormat("ja-JP", { weekday: "short", timeZone: "UTC" }).format(Date.parse(day))}
+              <span className="text-xl font-extrabold tracking-[-0.02em]">{formatShortDate(day)}</span>
               <span className="ml-auto text-[11px] font-medium text-ink-2">予定 {dayEvents.length} 件</span>
             </h2>
             <ul>
@@ -150,7 +152,7 @@ function Wishes({ detail, group, me }: ListProps) {
               ))}
             </ul>
             <ItemRows items={dayWishes} detail={detail} group={group} me={me} />
-            <AddRow detail={detail} kind="wish" dayIndex={i} placeholder="この日にやりたいことを追加" />
+            <AddRow detail={detail} kind="wish" dayIndex={i} placeholder="この日にやりたいことを足す" />
           </Panel>
         );
       })}
@@ -169,9 +171,9 @@ function Todos({ detail, group, me }: ListProps) {
       <h2 className="flex items-baseline text-sm font-bold">
         やること<span className="ml-auto text-[11px] font-medium text-ink-2">出発までに</span>
       </h2>
-      {sorted.length === 0 && <Empty>予約や下調べなど、出発までにやることを追加できます。</Empty>}
+      {sorted.length === 0 && <Empty>予約や下調べなど、出発までにやることを足せます。</Empty>}
       <ItemRows items={sorted} detail={detail} group={group} me={me} />
-      <AddRow detail={detail} kind="todo" placeholder="やることを追加" group={group} withDue />
+      <AddRow detail={detail} kind="todo" placeholder="やることを足す" group={group} withDue />
     </Panel>
   );
 }
@@ -185,9 +187,9 @@ function Packing({ detail, group, me }: ListProps) {
   return (
     <Panel aria-label="持ち物">
       <h2 className="flex items-baseline text-sm font-bold">持ち物</h2>
-      {packing.length === 0 && <Empty>持ち物を追加すると、誰が持っていくかを決められます。</Empty>}
+      {packing.length === 0 && <Empty>持ち物を足すと、誰が持っていくかを決められます。</Empty>}
       <ItemRows items={packing} detail={detail} group={group} me={me} />
-      <AddRow detail={detail} kind="packing" placeholder="持ち物を追加" group={group} />
+      <AddRow detail={detail} kind="packing" placeholder="持ち物を足す" group={group} />
       {others.length > 0 && (
         <label className="flex min-h-11 items-center justify-between gap-3 border-t border-line pt-2 text-sm">
           ほかの思い出からコピー
@@ -216,7 +218,10 @@ function assigneeName(item: MemoryItem, group: GroupSummary | undefined): string
   return group?.members.find((m) => m.id === item.assigneeId)?.name ?? "みんな";
 }
 
-/** しおりの行を並べる。印を押すと済んだことになる。書いた人は消せる */
+/**
+ * しおりの行を並べる。印を押すと済んだことになる。書いた人は消せる。
+ * 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。issue #12
+ */
 function ItemRows({
   items,
   detail,
@@ -229,11 +234,13 @@ function ItemRows({
   me: Me;
 }) {
   const { update, remove } = useItemMutations(detail.memory.id);
+  const { pending, remove: removeItem } = useUndoableDelete("消しました");
   const today = useMemo(() => dayKeyIn(Date.now(), detail.memory.timeZone), [detail.memory.timeZone]);
-  if (items.length === 0) return null;
+  const shown = items.filter((i) => !pending.has(i.id));
+  if (shown.length === 0) return null;
   return (
     <ul>
-      {items.map((item) => {
+      {shown.map((item) => {
         const who =
           item.kind === "wish"
             ? group?.members.find((m) => m.id === item.createdBy)
@@ -255,15 +262,13 @@ function ItemRows({
               {(item.place || item.dueOn) && (
                 <small className={cn("text-[11px] text-ink-2", late && "font-bold text-sun")}>
                   {item.place}
-                  {item.dueOn && `${item.dueOn.slice(5).replace("-", ".")} まで${late ? "・期限切れ" : ""}`}
+                  {item.dueOn && `${formatShortDate(item.dueOn)} まで${late ? "・期限切れ" : ""}`}
                 </small>
               )}
             </span>
             <span className="flex items-center gap-1">
               {who ? (
-                <InitialAvatar
-                  person={{ id: who.id, name: who.name, color: memberColor(who.id, who.userColor, me.colorPrefs) }}
-                />
+                <UserAvatar userId={who.id} groups={group ? [group] : []} me={me} />
               ) : (
                 assigneeName(item, group) && <span className="text-[11px] text-ink-2">{assigneeName(item, group)}</span>
               )}
@@ -271,8 +276,8 @@ function ItemRows({
                 <button
                   type="button"
                   className="grid size-9 place-items-center text-ink-3"
-                  aria-label={`${item.title} を削除`}
-                  onClick={() => remove.mutate(item.id)}
+                  aria-label={`${item.title} を消す`}
+                  onClick={() => removeItem(item.id, ({ keepalive }) => remove.mutateAsync({ id: item.id, keepalive }))}
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -392,14 +397,14 @@ function AddRow({
       </div>
       <div className="flex justify-end gap-2">
         <button type="button" className="min-h-10 px-3 text-sm text-ink-2" onClick={() => setOpen(false)}>
-          キャンセル
+          やめる
         </button>
         <button
           type="submit"
           className="min-h-10 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground"
           disabled={!title.trim() || add.isPending}
         >
-          追加
+          足す
         </button>
       </div>
     </form>

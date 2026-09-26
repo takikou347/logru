@@ -14,6 +14,12 @@ import type { ExtensionManifest } from "../types";
 export type EditorTarget = { mode: "new"; date: Date; groupId?: string } | { mode: "edit"; item: CalendarItem };
 
 /**
+ * 繰り返す項目を直す、消すときの範囲。この回だけ・これ以降・全部。0043
+ * 繰り返さない項目では省く。
+ */
+export type ItemEditScope = "this" | "following" | "all";
+
+/**
  * 新しく作るシートに並べる、その日に既にある項目。ほかの拡張の項目も入る。
  * 色とグループ名はカレンダーが付ける。拡張はグループの色の決まりを知らなくてよい
  */
@@ -61,8 +67,11 @@ export type ItemEditorProps = {
   groups: GroupSummary[];
   me: Me;
   onClose: () => void;
-  /** 消すとき。消す処理はカレンダーが持ち、5 秒のあいだ元に戻せるようにする */
-  onDelete: (item: CalendarItem) => void;
+  /**
+   * 消すとき。消す処理はカレンダーが持ち、5 秒のあいだ元に戻せるようにする。
+   * 繰り返す項目では scope を渡す。0043
+   */
+  onDelete: (item: CalendarItem, scope?: ItemEditScope) => void;
   /** ほかの拡張が、このシートに足す欄。使える拡張の分だけ、カレンダーが渡す */
   addons?: ComponentType<ItemAddonProps>[];
 };
@@ -78,7 +87,11 @@ type ExtensionPage = {
 /** 入口に出す画面。PC は左の列、スマホは機能のシートに並ぶ */
 type ExtensionNav = { label: string; icon: LucideIcon; path: string; description?: string };
 
-/** 機能のシートに出す、すぐする操作。押すと path へ移る。例は「記録する」 */
+/**
+ * 「機能を足す」で足した直後の案内(トースト)に出す、すぐする操作。押すと path へ移る。例は「記録する」
+ * 機能のシートには出さない。すぐする操作は、いつでもできるならホームのウィジェット、
+ * 「いま」しかできないなら useShortcut が受け持つ。0019
+ */
 type ExtensionAction = { label: string; icon: LucideIcon; path: string; hint?: string };
 
 /**
@@ -124,10 +137,28 @@ export type ClientExtension = {
   /**
    * 項目を消す。読むだけの拡張は省く。省くと、カレンダーは消す操作を出さない
    * @param keepalive 画面を閉じるときに送り切る
+   * @param occurrenceAt 繰り返す項目の回。項目の occurrenceAt をそのまま渡す。0043
+   * @param scope 繰り返す項目を消す範囲。0043
    */
-  deleteItem?: (id: string, opts: { keepalive: boolean }) => Promise<void>;
-  /** 設定の画面に出す欄。利用者ごとの拡張が、登録の画面を置くのに使う。無ければ省く */
+  deleteItem?: (
+    id: string,
+    opts: { keepalive: boolean; occurrenceAt?: number; scope?: ItemEditScope },
+  ) => Promise<void>;
+  /**
+   * 設定の、この拡張の詳細に出す欄。登録や細かい調整の画面を置くのに使う。無ければ省く。
+   * 「自分に足す」「足すグループ」の下に置く。決まり: 拡張の設定はここに置く。issue #102
+   */
   SettingsSection?: ComponentType;
+  /**
+   * 設定の「機能」の一覧のカードで使うアイコン。無ければ nav.icon、それも無ければ既定のアイコンを使う。
+   * nav を持たない拡張(外部のカレンダーなど)のためにある
+   */
+  icon?: LucideIcon;
+  /**
+   * 機能のタイルに出す短い名前。無ければ nav.label、それも無ければ manifest.label を使う。
+   * タイルは幅が狭く、長い名前が切れるときに渡す。例は「外部カレンダー」(manifest は「外部のカレンダー」)。issue #21
+   */
+  tileLabel?: string;
   /**
    * カレンダーの「読み直す」を押したときに、拡張が先にしておく仕事。外から予定を読み直すなど。無ければ省く。
    * 全部の拡張の分を並べて待ってから、カレンダーは項目を読み直す。
@@ -138,13 +169,18 @@ export type ClientExtension = {
   pages?: ExtensionPage[];
   /** 入口に出す画面 */
   nav?: ExtensionNav;
-  /** 機能のシートに出す、すぐする操作 */
+  /** 「機能を足す」で足した直後の案内に出す、すぐする操作。無ければ省く */
   actions?: ExtensionAction[];
   /**
    * 近道を返す hook。F-26
    * hook なので、呼ぶ順を変えないよう、拡張の一覧の順にいつも呼ぶ。使えないときは enabled が false で、読み込みを止める
    */
   useShortcut?: (enabled: boolean) => ExtensionShortcut | null;
+  /**
+   * 機能のタイルに出す短い字を返す hook。無ければタイルはアイコンだけになる。例は家計簿の今月の合計。0058
+   * useShortcut と同じ理由で、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ
+   */
+  useTileHint?: (enabled: boolean) => string | null;
   /** ほかの拡張の編集シートに足す欄 */
   itemAddons?: ItemAddon[];
   /** 端末に知らせるもの。例は「ひとコマの時刻」。知らせる拡張を使っているときだけ、設定に知らせの欄を出す。F-23 */

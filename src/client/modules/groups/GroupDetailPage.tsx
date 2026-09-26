@@ -1,14 +1,16 @@
-import type { GroupMember, GroupSummary } from "@shared/api-types";
+import type { GroupMember, GroupSummary, Me } from "@shared/api-types";
 import { GROUP_COLORS } from "@shared/colors";
 import { type FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { useColorPref, useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
-import { InitialAvatar } from "@/components/parts/Avatars";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
+import { UserAvatar } from "@/components/parts/Avatars";
 import { ColorSheet } from "@/components/parts/ColorSheet";
 import { ColorSwatches } from "@/components/parts/ColorSwatches";
+import { ExtensionToggleRow } from "@/components/parts/ExtensionToggleRow";
 import { FailurePanel, LoadFailure } from "@/components/parts/Failure";
 import { Field } from "@/components/parts/Field";
 import { Dot, Empty, FieldMessage, Panel, PanelRow, RowButton } from "@/components/parts/Panel";
@@ -16,7 +18,6 @@ import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { ScreenTour } from "@/components/parts/ScreenTour";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { groupColor, memberColor } from "@/lib/colors";
 import { BASE_TOURS } from "@/lib/tours";
 import { poolColorsOf } from "../calendar/model";
@@ -35,7 +36,7 @@ type Invite = { url: string; expiresAt: number };
 type ColorTarget = { type: "group" | "user"; id: string; title: string; fallback: string };
 
 /**
- * グループの詳しい画面。名前、色、メンバー、招待、拡張機能、抜ける。F-10〜F-15、F-19
+ * グループの詳しい画面。名前、色、メンバー、招待、機能、抜ける。F-10〜F-15、F-19
  * 名前とグループの色と招待と拡張の切り替えは、管理者だけが変えられる。
  * 自分だけのグループを開いたら、一覧へ戻す。0009
  */
@@ -56,39 +57,44 @@ export function GroupDetailPage() {
   const [confirmLeave, setConfirmLeave] = useState(false);
   const group = groups.data?.find((g) => g.id === id);
   const extensions = useGroupExtensions(id, Boolean(group && !group.isPersonal));
+  // 自分の画面での色。グループが読めるまでは決まらないので、その間は既定の並びのまま。0071
+  const prefs = me.data?.colorPrefs ?? [];
+  const shown = group ? groupColor(group, prefs) : undefined;
+  useAppFrame({
+    poolColors: shown
+      ? [shown, ...poolColorsOf(groups.data ?? [], me.data).filter((c) => c !== shown)]
+      : poolColorsOf(groups.data ?? [], me.data),
+    poolFocus: shown ? 0 : undefined,
+  });
 
   if (groups.isPending || me.isPending) return <Loading />;
   // 自分だけのグループは、グループとして見せない。直接開いたら一覧へ戻す。0009
   if (group?.isPersonal) return <Navigate to="/groups" replace />;
   if (!group || !me.data) {
     return (
-      <AppLayout poolColors={poolColorsOf(groups.data ?? [], me.data)}>
-        <Page>
-          <PageBar title="グループ" back="/groups" />
-          {/* 読めなかったのか、無いのかを分ける。0025 */}
-          {groups.error && !groups.data ? (
-            <LoadFailure what="グループ" error={groups.error} onRetry={() => void groups.refetch()} />
-          ) : (
-            <FailurePanel
-              mark="?"
-              title="グループが見つかりません"
-              action={
-                <Button asChild variant="secondary">
-                  <Link to="/groups">グループの一覧へ</Link>
-                </Button>
-              }
-            >
-              抜けたか、管理者が消しました。入り直すには、新しい招待リンクをもらってください。
-            </FailurePanel>
-          )}
-        </Page>
-      </AppLayout>
+      <Page>
+        <PageBar title="グループ" back="/groups" />
+        {/* 読めなかったのか、無いのかを分ける。0025 */}
+        {groups.error && !groups.data ? (
+          <LoadFailure what="グループ" error={groups.error} onRetry={() => void groups.refetch()} />
+        ) : (
+          <FailurePanel
+            mark="?"
+            title="グループが見つかりません"
+            action={
+              <Button asChild variant="secondary">
+                <Link to="/groups">グループの一覧へ</Link>
+              </Button>
+            }
+          >
+            抜けたか、管理者が消しました。入り直すには、新しい招待リンクをもらってください。
+          </FailurePanel>
+        )}
+      </Page>
     );
   }
   const myId = me.data.user.id;
-  const prefs = me.data.colorPrefs;
   const admin = group.role === "admin";
-  const shown = groupColor(group, prefs);
   const adminCount = group.members.filter((m) => m.role === "admin").length;
 
   /** 変更を送る。成功したら知らせ、失敗したら知らせて undefined を返す */
@@ -131,12 +137,11 @@ export function GroupDetailPage() {
   }
 
   const isCustom = (t: ColorTarget) => prefs.some((p) => p.targetType === t.type && p.targetId === t.id);
+  // group が決まった後は、上で計算した shown が必ずある。型のための書き直し
+  const color = shown ?? groupColor(group, prefs);
 
   return (
-    <AppLayout
-      poolColors={[shown, ...poolColorsOf(groups.data ?? [], me.data).filter((c) => c !== shown)]}
-      poolFocus={0}
-    >
+    <>
       <Page>
         <PageBar title={group.name} back="/groups" />
 
@@ -148,7 +153,7 @@ export function GroupDetailPage() {
               setColorTarget({ type: "group", id: group.id, title: "自分の画面での色", fallback: group.color })
             }
           >
-            <Dot color={shown} className="size-3" />
+            <Dot color={color} className="size-3" />
             <span className="flex-1">自分の画面での色</span>
             <span className="text-xs text-ink-2">
               {isCustom({ type: "group", id: group.id, title: "", fallback: "" })
@@ -175,6 +180,8 @@ export function GroupDetailPage() {
               <MemberRow
                 key={m.id}
                 member={m}
+                me={me.data}
+                group={group}
                 isMe={m.id === myId}
                 color={memberColor(m.id, m.userColor, prefs)}
                 canManage={admin && !(m.role === "admin" && adminCount === 1)}
@@ -221,37 +228,35 @@ export function GroupDetailPage() {
           </Panel>
         )}
 
-        <Panel title="拡張機能">
+        <Panel title="機能">
+          {/* 予定はいつも有効で、切り替えられない。ほかの行と同じくトグルではなく字だけで見せる。issue #16 */}
           <PanelRow>
             <span>予定</span>
-            <Switch checked disabled aria-label="予定。いつも使えます" />
+            <span className="text-xs text-ink-2">いつも使えます</span>
           </PanelRow>
           {extensions.data && extensions.data.length > 0 ? (
             extensions.data.map((x) => (
-              <PanelRow key={x.key}>
-                <span className="py-2">
-                  {x.label}
-                  <br />
-                  <span className="text-xs text-ink-2">{x.description}</span>
-                </span>
-                <Switch
-                  checked={x.enabled}
-                  aria-label={x.label}
-                  disabled={!admin}
-                  onCheckedChange={(enabled) => run(() => toggleExtension.mutateAsync({ key: x.key, enabled }))}
-                />
-              </PanelRow>
+              <ExtensionToggleRow
+                key={x.key}
+                label={x.label}
+                sub={x.description}
+                checked={x.enabled}
+                canToggle={admin}
+                pending={toggleExtension.isPending && toggleExtension.variables?.key === x.key}
+                onToggle={(enabled) => run(() => toggleExtension.mutateAsync({ key: x.key, enabled }))}
+              />
             ))
           ) : (
             <Empty>
-              足せる拡張はまだありません。
+              足せる機能はまだありません。
               <br />
               予定はいつも使えます。
             </Empty>
           )}
         </Panel>
 
-        <Button variant="danger" className="self-start" onClick={() => setConfirmLeave(true)}>
+        {/* ページの背景に直に置くので、ガラスの面より少し濃い朱にして比を保つ。issue #154、0034 */}
+        <Button variant="danger" className="self-start text-(--sun-deep)" onClick={() => setConfirmLeave(true)}>
           グループを抜ける
         </Button>
       </Page>
@@ -284,7 +289,7 @@ export function GroupDetailPage() {
         </ResponsiveSheet>
       )}
       {!colorTarget && !confirmLeave && <ScreenTour id="group" steps={BASE_TOURS.group} />}
-    </AppLayout>
+    </>
   );
 }
 
@@ -295,6 +300,8 @@ export function GroupDetailPage() {
  */
 function MemberRow({
   member,
+  me,
+  group,
   isMe,
   color,
   canManage,
@@ -302,6 +309,8 @@ function MemberRow({
   onRole,
 }: {
   member: GroupMember;
+  me: Me;
+  group: GroupSummary;
   isMe: boolean;
   color: string;
   canManage: boolean;
@@ -311,7 +320,7 @@ function MemberRow({
   return (
     <div className="flex min-h-12 items-center gap-3 border-b border-line text-[15px] last:border-b-0">
       <span className="relative inline-flex flex-none">
-        <InitialAvatar person={{ id: member.id, name: member.name, color, avatarUrl: member.avatarUrl }} size={40} />
+        <UserAvatar userId={member.id} groups={[group]} me={me} size={40} />
         <button
           type="button"
           className={`absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full bg-(--c) shadow-[0_0_0_2px_var(--glass-flat)] c-${color}`}

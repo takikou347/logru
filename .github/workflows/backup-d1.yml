@@ -1,0 +1,128 @@
+name: D1 バックアップ
+
+# 週 1 回、D1 を SQL に書き出して非公開の R2 へ置く。決めたことは develop-docs の
+# docs/logru/decisions/0041-d1-weekly-backup.md。
+#
+# 既定のブランチ develop の上で動く。production の GitHub Environment は main からしか
+# 使えない決まり(0026)なので、ここではデプロイ用の CLOUDFLARE_API_TOKEN を使わない。
+# 代わりに、バックアップだけの権限を持つ鍵を、専用の GitHub Environment backup に置く。
+# backup は develop からしか使えない設定にする。リポジトリの Secrets には置かない。
+# リポジトリの Secrets は、claude/* を含むどのブランチの workflow_dispatch からも読める。#92
+on:
+  schedule:
+    # 毎週日曜 18:00 UTC。日本時間の月曜 3:00。使う人が少ない時間を選ぶ
+    - cron: "0 18 * * 0"
+  workflow_dispatch:
+
+# GITHUB_TOKEN は使わない。読むだけにしておく
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # backup の Deployment branches を develop だけにする。develop は保護されているので、
+    # このブランチ以外からは 4 つの鍵を読めない
+    environment: backup
+    strategy:
+      # 1 つの環境が失敗しても、もう片方は続けて試す
+      fail-fast: false
+      matrix:
+        include:
+          - name: staging
+            database_id: 9b7333a0-d07b-4fd0-896f-42f177ce9531
+          - name: production
+            database_id: d1ec84e4-bb34-4aaa-8847-da5c9031c18f
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_BACKUP_API_TOKEN: ${{ secrets.D1_BACKUP_API_TOKEN }}
+    steps:
+      # 鍵が置かれるまでは、失敗させずに知らせるだけで終える。backup の Environment に置く
+      - name: 鍵がそろっているか確かめる
+        id: ready
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_BACKUP_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_BACKUP_SECRET_ACCESS_KEY }}
+        run: |
+          if [ -n "$CLOUDFLARE_ACCOUNT_ID" ] && [ -n "$D1_BACKUP_API_TOKEN" ] \
+            && [ -n "$R2_ACCESS_KEY_ID" ] && [ -n "$R2_SECRET_ACCESS_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::${{ matrix.name }} 用の鍵が無いので、バックアップをせずに終える"
+          fi
+
+      - name: エクスポートを始める
+        if: steps.ready.outputs.ready == 'true'
+        id: start
+        run: |
+          res=$(curl -sS -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database/${{ matrix.database_id }}/export" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${D1_BACKUP_API_TOKEN}" \
+            -d '{"output_format":"polling"}')
+          bookmark=$(printf '%s' "$res" | jq -r '.result.at_bookmark // empty')
+          if [ -z "$bookmark" ]; then
+            echo "::error::${{ matrix.name }} のエクスポートを始められなかった"
+            exit 1
+          fi
+          echo "bookmark=$bookmark" >> "$GITHUB_OUTPUT"
+
+      # D1 の Export はこの間、対象の D1 への他のクエリを止める。深夜の短い時間に限る
+      #
+      # 出来上がりの signed_url は、持っていれば誰でも DB 全体を落とせる URL になる。
+      # このリポジトリは public で、Actions のログは誰でも読める。
+      # そのため URL は step の output にも `${{ }}` にも出さず、この 1 つの step の中の変数だけで使う。
+      # 念のため、手に入れたらすぐ add-mask でログに伏せ字にする。
+      # 中身には利用者の予定や思い出などの個人のデータが入る。サイズだけを出し、中身は出さない
+      - name: 出来上がりを待ち、SQL を取ってくる
+        if: steps.ready.outputs.ready == 'true'
+        env:
+          BOOKMARK: ${{ steps.start.outputs.bookmark }}
+          DATABASE_ID: ${{ matrix.database_id }}
+          TARGET: ${{ matrix.name }}
+        run: |
+          for i in $(seq 1 20); do
+            res=$(curl -sS -X POST \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database/${DATABASE_ID}/export" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer ${D1_BACKUP_API_TOKEN}" \
+              -d "{\"output_format\":\"polling\",\"current_bookmark\":\"${BOOKMARK}\"}")
+            status=$(printf '%s' "$res" | jq -r '.result.status // empty')
+            if [ "$status" = "complete" ]; then
+              url=$(printf '%s' "$res" | jq -r '.result.result.signed_url // empty')
+              res=""
+              if [ -z "$url" ]; then
+                echo "::error::${TARGET} の書き出しの場所を受け取れなかった"
+                exit 1
+              fi
+              echo "::add-mask::${url}"
+              curl -sS -o backup.sql "$url"
+              url=""
+              echo "${TARGET} のバックアップのサイズ: $(wc -c < backup.sql) バイト"
+              exit 0
+            fi
+            if [ "$status" = "error" ]; then
+              echo "::error::${TARGET} のエクスポートが失敗した"
+              exit 1
+            fi
+            sleep 15
+          done
+          echo "::error::${TARGET} のエクスポートが時間内に終わらなかった"
+          exit 1
+
+      - name: R2 へ置く
+        if: steps.ready.outputs.ready == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_BACKUP_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_BACKUP_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          key="${{ matrix.name }}/$(date -u +%Y-%m-%d).sql"
+          aws s3 cp backup.sql "s3://logru-backups/${key}" \
+            --endpoint-url "https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          echo "置いた場所: logru-backups/${key}"
+
+      - name: 後片付け
+        if: always()
+        run: rm -f backup.sql

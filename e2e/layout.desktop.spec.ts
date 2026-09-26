@@ -20,7 +20,7 @@ test("左の列の下のアイコンから、設定を開き、ログアウト�
   await expect(menu.getByText(user.email)).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: "グループ" })).toHaveCount(0);
   await menu.getByRole("menuitem", { name: "設定" }).click();
-  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page).toHaveURL(/\/settings\/appearance$/);
   await expect(page.getByRole("link", { name: "戻る" })).toBeHidden();
 
   menu = await openAccountMenu(page);
@@ -99,7 +99,7 @@ test("何日も続く予定は、週ごとに 1 本の帯になり、重なる�
   await expect(sheet.getByLabel("題名")).toHaveValue("出張");
 });
 
-test("PC でもマスの空いた所を押すと、その日の予定を足すシートが開き、その日の予定が並ぶ", async ({ page }) => {
+test("PC でもマスの空いた所を押すと、その日を選ぶだけになる。中身は右の列に出る。#148", async ({ page }) => {
   await page.goto("/?date=2026-09-15");
   await page.getByRole("button", { name: "予定を足す" }).first().click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
@@ -115,14 +115,20 @@ test("PC でもマスの空いた所を押すと、その日の予定を足す�
     .first();
   const box = (await cell.boundingBox())!;
   await cell.click({ position: { x: box.width / 2, y: box.height - 10 } });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page).toHaveURL(/date=2026-09-15/);
+  await expect(dayPanel(page).getByRole("button", { name: /歯医者/ })).toBeVisible();
+});
+
+test("PC は、マスに乗せると出る小さな「+」で、その日に直接予定を足せる。#148", async ({ page }) => {
+  await page.goto("/?date=2026-09-01");
+  const cell = page.getByRole("region", { name: "月の表" }).locator('[data-date="15"]:not([data-out])').first();
+  await cell.hover();
+  await cell.getByRole("button", { name: "9月15日に足す" }).click();
+  const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByLabel("日付")).toHaveValue("2026-09-15");
   await expect(page).toHaveURL(/date=2026-09-15/);
-  await sheet
-    .getByRole("region", { name: "9月15日の予定" })
-    .getByRole("button", { name: /歯医者/ })
-    .click();
-  await expect(page.getByRole("dialog", { name: "予定を直す" }).getByLabel("題名")).toHaveValue("歯医者");
 });
 
 test("PC ではマスに予定名が出て、押すと直すシートが開く", async ({ page }) => {

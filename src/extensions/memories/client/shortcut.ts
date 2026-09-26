@@ -1,6 +1,7 @@
 import type { ExtensionShortcut } from "@extensions/client/types";
 import { Camera } from "lucide-react";
 import { useKomaNow } from "./koma-api";
+import { smallSrc } from "./parts";
 
 /**
  * 近道の帯に出すひとコマ。今日を始めていて、いまの枠にまだ残していないときだけ返す。F-126
@@ -14,7 +15,7 @@ export function useKomaShortcut(enabled: boolean): ExtensionShortcut | null {
   return {
     label: `${data.slot.hour} 時のひとコマ`,
     sub: `${data.memory?.title ?? "ひとコマ"}・${data.slot.hour + 1}:00 まで`,
-    image: data.last?.thumbUrl,
+    image: data.last ? smallSrc(data.last) : undefined,
     path: "/memories/koma/now",
     action: "撮る",
     icon: Camera,

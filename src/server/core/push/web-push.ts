@@ -101,6 +101,9 @@ export async function vapidAuthorization(endpoint: string, keys: VapidKeys, now 
   return `vapid t=${header}.${claims}.${b64url(sig)}, k=${keys.publicKey}`;
 }
 
+/** 送り先への要求を待つ時間の上限。応答しない送り先で定期処理が詰まらないようにする。0065、#161 */
+const PUSH_TIMEOUT_MS = 10_000;
+
 /**
  * 1 つの端末へ送る。
  * @returns 送り先の HTTP の状態。404 と 410 は、その送り先がもう使えない
@@ -117,6 +120,7 @@ export async function sendWebPush(target: PushTarget, payload: string, keys: Vap
       Urgency: "normal",
     },
     body,
+    signal: AbortSignal.timeout(PUSH_TIMEOUT_MS),
   });
   return res.status;
 }

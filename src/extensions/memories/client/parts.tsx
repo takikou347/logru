@@ -3,44 +3,60 @@
 import type { GroupSummary, Me } from "@shared/api-types";
 import { Heart } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { SideHeading, sideItemClass } from "@/components/layout/AppLayout";
-import { AvatarStack, InitialAvatar } from "@/components/parts/Avatars";
-import { Chip } from "@/components/parts/Chip";
+import { personOf, UserAvatar, UserAvatarStack } from "@/components/parts/Avatars";
 import { Dot } from "@/components/parts/Panel";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { groupColor, memberColor } from "@/lib/colors";
+import { groupColor } from "@/lib/colors";
+import { vibrateShort } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 import type { MemoryRecord, Photo } from "../shared/types";
 import { useLike } from "./api";
 
 /**
- * 写真。読み込むまでは 32 px の写真を広げて出し、画面に入ってから本物を読む。0024
- * @param size thumb は一覧、full は大きく見る画面
+ * 72 px ほどの小さな所に出す画像。D1 に持つ small を使い、往復が要らない。この形に変える前の写真は small が無いので、
+ * R2 に残る thumb の署名付き URL を使う。0021、#158
+ */
+export function smallSrc(photo: Photo): string {
+  return photo.small ?? photo.thumbUrl ?? photo.fullUrl;
+}
+
+/**
+ * 表紙やカードなど大きく出す画像。R2 の full を読む。この形に変える前の写真は、full より軽い thumb があればそちらを使う。
+ * 一覧の表紙や「その日」の写真に small(160 px)を引き伸ばすと荒く見えるため、small とは別に読む。0021、#164
+ */
+export function largeSrc(photo: Photo): string {
+  return photo.thumbUrl ?? photo.fullUrl;
+}
+
+/**
+ * 写真。読み込むまでは small を広げて下に敷き、ぼやけた絵から本物へ替わる。0024、#164
+ * @param size small は 72 px ほどの小さな所、large は表紙やカードなど大きく出す所、full は大きく見る画面
  */
 export function PhotoImg({
   photo,
-  size = "thumb",
+  size = "small",
   className,
   alt = "",
 }: {
   photo: Photo;
-  size?: "thumb" | "full";
+  size?: "small" | "large" | "full";
   className?: string;
   alt?: string;
 }) {
   const [loaded, setLoaded] = useState(false);
+  const src = size === "small" ? smallSrc(photo) : size === "large" ? largeSrc(photo) : photo.fullUrl;
+  const placeholder = size === "small" ? photo.tiny : smallSrc(photo);
   return (
     <span
       className={cn("relative block overflow-hidden bg-cover bg-center", className)}
-      style={{ backgroundImage: `url(${photo.tiny})` }}
+      style={{ backgroundImage: `url(${placeholder})` }}
     >
       <img
-        src={size === "full" ? photo.fullUrl : photo.thumbUrl}
+        src={src}
         alt={alt}
         loading="lazy"
         decoding="async"
         onLoad={() => setLoaded(true)}
-        className={cn("size-full object-cover transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0")}
+        className={cn("size-full object-cover transition-opacity duration-slow", loaded ? "opacity-100" : "opacity-0")}
       />
     </span>
   );
@@ -62,42 +78,47 @@ export function Ambient({ photo }: { photo: Photo | null }) {
   );
 }
 
-/** 記録を書いた人の名前と色。グループにいなければ「退会した人」 */
+/** 記録を書いた人。名前・色・アイコンの URL は personOf が引く。グループにいなければ「退会した人」。#152 */
 export function authorOf(record: MemoryRecord, groups: GroupSummary[], me: Me) {
-  const group = groups.find((g) => g.id === record.groupId);
-  const m = group?.members.find((x) => x.id === record.createdBy);
-  if (!m) return { id: record.createdBy ?? "gone", name: "退会した人", color: "nezumi" };
-  return { id: m.id, name: m.name, color: memberColor(m.id, m.userColor, me.colorPrefs) };
+  return personOf(record.createdBy ?? "gone", groups, me);
 }
 
 /**
  * いいねのボタン。付けると朱にする。横に付けた人の頭文字を重ねる。F-116
+ * 付けた瞬間だけ、ハートが一度はねて、端末が短く震える。動かすのは transform と opacity だけ。0044、0048、#98、#112
  */
 function LikeButton({ record, groups, me }: { record: MemoryRecord; groups: GroupSummary[]; me: Me }) {
   const like = useLike();
   const on = record.likes.includes(me.user.id);
-  const group = groups.find((g) => g.id === record.groupId);
-  const people = record.likes.flatMap((id) => {
-    const m = group?.members.find((x) => x.id === id);
-    return m ? [{ id, name: m.name, color: memberColor(id, m.userColor, me.colorPrefs) }] : [];
-  });
+  const [bounce, setBounce] = useState(false);
   return (
     <div className="flex items-center gap-2">
       <button
         type="button"
         aria-pressed={on}
         aria-label={on ? `いいねを外す。いま ${record.likes.length}` : `いいねを付ける。いま ${record.likes.length}`}
-        onClick={() => like.mutate({ record, on: !on, me: me.user.id })}
+        onClick={() => {
+          const next = !on;
+          like.mutate({ record, on: next, me: me.user.id });
+          if (next) {
+            setBounce(true);
+            vibrateShort();
+          }
+        }}
         className={cn(
           "inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line pr-3 pl-2.5 text-[13px] font-bold text-ink-2",
           on &&
             "border-[color-mix(in_srgb,var(--sun)_35%,transparent)] bg-[color-mix(in_srgb,var(--sun)_10%,transparent)] text-sun",
         )}
       >
-        <Heart className={cn("size-4", on && "fill-current")} aria-hidden="true" />
+        <Heart
+          className={cn("size-4", on && "fill-current", bounce && "heart-bounce")}
+          onAnimationEnd={() => setBounce(false)}
+          aria-hidden="true"
+        />
         {record.likes.length}
       </button>
-      {people.length > 0 && <AvatarStack people={people} size={20} />}
+      {record.likes.length > 0 && <UserAvatarStack userIds={record.likes} groups={groups} me={me} size={20} />}
     </div>
   );
 }
@@ -115,7 +136,7 @@ function PhotoGrid({ photos, onOpen, big = false }: { photos: Photo[]; onOpen?: 
       onClick={() => onOpen?.(p)}
       aria-label={`写真 ${i + 1} を大きく見る`}
     >
-      <PhotoImg photo={p} className="size-full" />
+      <PhotoImg photo={p} size="large" className="size-full" />
       {rest > 0 && i === shown.length - 1 && (
         <span className="absolute inset-0 grid place-items-center bg-black/40 text-lg font-bold text-white">
           +{rest}
@@ -175,7 +196,7 @@ export function RecordBody({
     <article className="flex flex-col gap-1 py-2" aria-label={`${author.name} の記録`}>
       <PhotoGrid photos={record.photos} onOpen={onOpenPhoto} big={big} />
       <div className="flex items-center gap-1.5 pt-1.5 text-xs font-bold">
-        <InitialAvatar person={author} size={22} />
+        <UserAvatar userId={author.id} groups={groups} me={me} size={22} />
         {author.name}
         {record.kind === "koma" && (
           <span className="rounded-full bg-field px-1.5 text-[10px] text-ink-2">ひとコマ</span>
@@ -196,79 +217,6 @@ export function RecordBody({
   );
 }
 
-/**
- * グループの絞り込み。すべて、自分だけ、共有のグループ。カレンダーと同じ形。F-102
- * スマホは横に流れるチップで、下にバーをいつも出す。F-25。PC は左の列の SideGroupFilter を使う
- */
-export function GroupFilter({
-  groups,
-  me,
-  value,
-  onChange,
-}: {
-  groups: GroupSummary[];
-  me: Me;
-  value: string | null;
-  onChange: (id: string | null) => void;
-}) {
-  return (
-    <nav className="-mx-4 lg:hidden" aria-label="グループで絞る">
-      <ScrollArea
-        orientation="horizontal"
-        className="px-4"
-        viewportClassName="pb-1.5"
-        scrollbarClassName="left-4! right-4!"
-      >
-        <div className="flex w-max gap-2">
-          <Chip aria-pressed={value === null} onClick={() => onChange(null)}>
-            すべて
-          </Chip>
-          {groups.map((g) => (
-            <Chip key={g.id} aria-pressed={value === g.id} onClick={() => onChange(value === g.id ? null : g.id)}>
-              <Dot color={groupColor(g, me.colorPrefs)} />
-              {g.isPersonal ? "自分だけ" : g.name}
-            </Chip>
-          ))}
-        </div>
-      </ScrollArea>
-    </nav>
-  );
-}
-
-/** PC の左の列に置く、グループの絞り込み。カレンダーの左の列と同じ形 */
-export function SideGroupFilter({
-  groups,
-  me,
-  value,
-  onChange,
-}: {
-  groups: GroupSummary[];
-  me: Me;
-  value: string | null;
-  onChange: (id: string | null) => void;
-}) {
-  return (
-    <div role="group" aria-label="表示するグループ" className="pr-2">
-      <SideHeading>表示するグループ</SideHeading>
-      <button type="button" className={sideItemClass} aria-pressed={value === null} onClick={() => onChange(null)}>
-        すべて
-      </button>
-      {groups.map((g) => (
-        <button
-          key={g.id}
-          type="button"
-          className={sideItemClass}
-          aria-pressed={value === g.id}
-          onClick={() => onChange(value === g.id ? null : g.id)}
-        >
-          <Dot color={groupColor(g, me.colorPrefs)} />
-          {g.isPersonal ? "自分だけ" : g.name}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 /** グループの名前と色の点。自分だけのグループは「自分だけ」 */
 export function GroupLabel({ group, me, children }: { group: GroupSummary | undefined; me: Me; children?: ReactNode }) {
   if (!group) return null;
@@ -281,18 +229,6 @@ export function GroupLabel({ group, me, children }: { group: GroupSummary | unde
       </span>
     </span>
   );
-}
-
-/** 期間の見出し。`9.19 土 — 9.20 日` */
-export function formatSpan(startsAt: number, endsAt: number, timeZone: string): string {
-  const f = new Intl.DateTimeFormat("ja-JP", { timeZone, month: "numeric", day: "numeric", weekday: "short" });
-  const a = f.formatToParts(startsAt);
-  const b = f.formatToParts(endsAt - 1);
-  const s = (p: Intl.DateTimeFormatPart[]) =>
-    `${p.find((x) => x.type === "month")?.value}.${p.find((x) => x.type === "day")?.value} ${p.find((x) => x.type === "weekday")?.value}`;
-  const first = s(a);
-  const last = s(b);
-  return first === last ? first : `${first} — ${last}`;
 }
 
 /** 時刻。`14:08` */

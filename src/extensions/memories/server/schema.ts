@@ -89,9 +89,10 @@ export const memoryRecords = sqliteTable(
 );
 
 /**
- * 写真。full と thumb は R2 に置き、鍵は id から決まる。tiny は 32 px の JPEG を base64 にした文字列。0021
- * record_id が空なら、まだ記録に付いていない写真。24 時間たっても付かなければ定期の処理が消す。
+ * 写真。full だけを R2 に置き、鍵は id から決まる。tiny は 32 px、small は 160 px の JPEG を base64 にした文字列。0021
+ * record_id が空なら、まだ記録に付いていない写真。1 時間たっても付かなければ定期の処理が消す。
  * 行を消すと、トリガーが R2 の鍵を memory_photo_trash に積む。
+ * small が空の行は、この形に変える前からある写真。R2 に thumb の置き場が残っていれば、それを使い続ける。#158
  */
 export const memoryPhotos = sqliteTable(
   "memory_photos",
@@ -107,6 +108,8 @@ export const memoryPhotos = sqliteTable(
     bytes: integer("bytes").notNull(),
     takenAt: integer("taken_at", { mode: "timestamp_ms" }),
     tiny: text("tiny").notNull(),
+    /** 一覧、ひとコマ、1 年のらせんで使う 160 px の JPEG。新しく送る写真だけが持つ。0021、#158 */
+    small: text("small"),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: createdAt(),
   },

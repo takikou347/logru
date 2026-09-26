@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { AuthCard, AuthShell, AuthTitle, Notice } from "@/components/layout/AuthShell";
 import { BackLink } from "@/components/parts/BackLink";
 import { Field } from "@/components/parts/Field";
+import { InAppBrowserNotice } from "@/components/parts/InAppBrowserNotice";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,7 @@ export function SignupPage() {
       <AuthCard>
         <BackLink to={next !== "/" ? `/login?next=${encodeURIComponent(next)}` : "/login"}>ログインへ戻る</BackLink>
         <AuthTitle>アカウントを作る</AuthTitle>
+        <InAppBrowserNotice />
         <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
           <Field label="表示名" hint="グループのメンバーに見える名前です。">
             {(p) => (

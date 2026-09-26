@@ -301,6 +301,31 @@ test("カードの残高はマイナスになり、引き落としの振替で�
   await expect(page.getByRole("link", { name: "銀行" })).toContainText("¥6,000");
 });
 
+test("口座ごとの記録の行を押すと、その記録を直すシートが開く。issue #205", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await createAccount(page, "現金", { openingBalance: "10000" });
+  const expense = await openRecordSheet(page);
+  await expense.getByLabel("金額").fill("3000");
+  await expense.getByRole("radio", { name: "食費" }).click();
+  await pickAccount(page, expense, "口座", "現金");
+  await expense.getByLabel("メモ").fill("スーパー");
+  await expense.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  await page.goto("/kakeibo/accounts");
+  await page.getByRole("link", { name: "現金" }).click();
+  await page.getByRole("button", { name: /スーパー/ }).click();
+
+  const editSheet = page.getByRole("dialog", { name: "記録を直す" });
+  await expect(editSheet.getByLabel("金額")).toHaveValue("3000");
+  await editSheet.getByLabel("メモ").fill("コンビニ");
+  await editSheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録を直しました")).toBeVisible();
+  await expect(page.getByRole("button", { name: /コンビニ/ })).toBeVisible();
+});
+
 test("共有口座への振替は共有のグループの人にも見えるが、出した元の自分の口座の名前は見えない。F-313", async ({
   page,
   browser,

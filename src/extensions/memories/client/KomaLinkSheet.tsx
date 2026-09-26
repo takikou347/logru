@@ -5,9 +5,10 @@ import { FieldMessage, PanelRow } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { SharePickerRow } from "@/components/parts/SharePicker";
 import { Button } from "@/components/ui/button";
+import { deviceTimeZone } from "@/lib/dates";
 import { startOfDayIn } from "../shared/days";
 import { useInvalidateMemories, useMemoryList } from "./api";
-import { deviceTimeZone, useSaveKomaDay } from "./koma-api";
+import { useSaveKomaDay } from "./koma-api";
 
 /**
  * ひとコマを始める、つなぎ直すシート。グループと、その日を含む思い出を選ぶ。F-127、F-129

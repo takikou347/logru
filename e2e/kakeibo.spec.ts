@@ -135,6 +135,54 @@ test("記録を直す、消すのは書いた人の家計簿の画面から。F-
   await expect(page.getByText("この月の記録はまだありません。")).toBeVisible();
 });
 
+test("共有のグループの立て替えは、書いた人でなくてもメンバーが直せて消せ、消すと「元に戻す」が出る。issue #206、0079", async ({
+  page,
+  browser,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await page.goto("/groups");
+  await page.getByLabel("グループの名前").fill("ふたり");
+  await page.getByRole("button", { name: "作る" }).click();
+  await page.getByRole("button", { name: "招待リンクを作る" }).click();
+  const inviteUrl = await page.getByLabel("招待リンク").inputValue();
+
+  await page.goto("/settings/extensions/kakeibo");
+  await page.getByRole("region", { name: "足すグループ" }).getByRole("button", { name: "ふたりを足す" }).click();
+  await expect(page.getByText("足しました")).toBeVisible();
+
+  const mikaPage = await (await browser.newContext()).newPage();
+  await signUp(mikaPage, { name: "みか", next: new URL(inviteUrl).pathname });
+  await mikaPage.getByRole("button", { name: "参加する" }).click();
+  await expect(mikaPage).toHaveURL(/group=/);
+  await addExtension(mikaPage, "家計簿");
+
+  // みかが、共有のグループに立て替えを記録する。口座を選ばないので、こたとみかで均等に割る
+  const expenseSheet = await openRecordSheet(mikaPage);
+  await expenseSheet.getByLabel("金額").fill("2000");
+  await expenseSheet.getByRole("radio", { name: "食費" }).click();
+  await pickShare(mikaPage, expenseSheet, "ふたり");
+  await expenseSheet.getByRole("button", { name: "保存する" }).click();
+  await expect(mikaPage.getByText("記録しました")).toBeVisible();
+
+  // こたが「ふたり」に絞ると、みかが書いた記録が出る。開いて金額を直せる
+  await page.goto("/kakeibo");
+  await page.getByRole("button", { name: "ふたり", exact: true }).click();
+  await page.getByRole("button", { name: /食費/ }).click();
+  const edit = page.getByRole("dialog", { name: "記録を直す" });
+  await edit.getByLabel("金額").fill("3000");
+  await edit.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録を直しました")).toBeVisible();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥3,000");
+
+  // 消すと、書いた人でなくても消せ、5 秒だけ「元に戻す」が出る
+  await page.getByRole("button", { name: /食費/ }).click();
+  await page.getByRole("dialog", { name: "記録を直す" }).getByRole("button", { name: "消す" }).click();
+  await expect(page.getByTestId("kakeibo-total")).toHaveText("¥0");
+  await expect(page.getByRole("button", { name: "元に戻す" })).toBeVisible();
+});
+
 test("記録を消すと 5 秒だけ元に戻せる。issue #12", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await enableKakeibo(page);

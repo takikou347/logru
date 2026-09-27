@@ -1,6 +1,7 @@
 /** ひとコマの API と、知らせを送る定期の処理。0022、0023 */
 import { zValidator } from "@hono/zod-validator";
 import { createRouter, HttpError, validationHook } from "@server/core/app";
+import { runBatch } from "@server/core/db/batch";
 import type { DB } from "@server/core/db/client";
 import { groupExtensions, groupMembers } from "@server/core/db/schema";
 import { sendPush } from "@server/core/push/send";
@@ -263,7 +264,7 @@ export const komaRoutes = createRouter()
       .where(and(eq(memoryRecords.createdBy, me.id), eq(memoryRecords.komaSlot, new Date(input.slot))))
       .get();
     const id = existing?.id ?? crypto.randomUUID();
-    await db.batch([
+    await runBatch(db, [
       existing
         ? db
             .update(memoryRecords)
@@ -283,7 +284,7 @@ export const komaRoutes = createRouter()
         ? [db.delete(memoryPhotos).where(and(eq(memoryPhotos.recordId, id), ne(memoryPhotos.id, photo.id)))]
         : []),
       db.update(memoryPhotos).set({ recordId: id, sortOrder: 0 }).where(eq(memoryPhotos.id, photo.id)),
-    ] as unknown as Parameters<typeof db.batch>[0]);
+    ]);
     const [record] = await withPhotos(db, new PhotoSigner(c.env.MEMORIES_PHOTO_KEY), [
       (await db.select().from(memoryRecords).where(eq(memoryRecords.id, id)).get())!,
     ]);

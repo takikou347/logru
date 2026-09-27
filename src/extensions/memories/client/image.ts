@@ -1,14 +1,14 @@
 /**
- * 送る前に、端末で写真を縮める。0021
+ * 送る前に、端末で写真を縮める。0021、#158
  *
- * full は長い辺 2048 px、thumb は 480 px、tiny は 32 px の JPEG にする。作り直すと Exif ごと消え、位置の情報も残らない。
- * 撮った時刻だけは、縮める前に Exif から読む。
+ * full は長い辺 1600 px の JPEG にして R2 に送る。small は 160 px、tiny は 32 px の JPEG を data URL にして
+ * D1 に持つ。作り直すと Exif ごと消え、位置の情報も残らない。撮った時刻だけは、縮める前に Exif から読む。
  */
 import exifr from "exifr";
 
 export type PreparedPhoto = {
   full: Blob;
-  thumb: Blob;
+  small: string;
   tiny: string;
   width: number;
   height: number;
@@ -16,8 +16,9 @@ export type PreparedPhoto = {
 };
 
 /** 大きさの上限。サーバーの PHOTO_LIMITS と合わせる */
-const MAX_FULL_BYTES = 3 * 1024 * 1024;
-const MAX_THUMB_BYTES = 200 * 1024;
+const MAX_FULL_BYTES = 1.5 * 1024 * 1024;
+/** small の元になる JPEG の、符号化前のバイト数の上限。base64 の data URL にすると 4/3 倍ほどになる */
+const MAX_SMALL_BYTES = 9 * 1024;
 
 /**
  * 写真を 3 つの大きさの JPEG に作り直す。
@@ -33,13 +34,13 @@ export async function preparePhoto(file: File): Promise<PreparedPhoto> {
     throw new Error("この形式の写真は読めません。JPEG か PNG にしてから選んでください。");
   }
   try {
-    const full = await encode(bitmap, 2048, [0.85, 0.75, 0.6], MAX_FULL_BYTES);
-    const thumb = await encode(bitmap, 480, [0.8, 0.65, 0.5], MAX_THUMB_BYTES);
+    const full = await encode(bitmap, 1600, [0.82, 0.7, 0.55], MAX_FULL_BYTES);
+    const small = await encode(bitmap, 160, [0.75, 0.6, 0.45], MAX_SMALL_BYTES);
     const tinyBlob = await encode(bitmap, 32, [0.6], Infinity);
-    const scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
     return {
       full: full.blob,
-      thumb: thumb.blob,
+      small: await toDataUrl(small.blob),
       tiny: await toDataUrl(tinyBlob.blob),
       width: Math.round(bitmap.width * scale),
       height: Math.round(bitmap.height * scale),
@@ -109,7 +110,7 @@ export async function uploadPhoto(
   const form = new FormData();
   form.set("groupId", groupId);
   form.set("full", photo.full, "full.jpg");
-  form.set("thumb", photo.thumb, "thumb.jpg");
+  form.set("small", photo.small);
   form.set("tiny", photo.tiny);
   form.set("width", String(photo.width));
   form.set("height", String(photo.height));

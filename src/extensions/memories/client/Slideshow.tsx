@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
 import type { MemoryRecord } from "../shared/types";
+import { prefersReducedMotion } from "./motion";
 import { PhotoImg } from "./parts";
 
 /** 1 枚を出す時間。0.8 秒。F-122 */
@@ -21,9 +22,8 @@ export function Slideshow({
   timeZone: string;
   onClose: () => void;
 }) {
-  const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const [index, setIndex] = useState(0);
-  const [playing, setPlaying] = useState(!reduce);
+  const [playing, setPlaying] = useState(() => !prefersReducedMotion());
 
   useEffect(() => {
     if (!playing || records.length < 2) return;

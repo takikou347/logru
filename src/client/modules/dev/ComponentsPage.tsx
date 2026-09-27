@@ -4,7 +4,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Chip } from "@/components/parts/Chip";
 import { ColorSwatches } from "@/components/parts/ColorSwatches";
+import { EmptyState } from "@/components/parts/EmptyState";
 import { Field } from "@/components/parts/Field";
+import { MASCOT_POSES } from "@/components/parts/Mascot";
 import { Dot, Empty, Panel, PanelRow } from "@/components/parts/Panel";
 import { Pools } from "@/components/parts/Pools";
 import { Segmented } from "@/components/parts/Segmented";
@@ -108,6 +110,15 @@ export function ComponentsPage() {
           <br />
           予定はいつも使えます。
         </Empty>
+      </Panel>
+      <Panel title="マスコット">
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+          {MASCOT_POSES.map((pose) => (
+            <EmptyState key={pose} pose={pose} action={{ label: "試す", onClick: () => toast(pose) }}>
+              {pose}
+            </EmptyState>
+          ))}
+        </div>
       </Panel>
     </main>
   );

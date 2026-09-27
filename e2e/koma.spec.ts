@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { addExtension, addMemories, signUp } from "./helpers";
 
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
 
@@ -15,19 +15,14 @@ const inKomaHours = () => hourInTokyo() >= 7 && hourInTokyo() <= 22;
 test("思い出が無い日でも、今日をひとコマで始め、近道の帯から撮れる。F-121、F-126、F-127", async ({ page }) => {
   test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
   await signUp(page, { name: "こた" });
-  await page.goto("/extensions");
-  await page.getByRole("switch", { name: "思い出を使う" }).click();
+  await addExtension(page, "思い出");
 
-  // 機能のシートの「ひとコマ」から確認画面へ。今日を始める
+  // ホームの「ひとコマ」のウィジェットから確認画面へ。今日を始める
   await page.goto("/");
-  await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
-  await page
-    .getByRole("dialog", { name: "機能" })
-    .getByRole("link", { name: /ひとコマ/ })
-    .click();
+  await page.getByTestId("widget-koma").click();
   await page.getByRole("button", { name: "今日のひとコマを始める" }).click();
   const start = page.getByRole("dialog", { name: "今日のひとコマを始める" });
-  await expect(start.getByRole("radio", { name: "自分だけ" })).toHaveAttribute("aria-checked", "true");
+  await expect(start.getByRole("button", { name: /^共有/ })).toContainText("自分だけ");
   await start.getByRole("button", { name: "始める" }).click();
   await expect(page.getByText("今日のひとコマを始めました")).toBeVisible();
 
@@ -53,12 +48,11 @@ test("思い出が無い日でも、今日をひとコマで始め、近道の�
 test("ひとコマは思い出を消しても残り、つなぎ直せる。F-128、F-129", async ({ page, request }) => {
   test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
   await signUp(page, { name: "こた" });
-  await page.goto("/extensions");
-  await page.getByRole("switch", { name: "思い出を使う" }).click();
+  await addExtension(page, "思い出");
 
   // 今日の日帰りの思い出を、ひとコマを有効にして作る
   await page.goto("/memories");
-  await page.getByRole("button", { name: "思い出を作る" }).click();
+  await addMemories(page, "思い出を作る");
   const create = page.getByRole("dialog", { name: "思い出を作る" });
   await create.getByLabel("題名").fill("鎌倉 散歩");
   await create.getByRole("switch", { name: "ひとコマを使う" }).click();
@@ -76,8 +70,8 @@ test("ひとコマは思い出を消しても残り、つなぎ直せる。F-128
 
   // 思い出を消す
   await page.getByRole("button", { name: "思い出を編集" }).click();
-  await page.getByRole("dialog", { name: "思い出を編集" }).getByRole("button", { name: "削除" }).click();
-  await page.getByRole("dialog", { name: "思い出を削除しますか" }).getByRole("button", { name: "削除する" }).click();
+  await page.getByRole("dialog", { name: "思い出を編集" }).getByRole("button", { name: "消す" }).click();
+  await page.getByRole("dialog", { name: "思い出を消しますか" }).getByRole("button", { name: "消す" }).click();
   await expect(page).toHaveURL(/\/memories$/);
 
   // 確認画面には、つなぎの外れた今日のひとコマが残る
@@ -86,4 +80,22 @@ test("ひとコマは思い出を消しても残り、つなぎ直せる。F-128
   await expect(link).toContainText("思い出を選ぶ");
   await expect(page.getByRole("button", { name: `${hourInTokyo()} 時 のひとコマ` })).toBeVisible();
   void request;
+});
+
+test("動きを減らす設定では、ひとコマを保存すると現像も吸い込みもせずすぐに移る。#101", async ({ page }) => {
+  test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await signUp(page, { name: "こた" });
+  await addExtension(page, "思い出");
+  await page.goto("/memories/koma");
+  await page.getByRole("button", { name: "今日のひとコマを始める" }).click();
+  await page.getByRole("dialog", { name: "今日のひとコマを始める" }).getByRole("button", { name: "始める" }).click();
+  await expect(page.getByText("今日のひとコマを始めました")).toBeVisible();
+  await page.getByRole("toolbar", { name: "ひとコマの操作" }).getByRole("button").click();
+  await expect(page).toHaveURL(/\/memories\/koma\/now$/);
+
+  await page.locator('input[type="file"][capture]').setInputFiles(PHOTO);
+  await page.getByRole("button", { name: "保存する" }).click();
+  // 動きを減らさない場合は現像(1.2 秒)と吸い込み(0.32 秒)の分だけ遅れて移る。ここではすぐに移ることを確かめる
+  await expect(page).toHaveURL(/\/memories\/koma$/, { timeout: 1_000 });
 });

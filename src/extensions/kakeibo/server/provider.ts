@@ -1,0 +1,128 @@
+import type { DB } from "@server/core/db/client";
+import type { CalendarItem } from "@shared/api-types";
+import { and, between, eq, inArray, or, type SQL, sql } from "drizzle-orm";
+import { DAY_MS, dateKeyOfJst, startOfDateJst } from "../shared/dates";
+import { formatYen } from "../shared/format";
+import { sumAmount } from "../shared/totals";
+import { kakeiboExpenses } from "./schema";
+
+/**
+ * 一致した日を、新しい順に切る数。検索の結果は最終的に search/routes.ts で全体を 30 件に切るので、
+ * ここで先に切ってから合計を読めば、その先の合計のクエリも 30 件分ぶんで済む。#199
+ */
+const SEARCH_DAY_LIMIT = 30;
+
+/**
+ * memo に対する LIKE の条件。`%` と `_` はワイルドカードなので、検索文字列に含まれていたら
+ * `\` を前置いて逃がす。`\` 自身も先に逃がす。#199
+ */
+function memoLikeCondition(query: string): SQL {
+  const escaped = query.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+  return sql`${kakeiboExpenses.memo} like ${`%${escaped}%`} escape '\\'`;
+}
+
+/**
+ * グループと日ごとの合計を、カレンダーの項目の形にする。0008、0047
+ * 終日の項目で、予定の一覧には混ぜない(`secondary`)。押すと、その日を含む月の家計簿の画面へ移る。
+ * kind を expense にすると、カレンダーは塗らない札に金額を右寄せして出す。0056
+ * @param groupId その日の合計のグループ
+ * @param date `2026-09-22` の形の日付
+ * @param amount その日の合計金額
+ */
+function toDayItem(groupId: string, date: string, amount: number): CalendarItem {
+  const start = startOfDateJst(date);
+  return {
+    extension: "kakeibo",
+    id: `${groupId}:${date}`,
+    groupId,
+    createdBy: null,
+    startsAt: start,
+    endsAt: start + DAY_MS,
+    allDay: true,
+    title: formatYen(amount),
+    tag: "家計簿",
+    kind: "expense",
+    amount,
+    secondary: true,
+  };
+}
+
+/**
+ * カレンダーへ渡す項目。記録 1 件ずつではなく、グループと日ごとに合計金額を 1 項目にまとめる。
+ * @param db D1 を包んだ Drizzle
+ * @param groupIds 呼んでよいグループ。家計簿の拡張が有効なものだけ
+ * @param from 期間の始まり。ミリ秒の協定世界時
+ * @param to 期間の終わり。含まない
+ */
+export async function listKakeiboItems(db: DB, groupIds: string[], from: number, to: number): Promise<CalendarItem[]> {
+  if (groupIds.length === 0) return [];
+  // 日付は文字列で持つので、期間を日本時間の日付の範囲に変えて絞る。to は含まないので 1 ミリ秒引く
+  const fromKey = dateKeyOfJst(from);
+  const toKey = dateKeyOfJst(to - 1);
+  const rows = await db
+    .select({ groupId: kakeiboExpenses.groupId, date: kakeiboExpenses.date, amount: kakeiboExpenses.amount })
+    .from(kakeiboExpenses)
+    .where(
+      and(
+        inArray(kakeiboExpenses.groupId, groupIds),
+        between(kakeiboExpenses.date, fromKey, toKey),
+        // カレンダーには支出だけを渡す。収入と振替は出さない。0069
+        eq(kakeiboExpenses.type, "expense"),
+      ),
+    );
+
+  const totals = new Map<string, { groupId: string; date: string; amounts: number[] }>();
+  for (const r of rows) {
+    const key = `${r.groupId}\u0000${r.date}`;
+    const t = totals.get(key) ?? { groupId: r.groupId, date: r.date, amounts: [] };
+    t.amounts.push(r.amount);
+    totals.set(key, t);
+  }
+  return [...totals.values()].map((t) =>
+    toDayItem(t.groupId, t.date, sumAmount(t.amounts.map((amount) => ({ amount })))),
+  );
+}
+
+/**
+ * メモを探す。0046
+ *
+ * 家計簿は記録ごとの題名を持たず、日ごとの合計だけをカレンダーの項目にしている。0047
+ * メモが見つかった日は、その日全体の合計を検索結果として返す。個別の金額は家計簿の画面で見る。
+ * 一致した日を新しい順に SEARCH_DAY_LIMIT へ切ってから、合計を 1 本のクエリ(GROUP BY)で読む。#199
+ * @param db D1 を包んだ Drizzle
+ * @param groupIds 呼んでよいグループ
+ * @param query 探す文字列
+ */
+export async function searchKakeibo(db: DB, groupIds: string[], query: string): Promise<CalendarItem[]> {
+  if (groupIds.length === 0) return [];
+  const matched = await db
+    .select({ groupId: kakeiboExpenses.groupId, date: kakeiboExpenses.date })
+    .from(kakeiboExpenses)
+    .where(
+      and(
+        inArray(kakeiboExpenses.groupId, groupIds),
+        memoLikeCondition(query),
+        // 探すも支出だけ。収入と振替のメモは探さない。0069
+        eq(kakeiboExpenses.type, "expense"),
+      ),
+    );
+  const days = new Map(matched.map((r) => [`${r.groupId}\u0000${r.date}`, r]));
+  const top = [...days.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, SEARCH_DAY_LIMIT);
+  if (top.length === 0) return [];
+
+  const sums = await db
+    .select({
+      groupId: kakeiboExpenses.groupId,
+      date: kakeiboExpenses.date,
+      amount: sql<number>`coalesce(sum(${kakeiboExpenses.amount}), 0)`,
+    })
+    .from(kakeiboExpenses)
+    .where(
+      and(
+        eq(kakeiboExpenses.type, "expense"),
+        or(...top.map((d) => and(eq(kakeiboExpenses.groupId, d.groupId), eq(kakeiboExpenses.date, d.date)))),
+      ),
+    )
+    .groupBy(kakeiboExpenses.groupId, kakeiboExpenses.date);
+  return sums.map((s) => toDayItem(s.groupId, s.date, s.amount));
+}

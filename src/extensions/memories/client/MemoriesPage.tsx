@@ -1,21 +1,28 @@
 import type { Me } from "@shared/api-types";
-import { Camera, Plus } from "lucide-react";
+import { BookOpen, Camera } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
+import { Dock } from "@/components/parts/Dock";
+import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
-import { Empty } from "@/components/parts/Panel";
+import { FeatureSheet } from "@/components/parts/FeatureSheet";
+import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
+import type { Addable } from "@/components/parts/PrimaryAddButton";
+import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatShortDate, formatSpan } from "@/lib/dates";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { DEFAULT_TIME_ZONE, dayKeyIn } from "../shared/days";
 import type { Memory, MemoryRecord } from "../shared/types";
 import { useMemoryGroups, useMemoryList } from "./api";
-import { Dock } from "./Dock";
+import { CoverOpen } from "./Book";
 import { MemorySheet } from "./MemorySheet";
-import { formatClock, formatSpan, GroupFilter, GroupLabel, PhotoImg, SideGroupFilter } from "./parts";
+import { formatClock, GroupLabel, PhotoImg } from "./parts";
 import { RecordSheet } from "./RecordSheet";
 
 const FILTER_KEY = "logru-memories-group";
@@ -51,7 +58,8 @@ function daysUntil(memory: Memory, now: number): number {
 /**
  * 思い出の一覧。これからの思い出を上に、済んだ思い出を年ごとに新しい順で、表紙のカードで並べる。F-102
  * すべて、自分だけ、グループで絞る。絞り込みは端末に覚える。
- * 下の操作で、記録する、思い出を作る。`?record=1` で開くと、記録のシートを出す。
+ * 下の「+」を押すと、記録する・思い出を作るを選ぶシートが開く。0062
+ * `?record=1` で開くと、記録のシートを出す。
  */
 export function MemoriesPage() {
   const me = useMe();
@@ -61,6 +69,7 @@ export function MemoriesPage() {
   const group = groups.some((g) => g.id === remembered) ? remembered : null;
   const list = useMemoryList(group);
   const [creating, setCreating] = useState(false);
+  const [features, setFeatures] = useState(false);
   const recording = params.get("record") === "1";
   const closeRecord = () => setParams((p) => (p.delete("record"), p), { replace: true });
 
@@ -77,28 +86,42 @@ export function MemoriesPage() {
     return { upcoming, byYear: [...byYear.entries()].sort((a, b) => b[0] - a[0]) };
   }, [list.data, now]);
 
+  const filterOptions = groupFilterOptions({ groups, me: me.data, value: group, onChange: setGroup });
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
+
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
   const empty = list.data && list.data.memories.length === 0 && list.data.recent.length === 0;
+  // 足せるものは記録する 1 つだけ。「+」を押すと記録のシートを直に開く。思い出を作るのは見出しの右のボタンから。0062、#164
+  const addables: Addable[] = [
+    { key: "record", label: "記録する", icon: Camera, onClick: () => setParams((p) => (p.set("record", "1"), p)) },
+  ];
 
   return (
-    <AppLayout
-      poolColors={poolColorsOf(groups, data)}
-      side={<SideGroupFilter groups={groups} me={data} value={group} onChange={setGroup} />}
-    >
+    <>
       <Page>
-        <PageBar title="思い出" />
-        <GroupFilter groups={groups} me={data} value={group} onChange={setGroup} />
+        {/* 見出しを押すと機能のシートが開き、ほかの拡張の画面へ近道できる。issue #26 */}
+        <PageBar
+          title="思い出"
+          onTitleClick={() => setFeatures(true)}
+          action={
+            <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
+              <BookOpen className="size-4" aria-hidden="true" />
+              思い出を作る
+            </Button>
+          }
+        />
+        <GroupFilterBand options={filterOptions} />
         {list.error && !list.data && (
           <LoadFailure what="思い出" error={list.error} onRetry={() => void list.refetch()} />
         )}
         {list.isPending && <Loading />}
         {empty && (
-          <Empty>
+          <EmptyState pose="camera" action={{ label: "最初の思い出を作ってみる", onClick: () => setCreating(true) }}>
             思い出はまだありません。
             <br />
             旅行やお出かけの前に作ると、しおりを作れます。日々のできごとは「記録する」から残せます。
-          </Empty>
+          </EmptyState>
         )}
         {upcoming.map((m, i) => (i === 0 ? <Upcoming key={m.id} memory={m} me={data} now={now} /> : null))}
         {list.data && list.data.recent.length > 0 && <Recent records={list.data.recent} me={data} />}
@@ -107,19 +130,13 @@ export function MemoriesPage() {
           <Shelf key={year} year={year} title="過去の思い出" memories={ms} me={data} />
         ))}
         <Dock label="思い出の操作">
-          <Button variant="secondary" onClick={() => setParams((p) => (p.set("record", "1"), p))}>
-            <Camera className="size-5" />
-            記録する
-          </Button>
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="size-5" />
-            思い出を作る
-          </Button>
+          <PrimaryAddButton label="記録する" addables={addables} />
         </Dock>
       </Page>
       {creating && <MemorySheet groups={groups} me={data} defaultGroupId={group} onClose={() => setCreating(false)} />}
       {recording && <RecordSheet groups={groups} me={data} defaultGroupId={group} onClose={closeRecord} />}
-    </AppLayout>
+      {features && <FeatureSheet onClose={() => setFeatures(false)} />}
+    </>
   );
 }
 
@@ -130,13 +147,15 @@ function Upcoming({ memory, me, now }: { memory: Memory; me: Me; now: number }) 
   const days = daysUntil(memory, now);
   const during = memory.startsAt <= now;
   return (
-    <Link
+    <CoverOpen
       to={`/memories/${memory.id}`}
+      cover={memory.cover}
+      tone={group?.color ?? "nezumi"}
       className="glass flex flex-col rounded-panel p-2 no-underline"
-      aria-label={`${memory.title}、${during ? "期間中" : `出発まで ${days} 日`}`}
+      ariaLabel={`${memory.title}、${during ? "期間中" : `出発まで ${days} 日`}`}
     >
       {memory.cover ? (
-        <PhotoImg photo={memory.cover} className="h-[180px] rounded-[22px]" />
+        <PhotoImg photo={memory.cover} size="large" className="h-[180px] rounded-[22px]" />
       ) : (
         <div className={`h-[120px] rounded-[22px] bg-(--c) opacity-70 c-${group?.color ?? "nezumi"}`} />
       )}
@@ -157,7 +176,7 @@ function Upcoming({ memory, me, now }: { memory: Memory; me: Me; now: number }) 
           ・{formatSpan(memory.startsAt, memory.endsAt, memory.timeZone)}
         </GroupLabel>
       </div>
-    </Link>
+    </CoverOpen>
   );
 }
 
@@ -188,7 +207,7 @@ function Recent({ records, me }: { records: MemoryRecord[]; me: Me }) {
                     <GroupLabel group={group} me={me} />
                   </small>
                   <small className="block text-[11px] text-ink-2">
-                    {day.slice(5).replace("-", ".")} {formatClock(r.occurredAt)}
+                    {formatShortDate(day)} {formatClock(r.occurredAt)}
                   </small>
                 </Link>
               </li>
@@ -218,9 +237,14 @@ function Shelf({ title, year, memories, me }: { title: string; year?: number; me
           const group = groups.find((g) => g.id === m.groupId);
           return (
             <li key={m.id}>
-              <Link to={`/memories/${m.id}`} className="glass flex flex-col rounded-[22px] p-1.5 no-underline">
+              <CoverOpen
+                to={`/memories/${m.id}`}
+                cover={m.cover}
+                tone={group?.color ?? "nezumi"}
+                className="glass flex flex-col rounded-[22px] p-1.5 no-underline"
+              >
                 {m.cover ? (
-                  <PhotoImg photo={m.cover} className="h-[108px] rounded-[17px]" />
+                  <PhotoImg photo={m.cover} size="large" className="h-[108px] rounded-[17px]" />
                 ) : (
                   <div className={`h-[108px] rounded-[17px] bg-(--c) opacity-60 c-${group?.color ?? "nezumi"}`} />
                 )}
@@ -230,7 +254,7 @@ function Shelf({ title, year, memories, me }: { title: string; year?: number; me
                     ・{formatSpan(m.startsAt, m.endsAt, m.timeZone)}・{m.photoCount} 枚
                   </GroupLabel>
                 </span>
-              </Link>
+              </CoverOpen>
             </li>
           );
         })}

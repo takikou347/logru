@@ -9,6 +9,7 @@ import { applyTheme } from "@/lib/theme";
 import { safeNext } from "@/lib/utils";
 import { postAgreement } from "@/modules/auth/AgreePage";
 import { takeRememberedAgreement } from "@/modules/auth/pending-agreement";
+import { CalendarSkeleton } from "@/modules/calendar/components/CalendarSkeleton";
 import { needsEmailVerification, useAuth } from "./auth";
 
 /** 読み込み中の画面。中身が出るまでの一瞬だけ出す */
@@ -18,6 +19,14 @@ export function Loading({ children = "読み込んでいます" }: { children?: 
       {children}
     </div>
   );
+}
+
+/**
+ * 読み込み中の画面。行き先がカレンダー(既定の画面)のときは、文字の代わりにカレンダーの骨組みを出す。
+ * それ以外の画面は、これまでどおりの文字のまま。0044、0048、#98
+ */
+function RouteLoading({ pathname }: { pathname: string }) {
+  return pathname === "/" ? <CalendarSkeleton /> : <Loading />;
 }
 
 /**
@@ -54,10 +63,10 @@ export function RequireAuth() {
       .finally(() => setPosting(false));
   }, [needsAgreement, qc, user?.email]);
 
-  if (!ready) return <Loading />;
+  if (!ready) return <RouteLoading pathname={location.pathname} />;
   if (!user) return <Navigate to={`/login?next=${encodeURIComponent(here)}`} replace />;
   if (needsEmailVerification(user)) return <Navigate to={`/verify-email?next=${encodeURIComponent(here)}`} replace />;
-  if (me.isPending || posting) return <Loading />;
+  if (me.isPending || posting) return <RouteLoading pathname={location.pathname} />;
   if (me.error) {
     const code = me.error instanceof ApiError ? me.error.code : undefined;
     if (code === "EMAIL_NOT_VERIFIED")

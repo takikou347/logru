@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Empty } from "@/components/parts/Panel";
+import { formatShortDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { dayKeyIn, memoryDays } from "../shared/days";
 import { useRecords } from "./api";
@@ -33,10 +34,7 @@ function Album({ detail, me, groups }: ShellProps) {
         return (
           <section key={day} aria-label={`${day} の写真`} className="flex flex-col gap-2.5">
             <h2 className="glass flex items-baseline gap-2 rounded-full px-4.5 py-2">
-              <span className="text-xl font-extrabold">{day.slice(5).replace("-", ".")}</span>
-              <span className="text-xs font-bold">
-                {new Intl.DateTimeFormat("ja-JP", { weekday: "short", timeZone: "UTC" }).format(Date.parse(day))}
-              </span>
+              <span className="text-xl font-extrabold">{formatShortDate(day)}</span>
               <span className="ml-auto text-xs text-ink-2">{list.length} 枚</span>
             </h2>
             <ul className="grid auto-rows-[114px] grid-cols-3 gap-[3px] overflow-hidden rounded-[22px] lg:auto-rows-[180px]">
@@ -48,7 +46,7 @@ function Album({ detail, me, groups }: ShellProps) {
                     aria-label={`${formatClock(e.record.occurredAt, memory.timeZone)} の写真を大きく見る`}
                     onClick={() => setOpen(e.i)}
                   >
-                    <PhotoImg photo={e.photo} className="size-full" />
+                    <PhotoImg photo={e.photo} size="large" className="size-full" />
                     {e.record.kind === "koma" && e.record.komaSlot && (
                       <span className="absolute bottom-1.5 left-1.5 rounded-full bg-white/88 px-2 text-[11px] leading-5 font-bold text-[#17202c]">
                         {new Intl.DateTimeFormat("ja-JP", { hour: "numeric", timeZone: memory.timeZone }).format(

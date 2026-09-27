@@ -1,0 +1,169 @@
+/** よく使う記録の画面。並べる。名前を直す、消す。F-326 */
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { useMe } from "@/api/common";
+import { Loading } from "@/app/guards";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
+import { EmptyState } from "@/components/parts/EmptyState";
+import { LoadFailure } from "@/components/parts/Failure";
+import { Panel } from "@/components/parts/Panel";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useRowMotion } from "@/lib/use-row-motion";
+import { cn } from "@/lib/utils";
+import { poolColorsOf } from "@/modules/calendar/model";
+import { takeJustAdded } from "@/modules/calendar/recent-items";
+import { kakeiboCategoryLabel } from "../shared/categories";
+import { formatYen } from "../shared/format";
+import type { KakeiboTemplate } from "./api";
+import { useDeleteTemplate, useKakeiboGroups, useKakeiboTemplates, useSaveTemplate } from "./api";
+
+/**
+ * よく使う記録 1 件の行。名前を押すとその場で直せる。issue #12 と同じ「元に戻す」で消す。
+ * 足した直後は膨らんで入り、消す途中は縮んで消える。直した直後は短く光る。0044、0048、0085、#226
+ */
+function TemplateRow({
+  template,
+  isLeaving,
+  isEdited,
+  onFlash,
+  onRemove,
+}: {
+  template: KakeiboTemplate;
+  isLeaving: boolean;
+  isEdited: boolean;
+  onFlash: () => void;
+  onRemove: () => void;
+}) {
+  const saveTemplate = useSaveTemplate();
+  const [entering] = useState(() => takeJustAdded(template.id));
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(template.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  async function commit() {
+    const value = name.trim();
+    setEditing(false);
+    if (!value || value === template.name) return;
+    try {
+      await saveTemplate.mutateAsync({ id: template.id, body: { name: value } });
+      onFlash();
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setName(template.name);
+      setEditing(false);
+    }
+  }
+
+  const detail = [
+    template.type === "income" ? "収入" : "支出",
+    template.category ? kakeiboCategoryLabel(template.category) : null,
+    template.amount ? formatYen(template.amount) : null,
+  ]
+    .filter(Boolean)
+    .join(" ・ ");
+
+  return (
+    <li
+      className={cn(
+        "grid min-h-14 grid-cols-[1fr_auto] items-center gap-2 border-line py-1 not-first:border-t",
+        entering && "item-enter",
+      )}
+      data-leaving={isLeaving || undefined}
+      data-edited={isEdited || undefined}
+    >
+      {editing ? (
+        <Input
+          ref={inputRef}
+          value={name}
+          maxLength={30}
+          aria-label={`${template.name} を直す`}
+          className="h-9"
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => void commit()}
+          onKeyDown={onKeyDown}
+        />
+      ) : (
+        <button
+          type="button"
+          className="flex min-w-0 flex-col items-start text-left"
+          onClick={() => {
+            setName(template.name);
+            setEditing(true);
+          }}
+        >
+          <span className="min-w-0 truncate text-[15px] font-medium">{template.name}</span>
+          <span className="text-xs text-ink-2">{detail}</span>
+        </button>
+      )}
+      <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
+        消す
+      </Button>
+    </li>
+  );
+}
+
+/** よく使う記録の画面。本人のものだけ並ぶ */
+export function TemplatesPage() {
+  const me = useMe();
+  const { groups } = useKakeiboGroups();
+  const templates = useKakeiboTemplates();
+  const deleteTemplate = useDeleteTemplate();
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。縮んで消える動きと、直した行を光らせる印も持つ。0085、#226
+  const { hidden, leaving, remove, flashing, flash } = useRowMotion("よく使う記録を消しました");
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
+
+  if (!me.data) return <Loading />;
+  const rows = (templates.data ?? []).filter((t) => !hidden.has(t.id));
+
+  return (
+    <Page>
+      <PageBar title="よく使う記録" back="/kakeibo" />
+
+      {templates.error && !templates.data && (
+        <LoadFailure what="よく使う記録" error={templates.error} onRetry={() => void templates.refetch()} />
+      )}
+      {templates.isPending && <Loading />}
+
+      {templates.data && (
+        <Panel>
+          {rows.length === 0 ? (
+            <EmptyState pose="coin" bordered={false} action={{ label: "支出を記録する", to: "/kakeibo?record=1" }}>
+              まだよく使う記録がありません。記録のシートの「よく使う記録にする」で残せます。
+            </EmptyState>
+          ) : (
+            <ul className="flex flex-col">
+              {rows.map((t) => (
+                <TemplateRow
+                  key={t.id}
+                  template={t}
+                  isLeaving={leaving.has(t.id)}
+                  isEdited={flashing.has(t.id)}
+                  onFlash={() => flash(t.id)}
+                  onRemove={() => remove(t.id, ({ keepalive }) => deleteTemplate.mutateAsync({ id: t.id, keepalive }))}
+                />
+              ))}
+            </ul>
+          )}
+        </Panel>
+      )}
+    </Page>
+  );
+}

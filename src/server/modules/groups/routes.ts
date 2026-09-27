@@ -4,11 +4,12 @@ import { type AppEnv, createRouter, HttpError, validationHook } from "@server/co
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import { AvatarSigner } from "@server/core/avatar";
 import { groupExtensions, groupInvites, groupMembers, groups } from "@server/core/db/schema";
+import { enforceRateLimit } from "@server/core/rate-limit";
 import { listGroups, requireMembership } from "@server/modules/groups/membership";
 import type { ExtensionInfo } from "@shared/api-types";
 import { pickUnusedColor } from "@shared/colors";
 import { extensionToggleInput, groupInput, groupPatchInput, memberRoleInput } from "@shared/schemas";
-import { and, eq, isNull, ne } from "drizzle-orm";
+import { and, count, eq, isNull, ne } from "drizzle-orm";
 import type { Context } from "hono";
 
 /** アバターの写真の URL を作る。env の AVATAR_PHOTO_KEY を使う */
@@ -16,6 +17,9 @@ const avatarSigner = (c: Context<AppEnv>) => new AvatarSigner(c.env.AVATAR_PHOTO
 
 /** 招待リンクの有効な期間。7 日 */
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** 1 人が作れるグループの数の上限。自分だけのグループは数えない。0065、#161 */
+const MAX_GROUPS_PER_USER = 50;
 
 /** 推測できない招待の文字列を作る。24 バイトの乱数を URL で使える Base64 にする */
 function randomToken(): string {
@@ -34,6 +38,11 @@ export const groupRoutes = createRouter()
     const db = c.get("db");
     const me = c.get("user");
     const { name } = c.req.valid("json");
+    const [{ n } = { n: 0 }] = await db
+      .select({ n: count() })
+      .from(groups)
+      .where(and(eq(groups.createdBy, me.id), eq(groups.isPersonal, false)));
+    if (n >= MAX_GROUPS_PER_USER) throw new HttpError(400, `作れるグループは ${MAX_GROUPS_PER_USER} 個までです。`);
     const existing = await listGroups(db, me.id, avatarSigner(c));
     const id = crypto.randomUUID();
     await db.batch([
@@ -62,6 +71,7 @@ export const groupRoutes = createRouter()
   .post("/:id/invites", async (c) => {
     const db = c.get("db");
     const id = c.req.param("id");
+    await enforceRateLimit(c.env.INVITE_RATE_LIMIT, c.get("user").id);
     const membership = await requireMembership(db, c.get("user").id, id, true);
     if (membership.isPersonal) throw new HttpError(400, "自分だけのグループには招待できません。");
     const token = randomToken();

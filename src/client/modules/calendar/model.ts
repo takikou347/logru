@@ -1,6 +1,13 @@
 import type { Attendee, AttendeeResponse, CalendarItem, GroupSummary, Me } from "@shared/api-types";
 import { groupColor, memberColor } from "@/lib/colors";
 
+/**
+ * 項目を見分ける名前。拡張が違えば ID が重なりうるので、拡張の名前を前に付ける。
+ * 繰り返す項目は、同じ ID で回ごとに何件も出るので、occurrenceAt も付けて見分ける。0043
+ */
+export const itemKey = (item: Pick<CalendarItem, "extension" | "id" | "occurrenceAt">) =>
+  `${item.extension}:${item.id}${item.occurrenceAt != null ? `:${item.occurrenceAt}` : ""}`;
+
 /** 項目の参加者を、名前と色を付けて画面で使う形にしたもの。#28 */
 export type ViewAttendee = {
   id: string;
@@ -10,6 +17,27 @@ export type ViewAttendee = {
   isMe: boolean;
   avatarUrl: string | null;
 };
+
+/**
+ * 項目の札の形。event は CalendarItem.kind を持たない項目(予定)。0056
+ * record はアイコンを頭に付けた札、expense は塗らない札に金額を右寄せする。見分けの印であって、
+ * どの拡張が出したかは表さない。項目を出した拡張は CalendarItem.extension にある。
+ */
+export type ItemKind = "event" | "record" | "expense";
+
+/** 項目の札の形。CalendarItem.kind が無ければ予定として扱う。0056 */
+export function kindOf(item: Pick<CalendarItem, "kind">): ItemKind {
+  return item.kind ?? "event";
+}
+
+/**
+ * 絞り込みで外した拡張の項目を除く。絞り込みの帯の「種類」で使う。項目を出した拡張の key で見分ける。0056
+ * @param hiddenKinds 出さない拡張の key
+ */
+export function byKind<T extends Pick<CalendarItem, "extension">>(items: T[], hiddenKinds: ReadonlySet<string>): T[] {
+  if (hiddenKinds.size === 0) return items;
+  return items.filter((i) => !hiddenKinds.has(i.extension));
+}
 
 /** 画面で使うための、色と名前を付けた項目 */
 export type ViewItem = CalendarItem & {
@@ -163,6 +191,28 @@ export function byPeople<T extends Pick<CalendarItem, "createdBy" | "attendees">
     const owners = ownersOf(i);
     return owners.length === 0 || owners.some((id) => !hidden.has(id));
   });
+}
+
+/**
+ * カレンダーの生データを、画面で使う項目に仕立てる。色を付け、消した人と隠した人を除き、グループと種類で絞る。
+ * CalendarPage の月・週・日の本体と、月送りの日めくり(MonthFlipDeck)が隣の月を仕立てるのに使う。#99
+ * @param raw GET /calendar の応答。読み込み中は undefined
+ * @param deletedKeys 消す操作の 5 秒の間、画面から隠す項目。itemKey の形
+ * @param hiddenKinds 絞り込みの帯で外した拡張の key。0056
+ */
+export function viewItemsOf(
+  raw: CalendarItem[] | undefined,
+  groups: GroupSummary[],
+  me: Me | undefined,
+  hiddenIds: Set<string>,
+  deletedKeys: Set<string>,
+  groupFilter: string | null,
+  hiddenKinds: ReadonlySet<string> = new Set(),
+): ViewItem[] {
+  if (!raw || !me) return [];
+  return byKind(byPeople(decorate(raw, groups, me), hiddenIds), hiddenKinds).filter(
+    (i) => !deletedKeys.has(itemKey(i)) && (!groupFilter || i.groupId === groupFilter),
+  );
 }
 
 /** インクだまりに使う 3 色。自分だけのグループを先頭に、グループの並び順 */

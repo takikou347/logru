@@ -1,62 +1,31 @@
-import { ChevronRight, SlidersHorizontal, Users } from "lucide-react";
+import { ChevronRight, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { useGroups } from "@/api/common";
-import { useEnabledExtensions } from "@/lib/extensions";
+import { ExtensionTileGrid } from "./ExtensionTileGrid";
 import { ResponsiveSheet } from "./ResponsiveSheet";
 
 /**
- * スマホの機能のシート。下の操作の「機能」で開く。0019
+ * スマホの機能のシート。下の操作の「機能」で開く。0019、issue #145
  *
- * 上に拡張のすぐする操作、中に拡張の画面とグループ、下に機能の一覧への道を並べる。
+ * 中に足した機能のタイルの並び(ExtensionTileGrid)、下にグループへの道を並べる。すぐする操作
+ * (`actions`)はここに置かない。「いま」しかできない近道はカレンダーの上の帯、いつでもできる
+ * 記録・確認はホームのウィジェットが受け持つ。kota が staging で「シートに写真を記録するなどは
+ * 不要。必要ならホームのウィジェットで」と決めた。0019
  * PC では左の列が同じ役をするので、開くボタンを出さない。
  */
 export function FeatureSheet({ onClose }: { onClose: () => void }) {
-  const extensions = useEnabledExtensions();
   const groups = useGroups();
   const shared = (groups.data ?? []).filter((g) => !g.isPersonal).length;
-  const actions = extensions.flatMap((x) => x.actions ?? []);
-  const navs = extensions.flatMap((x) => (x.nav ? [x.nav] : []));
   return (
     <ResponsiveSheet title="機能" onClose={onClose}>
-      {actions.length > 0 && (
-        <div className="grid gap-2">
-          {actions.map((a) => (
-            <Link
-              key={a.path}
-              to={a.path}
-              onClick={onClose}
-              className="flex min-h-14 items-center gap-3 rounded-[18px] border border-(--glass-edge) bg-field px-4.5 text-base font-bold no-underline"
-            >
-              <a.icon className="size-5" aria-hidden="true" />
-              {a.label}
-              {a.hint && <span className="ml-auto text-xs font-medium text-ink-2">{a.hint}</span>}
-            </Link>
-          ))}
-        </div>
-      )}
-      <ul aria-label="画面" className="flex flex-col">
-        {navs.map((n) => (
-          <FeatureRow
-            key={n.path}
-            to={n.path}
-            icon={<n.icon className="size-5" />}
-            label={n.label}
-            sub={n.description}
-            onClick={onClose}
-          />
-        ))}
+      <ExtensionTileGrid onNavigate={onClose} />
+      <ul aria-label="ほかの画面" className="flex flex-col">
         <FeatureRow
           to="/groups"
           icon={<Users className="size-5" />}
           label="グループ"
           sub={shared ? `${shared} つのグループ` : "まだありません"}
-          onClick={onClose}
-        />
-        <FeatureRow
-          to="/extensions"
-          icon={<SlidersHorizontal className="size-5" />}
-          label="機能を足す、外す"
           onClick={onClose}
         />
       </ul>

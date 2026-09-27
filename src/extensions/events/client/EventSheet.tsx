@@ -1,16 +1,20 @@
-import type { DayItem, ItemEditorProps } from "@extensions/client/types";
+import type { DayItem, ItemEditorProps, ItemEditScope } from "@extensions/client/types";
 import type { Attendee, AttendeeResponse, CalendarItem } from "@shared/api-types";
 import { useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useCallback, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 // biome-ignore lint/style/noRestrictedImports: エラーの型 ApiError だけを使う。api() 本体は ./api から呼ぶ
 import { ApiError } from "@/api/client";
 import { Notice } from "@/components/layout/AuthShell";
-import { Chip } from "@/components/parts/Chip";
 import { Field } from "@/components/parts/Field";
 import { Dot, FieldMessage, PanelRow } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
+import { SharePickerRow } from "@/components/parts/SharePicker";
+import { SheetFooterActions } from "@/components/parts/SheetFooterActions";
+import { useSheetSubmit } from "@/components/parts/use-sheet-submit";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input, Textarea } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { groupColor, memberColor } from "@/lib/colors";
@@ -18,6 +22,7 @@ import {
   addDays,
   DAY_MS,
   dateKey,
+  formatDay,
   formatTime,
   holidayName,
   parseDateKey,
@@ -25,11 +30,21 @@ import {
   toTimeInput,
   withTime,
 } from "@/lib/dates";
+import { vibrateShort } from "@/lib/haptics";
 import { useOnline } from "@/lib/online";
+import { defaultShareGroupId } from "@/lib/share-default";
 import { cn } from "@/lib/utils";
+import { itemKey } from "@/modules/calendar/model";
+import { markJustAdded } from "@/modules/calendar/recent-items";
 import { canDeleteEvent, canEditEvent, canRespond, inviteeIds } from "../shared/permissions";
 import { createEvent, respondToEvent, updateEvent } from "./api";
+import { DiscardDraftDialog } from "./DiscardDraftDialog";
 import { AttendeeList, InvitePicker, RsvpBar } from "./Invitees";
+import { RepeatFields, repeatDraftFromRule, repeatDraftToInput } from "./RepeatFields";
+import { ScopeDialog } from "./ScopeDialog";
+
+/** 下の footer のボタンから、シートの中の form を submit するのに使う */
+const EVENT_FORM_ID = "event-form";
 
 /**
  * 新しい予定の始まりの時刻。今日なら次の正時、ほかの日なら 9 時。
@@ -44,34 +59,52 @@ function defaultStart(date: Date): number {
 }
 
 /**
- * 新しい予定のシートの上に出す、その日に既にある予定。押すと、その予定を直すシートに切り替わる。0012
+ * 新しい予定のシートの題名の下に出す、その日に既にある予定。畳んだ 1 行で出し、押すと開く。issue #200
+ * 一覧の行を押すと、その予定を直すシートに切り替わる。0012
  * @param day 予定を足す日。見出しに使う
  */
 function DayItemList({ day, items, onOpen }: { day: Date; items: DayItem[]; onOpen: (item: CalendarItem) => void }) {
-  const heading = `${day.getMonth() + 1}月${day.getDate()}日の予定`;
+  const heading = `${formatDay(day)}の予定`;
+  // 題名のすぐ下に置くと押し間違えやすいので、既定は畳んでおく。issue #200
+  const [open, setOpen] = useState(false);
   return (
-    <section aria-label={heading} className="-mt-1 rounded-2xl bg-field px-3.5 py-2">
-      <h3 className="pt-0.5 text-xs font-bold text-ink-2">{heading}</h3>
-      <ul className="flex min-w-0 flex-col">
-        {items.map((i) => (
-          <li key={`${i.extension}:${i.id}`} className="border-line not-first:border-t">
-            <button
-              type="button"
-              className="grid min-h-10 w-full grid-cols-[42px_1fr] items-center gap-1 py-0.5 text-left"
-              onClick={() => onOpen(i)}
-            >
-              <time className="text-[13px] font-medium text-ink-2">{i.allDay ? "終日" : formatTime(i.startsAt)}</time>
-              <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                <Dot color={i.color} response={i.myResponse} />
-                <span className={cn("truncate", i.myResponse === "declined" && "text-ink-3 line-through")}>
-                  {i.title}
-                </span>
-                <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
+    <section aria-label={heading} className="rounded-2xl bg-field px-3.5 py-2">
+      <Collapsible open={open} onOpenChange={setOpen} className="group/daylist">
+        <CollapsibleTrigger className="flex min-h-9 w-full items-center gap-2 py-0.5 text-left">
+          <h3 className="min-w-0 flex-1 truncate text-xs font-bold text-ink-2">
+            {heading}
+            <span className="font-normal"> {items.length} 件</span>
+          </h3>
+          <ChevronDown
+            className="size-4 shrink-0 text-ink-2 transition-transform group-data-[state=open]/daylist:rotate-180 motion-reduce:transition-none"
+            aria-hidden="true"
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <ul className="flex min-w-0 flex-col pt-0.5">
+            {items.map((i) => (
+              <li key={`${i.extension}:${i.id}`} className="border-line not-first:border-t">
+                <button
+                  type="button"
+                  className="grid min-h-10 w-full grid-cols-[42px_1fr] items-center gap-1 py-0.5 text-left"
+                  onClick={() => onOpen(i)}
+                >
+                  <time className="text-[13px] font-medium text-ink-2">
+                    {i.allDay ? "終日" : formatTime(i.startsAt)}
+                  </time>
+                  <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                    <Dot color={i.color} response={i.myResponse} />
+                    <span className={cn("truncate", i.myResponse === "declined" && "text-ink-3 line-through")}>
+                      {i.title}
+                    </span>
+                    <span className="ml-auto flex-none pl-1.5 text-[11px] font-normal text-ink-2">{i.groupName}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </CollapsibleContent>
+      </Collapsible>
     </section>
   );
 }
@@ -109,14 +142,14 @@ export function EventSheet({
   const isCreator = creatorId === myId;
   const canEdit = !editing || canEditEvent(editing, myId);
   const canDelete = editing ? canDeleteEvent(editing, myId) : false;
-  const personal = groups.find((g) => g.isPersonal);
-  // 「共有しない」は自分だけのグループに置く。0009
-  const choices = personal ? [personal, ...groups.filter((g) => g !== personal)] : groups;
 
   const initialStart = editing ? editing.startsAt : defaultStart(target.mode === "new" ? target.date : new Date());
   const initialEnd = editing ? editing.endsAt : initialStart + 60 * 60 * 1000;
 
   const [title, setTitle] = useState(editing?.title ?? "");
+  const titleRef = useRef<HTMLInputElement>(null);
+  // 開いたら題名にフォーカスする。直すときは選んだ状態にし、すぐ書き直せるようにする。issue #200
+  useEffect(() => titleRef.current?.select(), []);
   const [allDay, setAllDay] = useState(editing?.allDay ?? false);
   const [startDate, setStartDate] = useState(dateKey(new Date(initialStart)));
   const [endDate, setEndDate] = useState(() => {
@@ -130,12 +163,34 @@ export function EventSheet({
   const [pickedGroupId, setGroupId] = useState(
     editing?.groupId ?? (target.mode === "new" ? target.groupId : undefined) ?? "",
   );
-  const groupId = pickedGroupId || personal?.id || groups[0]?.id || "";
+  const groupId =
+    pickedGroupId ||
+    defaultShareGroupId(groups, null, {
+      groupId: me.settings.usualShareGroupId,
+      extensionKey: "events",
+      alwaysOn: true,
+    });
   const chosen = groups.find((g) => g.id === groupId);
+  // 新しく足すときだけ、いつもの共有先から選ばれたことが分かる印を出す。0063、F-40
+  const usualDefault = !editing && groupId === me.settings.usualShareGroupId;
   const [memo, setMemo] = useState(editing?.memo ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [repeat, setRepeat] = useState(() => repeatDraftFromRule(editing?.repeat, new Date(initialStart)));
+  // 繰り返す予定を開いたときだけ、直す・消すときに範囲を挟む。0043
+  const needsScope = Boolean(editing?.repeat);
+  const [scopeAction, setScopeAction] = useState<"edit" | "delete" | null>(null);
+  const [pendingPayload, setPendingPayload] = useState<Record<string, unknown> | null>(null);
   const online = useOnline();
+  // 開いているか・送信中か・失敗を、シートの骨組みとしてまとめて持つ。0081
+  const {
+    open,
+    busy,
+    error,
+    setError,
+    submit: submitSheet,
+    close,
+    closeAndThen,
+    handleClosed,
+  } = useSheetSubmit(onClose);
   // ほかの拡張が足した欄の、保存した後の仕事。0019
   const afterSaves = useRef(new Set<(itemId: string) => Promise<void>>());
   const register = useCallback((fn: (itemId: string) => Promise<void>) => {
@@ -145,6 +200,17 @@ export function EventSheet({
   // 新しく作るときは、選んでいる日の予定を並べる。日付を変えたら、その日の予定に切り替える
   const listDay = target.mode === "new" ? (parseDateKey(startDate) ?? target.date) : null;
   const dayItems = listDay && dayItemsOf ? dayItemsOf(listDay) : [];
+  // 題名を入れていたら書きかけとみなす。一覧から別の予定を開くと、直すシートに切り替わって消えるため。issue #200
+  const hasDraft = title.trim() !== "";
+  const [discardTarget, setDiscardTarget] = useState<CalendarItem | null>(null);
+  /** その日の一覧の行を押したとき。書きかけがあれば先に確かめる */
+  function openDayItem(item: CalendarItem) {
+    if (hasDraft) {
+      setDiscardTarget(item);
+      return;
+    }
+    onOpenItem?.(item);
+  }
 
   // 招待。作った人はいつも参加するので、選ぶ対象にも送る値にも入れない。#28
   const [attendees, setAttendees] = useState<Attendee[]>(editing?.attendees ?? []);
@@ -233,6 +299,38 @@ export function EventSheet({
     }
   }
 
+  /** 実際に保存する。繰り返す予定を直すときは、範囲(scope)を添える。0043 */
+  async function persist(payload: Record<string, unknown>, scope?: ItemEditScope) {
+    await submitSheet(async () => {
+      try {
+        const opts = scope ? { occurrenceAt: editing?.occurrenceAt, scope } : {};
+        const saved = editing ? await updateEvent(editing.id, payload, opts) : await createEvent(payload);
+        // 足された欄の仕事は、予定の保存が済んでから行う。失敗しても予定は保存できている
+        await Promise.all(
+          [...afterSaves.current].map((fn) => fn(saved.id).catch((e: Error) => toast.error(e.message))),
+        );
+        await qc.invalidateQueries({ queryKey: ["calendar"] });
+        if (!editing) {
+          // 新しく足したチップだけ、膨らんで入る動きにする。直したときは動かさない。0044、0048、#98、#112
+          markJustAdded(itemKey(saved));
+          vibrateShort();
+        }
+        toast(editing ? "予定を保存しました" : "予定を足しました");
+      } catch (err) {
+        if (editing && err instanceof ApiError && err.status === 404) {
+          await qc.invalidateQueries({ queryKey: ["calendar"] });
+          toast.error("この予定は消されています");
+          return;
+        }
+        // 入力の誤りでなければ、入れた内容が残っていることも伝える
+        const retryable = err instanceof ApiError && (err.status === 0 || err.status >= 500);
+        throw new Error(
+          retryable ? `保存できませんでした。入れた内容はそのままです。${err.message}` : (err as Error).message,
+        );
+      }
+    });
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -251,34 +349,63 @@ export function EventSheet({
       ...when,
       // 共有しない予定は、自分だけ。招待は送らない
       attendeeIds: shared ? [...effectiveInvited] : [],
+      repeat: repeatDraftToInput(repeat),
     };
-    setBusy(true);
-    try {
-      const saved = editing ? await updateEvent(editing.id, payload) : await createEvent(payload);
-      // 足された欄の仕事は、予定の保存が済んでから行う。失敗しても予定は保存できている
-      await Promise.all([...afterSaves.current].map((fn) => fn(saved.id).catch((e: Error) => toast.error(e.message))));
-      await qc.invalidateQueries({ queryKey: ["calendar"] });
-      toast(editing ? "予定を保存しました" : "予定を足しました");
-      onClose();
-    } catch (err) {
-      if (editing && err instanceof ApiError && err.status === 404) {
-        await qc.invalidateQueries({ queryKey: ["calendar"] });
-        toast.error("この予定は消されています");
-        onClose();
-        return;
-      }
-      // 入力の誤りでなければ、入れた内容が残っていることも伝える
-      const retryable = err instanceof ApiError && (err.status === 0 || err.status >= 500);
-      setError(retryable ? `保存できませんでした。入れた内容はそのままです。${err.message}` : (err as Error).message);
-      setBusy(false);
+    // 既に繰り返している予定を直すときは、この回だけ・これ以降・全部を先に選ばせる。0043
+    if (needsScope) {
+      setPendingPayload(payload);
+      setScopeAction("edit");
+      return;
     }
+    void persist(payload);
+  }
+
+  /** 範囲の確認を選んだとき。edit なら保留していた保存を、delete なら消す処理を続きから行う */
+  function confirmScope(scope: ItemEditScope) {
+    const action = scopeAction;
+    setScopeAction(null);
+    if (action === "delete") {
+      if (editing) closeAndThen(() => onDelete(editing, scope));
+      return;
+    }
+    if (action === "edit" && pendingPayload) void persist(pendingPayload, scope);
+    setPendingPayload(null);
+  }
+
+  /** 「予定を消す」を押したとき。繰り返す予定は範囲を先に選ばせる。#192、0043 */
+  function handleDeleteClick() {
+    if (needsScope) {
+      setScopeAction("delete");
+      return;
+    }
+    if (editing) closeAndThen(() => onDelete(editing));
   }
 
   return (
-    <ResponsiveSheet title={!editing ? "新しい予定" : canEdit ? "予定を直す" : "予定"} onClose={onClose}>
-      {listDay && dayItems.length > 0 && onOpenItem && (
-        <DayItemList day={listDay} items={dayItems} onOpen={onOpenItem} />
-      )}
+    <ResponsiveSheet
+      title={!editing ? "新しい予定" : canEdit ? "予定を直す" : "予定"}
+      open={open}
+      onOpenChange={close}
+      onClose={handleClosed}
+      footer={
+        canEdit ? (
+          <SheetFooterActions
+            formId={EVENT_FORM_ID}
+            busy={busy}
+            canSubmit={online && Boolean(title.trim()) && Boolean(groupId)}
+            deleteLabel="予定を消す"
+            onCancel={close}
+            onDelete={editing && canDelete ? handleDeleteClick : undefined}
+          />
+        ) : (
+          <div className="flex justify-end">
+            <Button type="button" variant="secondary" onClick={close}>
+              閉じる
+            </Button>
+          </div>
+        )
+      }
+    >
       {showRsvp && (
         <RsvpBar
           color={chosen ? groupColor(chosen, me.colorPrefs) : "nezumi"}
@@ -288,14 +415,15 @@ export function EventSheet({
           onRespond={respond}
         />
       )}
-      {!canEdit && <Notice className="-mt-1">この予定は見るだけです。直せるのは、作った人と招待された人です。</Notice>}
-      <form className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
+      {!canEdit && <Notice>この予定は見るだけです。直せるのは、作った人と招待された人です。</Notice>}
+      <form id={EVENT_FORM_ID} className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
         {/* 見るだけのときは、入力をまとめて押せなくする */}
         <fieldset disabled={!canEdit} className="contents">
           <Field label="題名">
             {(p) => (
               <Input
                 {...p}
+                ref={titleRef}
                 value={title}
                 maxLength={100}
                 placeholder="例: 歯医者"
@@ -303,6 +431,9 @@ export function EventSheet({
               />
             )}
           </Field>
+          {listDay && dayItems.length > 0 && onOpenItem && (
+            <DayItemList day={listDay} items={dayItems} onOpen={openDayItem} />
+          )}
           <PanelRow>
             <span>終日</span>
             <Switch checked={allDay} onCheckedChange={setAllDay} aria-label="終日" disabled={!canEdit} />
@@ -343,30 +474,17 @@ export function EventSheet({
               </Field>
             </>
           )}
+          <RepeatFields value={repeat} onChange={setRepeat} />
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-ink-2" id="event-group-label">
-              共有
-            </span>
-            <div
-              className="flex flex-wrap gap-2"
-              role="radiogroup"
-              aria-labelledby="event-group-label"
-              aria-describedby="event-group-hint"
-            >
-              {choices.map((g) => (
-                <Chip
-                  key={g.id}
-                  role="radio"
-                  aria-checked={g.id === groupId}
-                  disabled={!isCreator}
-                  onClick={() => setGroupId(g.id)}
-                >
-                  <Dot color={groupColor(g, me.colorPrefs)} />
-                  {g.isPersonal ? "共有しない" : g.name}
-                </Chip>
-              ))}
-            </div>
-            <FieldMessage id="event-group-hint">
+            <SharePickerRow
+              groups={groups}
+              me={me}
+              value={groupId}
+              onChange={setGroupId}
+              disabled={!isCreator}
+              usualDefault={usualDefault}
+            />
+            <FieldMessage>
               {shared ? `「${shared.name}」のメンバー全員に見えます。` : "自分だけに見えます。"}
               {canEdit && !isCreator && " グループを変えられるのは、作った人だけです。"}
             </FieldMessage>
@@ -403,36 +521,27 @@ export function EventSheet({
           </Notice>
         )}
         {error && online && <Notice error>{error}</Notice>}
-        {canEdit ? (
-          <div className="flex justify-between gap-2">
-            {editing && canDelete ? (
-              <Button
-                type="button"
-                variant="danger"
-                onClick={() => {
-                  onDelete(editing);
-                  onClose();
-                }}
-              >
-                予定を消す
-              </Button>
-            ) : (
-              <Button type="button" variant="ghost" onClick={onClose}>
-                やめる
-              </Button>
-            )}
-            <Button type="submit" disabled={busy || !online || !title.trim() || !groupId}>
-              {busy ? "保存しています" : "保存する"}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex justify-end">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              閉じる
-            </Button>
-          </div>
-        )}
       </form>
+      {scopeAction && (
+        <ScopeDialog
+          action={scopeAction}
+          onChoose={confirmScope}
+          onClose={() => {
+            setScopeAction(null);
+            setPendingPayload(null);
+          }}
+        />
+      )}
+      {discardTarget && (
+        <DiscardDraftDialog
+          onDiscard={() => {
+            const item = discardTarget;
+            setDiscardTarget(null);
+            onOpenItem?.(item);
+          }}
+          onClose={() => setDiscardTarget(null)}
+        />
+      )}
     </ResponsiveSheet>
   );
 }

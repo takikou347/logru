@@ -3,6 +3,9 @@
  *
  * 繰り返し（RRULE）は ical.js で開き、EXDATE で抜いた回と、RECURRENCE-ID で直した回を反映する。
  * Workers の無料プランは 1 回の CPU 時間が 10 ミリ秒なので、読む期間と件数に上限を置く。
+ *
+ * VEVENT の数と、繰り返しを開く回数は、どちらも 1 回の読み込み全体で数える。予定が 1 件でも、
+ * 予定の数が多くても、重いカレンダー 1 つで CPU 時間を使い切らないようにするため。0065、#161
  */
 import ICAL from "ical.js";
 
@@ -14,6 +17,15 @@ const MAX_OCCURRENCES = 3000;
 
 /** 1 つの繰り返しを開く回数の上限。期間の前から続く繰り返しも数える */
 const MAX_ITERATIONS = 5000;
+
+/** 1 つのカレンダーから読む VEVENT の数の上限。超えた分は読まない。0065、#161 */
+const MAX_VEVENTS = 5000;
+
+/**
+ * 繰り返しを開く回数の上限。予定の数に関わらず、1 回の読み込み全体で数える。
+ * MAX_ITERATIONS は 1 件ごとの上限で、こちらは全体の上限。0065、#161
+ */
+const MAX_TOTAL_ITERATIONS = 20000;
 
 /** 期間の前の回を飛ばすときの余白。これより長い予定の、期間にかかる部分は取りこぼす */
 const SKIP_MARGIN_MS = 31 * 24 * 60 * 60 * 1000;
@@ -205,16 +217,18 @@ const cancelled = (e: ICAL.Event) =>
 export function parseIcs(text: string, window: { from: number; to: number }): ParsedEvent[] {
   const root = new ICAL.Component(ICAL.parse(text));
   if (root.name !== "vcalendar") throw new Error("iCal の形ではありません。");
-  for (const vtz of root.getAllSubcomponents("vtimezone")) {
-    const tzid = vtz.getFirstPropertyValue("tzid");
-    if (typeof tzid === "string" && !ICAL.TimezoneService.has(tzid)) ICAL.TimezoneService.register(vtz);
-  }
+  // VTIMEZONE は登録しない。ical.js の TimezoneService は Worker の実行環境全体で共有される
+  // モジュールの状態なので、登録すると、ほかの人のカレンダーの読み込みにも残ってしまう。
+  // IANA の名前は Intl で直に読めるので、ここでは要らない。0065、#161
   const xTz = root.getFirstPropertyValue("x-wr-timezone");
   const calendarTz = typeof xTz === "string" && isKnownTimeZone(xTz) ? xTz : DEFAULT_TIME_ZONE;
 
   const masters = new Map<string, ICAL.Event>();
   const exceptions: ICAL.Event[] = [];
+  let veventCount = 0;
   for (const vevent of root.getAllSubcomponents("vevent")) {
+    if (veventCount >= MAX_VEVENTS) break;
+    veventCount += 1;
     const event = new ICAL.Event(vevent);
     if (!event.uid || !event.startDate) continue;
     if (event.isRecurrenceException()) exceptions.push(event);
@@ -233,8 +247,10 @@ export function parseIcs(text: string, window: { from: number; to: number }): Pa
     if (out.length < MAX_OCCURRENCES && inWindow(e)) out.push(e);
   };
 
+  // 繰り返しを開いた回数。予定 1 件ごとではなく、このカレンダー全体で数える。0065、#161
+  let totalIterations = 0;
   for (const event of [...masters.values(), ...orphans]) {
-    if (out.length >= MAX_OCCURRENCES) break;
+    if (out.length >= MAX_OCCURRENCES || totalIterations >= MAX_TOTAL_ITERATIONS) break;
     if (!event.isRecurring() || event.isRecurrenceException()) {
       if (cancelled(event)) continue;
       const occ = event.recurrenceId ?? event.startDate;
@@ -250,7 +266,8 @@ export function parseIcs(text: string, window: { from: number; to: number }): Pa
       continue;
     }
     const it = event.iterator(fastForwardStart(event, window.from - SKIP_MARGIN_MS, calendarTz));
-    for (let i = 0; i < MAX_ITERATIONS && out.length < MAX_OCCURRENCES; i++) {
+    for (let i = 0; i < MAX_ITERATIONS && out.length < MAX_OCCURRENCES && totalIterations < MAX_TOTAL_ITERATIONS; i++) {
+      totalIterations += 1;
       const next = it.next();
       if (!next) break;
       const occurrence = toUtcMs(next, tzidOf(event, "dtstart"), calendarTz);

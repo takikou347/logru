@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils";
  * 高さは 48px、押せる範囲は 44px 以上。0012
  */
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full font-bold whitespace-nowrap transition-[transform,opacity,background-color] outline-none active:not-disabled:scale-97 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  // 押している間だけ 0.97 倍。0044、0048、#98
+  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full font-bold whitespace-nowrap transition-[transform,opacity,background-color] duration-fast ease-in-out outline-none active:not-disabled:scale-97 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

@@ -4,6 +4,10 @@ import { cn } from "@/lib/utils";
 /**
  * 入力欄。shadcn/ui の Input を、Logru の見た目に合わせる。
  * 文字は 16px にし、iPhone で押したときに画面が拡大されないようにする。
+ *
+ * iPhone の Safari は `type="date"` `type="time"` の中身の幅で外側の幅を決めがちで、
+ * `width: 100%` を付けても隣の入力とそろわないことがある。既定の見た目(appearance)を消すと、
+ * ほかの入力と同じく min-width: 0、width: 100% に従うようになる。#149
  */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
@@ -15,6 +19,7 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         "placeholder:text-ink-3 focus:border-ink focus:shadow-[0_0_0_3px_var(--line)]",
         "aria-invalid:border-sun aria-invalid:shadow-[0_0_0_3px_rgba(200,64,47,.14)]",
         "disabled:cursor-not-allowed disabled:opacity-50",
+        (type === "date" || type === "time" || type === "datetime-local") && "appearance-none",
         className,
       )}
       {...props}

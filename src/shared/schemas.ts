@@ -58,9 +58,35 @@ export const groupPatchInput = z.object({
 /** `PATCH /api/groups/:id/members/:userId`。管理者の受け渡し */
 export const memberRoleInput = z.object({ role: z.enum(["admin", "member"]) });
 
+/** ブラウザーの会社が持つ、Web Push の送り先として知られたホスト。0065、#161 */
+const KNOWN_PUSH_HOSTS = new Set([
+  "fcm.googleapis.com", // Chrome、Edge、Android
+  "android.googleapis.com", // 古い Chrome
+  "updates.push.services.mozilla.com", // Firefox
+  "web.push.apple.com", // Safari
+]);
+
+/**
+ * その送り先が、知られた Web Push のホストか。任意の https の送り先を登録させないため。0065、#161
+ * Microsoft は wns2-xxx.notify.windows.com のように、ホストの頭が変わる
+ */
+export function isKnownPushHost(value: string): boolean {
+  try {
+    const { hostname } = new URL(value);
+    return KNOWN_PUSH_HOSTS.has(hostname) || hostname.endsWith(".notify.windows.com");
+  } catch {
+    return false;
+  }
+}
+
 /** `POST /api/me/push`。ブラウザーの PushSubscription の中身。F-23 */
 export const pushSubscriptionInput = z.object({
-  endpoint: z.string().url().startsWith("https://", "送り先が正しくありません。").max(1000),
+  endpoint: z
+    .string()
+    .url()
+    .startsWith("https://", "送り先が正しくありません。")
+    .max(1000)
+    .refine(isKnownPushHost, "対応していない送り先です。"),
   keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
   userAgent: z.string().max(200).optional(),
 });
@@ -70,6 +96,15 @@ export const tourIdParam = z.object({ id: z.string().max(60).regex(TOUR_ID_PATTE
 
 /** `PUT /api/groups/:id/extensions/:key` */
 export const extensionToggleInput = z.object({ enabled: z.boolean() });
+
+/** `PUT /api/me/extension-order`。足した機能のタイルの並び。0058 */
+export const extensionOrderInput = z.object({ order: z.array(z.string().min(1).max(80)).max(60) });
+
+/**
+ * `PUT /api/me/usual-share`。いつもの共有先。null は「共有しない」を決めたことを表す。0063、F-40
+ * 送るたびに、1 回だけ聞く問いは「もう聞いた」ことになる
+ */
+export const usualShareInput = z.object({ groupId: z.string().min(1).max(64).nullable() });
 
 /** カレンダーで 1 回に読める期間の上限。100 日 */
 const MAX_RANGE_MS = 100 * 24 * 60 * 60 * 1000;
@@ -88,6 +123,9 @@ export type SettingsInput = z.infer<typeof settingsInput>;
 /** `GET /api/me/home-layout` の問い合わせ。0029 */
 export const homeLayoutQuery = z.object({ form: z.enum(["desktop", "mobile"]) });
 
+/** `GET /api/search` の問い合わせ。前後の空白を除いて 1 文字から 100 文字。0046 */
+export const searchQuery = z.object({ q: z.string().trim().min(1).max(100) });
+
 /** `PUT /api/me/home-layout`。並びに同じ key を 2 つ許さず、カレンダーの本体を必ず含む。0029 */
 export const homeLayoutInput = z
   .object({
@@ -99,3 +137,14 @@ export const homeLayoutInput = z
       .max(60),
   })
   .refine((v) => isValidHomeLayout(v.widgets), { message: "並びが正しくありません。" });
+
+/**
+ * `POST /api/client-errors`。画面で起きた誤りの短い報告。ログイン前にも送るので、ログインは求めない。
+ * 予定の中身や名前は送らない。本文の大きさは hono/body-limit で別に絞る。0040
+ */
+export const clientErrorInput = z.object({
+  path: z.string().min(1).max(300),
+  message: z.string().min(1).max(1000),
+  stack: z.string().max(4000).optional(),
+  buildVersion: z.string().min(1).max(100),
+});

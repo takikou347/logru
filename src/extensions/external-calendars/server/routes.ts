@@ -2,6 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { createRouter, HttpError, isLocalDev, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
+import { enforceRateLimit } from "@server/core/rate-limit";
 import { and, asc, count, eq } from "drizzle-orm";
 import { type ExternalCalendarSummary, externalCalendarInput } from "../shared/schemas";
 import { decryptText, encryptText, MissingKeyError } from "./crypto";
@@ -66,6 +67,8 @@ export const externalCalendarRoutes = createRouter()
     const db = c.get("db");
     const userId = c.get("user").id;
     const input = c.req.valid("json");
+    // 登録も、登録した直後の読み込みも外の URL を呼ぶので、読み直しと同じ枠で数える。0065、#161
+    await enforceRateLimit(c.env.CALENDAR_SYNC_RATE_LIMIT, userId);
     const allowLocal = isLocalDev(c.env, c.req.url);
     let url: URL;
     try {
@@ -98,6 +101,7 @@ export const externalCalendarRoutes = createRouter()
     // 自分のカレンダーをすべて読み直す。カレンダーの画面の読み直しのボタンから呼ぶ
     const db = c.get("db");
     const userId = c.get("user").id;
+    await enforceRateLimit(c.env.CALENDAR_SYNC_RATE_LIMIT, userId);
     const allowLocal = isLocalDev(c.env, c.req.url);
     const rows = await db
       .select()
@@ -116,6 +120,7 @@ export const externalCalendarRoutes = createRouter()
   .post("/:id/sync", async (c) => {
     const db = c.get("db");
     const userId = c.get("user").id;
+    await enforceRateLimit(c.env.CALENDAR_SYNC_RATE_LIMIT, userId);
     const row = await loadMine(db, userId, c.req.param("id"));
     await syncCalendar(db, c.env, row, isLocalDev(c.env, c.req.url));
     return c.json(await toSummary(await loadMine(db, userId, row.id), c.env.EXTERNAL_CALENDAR_KEY));

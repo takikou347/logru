@@ -21,6 +21,13 @@ export type Me = {
     avatarKind: AvatarKind;
     /** 案内を見た画面の ID。F-33 */
     toursSeen: string[];
+    /** 足した機能のタイルの並び。key の配列。0058 */
+    extensionOrder: string[];
+    /**
+     * いつもの共有先のグループ。予定・思い出・記録・家計簿・共有リストを足すときの既定に使う。
+     * 空なら決めていない。0063、F-40
+     */
+    usualShareGroupId: string | null;
   };
   /** 同意を取り直す文書。空なら同意済み */
   needsAgreement: LegalDocument[];
@@ -32,6 +39,13 @@ export type Me = {
   hiddenMembers: string[];
   /** はじめての案内を見終えたか飛ばした日時。null ならカレンダーで案内を出す。F-32 */
   onboardedAt: number | null;
+  /** 設定に「ラボ」の欄を出すか。本番はいつも false。0038、0039、F-35 */
+  showLab: boolean;
+  /**
+   * いつもの共有先にするか 1 回だけ聞いた日時。null ならまだ聞いていない。
+   * 聞いたあとは、断っていても二度と聞かない。0063、F-40
+   */
+  usualShareAskedAt: number | null;
 };
 
 /** グループのメンバー */
@@ -58,6 +72,17 @@ export type GroupSummary = {
   extensions: string[];
 };
 
+/** 繰り返しの規則。無ければ繰り返さない。予定の拡張で使う。0043 */
+export type RepeatRule = {
+  freq: "daily" | "weekly" | "monthly" | "yearly";
+  /** weekly だけで使う。月を 1、日を 7 とした数 */
+  daysOfWeek?: number[];
+  /** 終わりの日。ミリ秒の UTC */
+  until?: number | null;
+  /** 終わりの回数 */
+  count?: number | null;
+};
+
 /** カレンダーに並べる 1 件。拡張はこの形で項目を渡す。0002、0008 */
 export type CalendarItem = {
   /** 項目を出した拡張の key */
@@ -79,10 +104,22 @@ export type CalendarItem = {
   color?: string;
   /** グループの名前の代わりに出す名前。外部のカレンダーの名前など */
   sourceName?: string;
-  /** 予定ではないことを見分ける印。一覧と月の表で、題名の前に出す。例は「思い出」 */
+  /** 予定ではないことを見分ける種類の名前。読み上げで題名の前に添える。カレンダーは表示に文字を使わない。例は「思い出」。0056 */
   tag?: string;
   /** 月の表には出すが、予定の一覧には出さない項目。一覧の下に小さく出す。例は記録の数 */
   secondary?: boolean;
+  /**
+   * 何の記録かを見分ける種類。無ければ予定として扱い、色の点のまま出す。
+   * record は拡張のアイコンを頭に付けた札、expense は塗らない札に金額を右寄せする。絞り込みの帯の「種類」にも使う。0056
+   */
+  kind?: "record" | "expense";
+  /**
+   * 種類の中でさらに見分ける形。決まった名前の中から選ぶ(例は "camera")。
+   * 無ければ項目を出した拡張の登録したアイコンを使う。1 つの拡張で複数の種類を出し分けたいときに指定する。0056
+   */
+  icon?: string;
+  /** kind が expense の項目の生の金額。選んだ日の一覧で、その日の合計を出すのに使う。0056 */
+  amount?: number;
   /**
    * 参加者と、それぞれの返事。人を招待できる拡張だけが入れる。予定の拡張では、作った人もいつも入る。#28
    * 無ければ、参加者の考えが無い項目として扱う
@@ -93,6 +130,18 @@ export type CalendarItem = {
    * 返事待ちは枠線だけ、参加しないは薄くして取り消し線。招待されていなければ省く。作った人は accepted
    */
   myResponse?: AttendeeResponse;
+  /** 繰り返しの規則。無ければ繰り返さない。予定の拡張で使う。0043 */
+  repeat?: RepeatRule | null;
+  /**
+   * 繰り返す項目の、この回の規則どおりの始まりの時刻。同じ予定の別の回を見分けるのに使う。
+   * 繰り返さない項目には付かない。0043
+   */
+  occurrenceAt?: number;
+  /**
+   * その日の小さな写真。32 px の JPEG を data URL にしたもの。1 年をらせんで見る画面で使う。0051
+   * 思い出の拡張が、日ごとにまとめる「記録」の項目に乗せる。無ければ写真を置かない
+   */
+  thumb?: string;
 };
 
 /** 招待への返事。pending は返事待ち、accepted は参加する、declined は参加しない */

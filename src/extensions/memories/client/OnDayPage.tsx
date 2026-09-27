@@ -3,17 +3,22 @@ import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
-import { Button } from "@/components/ui/button";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
+import { Dock } from "@/components/parts/Dock";
+import { GroupFilterBand, groupFilterOptions, SideGroupFilter } from "@/components/parts/GroupFilter";
+import type { Addable } from "@/components/parts/PrimaryAddButton";
+import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
+import { formatDay, formatSpan, parseDateKey } from "@/lib/dates";
+import { useRowMotion } from "@/lib/use-row-motion";
 import { useCalendar } from "@/modules/calendar/api";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { DAY_MS, DEFAULT_TIME_ZONE, startOfDayIn } from "../shared/days";
 import type { MemoryRecord } from "../shared/types";
-import { useMemoryGroups, useMemoryList, useRecords } from "./api";
-import { Dock } from "./Dock";
+import { useDeleteRecord, useInvalidateMemories, useMemoryGroups, useMemoryList, useRecords } from "./api";
 import { Flow } from "./Flow";
 import { entriesOf, Lightbox } from "./Lightbox";
-import { Ambient, formatSpan, GroupFilter, PhotoImg, SideGroupFilter } from "./parts";
+import { Ambient, PhotoImg } from "./parts";
 import { RecordSheet } from "./RecordSheet";
 
 /**
@@ -33,43 +38,48 @@ export function OnDayPage() {
   const records = useRecords(ids, from, to, valid);
   const calendar = useCalendar(from, to);
   const list = useMemoryList(group);
+  const invalidate = useInvalidateMemories();
+  const deleteRecord = useDeleteRecord();
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。縮んで消える動きも持つ。0085、#226
+  const { hidden, leaving, remove: removeRecord } = useRowMotion("記録を消しました");
+  const handleDeleteRecord = (record: MemoryRecord) =>
+    removeRecord(record.id, async ({ keepalive }) => {
+      await deleteRecord.mutateAsync(record.id);
+      if (!keepalive) await invalidate();
+    });
   const [recording, setRecording] = useState(false);
   const [editing, setEditing] = useState<MemoryRecord | null>(null);
   const [photoAt, setPhotoAt] = useState<number | null>(null);
+  const filterOptions = groupFilterOptions({
+    groups,
+    me: me.data,
+    value: group,
+    onChange: (v) => setParams(v ? { group: v } : {}, { replace: true }),
+  });
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
 
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
   const usable = new Set(group ? [group] : groups.map((g) => g.id));
   const events = (calendar.data ?? []).filter((e) => e.extension === "events" && usable.has(e.groupId));
   const memory = (list.data?.memories ?? []).find((m) => m.startsAt < to && m.endsAt > from);
+  const visibleRecords = (records.data ?? []).filter((r) => !hidden.has(r.id));
   const entries = entriesOf(records.data ?? []);
-  const title = valid
-    ? new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "short", timeZone: "UTC" }).format(
-        Date.parse(date),
-      )
-    : "その日";
+  // 日付の書き方は決定 0059。parseDateKey は端末の時間帯で Date を作るので、UTC のずれを気にせず使える
+  const parsedDate = valid ? parseDateKey(date) : null;
+  const title = parsedDate ? formatDay(parsedDate) : "その日";
+  const upcoming = from > Date.now();
+  // 足せるものは記録だけ。「+」を押すと直接シートが開く。0062、0067
+  const addables: Addable[] = [
+    { key: "record", label: "写真を記録する", icon: Camera, onClick: () => setRecording(true) },
+  ];
 
   return (
-    <AppLayout
-      poolColors={poolColorsOf(groups, data)}
-      side={
-        <SideGroupFilter
-          groups={groups}
-          me={data}
-          value={group}
-          onChange={(v) => setParams(v ? { group: v } : {}, { replace: true })}
-        />
-      }
-    >
+    <>
       <Ambient photo={memory?.cover ?? null} />
       <Page>
         <PageBar title={title} back="/memories" />
-        <GroupFilter
-          groups={groups}
-          me={data}
-          value={group}
-          onChange={(v) => setParams(v ? { group: v } : {}, { replace: true })}
-        />
+        <GroupFilterBand options={filterOptions} />
         {memory && (
           <Link
             to={`/memories/${memory.id}`}
@@ -90,7 +100,8 @@ export function OnDayPage() {
         )}
         <Flow
           events={events}
-          records={records.data ?? []}
+          records={visibleRecords}
+          leaving={leaving}
           groups={groups}
           me={data}
           empty="この日の記録はありません。"
@@ -98,10 +109,12 @@ export function OnDayPage() {
           onEditRecord={setEditing}
         />
         <Dock label="その日の操作">
-          <Button onClick={() => setRecording(true)} disabled={from > Date.now()}>
-            <Camera className="size-5" />
-            {from > Date.now() ? "この日になったら記録できます" : "記録する"}
-          </Button>
+          <PrimaryAddButton
+            label="写真を記録する"
+            addables={addables}
+            disabled={upcoming}
+            disabledLabel="この日になったら記録できます"
+          />
         </Dock>
       </Page>
       {recording && (
@@ -120,6 +133,7 @@ export function OnDayPage() {
           record={editing}
           range={{ min: from, max: to - 1 }}
           onClose={() => setEditing(null)}
+          onDelete={handleDeleteRecord}
         />
       )}
       {photoAt !== null && photoAt >= 0 && (
@@ -132,6 +146,6 @@ export function OnDayPage() {
           me={data}
         />
       )}
-    </AppLayout>
+    </>
   );
 }

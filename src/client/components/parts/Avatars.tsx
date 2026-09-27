@@ -1,5 +1,6 @@
-import type { AttendeeResponse } from "@shared/api-types";
+import type { AttendeeResponse, GroupSummary, Me } from "@shared/api-types";
 import { useState } from "react";
+import { memberColor } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 
 /** 頭文字の丸、または置いた写真に出す人。#40 */
@@ -120,4 +121,73 @@ export function AvatarStack({
       )}
     </span>
   );
+}
+
+/**
+ * 人の ID から、名前・色・アイコンの URL を引く。この 1 か所だけで決める。#152、0064
+ * 自分は me から直に引く。ほかの人は、入っているグループのメンバーの一覧から探す。
+ * どのグループにもいない人(抜けた後など)は、名前も色も分からないので、灰色の頭文字に戻す。
+ */
+export function personOf(userId: string, groups: GroupSummary[], me: Me, response?: AttendeeResponse): AvatarPerson {
+  if (userId === me.user.id) {
+    return { id: userId, name: me.user.name, color: me.settings.userColor, avatarUrl: me.user.avatarUrl, response };
+  }
+  for (const g of groups) {
+    const m = g.members.find((x) => x.id === userId);
+    if (m)
+      return {
+        id: userId,
+        name: m.name,
+        color: memberColor(userId, m.userColor, me.colorPrefs),
+        avatarUrl: m.avatarUrl,
+        response,
+      };
+  }
+  return { id: userId, name: "退会した人", color: "nezumi", avatarUrl: null, response };
+}
+
+/**
+ * 人の ID を渡すだけで出すアバターの丸。名前・色・アイコンの URL は personOf が引く。#152、0064
+ * InitialAvatar を直に使わず、これを使う。
+ * @param groups 入っているグループ。自分だけを出すときは省いてよい
+ */
+export function UserAvatar({
+  userId,
+  groups = [],
+  me,
+  response,
+  size,
+  className,
+}: {
+  userId: string;
+  groups?: GroupSummary[];
+  me: Me;
+  response?: AttendeeResponse;
+  size?: number;
+  className?: string;
+}) {
+  return <InitialAvatar person={personOf(userId, groups, me, response)} size={size} className={className} />;
+}
+
+/**
+ * 人の ID の配列を渡すだけで、重ねて並べる。名前・色・アイコンの URL は personOf が引く。#152、0064
+ * AvatarStack を直に使わず、これを使う。
+ */
+export function UserAvatarStack({
+  userIds,
+  groups = [],
+  me,
+  max,
+  size,
+  className,
+}: {
+  userIds: string[];
+  groups?: GroupSummary[];
+  me: Me;
+  max?: number;
+  size?: number;
+  className?: string;
+}) {
+  const people = userIds.map((id) => personOf(id, groups, me));
+  return <AvatarStack people={people} max={max} size={size} className={className} />;
 }

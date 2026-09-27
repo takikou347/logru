@@ -151,6 +151,9 @@ export async function syncCalendar(
   fetcher: typeof fetch = fetch,
 ): Promise<string | null> {
   const now = new Date();
+  // 取りに行く前に updated_at を進める。読み込みが重くて Cron の 1 回が途中で終わっても、
+  // 次の巡回では、このカレンダーより先にほかのカレンダーが回ってくる。0065、#161
+  await db.update(externalCalendars).set({ updatedAt: now }).where(eq(externalCalendars.id, row.id));
   try {
     const url = normalizeCalendarUrl(await decryptText(row.urlEncrypted, env.EXTERNAL_CALENDAR_KEY), allowLocalHttp);
     const text = await fetchIcs(url, fetcher);

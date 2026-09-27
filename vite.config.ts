@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,6 +7,15 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+
+/** 組み立ての版。画面の誤りの報告に載せる。git が無い環境では "dev" にする。0040 */
+function buildVersion(): string {
+  try {
+    return execSync("git rev-parse --short HEAD").toString().trim();
+  } catch {
+    return "dev";
+  }
+}
 
 /**
  * public/_headers の CSP に、Firebase の行き先を入れる。
@@ -32,6 +42,7 @@ function firebaseCsp(env: Record<string, string>): Plugin {
 }
 
 export default defineConfig(({ mode }) => ({
+  define: { __APP_VERSION__: JSON.stringify(buildVersion()) },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src/client", import.meta.url)),
@@ -53,7 +64,7 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         name: "Logru",
         short_name: "Logru",
-        description: "カレンダーを土台に、使いたい機能だけを足して使うアプリ。",
+        description: "家族や恋人と予定を分け合えるカレンダー。旅の思い出や毎日の写真、家計簿も同じ日に残せます。",
         lang: "ja",
         start_url: "/",
         scope: "/",
@@ -65,6 +76,24 @@ export default defineConfig(({ mode }) => ({
           { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
           { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
+        // ホーム画面のアイコンを長押ししたときの近道。開いたら URL の印を消す。#110、0069
+        shortcuts: [
+          {
+            name: "予定を足す",
+            url: "/?new=1",
+            icons: [{ src: "/icon-shortcut-new-96.png", sizes: "96x96", type: "image/png" }],
+          },
+          {
+            name: "ひとコマ",
+            url: "/memories/koma/now",
+            icons: [{ src: "/icon-shortcut-koma-96.png", sizes: "96x96", type: "image/png" }],
+          },
+          {
+            name: "支出を記録する",
+            url: "/kakeibo?record=1",
+            icons: [{ src: "/icon-shortcut-kakeibo-96.png", sizes: "96x96", type: "image/png" }],
+          },
+        ],
       },
       workbox: {
         // 端末への知らせを受ける処理。0023
@@ -73,7 +102,7 @@ export default defineConfig(({ mode }) => ({
         // 認証の通り道は Worker が Firebase へ中継する。画面の代わりに index.html を返さない。#1
         navigateFallbackDenylist: [/^\/api\//, /^\/__\//],
         // 書体は数が多いので先に全部は持たず、使ったものだけ残す
-        globPatterns: ["**/*.{js,css,html,svg,png}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,webp}"],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.endsWith(".woff2"),

@@ -85,6 +85,33 @@ describe("parseIcs", () => {
   it("iCal でない文字列は失敗にする", () => {
     expect(() => parseIcs("<html>not found</html>", window)).toThrow();
   });
+
+  it("VEVENT が多すぎるカレンダーは、上限を超えた分を読まない。0065、#161", () => {
+    // 期間の外の VEVENT を 5000 個読ませたあと、期間の中の 1 個を置く。上限を超えて読まれなければ空になる
+    const outside = Array.from(
+      { length: 5000 },
+      (_, i) =>
+        `BEGIN:VEVENT\r\nUID:outside-${i}@test\r\nDTSTAMP:20000101T000000Z\r\nDTSTART:20000101T000000Z\r\nSUMMARY:x\r\nEND:VEVENT\r\n`,
+    ).join("");
+    const inside = `BEGIN:VEVENT\r\nUID:inside@test\r\nDTSTAMP:20261001T000000Z\r\nDTSTART:20261001T000000Z\r\nSUMMARY:in window\r\nEND:VEVENT\r\n`;
+    const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\n${outside}${inside}END:VCALENDAR\r\n`;
+    expect(parseIcs(ics, window)).toHaveLength(0);
+  }, 20000);
+
+  it("繰り返しを開く回数は、予定をまたいで合計で数える。0065、#161", () => {
+    // 1 件あたり単独なら期間に届く回数だが、5 件分を合計すると上限を超え、後ろの予定は届かなくなる
+    const dayMs = 24 * 60 * 60 * 1000;
+    const start = window.from - 4500 * dayMs;
+    const toIcsUtc = (ms: number) => `${new Date(ms).toISOString().replace(/[-:]/g, "").split(".")[0]}Z`;
+    const dailyEvent = (uid: string) =>
+      `BEGIN:VEVENT\r\nUID:${uid}@test\r\nDTSTAMP:${toIcsUtc(start)}\r\nDTSTART:${toIcsUtc(start)}\r\nRRULE:FREQ=DAILY;COUNT=100000\r\nSUMMARY:${uid}\r\nEND:VEVENT\r\n`;
+    const uids = ["r1", "r2", "r3", "r4", "r5"];
+    const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\n${uids.map(dailyEvent).join("")}END:VCALENDAR\r\n`;
+    const oneDayWindow = { from: window.from, to: window.from + dayMs };
+    const found = new Set(parseIcs(ics, oneDayWindow).map((e) => e.uid));
+    expect(found.has("r1@test")).toBe(true);
+    expect(found.has("r5@test")).toBe(false);
+  });
 });
 
 describe("wallTimeToUtc", () => {

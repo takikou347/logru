@@ -1,7 +1,8 @@
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useGroups, useMe } from "@/api/common";
-import { AppLayout, Page, PageBar } from "@/components/layout/AppLayout";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
 import { Field } from "@/components/parts/Field";
 import { Dot, Empty, Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
@@ -35,8 +36,10 @@ export function GroupsPage() {
     }
   }
 
+  useAppFrame({ poolColors: poolColorsOf(list, me.data) });
+
   return (
-    <AppLayout poolColors={poolColorsOf(list, me.data)}>
+    <>
       <Page>
         <PageBar title="グループ" />
         <Panel title="入っているグループ" aria-label="グループの一覧">
@@ -78,6 +81,6 @@ export function GroupsPage() {
           </form>
         </Panel>
       </Page>
-    </AppLayout>
+    </>
   );
 }

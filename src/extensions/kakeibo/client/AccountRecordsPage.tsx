@@ -1,0 +1,235 @@
+import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useMe } from "@/api/common";
+import { Loading } from "@/app/guards";
+import { Page, PageBar } from "@/components/layout/AppLayout";
+import { useAppFrame } from "@/components/layout/AppShell";
+import { EmptyState } from "@/components/parts/EmptyState";
+import { LoadableSection, PanelSkeleton } from "@/components/parts/LoadableSection";
+import { Panel } from "@/components/parts/Panel";
+import { Button } from "@/components/ui/button";
+import { formatShortDate } from "@/lib/dates";
+import { useUndoableDelete } from "@/lib/use-undoable-delete";
+import { kakeiboCategoryLabel } from "../shared/categories";
+import { isMonthKey } from "../shared/dates";
+import { formatYen } from "../shared/format";
+import { AccountSheet } from "./AccountSheet";
+import type { KakeiboAccount, KakeiboAccountDetail, KakeiboAccountRef, KakeiboExpense } from "./api";
+import { useDeleteAccount, useDeleteExpense, useKakeiboAccountDetail, useKakeiboGroups } from "./api";
+import { ExpenseSheet } from "./ExpenseSheet";
+import {
+  addMonthsToKey,
+  formatMonthLabel,
+  KAKEIBO_ACCOUNT_KIND_ICONS,
+  monthKeyOf,
+  accountRefLabel as sharedAccountRefLabel,
+} from "./parts";
+
+/** 相手の口座の表示。見えなければ「〇〇さんの口座」。口座なしのときは「口座なし」 */
+function accountRefLabel(ref: KakeiboAccountRef): string {
+  return sharedAccountRefLabel(ref) ?? "口座なし";
+}
+
+/** この口座から見た金額。出ていけばマイナス、入ってくればプラス */
+function signedAmountFor(record: KakeiboExpense, accountId: string): number {
+  if (record.type === "income") return record.amount;
+  if (record.type === "expense") return -record.amount;
+  // 振替。出す元ならマイナス、入れる先ならプラス
+  return record.account?.id === accountId ? -record.amount : record.amount;
+}
+
+/** 記録の行。振替は相手の口座を、支出・収入はカテゴリを添える。押すと記録のシートが開く。issue #205 */
+function RecordRow({ record, accountId, onClick }: { record: KakeiboExpense; accountId: string; onClick: () => void }) {
+  const signed = signedAmountFor(record, accountId);
+  const relation =
+    record.type === "transfer"
+      ? record.account?.id === accountId
+        ? `→ ${accountRefLabel(record.toAccount)}`
+        : `${accountRefLabel(record.account)} →`
+      : kakeiboCategoryLabel(record.category);
+  return (
+    <li className="border-line not-first:border-t">
+      <button
+        type="button"
+        className="grid min-h-11 w-full grid-cols-[4.75rem_1fr] items-center gap-1 py-1 text-left"
+        onClick={onClick}
+      >
+        <time className="text-sm font-medium whitespace-nowrap text-ink-2">{formatShortDate(record.date)}</time>
+        <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+          <span className="min-w-0 truncate">{relation}</span>
+          {record.memo && <span className="min-w-0 truncate text-xs font-normal text-ink-2">{record.memo}</span>}
+          <span className="ml-auto flex-none font-bold tabular-nums">{formatYen(signed)}</span>
+        </span>
+      </button>
+    </li>
+  );
+}
+
+/**
+ * 口座ごとの記録の画面。F-317
+ * 口座の残高と、月ごとにその口座が関わる記録を見る。振替は出す元・入れる先の両方の口座に出る
+ */
+export function AccountRecordsPage() {
+  const { id } = useParams<{ id: string }>();
+  const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
+  const me = useMe();
+  const { groups } = useKakeiboGroups();
+  const monthParam = params.get("month");
+  const month = monthParam && isMonthKey(monthParam) ? monthParam : monthKeyOf(new Date());
+  const detail = useKakeiboAccountDetail(id ?? null, month);
+  const [editing, setEditing] = useState(false);
+  // もう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。
+  // key に積んで、確実に新しい `AccountSheet`・`ExpenseSheet` を作る。#211
+  const editGen = useRef(0);
+  const setMonth = (key: string) => setParams((p) => (p.set("month", key), p), { replace: true });
+  const deleteAccount = useDeleteAccount();
+  const deleteExpense = useDeleteExpense();
+  // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。#194
+  const { remove } = useUndoableDelete("口座を消しました");
+  const { remove: removeExpense } = useUndoableDelete("記録を消しました");
+  // 口座ごとの色は付けていない画面。0071
+  useAppFrame({ poolColors: [] });
+
+  /**
+   * 消す。シートはもう閉じているので、この画面はそのまま残す。5 秒たって実際に消えたら
+   * 一覧へ移る。「元に戻す」を押したときは、この画面のまま何も起きない。#194
+   */
+  function handleDelete(account: KakeiboAccount) {
+    remove(account.id, async ({ keepalive }) => {
+      await deleteAccount.mutateAsync({ id: account.id, keepalive });
+      if (!keepalive) navigate("/kakeibo/accounts", { replace: true });
+    });
+  }
+
+  // 記録のシート。`?record=1` で新しく記録、`?record=<id>` で直す。行を押すと開く。issue #205
+  const recordParam = params.get("record");
+  const closeRecord = () => setParams((p) => (p.delete("record"), p), { replace: true });
+  const openNewRecord = () => {
+    editGen.current += 1;
+    setParams((p) => (p.set("record", "1"), p), { replace: true });
+  };
+  const openRecord = (recordId: string) => {
+    editGen.current += 1;
+    setParams((p) => (p.set("record", recordId), p), { replace: true });
+  };
+  function handleDeleteExpense(expense: KakeiboExpense) {
+    removeExpense(expense.id, ({ keepalive }) => deleteExpense.mutateAsync({ id: expense.id, keepalive }));
+  }
+  const editingExpense = detail.data?.records.find((r) => r.id === recordParam);
+
+  if (!id) return null;
+  if (!me.data) return <Loading />;
+
+  return (
+    <>
+      <Page>
+        <PageBar title={detail.data?.account.name ?? "口座"} back="/kakeibo/accounts" />
+
+        {/* 月の帯は、読み込み中や読めなかったときも操作できるよう、下の面より外に置く。issue #195 */}
+        <div className="glass flex items-center justify-between rounded-full px-2 py-1.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="前の月"
+            onClick={() => setMonth(addMonthsToKey(month, -1))}
+          >
+            <ChevronLeft className="size-5" />
+          </Button>
+          <span className="text-[15px] font-bold">{formatMonthLabel(month)}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="次の月"
+            onClick={() => setMonth(addMonthsToKey(month, 1))}
+          >
+            <ChevronRight className="size-5" />
+          </Button>
+        </div>
+
+        <LoadableSection query={detail} what="口座" skeleton={<PanelSkeleton lines={5} />}>
+          {(data: KakeiboAccountDetail) => {
+            const { account, records } = data;
+            const Icon = KAKEIBO_ACCOUNT_KIND_ICONS[account.kind];
+            return (
+              <>
+                <Panel>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <Icon className="size-5 flex-none text-ink-2" aria-hidden="true" />
+                      <span className="flex min-w-0 flex-col">
+                        <b className="truncate text-[17px]">{account.name}</b>
+                        {account.archivedAt && <span className="text-xs text-ink-2">使わない</span>}
+                      </span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="口座を直す"
+                      onClick={() => {
+                        editGen.current += 1;
+                        setEditing(true);
+                      }}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                  </div>
+                  <p className="text-2xl font-extrabold tabular-nums" data-testid="kakeibo-account-balance">
+                    {formatYen(account.balance)}
+                  </p>
+                </Panel>
+
+                <Panel title="記録">
+                  {records.length === 0 ? (
+                    <EmptyState pose="coin" bordered={false} action={{ label: "記録する", onClick: openNewRecord }}>
+                      この月の記録はありません。
+                    </EmptyState>
+                  ) : (
+                    <ul className="flex flex-col">
+                      {records.map((r) => (
+                        <RecordRow key={r.id} record={r} accountId={account.id} onClick={() => openRecord(r.id)} />
+                      ))}
+                    </ul>
+                  )}
+                </Panel>
+              </>
+            );
+          }}
+        </LoadableSection>
+      </Page>
+      {editing && detail.data && (
+        <AccountSheet
+          key={editGen.current}
+          groups={groups}
+          me={me.data}
+          account={detail.data.account}
+          onClose={() => setEditing(false)}
+          onDelete={handleDelete}
+        />
+      )}
+      {recordParam === "1" && detail.data && (
+        <ExpenseSheet
+          key={editGen.current}
+          groups={groups}
+          me={me.data}
+          defaultGroupId={detail.data.account.groupId}
+          onClose={closeRecord}
+        />
+      )}
+      {editingExpense && (
+        <ExpenseSheet
+          key={`${recordParam}-${editGen.current}`}
+          groups={groups}
+          me={me.data}
+          expense={editingExpense}
+          onClose={closeRecord}
+          onDelete={handleDeleteExpense}
+        />
+      )}
+    </>
+  );
+}

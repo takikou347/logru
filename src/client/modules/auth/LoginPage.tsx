@@ -3,6 +3,7 @@ import { type FormEvent, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { AuthCard, AuthShell, GoogleButton, Notice, OrDivider } from "@/components/layout/AuthShell";
 import { Field } from "@/components/parts/Field";
+import { InAppBrowserNotice } from "@/components/parts/InAppBrowserNotice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authErrorMessage } from "@/lib/auth-errors";
@@ -59,6 +60,7 @@ export function LoginPage() {
     <AuthShell>
       <AuthCard>
         <h1 className="sr-only">ログイン</h1>
+        <InAppBrowserNotice />
         {expired && (
           <Notice role="status">
             <b>ログインが切れました。</b>

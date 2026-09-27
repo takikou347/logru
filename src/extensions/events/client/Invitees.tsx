@@ -1,5 +1,7 @@
 import type { AttendeeResponse } from "@shared/api-types";
 import { Check, X } from "lucide-react";
+// EventSheet の toPerson が名前・色・アイコンの URL を引いた済みの人を受け取る。返事の状態も持つので
+// 人の ID からではなく InitialAvatar を直に使う。0064
 import { type AvatarPerson, InitialAvatar } from "@/components/parts/Avatars";
 import { Chip } from "@/components/parts/Chip";
 import { FieldMessage } from "@/components/parts/Panel";
@@ -40,7 +42,7 @@ export function RsvpBar({
       aria-label="招待への返事"
       data-response={response}
       className={cn(
-        "-mt-1 flex flex-col gap-2.5 rounded-2xl px-3.5 py-3 transition-colors motion-reduce:transition-none",
+        "flex flex-col gap-2.5 rounded-2xl px-3.5 py-3 transition-colors motion-reduce:transition-none",
         `c-${color}`,
         response === "pending" && "shadow-[inset_0_0_0_1.5px_var(--c)]",
         response === "accepted" && "bg-[color-mix(in_srgb,var(--c)_16%,transparent)]",

@@ -1,7 +1,7 @@
 import type { Me } from "@shared/api-types";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { InitialAvatar } from "@/components/parts/Avatars";
+import { UserAvatar } from "@/components/parts/Avatars";
 import { FieldMessage, Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { prepareAvatarPhoto } from "@/lib/avatar-photo";
@@ -43,12 +43,10 @@ export function AvatarSection({ me }: { me: Me }) {
     }
   }
 
-  const person = { id: me.user.id, name: me.user.name, color: me.settings.userColor, avatarUrl: me.user.avatarUrl };
-
   return (
     <Panel title="アバター">
       <div className="flex items-center gap-4">
-        <InitialAvatar person={person} size={64} />
+        <UserAvatar userId={me.user.id} me={me} size={64} />
         <div className="flex flex-col gap-2">
           <Button type="button" variant="secondary" disabled={busyNow} onClick={() => inputRef.current?.click()}>
             写真を選ぶ

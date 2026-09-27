@@ -48,6 +48,14 @@ export function resolveAppUrl(env: Env, requestUrl: string): string {
 }
 
 /**
+ * 設定に「ラボ」の欄を出すか。staging と手元の開発では出し、本番では出さない。0038、0039、F-35
+ * @param environment env.ENVIRONMENT
+ */
+export function showLab(environment: Env["ENVIRONMENT"]): boolean {
+  return environment !== "production";
+}
+
+/**
  * zValidator の失敗を、最初の 1 件の文言で 400 にして返す。
  * @example zValidator("json", groupInput, validationHook)
  */
@@ -68,7 +76,7 @@ export class HttpError extends Error {
    * @param code 画面が分岐に使う印。省略できる
    */
   constructor(
-    readonly status: 400 | 401 | 403 | 404 | 409,
+    readonly status: 400 | 401 | 403 | 404 | 409 | 429,
     message: string,
     readonly code?: string,
   ) {

@@ -16,6 +16,9 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
+/** 組み立てたときの git の短い SHA。vite.config.ts の define で埋める。手元の開発では "dev"。0040 */
+declare const __APP_VERSION__: string;
+
 declare module "*.md?raw" {
   const content: string;
   export default content;

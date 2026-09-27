@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { addExtension, enableNewLook, signUp } from "./helpers";
+import { addExtension, closeMobileKeyboard, enableNewLook, openMobileKeyboard, signUp } from "./helpers";
+
+/** 実機の数字キーパッドの見当の高さ(px)。redesign-keyboard.spec.ts と同じ値 */
+const NUMERIC_KEYBOARD_PX = 291;
 
 /**
  * 刷新 4。画面の移り変わり(行がシートに広がる、節が機能の画面に広がる)。0093、F-46、issue #241
@@ -137,4 +140,51 @@ test("ラボの「新しい見た目」を入れていない人は、節・タ�
   await page.getByTestId("extension-tile-kakeibo").click();
   await expect(page).toHaveURL(/\/kakeibo$/);
   await expect(page.locator('[style*="box-expand"]')).toHaveCount(0);
+});
+
+test("行→シートの動きで開いた家計簿の記録でも、OS のキーボードが出ると持ち上がる。キーボードが出たまま閉じても崩れない。刷新 5(#242)との組み合わせ", async ({
+  page,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableNewLook(page);
+  await addExtension(page, "家計簿");
+
+  await page.goto("/");
+  await page.getByTestId("today-section-kakeibo").getByRole("link", { name: "支出を記録する" }).click();
+  const newSheet = page.getByRole("dialog", { name: "記録する" });
+  await newSheet.getByLabel("金額").fill("980");
+  await newSheet.getByRole("radio", { name: "食費" }).click();
+  await newSheet.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  // 行→シートの動き(row-expand)で記録を直すシートを開く
+  await page.goto("/kakeibo");
+  const row = page.getByRole("button", { name: /食費/ }).first();
+  await expect(row).toBeVisible();
+  await row.click();
+  const editSheet = page.getByRole("dialog", { name: "記録を直す" });
+  await expect(editSheet).toBeVisible();
+  await expect(page.locator('[style*="row-expand"]')).toHaveCount(1);
+
+  // OS のキーボードが出て、シートが持ち上がる(刷新 5、0094)
+  const viewport = page.viewportSize();
+  if (!viewport) throw new Error("viewport が取れません");
+  const keyboardTop = viewport.height - NUMERIC_KEYBOARD_PX;
+  const amount = editSheet.getByLabel("金額");
+  await amount.focus();
+  await openMobileKeyboard(page, NUMERIC_KEYBOARD_PX);
+  await expect(async () => {
+    const box = await editSheet.boundingBox();
+    expect(box).toBeTruthy();
+    expect(Math.abs(box!.y + box!.height - keyboardTop)).toBeLessThanOrEqual(2);
+  }).toPass({ timeout: 5_000 });
+  // 行→シートの名前は、キーボードが出た後も付いたまま(共有要素の動きとぶつからない)
+  await expect(page.locator('[style*="row-expand"]')).toHaveCount(1);
+
+  // キーボードが出たまま Esc で閉じても、崩れずに閉じる
+  await page.keyboard.press("Escape");
+  await closeMobileKeyboard(page);
+  await expect(editSheet).toBeHidden();
+  await expect(page.locator('[style*="row-expand"]')).toHaveCount(0);
+  await expect(row).toBeVisible();
 });

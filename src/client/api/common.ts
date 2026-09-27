@@ -1,6 +1,6 @@
 /** 複数の機能が使う hook。1 つの機能に閉じるものは modules/<機能>/api.ts か extensions/<名前>/client/api.ts に置く */
 
-import type { GroupSummary, Me } from "@shared/api-types";
+import type { GroupSummary, Me, TodayPagePrefs } from "@shared/api-types";
 import { addTourSeen } from "@shared/tours";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -97,6 +97,29 @@ export function useSetExtensionOrder() {
       await qc.cancelQueries({ queryKey: keys.me });
       const prev = qc.getQueryData<Me>(keys.me);
       if (prev) qc.setQueryData<Me>(keys.me, { ...prev, settings: { ...prev.settings, extensionOrder: order } });
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(keys.me, ctx.prev);
+      toast.error((e as Error).message);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.me }),
+  });
+}
+
+/**
+ * 今日のページの並べ方と見せ方を変える。押した瞬間に画面に効かせ、失敗したら元に戻す。0092、F-45
+ * 今日のページと、設定の「機能」の「今日のページでの見せ方」の両方が使う
+ */
+export function useSetTodayPagePrefs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (todayPage: TodayPagePrefs) =>
+      api<{ todayPage: TodayPagePrefs }>("/me/today-page", { method: "PUT", body: todayPage }),
+    onMutate: async (todayPage) => {
+      await qc.cancelQueries({ queryKey: keys.me });
+      const prev = qc.getQueryData<Me>(keys.me);
+      if (prev) qc.setQueryData<Me>(keys.me, { ...prev, settings: { ...prev.settings, todayPage } });
       return { prev };
     },
     onError: (e, _v, ctx) => {

@@ -12,7 +12,7 @@ import { Plus, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
-import { angleOf, radialOffset, radialTiers } from "@/lib/radial-layout";
+import { angleOf, favoritesOffset, radialOffset, radialTiers } from "@/lib/radial-layout";
 import { useLongPressLabel } from "@/lib/use-long-press";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
@@ -41,7 +41,8 @@ function RadialItem({
   // 閉じている間・飛ぶ前は基準点に重なって縮んでいる
   return (
     <span
-      className="absolute top-0 left-0 transition-transform duration-slow ease-out"
+      // 長押しの名前が隣の丸の後ろに隠れないよう、押している丸を前に出す
+      className={cn("absolute top-0 left-0 transition-transform duration-slow ease-out", pressed && "z-10")}
       style={{
         transform: entered ? `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))` : "translate(-50%, -50%) scale(0.4)",
         transitionDelay: reducedMotion ? "0ms" : `${delayMs}ms`,
@@ -95,10 +96,13 @@ export function RadialAddButton({
   items,
   favorites,
   showHint,
+  pending,
 }: {
   items: ExtensionAction[];
   favorites: FavoriteAdd[];
   showHint?: boolean;
+  /** 足している機能をまだ読んでいる間。items は「いつも使える機能」だけで、本当の数より少ない */
+  pending?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [entered, setEntered] = useState(false);
@@ -122,6 +126,18 @@ export function RadialAddButton({
     return () => cancelAnimationFrame(frame);
   }, [open, reducedMotion]);
 
+  // 機能を読み終える前に押されたら、読み終えてから、そのときの種類の数に合わせて開く。
+  // 読む前は「いつも使える機能」の 1 つだけに見えるので、そのまま予定のシートを開くと、ほかの種類を選べない
+  const [queued, setQueued] = useState(false);
+  const firstPath = items[0]?.path;
+  const single = items.length === 1;
+  useEffect(() => {
+    if (!queued || pending) return;
+    setQueued(false);
+    if (single && firstPath) navigate(firstPath);
+    else if (!single) setOpen(true);
+  }, [queued, pending, single, firstPath, navigate]);
+
   // 決定 0086 と同じ扱い。足せるものが 1 つも無ければ出さない
   if (items.length === 0) return null;
 
@@ -138,10 +154,14 @@ export function RadialAddButton({
           type="button"
           aria-label="記録する"
           data-testid="global-add"
-          className="grid size-11 place-items-center rounded-full text-ink-2"
+          className={cn("grid w-11 place-items-center rounded-full text-ink-2", showHint ? "h-9" : "h-11")}
           onClick={(e) => {
             if (consumeLongPress()) {
               e.preventDefault();
+              return;
+            }
+            if (pending) {
+              setQueued(true);
               return;
             }
             navigate(only.path);
@@ -151,7 +171,7 @@ export function RadialAddButton({
           <Plus className="size-6" aria-hidden="true" />
         </button>
         {showHint && (
-          <small aria-hidden="true" data-testid="tab-hint" className="text-[10px] font-bold text-ink-2">
+          <small aria-hidden="true" data-testid="tab-hint" className="text-[10px] leading-none font-bold text-ink-2">
             記録する
           </small>
         )}
@@ -169,17 +189,16 @@ export function RadialAddButton({
   }
 
   const tiers = radialTiers(items);
-  // 弧のいちばん外の半径。よく使う記録の帯を、これより上に置く
-  const outerRadius = tiers.at(-1)?.radius ?? 128;
+  const favoritesBottom = favoritesOffset(tiers);
 
   return (
-    <span className="relative flex min-w-0 flex-1 flex-col items-center">
+    <span className="relative flex min-w-0 flex-1 flex-col items-center gap-0.5">
       <button
         type="button"
         aria-label={open ? "閉じる" : "記録する"}
         data-testid="global-add"
         aria-expanded={open}
-        className="grid size-11 place-items-center rounded-full text-ink-2"
+        className={cn("grid w-11 place-items-center rounded-full text-ink-2", !open && showHint ? "h-9" : "h-11")}
         onClick={(e) => {
           if (consumeLongPress()) {
             e.preventDefault();
@@ -195,7 +214,7 @@ export function RadialAddButton({
         />
       </button>
       {!open && showHint && (
-        <small aria-hidden="true" data-testid="tab-hint" className="text-[10px] font-bold text-ink-2">
+        <small aria-hidden="true" data-testid="tab-hint" className="text-[10px] leading-none font-bold text-ink-2">
           記録する
         </small>
       )}
@@ -240,7 +259,7 @@ export function RadialAddButton({
                       key={a.path}
                       item={a}
                       radius={tier.radius}
-                      angle={angleOf(i, tier.items.length)}
+                      angle={angleOf(i, tier.items.length, tier.from, tier.to)}
                       delayMs={(ti * tier.items.length + i) * 45}
                       reducedMotion={reducedMotion}
                       entered={entered}
@@ -254,7 +273,7 @@ export function RadialAddButton({
                     aria-label="よく使う記録"
                     className="absolute left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 transition-opacity duration-slow"
                     style={{
-                      bottom: `${outerRadius + 64}px`,
+                      bottom: `${favoritesBottom}px`,
                       opacity: entered ? 1 : 0,
                       transitionDelay: reducedMotion ? "0ms" : "260ms",
                       transitionDuration: reducedMotion ? "0ms" : undefined,

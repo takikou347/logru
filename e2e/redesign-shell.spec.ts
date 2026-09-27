@@ -44,6 +44,12 @@ test("はじめの 3 回だけ、タブの下に名前が出る", async ({ page 
   await page.goto("/");
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
   await expect(tabs.getByTestId("tab-hint")).toHaveCount(5);
+  // 名前は帯の角丸の内側に収まる。帯の下の端にかからない
+  const bar = (await tabs.boundingBox())!;
+  for (const hint of await tabs.getByTestId("tab-hint").all()) {
+    const box = (await hint.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(bar.y + bar.height - 6);
+  }
 
   // 4 回目からは消える
   await page.evaluate(() => localStorage.setItem("logru:new-look-tab-hints-seen", "3"));
@@ -155,9 +161,13 @@ test("家計簿のよく使う記録があると、「+」の上にカードで�
   await expect(sheet.getByRole("radio", { name: "食費", checked: true })).toBeVisible();
 });
 
-test("新しい見た目・スマホでも、上の帯の近くのアイコンだけの切り替えで週・日表示に移れる", async ({ page }) => {
+test("新しい見た目・スマホでも、カレンダータブでは上の帯の近くのアイコンだけの切り替えで週・日表示に移れる", async ({
+  page,
+}) => {
+  // 刷新 3(0092、issue #240)から、`/` は今日のページになった。月週日の切り替えは
+  // 下のタブの「カレンダー」(`/?view=month`)の画面に残る
   await enableNewLook(page);
-  await page.goto("/");
+  await page.goto("/?view=month");
   await page.getByRole("radio", { name: "週" }).last().click();
   await expect(page.getByRole("region", { name: "週の予定" })).toBeVisible();
   await page.getByRole("radio", { name: "日" }).last().click();

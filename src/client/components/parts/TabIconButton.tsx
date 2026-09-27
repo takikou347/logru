@@ -29,7 +29,11 @@ export function TabIconButton({
         to={to}
         end={end}
         aria-label={label}
-        className="grid size-11 place-items-center rounded-full text-ink-2 aria-[current=page]:text-ink"
+        className={cn(
+          "grid w-11 place-items-center rounded-full text-ink-2 aria-[current=page]:text-ink",
+          // 名前を下に出す間は、名前ごと帯の高さに収まるよう、押せる所の高さを詰める
+          showHint ? "h-9" : "h-11",
+        )}
         onClick={(e) => {
           if (consumeLongPress()) e.preventDefault();
         }}
@@ -38,7 +42,11 @@ export function TabIconButton({
         <Icon className="size-5" aria-hidden="true" />
       </NavLink>
       {showHint && (
-        <small aria-hidden="true" data-testid="tab-hint" className="truncate text-[10px] font-bold text-ink-2">
+        <small
+          aria-hidden="true"
+          data-testid="tab-hint"
+          className="text-[10px] leading-none font-bold whitespace-nowrap text-ink-2"
+        >
           {label}
         </small>
       )}

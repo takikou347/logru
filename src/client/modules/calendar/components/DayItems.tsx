@@ -111,9 +111,9 @@ function ItemList({
 
 /**
  * 一覧の行の並び。金額の項目(kind が expense)は MoneyRow、それ以外は ItemRow。
- * ItemList(拡張ごとの見出し)、FlatItemList、UpcomingList が共通で使う。
+ * ItemList(拡張ごとの見出し)、FlatItemList、UpcomingList、今日のページの節が共通で使う。0092
  */
-function ItemRows({
+export function ItemRows({
   items,
   onOpen,
   leaving,

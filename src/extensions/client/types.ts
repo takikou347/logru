@@ -104,6 +104,29 @@ export type ExtensionAction = { label: string; icon: LucideIcon; path: string; h
 export type FavoriteAdd = { key: string; label: string; icon?: LucideIcon; path: string };
 
 /**
+ * 今日のページの節が受け取るもの。0092、issue #240
+ *
+ * dayItems は、見せている日の、この拡張のカレンダー項目だけ(ItemEditorProps.dayItemsOf と同じ形)。
+ * 予定・家計簿・思い出のように、その日の項目をカレンダーへ渡している拡張はここに実データが入る。
+ * 共有リストのように日付を持たないことが多い拡張は、空でも困らない中身にする(いちばん新しいリストの
+ * 残り数など、日に依らない中身を出す)。
+ */
+export type TodaySectionProps = {
+  /** 見せている日 */
+  date: Date;
+  /** 見せている日が今日か。今日しか対応していない中身(ひとコマなど)が、ほかの日の表し方を選ぶのに使う */
+  isToday: boolean;
+  dayItems: DayItem[];
+  /** 項目を押したとき、この拡張の編集シートを開く */
+  onOpenItem: (item: CalendarItem) => void;
+};
+
+/**
+ * 今日のページに出す節。無ければ、今日のページはその日の項目をそのまま一覧で見せる既定の節を使う。0092、issue #240
+ */
+export type TodaySection = { Component: ComponentType<TodaySectionProps> };
+
+/**
  * いま押してほしい近道。カレンダーの上の帯に出す。F-26
  * 返すものが無ければ帯は出ない。
  */
@@ -195,6 +218,20 @@ export type ClientExtension = {
    * useShortcut と同じ理由で、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ。0091、issue #239
    */
   useFavoriteAdds?: (enabled: boolean) => FavoriteAdd[] | null;
+  /**
+   * 今日のページの節の中身。無ければ、その日の項目(dayItems)をそのまま一覧で見せる既定の節を使う。0092、issue #240
+   */
+  today?: TodaySection;
+  /**
+   * 今日のページで、この節を畳んだときの要約。7 文字ほどを目安に返す。無ければ、その日の項目の件数を使う。
+   * hook なので、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ。0092、issue #240
+   */
+  useTodaySummary?: (enabled: boolean, date: Date, dayItems: DayItem[]) => string | null;
+  /**
+   * その日の見出しの 1 行。設定の「機能」の「見出し」で、この拡張を選べるようになる。無ければ選択肢に出さない。
+   * hook なので、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ。0092、issue #240
+   */
+  useHeadline?: (enabled: boolean, date: Date, dayItems: DayItem[]) => string | null;
   /** ほかの拡張の編集シートに足す欄 */
   itemAddons?: ItemAddon[];
   /** 端末に知らせるもの。例は「ひとコマの時刻」。知らせる拡張を使っているときだけ、設定に知らせの欄を出す。F-23 */

@@ -8,6 +8,7 @@ import { ScreenTour } from "@/components/parts/ScreenTour";
 import { BASE_TOURS } from "@/lib/tours";
 import { poolColorsOf } from "../calendar/model";
 import { SettingsShell } from "./components/SettingsShell";
+import { TodayPagePrefsSection } from "./components/TodayPagePrefsSection";
 
 /**
  * 設定の「機能」。足した機能をアイコンのタイルで並べ、「+」から足す。F-24、0019、issue #145
@@ -40,6 +41,7 @@ export function ExtensionsSettingsPage() {
   return (
     <SettingsShell title="機能" poolColors={poolColorsOf(groups.data ?? [], me.data)}>
       <ExtensionTileGrid />
+      <TodayPagePrefsSection />
       <ScreenTour id="extensions" steps={BASE_TOURS.extensions} />
     </SettingsShell>
   );

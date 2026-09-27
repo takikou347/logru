@@ -14,6 +14,8 @@ export type LabExperiment = {
   description: string;
   /** 入れたときと切ったときに呼ぶ。見た目や動きを変える処理をここに書く */
   apply: (enabled: boolean) => void;
+  /** 入れているときだけ、行の下に出す道への近道。テーマの選択画面など。0090 */
+  enabledLink?: { to: string; label: string };
 };
 
 /**
@@ -42,8 +44,22 @@ const MONTH_SLIDE_EXPERIMENT: LabExperiment = {
   },
 };
 
+/**
+ * 見た目の土台を、紙とリキッドガラスの 2 組から選べるようにする。既定はリキッドガラス。
+ * 入れると設定に「テーマ」の画面(/settings/theme)への道が出て、そこで選ぶ。0090、F-43
+ */
+const NEW_LOOK_EXPERIMENT: LabExperiment = {
+  key: "new-look",
+  label: "新しい見た目",
+  description: "紙とリキッドガラスから選べる、新しい面の土台を試します。",
+  apply: (enabled) => {
+    document.documentElement.toggleAttribute("data-lab-new-look", enabled);
+  },
+  enabledLink: { to: "/settings/theme", label: "テーマを選ぶ" },
+};
+
 /** 試している見た目。足すのはここへ 1 件 */
-export const LAB_EXPERIMENTS: LabExperiment[] = [SAMPLE_EXPERIMENT, MONTH_SLIDE_EXPERIMENT];
+export const LAB_EXPERIMENTS: LabExperiment[] = [SAMPLE_EXPERIMENT, MONTH_SLIDE_EXPERIMENT, NEW_LOOK_EXPERIMENT];
 
 const PREFIX = "logru:lab:";
 

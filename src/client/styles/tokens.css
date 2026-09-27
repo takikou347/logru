@@ -3,6 +3,13 @@
  * 値の置き場は 0044。色はここ、角丸はここ(--r-panel、--r-field)と globals.css(--radius)、
  * 影はここ(--glass-shadow)、ぼかしはここ(--blur、--glass-filter)、動きの時間はここ(--dur-*)、
  * 緩急は globals.css(--ease-out、--ease-in-out)にある。
+ *
+ * 刷新のテーマは「トークン」「面の描き方」「動き」の 3 つの組で持つ。0090
+ * トークンはここ(tokens.css の変数の値)、面の描き方は globals.css の `.glass` ユーティリティ、
+ * 動きは今のところ 3 テーマとも共通(--dur-*、--ease-*)で、テーマごとの動きは刷新 2 以降で足す。
+ * 最初のテーマは既定のリキッドガラス(この :root と :root[data-theme="dark"] の値そのまま)と、
+ * 紙([data-look="paper"] の節)。ラボの「新しい見た目」を入れていない人は data-lab-new-look が
+ * 付かず、[data-look="paper"] の節はどれも当たらないので、見た目は 1px も変わらない。
  */
 :root {
   color-scheme: light;
@@ -161,6 +168,57 @@
   --glass: var(--glass-flat);
   --blur: none;
   --glass-filter: none;
+}
+
+/*
+ * 見た目の土台「紙」。ラボの「新しい見た目」を入れ(data-lab-new-look)、テーマの画面で紙を選んだ
+ * (data-look="paper")人だけに当たる。0090、F-43
+ *
+ * 紙は不透明な面。奥を透かさず、ぼかしも使わない。角丸は小さく、影はごく薄い落ち影だけにする。
+ * インクだまり(Pools.tsx)は紙の背景に合わないため、--pool-opacity を 0 にして隠す。
+ * 色(--ink、--ink-2、--ink-3)は、下の [data-theme="dark"] と合わせて紙の地との比を
+ * tests/client/look-contrast.test.ts で 4.5:1 以上に確かめている。値を変えたらテストも直す。
+ *
+ * 属性 2 つの組み合わせは、単独の属性の組み合わせ([data-bg-theme="flat"] など)より詳しいので、
+ * 順番に関わらずこの節が勝つ。ガラス(既定)を選んだときは、この節がどれも当たらず、いまの
+ * リキッドガラスの見た目のまま変わらない。
+ */
+:root[data-lab-new-look][data-look="paper"] {
+  --ground: #f2e9d6;
+  --ink: #241b12;
+  --ink-2: #6e5c42;
+  --ink-3: #7c6c52;
+  --line: rgba(36, 27, 18, 0.14);
+  --field: #fdf8ec;
+  --field-strong: #fffcf5;
+  --glass: linear-gradient(180deg, #fbf5e8, #f6eeda);
+  --glass-flat: #faf3e4;
+  --glass-edge: rgba(36, 27, 18, 0.16);
+  --chip-edge: rgba(36, 27, 18, 0.26);
+  --glass-shine: transparent;
+  --glass-shadow: 0 1px 3px rgba(36, 27, 18, 0.12);
+  --pool-opacity: 0;
+  /* 角丸のガラスの面の scale。0044 */
+  --r-panel: 4px;
+  --r-field: 8px;
+  --blur: none;
+  --glass-filter: none;
+}
+:root[data-theme="dark"][data-lab-new-look][data-look="paper"] {
+  --ground: #1c1712;
+  --ink: #ece4d3;
+  --ink-2: #b8a98e;
+  --ink-3: #8f8268;
+  --line: rgba(255, 250, 240, 0.1);
+  --field: #26201a;
+  --field-strong: #2c251e;
+  --glass: linear-gradient(180deg, #241e17, #201a14);
+  --glass-flat: #221c16;
+  --glass-edge: rgba(255, 250, 240, 0.12);
+  --chip-edge: rgba(255, 250, 240, 0.16);
+  --glass-shine: transparent;
+  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --pool-opacity: 0;
 }
 
 .c-wakatake {

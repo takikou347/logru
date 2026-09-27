@@ -78,6 +78,12 @@ const routes: RouteObject[] = [
             }),
           },
           {
+            path: "/settings/theme",
+            lazy: async () => ({
+              Component: (await import("@/modules/settings/ThemeSettingsPage")).ThemeSettingsPage,
+            }),
+          },
+          {
             path: "/settings/notifications",
             lazy: async () => ({
               Component: (await import("@/modules/settings/NotificationsSettingsPage")).NotificationsSettingsPage,

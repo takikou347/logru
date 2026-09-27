@@ -162,6 +162,18 @@ for (const look of ["glass", "paper"] as const) {
     await expect(page).toHaveURL(/\/days\/0$/);
     const memoryDay = new URL(page.url()).pathname;
 
+    // リストを 1 つ作り、項目も 1 件足しておく(行→シートの共有要素・アイコンだけの操作を見るため)
+    await page.goto("/lists");
+    await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
+    await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("買い物");
+    await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
+    await expect(page).toHaveURL(/\/lists\/.+/);
+    const listDetail = new URL(page.url()).pathname;
+    const addInput = page.getByLabel("項目を足す");
+    await addInput.fill("にんじん");
+    await addInput.press("Enter");
+    await expect(page.getByText("にんじん")).toBeVisible();
+
     await enableNewLook(page);
     await page.evaluate((look) => {
       localStorage.setItem("logru-look", look);
@@ -176,6 +188,7 @@ for (const look of ["glass", "paper"] as const) {
       "/kakeibo/accounts",
       "/kakeibo/budgets",
       "/lists",
+      listDetail,
       "/memories",
       memoryDay,
       "/settings",

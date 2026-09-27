@@ -1,5 +1,5 @@
 import type { CalendarItem, GroupSummary, Me } from "@shared/api-types";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Trash2 } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ import { addDaysToKey, dayKeyIn, daysBetween, MAX_MEMORY_DAYS, startOfDayIn } fr
 import { memoryOfEvent, overlaps } from "../shared/links";
 import type { Memory } from "../shared/types";
 import { useDeleteMemory, useInvalidateMemories, useLinkEventToMemory, useMemoryList, useSaveMemory } from "./api";
+import { useIconOnly } from "./parts";
 
 /**
  * 思い出のシート。作る、編集する、消す。F-101、F-107
@@ -73,6 +74,7 @@ export function MemorySheet({
   const [komaEnabled, setKomaEnabled] = useState(memory?.komaEnabled ?? false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
+  const iconOnly = useIconOnly();
   // 消すときは確認を出さず、縮んで消える動きだけ付ける。元に戻すは無い。0085、#226
   const { leaving: leavingMemory, remove: removeMemory } = useExitOnly();
 
@@ -180,8 +182,9 @@ export function MemorySheet({
           <Button variant="ghost" onClick={() => setConfirm(false)} disabled={isLeaving}>
             やめる
           </Button>
-          <Button variant="destructive" onClick={remove} disabled={isLeaving}>
-            消す
+          <Button variant="destructive" aria-label="消す" onClick={remove} disabled={isLeaving}>
+            <Trash2 className="size-4" aria-hidden="true" />
+            {!iconOnly && "消す"}
           </Button>
         </div>
       </ResponsiveSheet>
@@ -304,8 +307,9 @@ export function MemorySheet({
         {error && <FieldMessage error>{error}</FieldMessage>}
         <div className="flex gap-2">
           {canDelete ? (
-            <Button type="button" variant="danger" onClick={() => setConfirm(true)}>
-              消す
+            <Button type="button" variant="danger" aria-label="消す" onClick={() => setConfirm(true)}>
+              <Trash2 className="size-4" aria-hidden="true" />
+              {!iconOnly && "消す"}
             </Button>
           ) : (
             <Button type="button" variant="ghost" onClick={onClose}>

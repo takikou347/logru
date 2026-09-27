@@ -6,6 +6,9 @@
  * 並べ替えの `use-pointer-reorder.ts` と同じ考え方。
  *
  * `onEdit` を渡さないと「消す」だけになる(しおりの項目のように、その場で直す形が無い画面向け)。
+ *
+ * ラボの「新しい見た目」を入れた人は、スワイプで出る「直す」「消す」も PC の乗せて出す方と同じ
+ * アイコンだけにする(読み上げの名前は残す)。入れていない人には 1px も変えない。issue #243
  */
 import { Pencil, Trash2 } from "lucide-react";
 import {
@@ -16,6 +19,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useNewLookActive } from "@/lib/lab";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 
@@ -120,6 +124,7 @@ function TouchSwipeRow({
   children,
   className,
 }: Omit<SwipeRowProps, "editLabel" | "deleteLabel"> & { editLabel: string; deleteLabel: string }) {
+  const iconOnly = useNewLookActive();
   const rowRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -247,7 +252,7 @@ function TouchSwipeRow({
             }}
             className="flex w-[72px] flex-none items-center justify-center bg-field-strong text-sm font-bold text-ink"
           >
-            {editLabel}
+            {iconOnly ? <Pencil className="size-4" aria-hidden="true" /> : editLabel}
           </button>
         )}
         <button
@@ -257,7 +262,7 @@ function TouchSwipeRow({
           onClick={onDelete}
           className="flex w-[72px] flex-none items-center justify-center bg-destructive text-sm font-bold text-destructive-foreground"
         >
-          {deleteLabel}
+          {iconOnly ? <Trash2 className="size-4" aria-hidden="true" /> : deleteLabel}
         </button>
       </div>
       <div

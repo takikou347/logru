@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ListSummary } from "./api";
 import { useDeleteList, usePatchList } from "./api";
+import { useIconOnly } from "./parts";
 
 /** 下の footer のボタンから、シートの中の form を submit するのに使う */
 const EDIT_LIST_FORM_ID = "edit-list-form";
@@ -27,6 +29,7 @@ export function EditListSheet({ list, onClose }: { list: ListSummary; onClose: (
   const [confirm, setConfirm] = useState(false);
   // シート全体(直す・消す確認の両方)が開いているか・送信中か・失敗。0081
   const { open, busy, error, setError, submit: submitSheet, close, handleClosed } = useSheetSubmit(onClose);
+  const iconOnly = useIconOnly();
 
   const canSubmit = title.trim().length > 0;
 
@@ -68,8 +71,9 @@ export function EditListSheet({ list, onClose }: { list: ListSummary; onClose: (
             <Button variant="ghost" onClick={() => setConfirm(false)}>
               やめる
             </Button>
-            <Button variant="destructive" onClick={remove}>
-              消す
+            <Button variant="destructive" aria-label="消す" onClick={remove}>
+              <Trash2 className="size-4" aria-hidden="true" />
+              {!iconOnly && "消す"}
             </Button>
           </div>
         }

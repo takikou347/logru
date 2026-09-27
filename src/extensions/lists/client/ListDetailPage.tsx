@@ -1,5 +1,5 @@
-import { Pencil } from "lucide-react";
-import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ArrowUp, Pencil } from "lucide-react";
+import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useMe } from "@/api/common";
@@ -15,14 +15,22 @@ import { Input } from "@/components/ui/input";
 import { formatShortDate } from "@/lib/dates";
 import { useKeyboardViewport } from "@/lib/keyboard-viewport";
 import { useNewLookActive } from "@/lib/lab";
+import {
+  RowExpandContext,
+  rowExpandState,
+  useRowExpandActive,
+  useRowExpandName,
+  useRowExpandTransition,
+} from "@/lib/row-expand";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { cn } from "@/lib/utils";
 import { markJustAdded, takeJustAdded } from "@/modules/calendar/recent-items";
 import type { ListItem } from "./api";
 import { useAddItem, useDeleteItem, useListDetail, useListsGroups, useToggleItem, useUpdateItemText } from "./api";
+import { EditItemSheet } from "./EditItemSheet";
 import { EditListSheet } from "./EditListSheet";
-import { GroupLabel } from "./parts";
+import { GroupLabel, useIconOnly } from "./parts";
 
 /**
  * 項目を足す欄。1 行打って Enter か右の「足す」を押すと足し、入力欄は空のまま次の項目を打てる。F-203
@@ -40,6 +48,7 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
   const newLook = useNewLookActive();
   const desktop = useMediaQuery("(min-width: 1024px)");
   const keyboard = useKeyboardViewport(newLook && !desktop);
+  const iconOnly = newLook && !desktop;
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
@@ -78,8 +87,15 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
         aria-label="項目を足す"
         onChange={(e) => setText(e.target.value)}
       />
-      <Button type="submit" variant="secondary" className="flex-none" disabled={!canSubmit || addItem.isPending}>
-        足す
+      <Button
+        type="submit"
+        variant="secondary"
+        size={iconOnly ? "icon" : "default"}
+        className="flex-none"
+        aria-label="足す"
+        disabled={!canSubmit || addItem.isPending}
+      >
+        {iconOnly ? <ArrowUp className="size-4" aria-hidden="true" /> : "足す"}
       </Button>
     </form>
   );
@@ -90,7 +106,10 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
  * 左へスワイプすると「直す」「消す」が出る。消すときは確認を出さず、5 秒だけ「元に戻す」を出す。0084、issue #12、#225
  * 足した(元に戻した)直後は膨らんで入り、消す途中は縮んで消える。動かすのは transform と opacity だけ。0044、0048、#201
  *
- * 文字を押すと、その場で入力欄になって直せる。Enter か欄の外を押すと保存、Esc か空にすると元に戻す。0084
+ * 入れていない人・PC は、文字を押すとその場で入力欄になって直せる。Enter か欄の外を押すと保存、
+ * Esc か空にすると元に戻す。0084
+ * ラボの「新しい見た目」・スマホでは、押した行がそのまま広がって「項目を直す」シートになる
+ * (row-expand、0093)。`onEditRow` を親(ListDetailPage)から渡す。
  * チェックの押せる範囲(左)、文字を直す範囲(右)は重ならない。F-203
  */
 function ItemRow({
@@ -98,17 +117,22 @@ function ItemRow({
   listId,
   onRemove,
   isLeaving,
+  iconOnly,
+  onEditRow,
 }: {
   item: ListItem;
   listId: string;
   onRemove: (item: ListItem) => void;
   isLeaving: boolean;
+  iconOnly: boolean;
+  onEditRow: (item: ListItem) => void;
 }) {
   const toggleItem = useToggleItem(listId);
   const updateText = useUpdateItemText(listId);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(item.text);
   const inputRef = useRef<HTMLInputElement>(null);
+  const viewTransitionName = useRowExpandName(item.id);
 
   useEffect(() => {
     if (editing) {
@@ -118,6 +142,10 @@ function ItemRow({
   }, [editing]);
 
   function startEdit() {
+    if (iconOnly) {
+      onEditRow(item);
+      return;
+    }
     setText(item.text);
     setEditing(true);
   }
@@ -147,7 +175,11 @@ function ItemRow({
   // 描いた瞬間に 1 度だけ読む。足した直後の再描画と、読み直しの描き直しを見分けるため
   const [entering] = useState(() => takeJustAdded(item.id));
   return (
-    <li className={cn("border-t border-line text-sm", entering && "item-enter")} data-leaving={isLeaving || undefined}>
+    <li
+      className={cn("border-t border-line text-sm", entering && "item-enter")}
+      data-leaving={isLeaving || undefined}
+      style={viewTransitionName ? { viewTransitionName } : undefined}
+    >
       <SwipeRow id={item.id} onEdit={startEdit} onDelete={() => onRemove(item)}>
         <div className="grid min-h-[52px] grid-cols-[34px_1fr] items-center gap-1">
           <Checkbox
@@ -279,6 +311,20 @@ export function ListDetailPage() {
   const { hidden, leaving, remove } = useListItemDelete(id ?? "");
   const [editing, setEditing] = useState(false);
   const addFocused = params.get("add") === "1";
+  const iconOnly = useIconOnly();
+  // 行がそのままシートに広がる動き(共有要素)。ラボの「新しい見た目」のスマホだけで使う。0093、issue #243
+  const rowExpandActive = useRowExpandActive();
+  const { transitioningKey, openRow, resetRowExpand } = useRowExpandTransition(rowExpandActive);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const openItemEdit = (item: ListItem) => openRow(item.id, () => setEditingItemId(item.id));
+  const closeItemEdit = () => {
+    setEditingItemId(null);
+    resetRowExpand();
+  };
+  const rowExpandValue = useMemo(
+    () => rowExpandState(transitioningKey, editingItemId !== null),
+    [transitioningKey, editingItemId],
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: 開いた直後の 1 度だけ、クエリを消したい
   useEffect(() => {
@@ -301,9 +347,10 @@ export function ListDetailPage() {
   const list = detail.data;
   const items = [...list.items].filter((i) => !hidden.has(i.id)).sort((a, b) => Number(a.checked) - Number(b.checked));
   const group = groups.find((g) => g.id === list.groupId);
+  const editingItem = items.find((i) => i.id === editingItemId) ?? null;
 
   return (
-    <>
+    <RowExpandContext.Provider value={rowExpandValue}>
       <Page>
         <PageBar title={list.title} back="/lists" />
         <Panel>
@@ -338,6 +385,8 @@ export function ListDetailPage() {
                   listId={list.id}
                   onRemove={remove}
                   isLeaving={leaving.has(item.id)}
+                  iconOnly={iconOnly}
+                  onEditRow={openItemEdit}
                 />
               ))}
             </ul>
@@ -346,6 +395,7 @@ export function ListDetailPage() {
         </Panel>
       </Page>
       {editing && <EditListSheet list={list} onClose={() => setEditing(false)} />}
-    </>
+      {editingItem && <EditItemSheet listId={list.id} item={editingItem} onClose={closeItemEdit} onDelete={remove} />}
+    </RowExpandContext.Provider>
   );
 }

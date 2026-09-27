@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { canShareFiles, photoShareFile, sharePhoto } from "@/lib/web-share";
 import type { MemoryRecord, Photo } from "../shared/types";
 import { useSaveMemory } from "./api";
-import { authorOf, formatClock, PhotoImg } from "./parts";
+import { authorOf, formatClock, PhotoImg, useIconOnly } from "./parts";
 
 /** 大きく見る写真と、その写真が付いた記録 */
 export type LightboxEntry = { photo: Photo; record: MemoryRecord };
@@ -36,6 +36,7 @@ export function Lightbox({
   timeZone?: string;
 }) {
   const save = useSaveMemory();
+  const iconOnly = useIconOnly();
   const entry = entries[index];
   const prev = () => onIndex((index - 1 + entries.length) % entries.length);
   const next = () => onIndex((index + 1) % entries.length);
@@ -118,9 +119,9 @@ export function Lightbox({
             </Button>
           )}
           {shareOk && (
-            <Button variant="secondary" className="self-start" onClick={handleShare}>
+            <Button variant="secondary" className="self-start" aria-label="共有する" onClick={handleShare}>
               <Share2 className="size-4" />
-              共有する
+              {!iconOnly && "共有する"}
             </Button>
           )}
         </div>

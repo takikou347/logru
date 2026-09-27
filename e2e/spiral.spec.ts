@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addEvent, signUp, tokyoDateParts } from "./helpers";
+import { addEvent, enableNewLook, signUp, tokyoDateParts } from "./helpers";
 
 // ヘッドレスの Chrome は端末によって WebGL の有無が変わる。E2E はいつも平らな年の表の道筋を通す。0051
 test.beforeEach(async ({ page }) => {
@@ -51,4 +51,32 @@ test("動きを減らす設定では、平らな年の表を選ぶボタンが�
   await page.goto(`/spiral/${year}`);
   await expect(page.getByRole("button", { name: "らせんで見る" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "平らな表で見る" })).toHaveCount(0);
+});
+
+test("ラボの「新しい見た目」・スマホでは、らせんの全画面の間は下のタブの帯が隠れ、閉じると戻る。issue #243", async ({
+  page,
+}) => {
+  await enableNewLook(page);
+  const year = new Date().getFullYear();
+  const tabs = page.getByRole("navigation", { name: "下のタブ" });
+  await page.goto("/");
+  await expect(tabs).toBeVisible();
+
+  await page.goto(`/spiral/${year}`);
+  await expect(page.getByRole("region", { name: `${year} 年の表` })).toBeVisible();
+  // 帯は DOM には残るが、らせんの全画面(z-49)が上に重なり、帯の場所を押しても帯には届かない
+  const box = (await tabs.boundingBox())!;
+  const coveredBySpiral = await page.evaluate(
+    ({ x, y }) => {
+      const el = document.elementFromPoint(x, y);
+      const nav = document.querySelector('nav[aria-label="下のタブ"]');
+      return !!el && el !== nav && !nav?.contains(el);
+    },
+    { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+  );
+  expect(coveredBySpiral, "らせんの全画面の間は、下のタブの帯には届かない").toBe(true);
+
+  await page.getByRole("button", { name: "カレンダーへ戻る" }).click();
+  await expect(page).toHaveURL("/");
+  await expect(tabs).toBeVisible();
 });

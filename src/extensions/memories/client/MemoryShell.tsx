@@ -1,5 +1,5 @@
 import type { GroupSummary, Me } from "@shared/api-types";
-import { MoreHorizontal } from "lucide-react";
+import { BookOpen, CalendarClock, Images, MoreHorizontal } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { ApiError } from "@/api/client";
@@ -16,13 +16,13 @@ import { dayIndexOf } from "../shared/days";
 import type { MemoryDetail } from "../shared/types";
 import { useMemory, useMemoryGroups } from "./api";
 import { MemorySheet } from "./MemorySheet";
-import { Ambient } from "./parts";
+import { Ambient, useIconOnly } from "./parts";
 
 type Face = "shiori" | "day" | "album";
 const FACES = [
-  { value: "shiori", label: "しおり" },
-  { value: "day", label: "1 日" },
-  { value: "album", label: "アルバム" },
+  { value: "shiori", label: "しおり", icon: BookOpen },
+  { value: "day", label: "1 日", icon: CalendarClock },
+  { value: "album", label: "アルバム", icon: Images },
 ] as const;
 
 /** 思い出の中の画面が受け取るもの */
@@ -41,6 +41,7 @@ export function MemoryShell({ face, children }: { face: Face; children: (p: Shel
   const detail = useMemory(id);
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
+  const iconOnly = useIconOnly();
   useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
 
   if (!me.data || !ready || detail.isPending) return <Loading />;
@@ -77,7 +78,7 @@ export function MemoryShell({ face, children }: { face: Face; children: (p: Shel
           }
         />
         <div className="glass rounded-full">
-          <Segmented label="面" value={face} options={FACES} onChange={go} full />
+          <Segmented label="面" value={face} options={FACES} onChange={go} full iconOnly={iconOnly} />
         </div>
         {children({ detail: data, me: me.data, groups, group })}
       </div>

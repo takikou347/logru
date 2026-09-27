@@ -1,15 +1,27 @@
 /** 思い出の画面で使い回す部品。見た目は 0024 */
 
 import type { GroupSummary, Me } from "@shared/api-types";
-import { Heart } from "lucide-react";
+import { Heart, Pencil } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { personOf, UserAvatar, UserAvatarStack } from "@/components/parts/Avatars";
 import { Dot } from "@/components/parts/Panel";
 import { groupColor } from "@/lib/colors";
 import { vibrateShort } from "@/lib/haptics";
+import { useNewLookActive } from "@/lib/lab";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 import type { MemoryRecord, Photo } from "../shared/types";
 import { useLike } from "./api";
+
+/**
+ * ラボの「新しい見た目」・スマホでだけ true。直す・消す・並べ替え・足す・共有・済みにするの操作を
+ * 文字からアイコンだけに変える画面で使う。入れていない人・PC では今までどおり文字も出す。issue #243
+ */
+export function useIconOnly(): boolean {
+  const newLook = useNewLookActive();
+  const desktop = useMediaQuery("(min-width: 1024px)");
+  return newLook && !desktop;
+}
 
 /**
  * 72 px ほどの小さな所に出す画像。D1 に持つ small を使い、往復が要らない。この形に変える前の写真は small が無いので、
@@ -192,6 +204,7 @@ export function RecordBody({
 }) {
   const author = authorOf(record, groups, me);
   const mine = record.createdBy === me.user.id;
+  const iconOnly = useIconOnly();
   return (
     <article className="flex flex-col gap-1 py-2" aria-label={`${author.name} の記録`}>
       <PhotoGrid photos={record.photos} onOpen={onOpenPhoto} big={big} />
@@ -204,10 +217,11 @@ export function RecordBody({
         {mine && onEdit && (
           <button
             type="button"
-            className="ml-auto min-h-8 px-2 text-xs font-medium text-ink-2"
+            aria-label="記録を直す"
+            className="ml-auto flex min-h-8 items-center gap-1 px-2 text-xs font-medium text-ink-2"
             onClick={() => onEdit(record)}
           >
-            編集
+            {iconOnly ? <Pencil className="size-3.5" aria-hidden="true" /> : "編集"}
           </button>
         )}
       </div>

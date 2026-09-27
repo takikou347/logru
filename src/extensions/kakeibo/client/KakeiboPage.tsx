@@ -161,7 +161,15 @@ export function KakeiboPage() {
   const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
   const editing = summary.data?.records.find((r) => r.id === editingId);
   const filterOptions = groupFilterOptions({ groups, me: me.data, value: group, onChange: setGroup });
-  useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
+  const openRecordSheet = () => setParams((p) => (p.set("record", "1"), p), { replace: true });
+  // 足せるものは記録だけ。「+」を押すと直接シートが開く。issue #150
+  const addables: Addable[] = [{ key: "expense", label: "支出を記録する", icon: Coins, onClick: openRecordSheet }];
+  useAppFrame({
+    poolColors: poolColorsOf(groups, me.data),
+    side: <SideGroupFilter options={filterOptions} />,
+    // 新しい見た目・スマホの下のタブの「+」に渡す。0091、issue #239
+    addables,
+  });
 
   if (!me.data || !ready) return <Loading />;
   const meData = me.data;
@@ -169,9 +177,6 @@ export function KakeiboPage() {
   // 今日を含む予算と、これからの予算だけを出す。終わった予算は出さない。F-324
   const today = dateKey(new Date());
   const handleDeleteExpense = (expense: KakeiboExpense) => removeExpense(expense);
-  const openRecordSheet = () => setParams((p) => (p.set("record", "1"), p), { replace: true });
-  // 足せるものは記録だけ。「+」を押すと直接シートが開く。issue #150
-  const addables: Addable[] = [{ key: "expense", label: "支出を記録する", icon: Coins, onClick: openRecordSheet }];
 
   /** 「この月の合計」から「記録」までの、summary から作る面。data が届いてから呼ぶ。0078、#195 */
   function summaryPanels(data: KakeiboSummary) {
@@ -459,7 +464,7 @@ export function KakeiboPage() {
         <div className="h-[var(--dock-clearance)] lg:hidden" aria-hidden="true" />
 
         {/* PC の主な「+」は上の見出しの帯にある。ここは PC で隠す。issue #202 */}
-        <Dock label="家計簿の操作" className="lg:hidden">
+        <Dock label="家計簿の操作" className="lg:hidden" covered>
           <PrimaryAddButton label="支出を記録する" addables={addables} />
         </Dock>
       </Page>

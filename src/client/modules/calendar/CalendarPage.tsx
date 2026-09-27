@@ -3,7 +3,7 @@ import type { EditorTarget, ItemEditScope } from "@extensions/client/types";
 import type { CalendarItem, HomeWidgetEntry } from "@shared/api-types";
 import { defaultHomeLayout, mergeHomeLayout, visibleHomeLayout } from "@shared/home";
 import { useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, ChevronLeft, ChevronRight, LayoutGrid, Pencil } from "lucide-react";
+import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, LayoutGrid, Pencil } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -54,6 +54,7 @@ import { KindChip, SideKinds, useHiddenKinds } from "./components/KindFilter";
 import { PeopleChip, SideGroup, useOpenGroups } from "./components/PeopleFilter";
 import { RefreshButton } from "./components/RefreshButton";
 import { SearchButton } from "./components/SearchButton";
+import { WeekBand } from "./components/WeekBand";
 import {
   groupPeopleOf,
   hiddenPeople,
@@ -407,6 +408,8 @@ export function CalendarPage() {
   useAppFrame({
     poolColors: poolColorsOf(allGroups, me.data),
     poolFocus: focusIndex >= 0 ? focusIndex : null,
+    // 新しい見た目・スマホの下のタブの「+」に渡す。0091、issue #239
+    addables: eventAddables,
     side: (
       <div className="flex flex-col gap-3">
         <SideGroupFilter
@@ -459,7 +462,7 @@ export function CalendarPage() {
         9 月でも 10 月でも、「今日」が出ても出なくても、帯の形は変わらない。PC は 1 行のまま
       */}
       {!editingHome && (
-        <header className="glass flex min-h-[58px] flex-wrap items-center gap-x-2 gap-y-1 rounded-panel py-1.5 pr-1.5 pl-4 lg:flex-nowrap lg:pl-5">
+        <header className="nl-hide glass flex min-h-[58px] flex-wrap items-center gap-x-2 gap-y-1 rounded-panel py-1.5 pr-1.5 pl-4 lg:flex-nowrap lg:pl-5">
           <h1 className="flex shrink-0 items-baseline gap-1" aria-live="polite">
             <span data-testid="month-number" className="text-[38px] leading-none font-bold">
               {selected.getMonth() + 1}
@@ -510,6 +513,29 @@ export function CalendarPage() {
             <AccountMenu />
           </div>
         </header>
+      )}
+
+      {/*
+        新しい見た目・スマホの上の帯。月(押すと年をらせんで見る)、探す、お知らせをアイコンだけで並べ、
+        下に 1 週間の帯を出す。PC は上の今までの帯のまま(nl-hide/nl-only は globals.css)。0091、issue #239
+      */}
+      {!editingHome && (
+        <>
+          <header className="nl-only glass min-h-[58px] items-center justify-between gap-1 rounded-panel py-1.5 pr-1.5 pl-2">
+            <Link
+              to={`/spiral/${selected.getFullYear()}`}
+              aria-label="カレンダーを見る"
+              className="grid size-11 place-items-center rounded-full text-ink-2"
+            >
+              <CalendarDays className="size-5" aria-hidden="true" />
+            </Link>
+            <div className="flex items-center gap-0.5">
+              {me.data && <SearchButton groups={allGroups} me={me.data} onOpen={openSearchResult} />}
+              <NotificationBell />
+            </div>
+          </header>
+          <WeekBand selected={selected} today={today} items={items} onSelect={onPressDay} />
+        </>
       )}
 
       {/* ホーム画面に追加する案内。上の帯のすぐ下に並べる。F-34 */}
@@ -603,7 +629,9 @@ export function CalendarPage() {
 
       {/* スマホの下の帯。拡張の画面の Dock と同じ、浮いた丸のまとまりにする。左側の操作(機能、表示の単位)は変えない。0012、issue #150 */}
       {!editingHome && (
-        <Dock label="カレンダーの操作" className="lg:hidden">
+        // 新しい見た目・スマホでは、この帯の役目(機能・+)を下のタブの帯(GlobalBottomTabs)が引き継ぐ。
+        // 表示の単位(月・週・日)は、刷新 3 で今日のページを作り直すまでの間、月の表のままになる。0091、issue #239
+        <Dock label="カレンダーの操作" className="lg:hidden" covered>
           <Button variant="ghost" size="icon" aria-label="機能" onClick={() => setFeatures(true)}>
             <LayoutGrid className="size-5" />
           </Button>

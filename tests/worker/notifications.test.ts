@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { knownNotificationKinds } from "../../src/extensions/server/registry";
+import { knownNotificationKinds, notificationKindDefaults } from "../../src/extensions/server/registry";
 import { isNotificationCleanupWindow, uniqueUserIds } from "../../src/server/core/notifications/send";
 import {
   buildPage,
@@ -73,6 +73,44 @@ describe("unread-count が数える kind の一覧。#32", () => {
     expect(kinds).toContain("memories.like");
     // 外部のカレンダーは notify() を呼ばない拡張なので、ここには出ない
     expect(kinds).not.toContain("external.something");
+  });
+
+  it("土台(groups.*)と、新しく足した種類も集める。0096、issue #244〜#247", () => {
+    const kinds = knownNotificationKinds();
+    expect(kinds).toContain("groups.member_joined");
+    expect(kinds).toContain("groups.member_left");
+    expect(kinds).toContain("groups.extension_added");
+    expect(kinds).toContain("events.event_added");
+    expect(kinds).toContain("kakeibo.expense_shared");
+    expect(kinds).toContain("kakeibo.budget_exceeded");
+    expect(kinds).toContain("lists.item_added");
+    expect(kinds).toContain("lists.all_checked");
+    expect(kinds).toContain("memories.record_added");
+    expect(kinds).toContain("memories.shiori_assigned");
+  });
+});
+
+describe("notificationKindDefaults。既定は「自分に直接かかわるもの」だけ両方オン。0096、F-47", () => {
+  it("招待の返事、立て替え、精算、担当は一覧と端末の両方が既定でオン", () => {
+    expect(notificationKindDefaults("events.invite_accepted")).toEqual({ list: true, push: true });
+    expect(notificationKindDefaults("kakeibo.expense_shared")).toEqual({ list: true, push: true });
+    expect(notificationKindDefaults("kakeibo.settled")).toEqual({ list: true, push: true });
+    expect(notificationKindDefaults("memories.shiori_assigned")).toEqual({ list: true, push: true });
+  });
+
+  it("それ以外は既定で一覧だけ", () => {
+    expect(notificationKindDefaults("events.event_added")).toEqual({ list: true, push: false });
+    expect(notificationKindDefaults("kakeibo.recurring_posted")).toEqual({ list: true, push: false });
+    expect(notificationKindDefaults("lists.item_added")).toEqual({ list: true, push: false });
+    expect(notificationKindDefaults("groups.member_joined")).toEqual({ list: true, push: false });
+  });
+
+  it("リストの項目が全部済みになったときだけ、リストは一覧と端末の両方", () => {
+    expect(notificationKindDefaults("lists.all_checked")).toEqual({ list: true, push: true });
+  });
+
+  it("知らない kind は両方オフ", () => {
+    expect(notificationKindDefaults("unknown.kind")).toEqual({ list: false, push: false });
   });
 });
 

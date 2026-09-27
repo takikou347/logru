@@ -1,12 +1,13 @@
 import { zValidator } from "@hono/zod-validator";
-import { createRouter, HttpError, validationHook } from "@server/core/app";
+import { type AppEnv, createRouter, HttpError, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
 import { groupMembers } from "@server/core/db/schema";
 import { notify } from "@server/core/notifications/send";
-import { myGroupIds, requireMembership } from "@server/modules/groups/membership";
+import { memberIdsOf, myGroupIds, requireMembership } from "@server/modules/groups/membership";
 import type { Attendee } from "@shared/api-types";
 import { and, eq, inArray } from "drizzle-orm";
+import type { Context } from "hono";
 import {
   canDeleteEvent,
   canEditEvent,
@@ -41,6 +42,21 @@ async function loadEvent(db: DB, userId: string, id: string) {
 async function reload(db: DB, userId: string, id: string) {
   const { row, attendees } = await loadEvent(db, userId, id);
   return toCalendarItem(row, attendees, userId);
+}
+
+/**
+ * 共有の予定が足された・変わった・消されたことを、そのグループのほかのメンバーに積む。
+ * 自分がした操作は自分に積まない(actorId)。0096、issue #245
+ */
+async function notifyEventGroup(
+  c: Context<AppEnv>,
+  groupId: string,
+  actorId: string,
+  kind: "events.event_added" | "events.event_updated" | "events.event_deleted",
+  payload: Record<string, unknown>,
+) {
+  const memberIds = await memberIdsOf(c.get("db"), groupId);
+  await notify({ db: c.get("db"), env: c.env, userIds: memberIds, actorId, kind, payload });
 }
 
 /**
@@ -339,6 +355,7 @@ export const eventRoutes = createRouter()
           ...invitees.map((u) => ({ eventId: id, userId: u, response: "pending" as const })),
         ]),
     ]);
+    await notifyEventGroup(c, input.groupId, userId, "events.event_added", { eventId: id, title: input.title });
     return c.json(await reload(db, userId, id), 201);
   })
   .patch("/:id", zValidator("json", eventPatchInput, validationHook), async (c) => {
@@ -352,15 +369,26 @@ export const eventRoutes = createRouter()
     const rule = repeatRuleOf(current);
     if (rule && !input.scope) throw new HttpError(400, "繰り返す予定を直すときは、範囲を選んでください。");
 
-    if (rule && input.scope === "this") return c.json(await editOccurrence(db, current, input, userId));
+    const notifyUpdated = (title: string, groupId: string) =>
+      notifyEventGroup(c, groupId, userId, "events.event_updated", { eventId: current.id, title });
+
+    if (rule && input.scope === "this") {
+      const item = await editOccurrence(db, current, input, userId);
+      await notifyUpdated(item.title, item.groupId);
+      return c.json(item);
+    }
     if (rule && input.scope === "following") {
       if (input.occurrenceAt == null) throw new HttpError(400, "直す回を指定してください。");
       // いちばん最初の回からの following は、全部を直すのと同じにする
       if (input.occurrenceAt > current.startsAt.getTime()) {
-        return c.json(await splitFollowing(db, current, attendees, input, userId), 201);
+        const item = await splitFollowing(db, current, attendees, input, userId);
+        await notifyUpdated(item.title, item.groupId);
+        return c.json(item, 201);
       }
     }
-    return c.json(await applyFullUpdate(db, current, attendees, input, userId));
+    const item = await applyFullUpdate(db, current, attendees, input, userId);
+    await notifyUpdated(item.title, item.groupId);
+    return c.json(item);
   })
   .put("/:id/response", zValidator("json", responseInput, validationHook), async (c) => {
     const db = c.get("db");
@@ -378,10 +406,13 @@ export const eventRoutes = createRouter()
     // 招待した人に「参加する」が返ったときだけ知らせる。前の答えが既に「参加する」だったときは積まない。
     // 作った人自身の返事や「参加しない」も積まない。0017、#32
     if (row.createdBy && shouldNotifyAccepted(response, previous, row.createdBy, userId)) {
-      await notify(db, [row.createdBy], "events.invite_accepted", {
-        eventId: row.id,
-        title: row.title,
-        byUserId: userId,
+      await notify({
+        db,
+        env: c.env,
+        userIds: [row.createdBy],
+        actorId: userId,
+        kind: "events.invite_accepted",
+        payload: { eventId: row.id, title: row.title, byUserId: userId },
       });
     }
     return c.json(await reload(db, userId, row.id));
@@ -395,8 +426,11 @@ export const eventRoutes = createRouter()
     }
     const input: EventDeleteInput = c.req.valid("json");
     const rule = repeatRuleOf(row);
+    const notifyDeleted = (startsAt: number) =>
+      notifyEventGroup(c, row.groupId, userId, "events.event_deleted", { eventId: row.id, title: row.title, startsAt });
     if (!rule || input.scope === "all") {
       await db.delete(events).where(eq(events.id, row.id));
+      await notifyDeleted(row.startsAt.getTime());
       return c.body(null, 204);
     }
     if (!input.scope) throw new HttpError(400, "繰り返す予定を消すときは、範囲を選んでください。");
@@ -408,11 +442,13 @@ export const eventRoutes = createRouter()
         .insert(eventOccurrenceEdits)
         .values({ eventId: row.id, occurrenceAt: new Date(input.occurrenceAt), ...values })
         .onConflictDoUpdate({ target: [eventOccurrenceEdits.eventId, eventOccurrenceEdits.occurrenceAt], set: values });
+      await notifyDeleted(input.occurrenceAt);
       return c.body(null, 204);
     }
     // following。いちばん最初の回からなら、全部を消すのと同じにする
     if (input.occurrenceAt <= row.startsAt.getTime()) {
       await db.delete(events).where(eq(events.id, row.id));
+      await notifyDeleted(input.occurrenceAt);
     } else {
       await db
         .update(events)

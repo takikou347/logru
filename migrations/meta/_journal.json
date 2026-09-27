@@ -190,6 +190,13 @@
       "when": 1790512579631,
       "tag": "0028_today_page",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1790600000000,
+      "tag": "0029_notification_prefs",
+      "breakpoints": true
     }
   ]
 }

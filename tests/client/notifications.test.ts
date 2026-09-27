@@ -16,6 +16,17 @@ describe("予定の拡張の describeNotification。#32", () => {
   it("自分の拡張の kind でなければ null", () => {
     expect(describeEventNotification("memories.like", {})).toBeNull();
   });
+
+  it("events.event_added は、その予定を開く行き先にする。issue #245", () => {
+    const r = describeEventNotification("events.event_added", { eventId: "e2", title: "花見" });
+    expect(r).toEqual({ text: "「花見」が予定に足されました。", path: "/?openExt=events&openId=e2" });
+  });
+
+  it("events.event_deleted は、予定がもう無いので、その日の一覧を開く行き先にする。issue #245", () => {
+    const startsAt = Date.parse("2026-09-20T10:00:00+09:00");
+    const r = describeEventNotification("events.event_deleted", { eventId: "e2", title: "花見", startsAt });
+    expect(r).toEqual({ text: "「花見」の予定が消されました。", path: "/?date=2026-09-20&view=day" });
+  });
 });
 
 describe("思い出の拡張の describeNotification。F-116、#32", () => {
@@ -27,5 +38,16 @@ describe("思い出の拡張の describeNotification。F-116、#32", () => {
 
   it("自分の拡張の kind でなければ null", () => {
     expect(describeMemoriesNotification("events.invite_accepted", {})).toBeNull();
+  });
+
+  it("いいねが 2 件以上まとまったら、件数を文言に出す。0096", () => {
+    const occurredAt = Date.parse("2026-09-20T10:00:00Z");
+    const r = describeMemoriesNotification("memories.like", { occurredAt, count: 3 });
+    expect(r?.text).toBe("記録にいいねが 3 件付きました。");
+  });
+
+  it("memories.shiori_assigned は、そのしおりを開く行き先にする。issue #247", () => {
+    const r = describeMemoriesNotification("memories.shiori_assigned", { memoryId: "m1", title: "箱根" });
+    expect(r).toEqual({ text: "「箱根」の担当になりました。", path: "/memories/m1/shiori" });
   });
 });

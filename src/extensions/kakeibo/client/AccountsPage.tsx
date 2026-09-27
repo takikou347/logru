@@ -10,6 +10,7 @@ import { Dock } from "@/components/parts/Dock";
 import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Panel } from "@/components/parts/Panel";
+import { PickerOptionRow, PickerRow } from "@/components/parts/PickerRow";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
 import { useRowMotion } from "@/lib/use-row-motion";
@@ -19,8 +20,53 @@ import { takeJustAdded } from "@/modules/calendar/recent-items";
 import { formatYen } from "../shared/format";
 import { AccountSheet } from "./AccountSheet";
 import type { KakeiboAccount } from "./api";
-import { useDeleteAccount, useKakeiboAccounts, useKakeiboGroups } from "./api";
+import {
+  useDeleteAccount,
+  useKakeiboAccounts,
+  useKakeiboGroupSettings,
+  useKakeiboGroups,
+  useSaveGroupSettings,
+} from "./api";
 import { KAKEIBO_ACCOUNT_KIND_ICONS } from "./parts";
+
+/**
+ * グループの「よく使う払い方」の既定。共有口座で払うか、自分の口座で立て替えて割るか。グループに
+ * 「共有口座型・立て替え型」の切り替えは持たず、この既定は記録のシートの口座の初期値にだけ使う。
+ * グループのメンバーなら誰でも変えられる。0069、0087、F-329
+ */
+function PaymentDefaultRow({ groupId, accounts }: { groupId: string; accounts: KakeiboAccount[] }) {
+  const settings = useKakeiboGroupSettings(groupId);
+  const save = useSaveGroupSettings();
+  const [open, setOpen] = useState(false);
+  const options = accounts.filter((a) => !a.archivedAt);
+  const value = settings.data?.defaultAccountId ?? null;
+  const chosen = options.find((a) => a.id === value);
+
+  function choose(next: string | null) {
+    setOpen(false);
+    void save.mutateAsync({ groupId, defaultAccountId: next });
+  }
+
+  return (
+    <PickerRow
+      label="よく使う払い方"
+      disabled={settings.isPending}
+      open={open}
+      onOpen={() => setOpen(true)}
+      onClose={() => setOpen(false)}
+      valueNode={<span className="min-w-0 truncate">{chosen ? `${chosen.name}で払う` : "立て替えて割る"}</span>}
+    >
+      <PickerOptionRow checked={value === null} onSelect={() => choose(null)}>
+        <span className="min-w-0 flex-1 truncate text-ink-2">自分の口座で立て替えて割る</span>
+      </PickerOptionRow>
+      {options.map((a) => (
+        <PickerOptionRow key={a.id} checked={value === a.id} onSelect={() => choose(a.id)}>
+          <span className="min-w-0 flex-1 truncate">{a.name}で払う</span>
+        </PickerOptionRow>
+      ))}
+    </PickerRow>
+  );
+}
 
 /**
  * グループ内の口座 1 件の行。名前・残高は押すと口座ごとの記録の画面へ移る。右の鉛筆は直す・消すシートを開く。
@@ -92,6 +138,7 @@ function AccountGroupPanel({
         <span>{group.isPersonal ? "総資産" : "合計"}</span>
         <span className="font-bold text-ink tabular-nums">{formatYen(total)}</span>
       </div>
+      {!group.isPersonal && <PaymentDefaultRow groupId={group.id} accounts={accounts} />}
       <ul className="flex flex-col">
         {accounts.map((a) => (
           <AccountRow

@@ -9,12 +9,16 @@
  *
  * 作った人がそのグループで家計簿を使えなくなっていれば(グループを抜けた、自分だけの家計簿を止めた)、
  * 記録を入れない。onMemberLeave でグループを抜けた時点で止めるのが本筋だが、ここでも確かめて二重に守る。0076
+ *
+ * 振替の定期の記録(共有口座への毎月の入金、カードの引き落としなど)も、支出・収入と同じくここで 1 回だけ
+ * 記録を入れる。振替を置くグループは、記録の振替(routes.ts の resolveWrite)と同じ決め方で口座から決める。
+ * 作った人が出す元・入れる先のどちらかの口座を使えなくなっていれば入れない。0087、F-328
  */
 
 import { runBatch } from "@server/core/db/batch";
 import type { DB } from "@server/core/db/client";
 import { groups } from "@server/core/db/schema";
-import { and, eq, gte, isNull, lte, ne, or } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte, ne, or } from "drizzle-orm";
 import { dateKeyOfJst } from "../shared/dates";
 import { dueDayOfMonth, isRecurringActiveInMonth, monthKeyOfDate } from "../shared/recurring";
 import type { KakeiboSplitShare } from "../shared/splits";
@@ -25,6 +29,28 @@ import { splitStatements } from "./splits";
 
 /** その月の分を入れた印。知らせに日付を出し、元に戻す(その 1 件を消す)道具に使う。0076 */
 export type RecurringOccurrence = { id: string; date: string };
+
+/**
+ * 振替の定期の記録の、出す元・入れる先の口座がまだ使えるか。作った人がそのどちらかの口座を使えなく
+ * なっていれば(使わないにした、口座のグループを抜けた)入れない。#198 と同じ守り。0087、F-328
+ */
+async function transferAccountsUsable(
+  db: DB,
+  userId: string,
+  accountId: string,
+  toAccountId: string,
+): Promise<boolean> {
+  const rows = await db
+    .select()
+    .from(kakeiboAccounts)
+    .where(inArray(kakeiboAccounts.id, [accountId, toAccountId]));
+  const from = rows.find((a) => a.id === accountId);
+  const to = rows.find((a) => a.id === toAccountId);
+  if (!from || !to || from.archivedAt || to.archivedAt) return false;
+  const groupIds = [...new Set([from.groupId, to.groupId])];
+  const usable = await usableGroups(db, userId, groupIds);
+  return usable.length === groupIds.length;
+}
 
 /**
  * その定期の記録が、割るべきかどうかと、割るならその中身を決める。0072
@@ -84,6 +110,13 @@ export async function tryInsertOccurrence(
   if (!recurring.createdBy) return null;
   const usable = await usableGroups(db, recurring.createdBy, [recurring.groupId]);
   if (usable.length === 0) return null;
+
+  // 振替は、出す元・入れる先の両方の口座がまだ使えるかも確かめる。0087、F-328
+  if (recurring.type === "transfer") {
+    if (!recurring.accountId || !recurring.toAccountId) return null;
+    if (!(await transferAccountsUsable(db, recurring.createdBy, recurring.accountId, recurring.toAccountId)))
+      return null;
+  }
 
   if (!isRecurringActiveInMonth({ ...recurring, pausedAt: recurring.pausedAt?.getTime() ?? null }, month)) return null;
   const [y, m] = month.split("-").map(Number) as [number, number];

@@ -139,10 +139,13 @@ const recurringFields = {
   monthKey: z.string().refine(isMonthKey, "月を `2026-09` の形で入れてください。"),
 };
 
-/** 定期の記録の入力。種類ごとに要る項目は記録の入力と同じ。F-325 */
+/**
+ * 定期の記録の入力。種類ごとに要る項目は記録の入力と同じ。F-325
+ * 振替のグループはサーバーが決めるので、常に送らなくてよい。0069、0087、F-328
+ */
 export const kakeiboRecurringInput = z
   .object({
-    groupId: fields.groupId,
+    groupId: fields.groupId.optional(),
     type: fields.type,
     amount: fields.amount,
     category: fields.category.optional(),
@@ -212,3 +215,10 @@ export const kakeiboTemplatePatchInput = z.object({
 });
 
 export type KakeiboTemplatePatchInput = z.infer<typeof kakeiboTemplatePatchInput>;
+
+/**
+ * グループの「よく使う払い方」の既定の入力。null は「自分の口座で立て替えて割る」。0087、F-329
+ */
+export const kakeiboGroupSettingsInput = z.object({ defaultAccountId: fields.accountId });
+
+export type KakeiboGroupSettingsInput = z.infer<typeof kakeiboGroupSettingsInput>;

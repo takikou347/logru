@@ -178,6 +178,7 @@ const kakeiboKeys = {
   budgets: (group: string | null) => ["kakeibo", "budgets", group ?? "all"] as const,
   recurrings: ["kakeibo", "recurrings"] as const,
   templates: ["kakeibo", "templates"] as const,
+  groupSettings: (group: string) => ["kakeibo", "group-settings", group] as const,
 };
 
 /**
@@ -432,13 +433,14 @@ export function useKakeiboRecurrings() {
   });
 }
 
-/** 定期の記録を作る、直す入力 */
+/** 定期の記録を作る、直す入力。振替のグループはサーバーが決めるので送らなくてよい。0069、0087、F-328 */
 export type KakeiboRecurringSaveInput = {
   groupId?: string;
   type?: KakeiboType;
   amount?: number;
   category?: KakeiboCategory;
   accountId?: string | null;
+  toAccountId?: string | null;
   memo?: string | null;
   dayOfMonth?: number;
   startMonth?: string;
@@ -532,6 +534,34 @@ export function useDeleteTemplate() {
     mutationFn: ({ id, keepalive }: { id: string; keepalive?: boolean }) =>
       api(`/kakeibo/templates/${id}`, { method: "DELETE", keepalive }),
     onSettled: () => qc.invalidateQueries({ queryKey: kakeiboKeys.all }),
+  });
+}
+
+/** グループの「よく使う払い方」の既定。0087、F-329 */
+export type KakeiboGroupSettings = { defaultAccountId: string | null };
+
+/**
+ * グループの「よく使う払い方」の既定を読む。共有のグループだけ持つ。0087、F-329
+ * @param groupId 読むグループ。null なら読まない
+ */
+export function useKakeiboGroupSettings(groupId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: kakeiboKeys.groupSettings(groupId ?? ""),
+    queryFn: () => api<KakeiboGroupSettings>(`/kakeibo/group-settings?group=${groupId}`),
+    enabled: enabled && Boolean(groupId),
+  });
+}
+
+/** グループの「よく使う払い方」の既定を直す。共有のグループのメンバーなら誰でも変えられる。0087、F-329 */
+export function useSaveGroupSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, defaultAccountId }: { groupId: string; defaultAccountId: string | null }) =>
+      api<KakeiboGroupSettings>(`/kakeibo/group-settings?group=${groupId}`, {
+        method: "PATCH",
+        body: { defaultAccountId },
+      }),
+    onSuccess: (_data, { groupId }) => qc.invalidateQueries({ queryKey: kakeiboKeys.groupSettings(groupId) }),
   });
 }
 

@@ -17,7 +17,14 @@ import { isValidKakeiboAmount } from "../shared/format";
 import type { KakeiboSplitMode } from "../shared/splits";
 import type { KakeiboType } from "../shared/types";
 import type { KakeiboExpense, KakeiboTemplate, KakeiboUsage } from "./api";
-import { useKakeiboAccounts, useKakeiboTemplates, useKakeiboUsage, useSaveExpense, useSaveTemplate } from "./api";
+import {
+  useKakeiboAccounts,
+  useKakeiboGroupSettings,
+  useKakeiboTemplates,
+  useKakeiboUsage,
+  useSaveExpense,
+  useSaveTemplate,
+} from "./api";
 import { loadCategoryAccount, loadLastRecord, saveCategoryAccount, saveLastRecord } from "./local-prefs";
 import { sanitizeAmountInput } from "./numeric-input";
 import { AccountPickerRow } from "./parts";
@@ -155,13 +162,17 @@ export function ExpenseSheet({
   // 保存を押したのに足りない欄があったとき true。以後、欄の下に理由を出す。#193
   const [attempted, setAttempted] = useState(false);
 
+  // 新しく記録するときだけ読む、前回の選択。グループが前回と同じ(続けて記録する)なら前回の口座を使い、
+  // 違えば(切り替えた直後)グループの「よく使う払い方」の既定を使う。0087
+  const initialLast = expense ? null : loadLastRecord();
+  const initialGroupId = defaultShareGroupId(groups, defaultGroupId ?? expense?.groupId ?? initialLast?.groupId, {
+    groupId: me.settings.usualShareGroupId,
+    extensionKey: "kakeibo",
+    alwaysOn: false,
+  });
+  const continuingSameGroup = Boolean(initialLast) && initialLast?.groupId === initialGroupId;
+
   const [state, dispatch] = useReducer(expenseFormReducer, undefined, (): ExpenseFormState => {
-    const last = expense ? null : loadLastRecord();
-    const initialGroupId = defaultShareGroupId(groups, defaultGroupId ?? expense?.groupId ?? last?.groupId, {
-      groupId: me.settings.usualShareGroupId,
-      extensionKey: "kakeibo",
-      alwaysOn: false,
-    });
     const customShares: Record<string, string> =
       expense?.splitMode === "custom" && expense.splits
         ? Object.fromEntries(
@@ -171,13 +182,20 @@ export function ExpenseSheet({
           )
         : {};
     return {
-      type: expense?.type ?? last?.type ?? "expense",
+      type: expense?.type ?? initialLast?.type ?? "expense",
       groupId: initialGroupId,
       amount: expense ? String(expense.amount) : "",
       category: expense && expense.type !== "transfer" ? expense.category : null,
-      accountId: expense?.account && !("hidden" in expense.account) ? expense.account.id : (last?.accountId ?? null),
+      accountId:
+        expense?.account && !("hidden" in expense.account)
+          ? expense.account.id
+          : continuingSameGroup
+            ? (initialLast?.accountId ?? null)
+            : null,
       toAccountId:
-        expense?.toAccount && !("hidden" in expense.toAccount) ? expense.toAccount.id : (last?.toAccountId ?? null),
+        expense?.toAccount && !("hidden" in expense.toAccount)
+          ? expense.toAccount.id
+          : (initialLast?.toAccountId ?? null),
       date: expense?.date ?? dateKey(new Date()),
       memo: expense?.memo ?? "",
       payerId: expense?.paidBy ?? me.user.id,
@@ -185,6 +203,11 @@ export function ExpenseSheet({
       customShares,
     };
   });
+  // グループを切り替えた直後(続けて記録するときは除く)は、そのグループの「よく使う払い方」の既定を
+  // 一度だけ当てる。ユーザーが後から「口座なし」に手で戻しても、この groupId のままなら上書きしない。0087
+  const [pendingGroupDefaultFor, setPendingGroupDefaultFor] = useState<string | null>(
+    !expense && !continuingSameGroup ? initialGroupId : null,
+  );
   const { type, groupId, amount, category, accountId, toAccountId, date, memo, payerId, splitMode, customShares } =
     state;
   // 新しく記録するときだけ、いつもの共有先から選ばれたことが分かる印を出す。0063、F-40
@@ -216,6 +239,26 @@ export function ExpenseSheet({
   useEffect(() => {
     if (payerLocked) dispatch({ kind: "lockPayer", meId: me.user.id });
   }, [payerLocked, me.user.id]);
+
+  // グループを切り替えた直後だけ、そのグループの「よく使う払い方」の既定を口座に当てる。0087
+  const applyingGroupDefault =
+    type !== "transfer" && pendingGroupDefaultFor !== null && pendingGroupDefaultFor === groupId;
+  const groupSettings = useKakeiboGroupSettings(
+    applyingGroupDefault && selectedGroup && !selectedGroup.isPersonal ? groupId : null,
+  );
+  useEffect(() => {
+    if (!applyingGroupDefault) return;
+    if (!selectedGroup || selectedGroup.isPersonal) {
+      setPendingGroupDefaultFor(null);
+      return;
+    }
+    if (groupSettings.isPending) return;
+    const defaultAccountId = groupSettings.data?.defaultAccountId ?? null;
+    if (defaultAccountId && accountOptions.some((a) => a.id === defaultAccountId)) {
+      dispatch({ kind: "set", patch: { accountId: defaultAccountId } });
+    }
+    setPendingGroupDefaultFor(null);
+  }, [applyingGroupDefault, selectedGroup, groupSettings.isPending, groupSettings.data, accountOptions]);
 
   /**
    * 口座の一覧が読めた時点で、選んでいる口座がいまの種類・グループで選べなければ null に戻す。
@@ -258,8 +301,10 @@ export function ExpenseSheet({
     dispatch({ kind: "changeCategory", category: next, rememberedAccountId });
   }
 
+  // グループを切り替えたら、そのグループの「よく使う払い方」の既定を口座に当て直す。0087
   function changeGroup(next: string) {
     dispatch({ kind: "changeGroup", groupId: next, meId: me.user.id });
+    setPendingGroupDefaultFor(next);
   }
 
   /**

@@ -14,6 +14,7 @@ import {
   kakeiboAccountPatchInput,
   kakeiboBudgetInput,
   kakeiboBudgetPatchInput,
+  kakeiboGroupSettingsInput,
   kakeiboInput,
   kakeiboRecurringInput,
   kakeiboRecurringPatchInput,
@@ -493,6 +494,29 @@ describe("定期の記録の入力。0072、F-325", () => {
     expect(kakeiboRecurringPatchInput.safeParse({ endMonth: "2026-08" }).success).toBe(true);
     expect(kakeiboRecurringPatchInput.safeParse({ startMonth: "2026-09", endMonth: "2026-08" }).success).toBe(false);
     expect(kakeiboRecurringPatchInput.safeParse({ startMonth: "2026-13" }).success).toBe(false);
+  });
+
+  it("振替はグループを送らなくてよい形。グループは口座から決まる(組み合わせの確かめはルーターで行う)。0087、F-328", () => {
+    const transfer = {
+      type: "transfer" as const,
+      amount: 3000,
+      dayOfMonth: 27,
+      startMonth: "2026-09",
+      accountId: "a",
+      toAccountId: "b",
+    };
+    expect(kakeiboRecurringInput.safeParse(transfer).success).toBe(true);
+  });
+});
+
+describe("グループの「よく使う払い方」の既定の入力。0087、F-329", () => {
+  it("口座の ID か null を通す", () => {
+    expect(kakeiboGroupSettingsInput.safeParse({ defaultAccountId: "a" }).success).toBe(true);
+    expect(kakeiboGroupSettingsInput.safeParse({ defaultAccountId: null }).success).toBe(true);
+  });
+
+  it("空文字は断る", () => {
+    expect(kakeiboGroupSettingsInput.safeParse({ defaultAccountId: "" }).success).toBe(false);
   });
 });
 

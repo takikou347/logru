@@ -63,7 +63,8 @@ jobs:
             -d '{"output_format":"polling"}')
           bookmark=$(printf '%s' "$res" | jq -r '.result.at_bookmark // empty')
           if [ -z "$bookmark" ]; then
-            echo "::error::${{ matrix.name }} のエクスポートを始められなかった"
+            errors=$(printf '%s' "$res" | jq -r '[.errors[]? | "\(.code) \(.message)"] | join(", ")' 2>/dev/null || true)
+            echo "::error::${{ matrix.name }} のエクスポートを始められなかった: ${errors:-JSON でない返事}"
             exit 1
           fi
           echo "bookmark=$bookmark" >> "$GITHUB_OUTPUT"
@@ -82,12 +83,21 @@ jobs:
           DATABASE_ID: ${{ matrix.database_id }}
           TARGET: ${{ matrix.name }}
         run: |
-          for i in $(seq 1 20); do
+          # 問い合わせが途切れると、書き出しは取り消される。wrangler と同じく間を置かずに聞き続ける。0041
+          deadline=$(( $(date +%s) + 300 ))
+          while [ "$(date +%s)" -lt "$deadline" ]; do
             res=$(curl -sS -X POST \
               "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database/${DATABASE_ID}/export" \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer ${D1_BACKUP_API_TOKEN}" \
               -d "{\"output_format\":\"polling\",\"current_bookmark\":\"${BOOKMARK}\"}")
+            # エラーが返ったら待たずに止め、Cloudflare の番号と文面を出す
+            ok=$(printf '%s' "$res" | jq -r '.success // false' 2>/dev/null || echo false)
+            if [ "$ok" != "true" ]; then
+              errors=$(printf '%s' "$res" | jq -r '[.errors[]? | "\(.code) \(.message)"] | join(", ")' 2>/dev/null || true)
+              echo "::error::${TARGET} の書き出しの問い合わせにエラーが返った: ${errors:-JSON でない返事}"
+              exit 1
+            fi
             status=$(printf '%s' "$res" | jq -r '.result.status // empty')
             if [ "$status" = "complete" ]; then
               url=$(printf '%s' "$res" | jq -r '.result.result.signed_url // empty')
@@ -103,10 +113,13 @@ jobs:
               exit 0
             fi
             if [ "$status" = "error" ]; then
-              echo "::error::${TARGET} のエクスポートが失敗した"
+              echo "::error::${TARGET} のエクスポートが失敗した: $(printf '%s' "$res" | jq -r '.result.error // empty')"
               exit 1
             fi
-            sleep 15
+            # 途中経過の文面。完了の返事は signed_url を含むので出さない
+            printf '%s' "$res" | jq -r '.result.messages[]?'
+            next=$(printf '%s' "$res" | jq -r '.result.at_bookmark // empty')
+            BOOKMARK="${next:-$BOOKMARK}"
           done
           echo "::error::${TARGET} のエクスポートが時間内に終わらなかった"
           exit 1

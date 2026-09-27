@@ -2,7 +2,11 @@ import { zValidator } from "@hono/zod-validator";
 import { createRouter, HttpError, validationHook } from "@server/core/app";
 import type { DB } from "@server/core/db/client";
 import { count, desc, eq } from "drizzle-orm";
-import { KAKEIBO_EXPENSE_CATEGORY_KEYS, KAKEIBO_INCOME_CATEGORY_KEYS } from "../shared/categories";
+import {
+  KAKEIBO_EXPENSE_CATEGORY_KEYS,
+  KAKEIBO_INCOME_CATEGORY_KEYS,
+  type KakeiboCategory,
+} from "../shared/categories";
 import { dateKeyOfJst } from "../shared/dates";
 import { monthKeyOfDate } from "../shared/recurring";
 import { kakeiboRecurringInput, kakeiboRecurringPatchInput } from "../shared/schemas";
@@ -75,9 +79,48 @@ async function loadAccountForGroup(
   return { row, isPersonal };
 }
 
-/** 種類に合うカテゴリかを確かめる。定期の記録は振替をまだ扱わない。F-325 */
+/** 口座を読み、書こうとしている人が使えるグループの口座かだけ確かめる。振替の口座を選ぶときに使う。0069、0087 */
+async function loadUsableAccount(
+  db: DB,
+  userId: string,
+  id: string,
+): Promise<{ row: KakeiboAccountRow; isPersonal: boolean }> {
+  const row = await db.select().from(kakeiboAccounts).where(eq(kakeiboAccounts.id, id)).get();
+  if (!row) throw new HttpError(404, "見つかりません。");
+  const usable = await usableGroups(db, userId, [row.groupId]);
+  if (usable.length === 0) throw new HttpError(404, "見つかりません。");
+  return { row, isPersonal: usable[0]!.isPersonal };
+}
+
+/**
+ * 振替の定期の記録の、出す元・入れる先の口座を確かめ、置くグループを決める。決め方は記録の振替
+ * (routes.ts の resolveWrite)と同じ。0069、0087、F-328
+ * @param current 直すときの、いまの行。片方だけ送ったときに、もう片方はここから引く
+ */
+async function resolveRecurringTransfer(
+  db: DB,
+  userId: string,
+  input: { accountId?: string | null; toAccountId?: string | null },
+  current?: KakeiboRecurringRow,
+): Promise<{ accountId: string; toAccountId: string; groupId: string }> {
+  const accountId = input.accountId !== undefined ? input.accountId : (current?.accountId ?? null);
+  const toAccountId = input.toAccountId !== undefined ? input.toAccountId : (current?.toAccountId ?? null);
+  if (!accountId || !toAccountId) throw new HttpError(400, "出す元と入れる先の口座を選んでください。");
+  if (accountId === toAccountId) throw new HttpError(400, "出す元と入れる先は、別の口座にしてください。");
+  const from = await loadUsableAccount(db, userId, accountId);
+  const to = await loadUsableAccount(db, userId, toAccountId);
+  const fromUnchanged = current?.accountId === from.row.id;
+  const toUnchanged = current?.toAccountId === to.row.id;
+  if (from.row.archivedAt && !fromUnchanged)
+    throw new HttpError(400, "この口座は使えません。「使わない」にした口座です。");
+  if (to.row.archivedAt && !toUnchanged) throw new HttpError(400, "この口座は使えません。「使わない」にした口座です。");
+  // 振替を置くグループは、関わる口座で決める。画面からは送らせない。0069
+  const groupId = to.isPersonal ? from.row.groupId : to.row.groupId;
+  return { accountId: from.row.id, toAccountId: to.row.id, groupId };
+}
+
+/** 種類に合うカテゴリかを確かめる。振替は呼び出し側でカテゴリを `transfer` に決める。F-325、0087 */
 function assertCategory(type: string, category: string | undefined): asserts category is string {
-  if (type === "transfer") throw new HttpError(400, "振替の定期の記録はまだ作れません。");
   const allowed = type === "expense" ? KAKEIBO_EXPENSE_CATEGORY_KEYS : KAKEIBO_INCOME_CATEGORY_KEYS;
   if (!category || !(allowed as readonly string[]).includes(category)) {
     throw new HttpError(400, "カテゴリを選んでください。");
@@ -107,8 +150,25 @@ export const kakeiboRecurringsRoutes = createRouter()
     const db = c.get("db");
     const userId = c.get("user").id;
     const input = c.req.valid("json");
-    assertCategory(input.type, input.category);
-    await requireKakeiboGroup(db, userId, input.groupId);
+
+    let groupId: string;
+    let accountId: string | null;
+    let toAccountId: string | null = null;
+    let category: KakeiboCategory;
+    if (input.type === "transfer") {
+      const resolved = await resolveRecurringTransfer(db, userId, input);
+      groupId = resolved.groupId;
+      accountId = resolved.accountId;
+      toAccountId = resolved.toAccountId;
+      category = "transfer";
+    } else {
+      if (!input.groupId) throw new HttpError(400, "記録するグループを選んでください。");
+      assertCategory(input.type, input.category);
+      category = input.category;
+      await requireKakeiboGroup(db, userId, input.groupId);
+      groupId = input.groupId;
+      accountId = input.accountId ? (await loadAccountForGroup(db, userId, input.accountId, groupId)).row.id : null;
+    }
 
     const [{ n } = { n: 0 }] = await db
       .select({ n: count() })
@@ -116,19 +176,16 @@ export const kakeiboRecurringsRoutes = createRouter()
       .where(eq(kakeiboRecurrings.createdBy, userId));
     if (n >= RECURRINGS_LIMIT) throw new HttpError(409, `定期の記録は ${RECURRINGS_LIMIT} 個までです。`);
 
-    const accountId = input.accountId
-      ? (await loadAccountForGroup(db, userId, input.accountId, input.groupId)).row.id
-      : null;
-
     const id = crypto.randomUUID();
     await db.insert(kakeiboRecurrings).values({
       id,
-      groupId: input.groupId,
+      groupId,
       createdBy: userId,
       type: input.type,
       amount: input.amount,
-      category: input.category,
+      category,
       accountId,
+      toAccountId,
       memo: input.memo || null,
       dayOfMonth: input.dayOfMonth,
       startMonth: input.startMonth,
@@ -149,14 +206,25 @@ export const kakeiboRecurringsRoutes = createRouter()
     const current = await loadOwned(db, userId, c.req.param("id"));
     const input = c.req.valid("json");
     const type = input.type ?? current.type;
-    const category = input.category ?? current.category;
-    assertCategory(type, category);
 
+    let groupId = current.groupId;
     let accountId = current.accountId;
-    if (input.accountId !== undefined) {
-      accountId = input.accountId
-        ? (await loadAccountForGroup(db, userId, input.accountId, current.groupId)).row.id
-        : null;
+    let toAccountId = current.toAccountId;
+    let category: KakeiboCategory = input.category ?? current.category;
+    if (type === "transfer") {
+      const resolved = await resolveRecurringTransfer(db, userId, input, current);
+      groupId = resolved.groupId;
+      accountId = resolved.accountId;
+      toAccountId = resolved.toAccountId;
+      category = "transfer";
+    } else {
+      assertCategory(type, category);
+      toAccountId = null;
+      if (input.accountId !== undefined) {
+        accountId = input.accountId
+          ? (await loadAccountForGroup(db, userId, input.accountId, current.groupId)).row.id
+          : null;
+      }
     }
 
     const startMonth = input.startMonth ?? current.startMonth;
@@ -169,9 +237,11 @@ export const kakeiboRecurringsRoutes = createRouter()
       .update(kakeiboRecurrings)
       .set({
         type,
+        groupId,
         amount: input.amount ?? current.amount,
         category,
         accountId,
+        toAccountId,
         memo: input.memo === undefined ? current.memo : input.memo || null,
         dayOfMonth: input.dayOfMonth ?? current.dayOfMonth,
         startMonth,

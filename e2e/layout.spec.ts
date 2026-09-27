@@ -37,7 +37,7 @@ test.beforeEach(async ({ page }) => {
 
 test("上の帯の高さは、月が 1 桁でも 2 桁でも、「今日」が出ても変わらない", async ({ page }) => {
   // 月を移るたびに帯の高さが変わると落ち着かない。スマホではいつも月と年の下へ操作を置く
-  const header = page.locator("header");
+  const header = page.locator("header:visible");
   const height = async () => (await header.boundingBox())!.height;
   const before = await height();
   await page.getByRole("button", { name: "次の月" }).click();

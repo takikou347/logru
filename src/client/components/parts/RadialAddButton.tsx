@@ -102,6 +102,8 @@ export function RadialAddButton({
   const [open, setOpen] = useState(false);
   const [entered, setEntered] = useState(false);
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  // 透明度を下げる設定では、幕をぼかさず暗くするだけにする。issue #239
+  const reducedTransparency = useMediaQuery("(prefers-reduced-transparency: reduce)");
   const { pressed, consumeLongPress, handlers } = useLongPressLabel();
   const navigate = useNavigate();
 
@@ -207,11 +209,22 @@ export function RadialAddButton({
       )}
       {open && (
         <>
-          {/* 外を押すか下へ払うと閉じる。issue #239 */}
+          {/*
+            後ろの幕。案 C の motion-radial-add と同じく、中身の丸が背景の文字と重ならないよう
+            暗くしてぼかす。どのテーマ(紙・リキッドガラス)でも同じ形。動きを減らす・透明度を
+            下げる設定では、ぼかさず暗くするだけにする。外を押すか下へ払うと閉じる。issue #239
+          */}
           <button
             type="button"
             aria-label="閉じる"
-            className="fixed inset-0 z-30 bg-ink/25"
+            className={cn(
+              "fixed inset-0 z-30 bg-black/55 transition-opacity duration-slow",
+              !reducedMotion && !reducedTransparency && "backdrop-blur-md backdrop-saturate-150",
+            )}
+            style={{
+              opacity: entered ? 1 : 0,
+              transitionDuration: reducedMotion ? "0ms" : undefined,
+            }}
             onClick={() => setOpen(false)}
           />
           <span className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center">

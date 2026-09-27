@@ -536,6 +536,13 @@ test("3 人のグループで 1 人が立て替えると、送る組み合わせ
   await expenseSheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("記録しました")).toBeVisible();
 
+  // 立て替えた記録を開くと、割ったときの人数(3 人)が分かる。あとから入った人はこの記録の割り勘に入らない。issue #248
+  await page.getByRole("button", { name: /交通/ }).click();
+  const splitRecord = page.getByRole("dialog", { name: "記録を直す" });
+  await expect(splitRecord.getByText("この記録を割ったのは、記録したときのメンバー 3 人です。")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(splitRecord).toBeHidden();
+
   // 共有口座で払った支出。これは割らない(「払った人」の欄が出ない)
   const sharedExpenseSheet = await openRecordSheet(page);
   await sharedExpenseSheet.getByLabel("金額").fill("5000");
@@ -832,12 +839,18 @@ test("記録のシートで「よく使う記録にする」と、次からチ�
   await expect(page.getByText("記録しました")).toBeVisible();
   await expect(page.getByTestId("kakeibo-total")).toHaveText("¥500");
 
-  // よく使う記録の画面にも出て、名前を直せる
+  // よく使う記録の画面にも出て、押すと全部の欄を直せる。issue #248
   await page.goto("/kakeibo/templates");
   await page.getByText("いつもの買い物").click();
-  await page.getByLabel("いつもの買い物 を直す").fill("スーパー");
-  await page.getByLabel("いつもの買い物 を直す").press("Enter");
-  await expect(page.getByText("スーパー")).toBeVisible();
+  const edit = page.getByRole("dialog", { name: "よく使う記録を直す" });
+  await edit.getByLabel("名前").fill("スーパー");
+  await edit.getByRole("radio", { name: "食費" }).click();
+  await edit.getByLabel("金額").fill("800");
+  await edit.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("よく使う記録を直しました")).toBeVisible();
+  await expect(edit).toBeHidden();
+  const row = page.locator("li").filter({ hasText: "スーパー" });
+  await expect(row).toContainText("支出 ・ 食費 ・ ¥800");
 });
 
 test("自分だけで記録した口座は、共有のグループでは選べないので「口座なし」になり保存できる。#193", async ({ page }) => {

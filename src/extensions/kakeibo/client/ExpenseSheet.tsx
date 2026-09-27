@@ -11,6 +11,7 @@ import { useSheetSubmit } from "@/components/parts/use-sheet-submit";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { dateKey } from "@/lib/dates";
+import { handleEnterAdvancesField } from "@/lib/keyboard-field-nav";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_EXPENSE_CATEGORIES, KAKEIBO_INCOME_CATEGORIES, type KakeiboCategory } from "../shared/categories";
 import { isValidKakeiboAmount } from "../shared/format";
@@ -480,6 +481,7 @@ export function ExpenseSheet({
           e.preventDefault();
           void submit(false);
         }}
+        onKeyDown={handleEnterAdvancesField}
         noValidate
       >
         <fieldset disabled={!canEdit} className="contents">
@@ -516,7 +518,7 @@ export function ExpenseSheet({
                   ref={amountRef}
                   autoFocus
                   type="text"
-                  inputMode="numeric"
+                  inputMode="decimal"
                   pattern="[0-9]*"
                   placeholder="0"
                   value={amount}
@@ -607,6 +609,13 @@ export function ExpenseSheet({
 
           {splitting && (
             <>
+              {expense?.splits && (
+                // あとから入った人は、それまでの割り勘に入らない。記録したときの人数を出して伝える。0072 の困ること、issue #248
+                <FieldMessage>
+                  この記録を割ったのは、記録したときのメンバー {expense.splits.length}{" "}
+                  人です。あとから入った人は、この記録の割り勘には入りません。
+                </FieldMessage>
+              )}
               <PayerPickerRow
                 groups={groups}
                 members={splitMembers}

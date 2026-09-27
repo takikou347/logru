@@ -232,6 +232,18 @@
   }
 }
 
+/*
+ * OS のキーボードが出ている間、下の 5 個のタブの帯を隠す。Android の Chrome は画面の高さが
+ * 縮むので、隠さないとタブがキーボードの上に浮く。`data-keyboard-open` は
+ * `client/lib/keyboard-viewport.ts` が、新しい見た目・スマホでシートや項目を足す欄が
+ * OS のキーボードを開いたときだけ立てる。0094、issue #242
+ */
+@media (max-width: 1023.98px) {
+  :root[data-lab-new-look][data-keyboard-open] .nl-keyboard-hide {
+    display: none;
+  }
+}
+
 /* 色の名前の点。色は .c-<名前> が --c に入れる */
 @utility swatch-dot {
   background: var(--c);

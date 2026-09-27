@@ -1,5 +1,5 @@
 import type { GroupSummary, Me } from "@shared/api-types";
-import { ArrowUp, CheckCheck, ChevronLeft, MoreHorizontal, Pencil, Plus } from "lucide-react";
+import { ArrowUp, CheckCheck, ChevronLeft, MoreHorizontal, Pencil, Plus, Share2 } from "lucide-react";
 import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -27,6 +27,7 @@ import {
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { cn } from "@/lib/utils";
+import { shareText } from "@/lib/web-share";
 import { markJustAdded, takeJustAdded } from "@/modules/calendar/recent-items";
 import type { ListItem, ListSummary } from "./api";
 import {
@@ -40,7 +41,7 @@ import {
 } from "./api";
 import { EditItemSheet } from "./EditItemSheet";
 import { EditListSheet } from "./EditListSheet";
-import { GroupLabel, useIconOnly } from "./parts";
+import { GroupLabel, listShareText, useIconOnly } from "./parts";
 
 /**
  * 項目を足す欄。1 行打って Enter か右の「足す」を押すと足し、入力欄は空のまま次の項目を打てる。F-203
@@ -433,6 +434,21 @@ export function ListDetailPage() {
 
   const list = detail.data;
   const items = [...list.items].filter((i) => !hidden.has(i.id)).sort((a, b) => Number(a.checked) - Number(b.checked));
+
+  /**
+   * 端末の共有シートで、リストの名前と済んでいない項目を文字で送る。Web Share が無い端末(PC の一部)は、
+   * クリップボードへコピーして知らせる。#258 と同じ仕組み(src/client/lib/web-share.ts)を使う。issue #227
+   */
+  async function share() {
+    try {
+      const method = await shareText({ title: list.title, text: listShareText(list.title, items) });
+      if (method === "copied") toast("コピーしました");
+    } catch (e) {
+      // シートを閉じただけなら AbortError。共有をやめただけなので、失敗として出さない
+      if ((e as { name?: string }).name !== "AbortError") toast.error("共有できませんでした。");
+    }
+  }
+
   const group = groups.find((g) => g.id === list.groupId);
   const editingItem = items.find((i) => i.id === editingItemId) ?? null;
   const uncheckedItems = items.filter((i) => !i.checked);
@@ -464,23 +480,28 @@ export function ListDetailPage() {
     <RowExpandContext.Provider value={rowExpandValue}>
       {iconOnly ? (
         <Page>
-          {/* 「‹」と「…」だけの帯。共有は今ある仕組みが無いため出さない(見た目だけの載せ替えで新しい
-              機能は作らない)。A3 の見本、issue #243 */}
+          {/* 「‹」「共有」「…」の帯。共有は端末の共有シート(無ければクリップボード)で名前と済んでいない
+              項目を送る。#258 と同じ web-share.ts を使う。A3 の見本、issue #227 */}
           <header className="glass flex min-h-[58px] items-center justify-between gap-1 rounded-full py-1.5 pr-2.5 pl-1.5">
             <Button asChild variant="ghost" size="icon">
               <Link to="/lists" aria-label="戻る">
                 <ChevronLeft className="size-5" />
               </Link>
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label="リストを直す"
-              onClick={() => setEditing(true)}
-            >
-              <MoreHorizontal className="size-5" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button type="button" variant="ghost" size="icon" aria-label="共有する" onClick={() => void share()}>
+                <Share2 className="size-5" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="リストを直す"
+                onClick={() => setEditing(true)}
+              >
+                <MoreHorizontal className="size-5" />
+              </Button>
+            </div>
           </header>
           {/* 題名は帯の下に大きく 1 回だけ。下に共有先の点・人のアイコン・最近の出来事の一行。A3 の見本 */}
           <div className="flex flex-col gap-1 px-1">

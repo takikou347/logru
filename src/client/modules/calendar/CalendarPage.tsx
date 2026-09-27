@@ -45,6 +45,7 @@ import {
   weekDays,
 } from "@/lib/dates";
 import { useEnabledExtensions } from "@/lib/extensions";
+import { RowExpandContext, rowExpandState, useRowExpandActive, useRowExpandTransition } from "@/lib/row-expand";
 import { BASE_TOURS } from "@/lib/tours";
 import { useRecordScreen } from "@/lib/use-back";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -197,7 +198,14 @@ export function CalendarPage() {
     [groupFilter],
   );
 
-  const open = useCallback((item: ViewItem) => setEditor({ mode: "edit", item }), []);
+  // 行がそのままシートに広がる動き(共有要素)。ラボの「新しい見た目」のスマホだけで使う。月の表の下の
+  // 選んだ日の一覧、週・日の表示の行が対象。カレンダーの行は SwipeRow・長押しを持たないので、取り合わない。0093、issue #227
+  const rowExpandActive = useRowExpandActive();
+  const { transitioningKey, openRow, resetRowExpand } = useRowExpandTransition(rowExpandActive);
+  const open = useCallback(
+    (item: ViewItem) => openRow(itemKey(item), () => setEditor({ mode: "edit", item })),
+    [openRow],
+  );
   // 探した結果を押したとき。その日を表示し、項目を出した拡張の編集のシートを開く。F-38、0046
   const openSearchResult = useCallback(
     (item: CalendarItem) => {
@@ -368,6 +376,11 @@ export function CalendarPage() {
   const addons = enabledExtensions.flatMap((x) =>
     (x.itemAddons ?? []).filter((a) => a.extension === editorKey).map((a) => a.Component),
   );
+  const closeEditor = useCallback(() => {
+    setEditor(null);
+    resetRowExpand();
+  }, [resetRowExpand]);
+  const rowExpandValue = useMemo(() => rowExpandState(transitioningKey, editor !== null), [transitioningKey, editor]);
 
   /** グループで絞る選択肢。自分だけのグループは「自分だけの予定」と書く。0009、0057 */
   const filterOptions = groupFilterOptions({
@@ -377,6 +390,10 @@ export function CalendarPage() {
     onChange: (id) => update({ group: id }),
     personalLabel: "自分だけの予定",
   });
+  // 絞り込みのアイコンの隣に出す、選んでいるグループ(や、自分だけなら人)の短い名前。
+  // 「すべて」を選んでいるときは出さない。issue #227
+  const selectedGroup = groupFilter ? allGroups.find((g) => g.id === groupFilter) : undefined;
+  const filterChipLabel = selectedGroup ? (selectedGroup.isPersonal ? "自分だけ" : selectedGroup.name) : null;
 
   // 足せるものは予定だけ。「+」を押すと選んでいる日で直接シートが開く。issue #150、拡張のものは拡張の画面が持つ。0019
   // 読み上げの名前に選んだ日を入れる。予定を足す入口はここだけなので、どの日に足すかを名前で伝える。0012、0062、issue #150
@@ -433,7 +450,7 @@ export function CalendarPage() {
   });
 
   return (
-    <>
+    <RowExpandContext.Provider value={rowExpandValue}>
       {/*
         スマホの幅では、月と年に「今日」「前」「次」「読み直す」「知らせ」「アカウント」を足すと 1 行に入らない。
         入る月と入らない月で高さが変わると落ち着かないので、スマホではいつも月と年の下へ操作を置く。
@@ -522,6 +539,7 @@ export function CalendarPage() {
                 hiddenKinds={hiddenKinds}
                 onToggleKind={toggleKind}
                 tourId="group-filter"
+                selectedLabel={filterChipLabel}
               />
               {me.data && <SearchButton groups={allGroups} me={me.data} onOpen={openSearchResult} />}
               <NotificationBell />
@@ -660,11 +678,11 @@ export function CalendarPage() {
           onOpenItem={(item) => setEditor({ mode: "edit", item })}
           groups={allGroups}
           me={me.data}
-          onClose={() => setEditor(null)}
+          onClose={closeEditor}
           onDelete={remove}
           addons={addons}
         />
       )}
-    </>
+    </RowExpandContext.Provider>
   );
 }

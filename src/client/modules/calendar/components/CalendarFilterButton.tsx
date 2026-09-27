@@ -6,9 +6,13 @@
  * シートの中身は、グループの絞り込み(単一で選ぶ)、人の絞り込み(グループごとに複数)、
  * 種類の絞り込み(拡張ごとに複数)の 3 段。人と種類は、今までのシート(PeopleChip、KindChip)と
  * 同じ部品(PeopleFilterFields、KindToggles)を使う。決定 0067
+ *
+ * アイコンの隣には、「すべて」以外のグループ(や、自分だけを選んでいるとき)だけ、選んでいる先の
+ * 短い名前を A3 の形のチップで出す。押すと同じシートが開く。issue #227
  */
 import { Check, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
+import { Chip } from "@/components/parts/Chip";
 import type { GroupFilterOption } from "@/components/parts/GroupFilter";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
@@ -25,6 +29,7 @@ export function CalendarFilterButton({
   hiddenKinds,
   onToggleKind,
   tourId,
+  selectedLabel,
 }: {
   groupOptions: GroupFilterOption[];
   peopleSections: GroupPeople[];
@@ -34,6 +39,8 @@ export function CalendarFilterButton({
   onToggleKind: (key: string) => void;
   /** 案内(ScreenTour)が指す data-tour。今までの GroupFilterBand と同じ名前を渡すと、新しい見た目でも同じ案内が出る */
   tourId?: string;
+  /** 「すべて」以外を選んでいるときだけ渡す、隣に出すチップの文字。issue #227 */
+  selectedLabel?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const filtering =
@@ -52,6 +59,11 @@ export function CalendarFilterButton({
       >
         <SlidersHorizontal className="size-5" aria-hidden="true" />
       </Button>
+      {selectedLabel && (
+        <Chip aria-pressed className="min-h-8 max-w-24 gap-1 truncate px-2.5 text-[12px]" onClick={() => setOpen(true)}>
+          <span className="truncate">{selectedLabel}</span>
+        </Chip>
+      )}
       {open && (
         <ResponsiveSheet title="絞り込み" onClose={() => setOpen(false)}>
           <div className="flex flex-col gap-4">

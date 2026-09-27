@@ -551,14 +551,21 @@
  * 広がる間、動かさずそのまま見せる。root(0071)と同じく動きを止め、既定の mix-blend-mode
  * (plus-lighter)も戻す。z-index を row-expand・box-expand より高くし、広がる面が帯の上を
  * 通り過ぎても帯が隠れたり薄れたりしないようにする。lib/bars-view-transition.ts、issue #241
+ *
+ * 古い見た目(old)は出さない。動かない帯なので、新しい見た目(new)だけで足りる。box-expand は
+ * 行き先の画面が変わるため、押す前の帯(今日のページの角丸パネル)と押した後の帯(PageBar の
+ * 丸いピル)で形が違う。両方を重ねると、四角い角丸パネルの角が丸いピルの外にはみ出して見えた。
+ * 2026-09-27 の kota の指摘。new だけにすれば、その画面の帯の形どおりに写る
  */
 ::view-transition-group(nl-topbar),
 ::view-transition-group(nl-dock) {
   z-index: 2;
 }
 ::view-transition-old(nl-topbar),
+::view-transition-old(nl-dock) {
+  display: none;
+}
 ::view-transition-new(nl-topbar),
-::view-transition-old(nl-dock),
 ::view-transition-new(nl-dock) {
   animation: none;
   mix-blend-mode: normal;

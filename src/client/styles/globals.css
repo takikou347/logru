@@ -338,6 +338,66 @@
     transform: scale(0.96);
   }
 }
+
+/*
+ * 保存した反応。ラボの「新しい見た目」を入れた人だけ、item-enter の動きをテーマごとの反応に
+ * 置き換える(重ねない。上の item-enter の膨らんで入る動きとは同時に鳴らさない)。0044、0048、0093、issue #241
+ *
+ * 既定(リキッドガラス)は面に光が 1 回走る。::after の帯を右へ流す。行の位置・大きさは動かさない。
+ */
+[data-lab-new-look] .item-enter {
+  position: relative;
+  overflow: hidden;
+  animation: row-save-glass var(--dur-save) var(--ease-out);
+}
+[data-lab-new-look] .item-enter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 35%, var(--glass-shine) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: row-save-sweep var(--dur-save) var(--ease-out);
+  pointer-events: none;
+}
+@keyframes row-save-glass {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes row-save-sweep {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(120%);
+  }
+}
+
+/* 紙は光らせず、題名(data-title)が左から書き込まれるように見せる。光の帯(::after)は出さない */
+[data-lab-new-look][data-look="paper"] .item-enter {
+  animation: row-save-paper var(--dur-save) var(--ease-out);
+}
+[data-lab-new-look][data-look="paper"] .item-enter::after {
+  display: none;
+}
+@keyframes row-save-paper {
+  from {
+    opacity: 0.3;
+  }
+}
+[data-lab-new-look][data-look="paper"] .item-enter [data-title] {
+  display: inline-block;
+  animation: row-save-write var(--dur-save) linear;
+}
+@keyframes row-save-write {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
 [data-leaving="true"] {
   opacity: 0;
   transform: scale(0.96);
@@ -420,6 +480,93 @@
  */
 ::view-transition-old(root),
 ::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/*
+ * 行がそのままシートに広がる動き(row-expand)、節・タイルがそのまま機能の画面に広がる動き
+ * (box-expand)。どちらも View Transitions API の共有要素。同時に広がる行・面は 1 つだけなので、
+ * 固定の名前でよい(lib/row-expand.ts、lib/box-expand.ts)。0044、0071、0093、issue #241
+ *
+ * root と違い、既定の mix-blend-mode(plus-lighter)は残す。0071 の「選んでいる日」と同じ考えで、
+ * 名前を持つ要素どうしがつながって見える。時間と緩急だけ 0044 のトークンに合わせる。
+ * z-index は 1。上の帯・下のタブの帯(nl-topbar、nl-dock。すぐ下)より低くし、広がる途中に
+ * 帯の上へ覆いかぶさらないようにする
+ */
+::view-transition-group(row-expand),
+::view-transition-old(row-expand),
+::view-transition-new(row-expand) {
+  animation-duration: var(--dur-expand);
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-group(row-expand) {
+  z-index: 1;
+}
+
+/*
+ * box-expand は、行き先の画面(数行の見出しの文字)と押した面(全画面のページ)で縦横比が大きく違う。
+ * 既定の crossfade(古い見た目と新しい見た目を同じ大きさへ重ねて引き伸ばす)だと、小さい文字が
+ * 大きく引き伸ばされてぼやけ、新しい画面は逆につぶれて小さく見える。2026-09-27 の kota の指摘。
+ *
+ * 古い見た目は最初の 3 割で消し、新しい見た目は面が育ち切る終盤(7 割から)にだけ現れるようにする。
+ * 間は面(group)に敷いた地の色だけが育つ、案 C の motion-box-expand と同じ形にした
+ */
+::view-transition-group(box-expand) {
+  animation-duration: var(--dur-box-expand);
+  animation-timing-function: var(--ease-out);
+  background: var(--field);
+  border-radius: var(--r-panel);
+  z-index: 1;
+}
+::view-transition-old(box-expand) {
+  animation: box-expand-old-out var(--dur-box-expand) var(--ease-out);
+  mix-blend-mode: normal;
+}
+::view-transition-new(box-expand) {
+  animation: box-expand-new-in var(--dur-box-expand) var(--ease-out);
+  mix-blend-mode: normal;
+}
+@keyframes box-expand-old-out {
+  0% {
+    opacity: 1;
+  }
+  30%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes box-expand-new-in {
+  0%,
+  70% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/*
+ * 上の帯(ページ自身の見出し、PageBar)と下のタブの帯(GlobalBottomTabs)。row-expand・box-expand が
+ * 広がる間、動かさずそのまま見せる。root(0071)と同じく動きを止め、既定の mix-blend-mode
+ * (plus-lighter)も戻す。z-index を row-expand・box-expand より高くし、広がる面が帯の上を
+ * 通り過ぎても帯が隠れたり薄れたりしないようにする。lib/bars-view-transition.ts、issue #241
+ *
+ * 古い見た目(old)は出さない。動かない帯なので、新しい見た目(new)だけで足りる。box-expand は
+ * 行き先の画面が変わるため、押す前の帯(今日のページの角丸パネル)と押した後の帯(PageBar の
+ * 丸いピル)で形が違う。両方を重ねると、四角い角丸パネルの角が丸いピルの外にはみ出して見えた。
+ * 2026-09-27 の kota の指摘。new だけにすれば、その画面の帯の形どおりに写る
+ */
+::view-transition-group(nl-topbar),
+::view-transition-group(nl-dock) {
+  z-index: 2;
+}
+::view-transition-old(nl-topbar),
+::view-transition-old(nl-dock) {
+  display: none;
+}
+::view-transition-new(nl-topbar),
+::view-transition-new(nl-dock) {
   animation: none;
   mix-blend-mode: normal;
 }

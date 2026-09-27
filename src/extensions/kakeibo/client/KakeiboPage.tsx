@@ -1,6 +1,6 @@
 import type { GroupMember, Me } from "@shared/api-types";
 import { ChevronLeft, ChevronRight, Coins } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
@@ -17,6 +17,13 @@ import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
 import { dateKey, formatShortDate } from "@/lib/dates";
+import {
+  RowExpandContext,
+  rowExpandState,
+  useRowExpandActive,
+  useRowExpandName,
+  useRowExpandTransition,
+} from "@/lib/row-expand";
 import { useBack } from "@/lib/use-back";
 import { useRowMotion } from "@/lib/use-row-motion";
 import { cn } from "@/lib/utils";
@@ -64,10 +71,13 @@ function RecordRow({
   const mySplit = record.splits?.find((s) => s.userId === me.user.id);
   // 描いた瞬間に 1 度だけ読む。足した直後の再描画と、月を移る・グループを絞り直す再描画を見分けるため
   const [entering] = useState(() => takeJustAdded(record.id));
+  // 行がそのままシートに広がる動き(共有要素)。押した行だけが名前を持つ。0044、0093、issue #241
+  const viewTransitionName = useRowExpandName(record.id);
   return (
     <li
       className={cn("border-line not-first:border-t", entering && "item-enter")}
       data-leaving={isLeaving || undefined}
+      style={viewTransitionName ? { viewTransitionName } : undefined}
     >
       <button
         type="button"
@@ -77,7 +87,9 @@ function RecordRow({
         <time className="text-sm font-medium whitespace-nowrap text-ink-2">{formatShortDate(record.date)}</time>
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="flex min-w-0 items-baseline gap-1.5">
-            <span className="min-w-0 truncate text-sm font-medium">{relation}</span>
+            <span data-title className="min-w-0 truncate text-sm font-medium">
+              {relation}
+            </span>
             {account && <span className="min-w-0 truncate text-xs text-ink-2">{account}</span>}
           </span>
           <span className="flex min-w-0 items-center justify-between gap-2">
@@ -134,6 +146,9 @@ export function KakeiboPage() {
   const [features, setFeatures] = useState(false);
   // ホームのウィジェット(?from=widget)から開いたシートは、閉じたらホームへ戻す。0070、#201
   const back = useBack("/");
+  // 行がそのままシートに広がる動き(共有要素)。ラボの「新しい見た目」のスマホだけで使う。0044、0093、issue #241
+  const rowExpandActive = useRowExpandActive();
+  const { transitioningKey, openRow, resetRowExpand } = useRowExpandTransition(rowExpandActive);
 
   const groupParam = params.get("group");
   const group = groups.some((g) => g.id === groupParam) ? groupParam : null;
@@ -162,13 +177,21 @@ export function KakeiboPage() {
     setParams((p) => (p.delete("record"), p.delete("type"), p.delete("template"), p), { replace: true });
   };
   const editingId = params.get("edit");
-  const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
+  const closeEdit = () => {
+    setParams((p) => (p.delete("edit"), p), { replace: true });
+    resetRowExpand();
+  };
+  const openEdit = (id: string) => openRow(id, () => setParams((p) => (p.set("edit", id), p), { replace: true }));
   const editing = summary.data?.records.find((r) => r.id === editingId);
   const filterOptions = groupFilterOptions({ groups, me: me.data, value: group, onChange: setGroup });
   const openRecordSheet = () => setParams((p) => (p.set("record", "1"), p), { replace: true });
   // 足せるものは記録だけ。「+」を押すと直接シートが開く。issue #150
   const addables: Addable[] = [{ key: "expense", label: "支出を記録する", icon: Coins, onClick: openRecordSheet }];
   useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
+  const rowExpandValue = useMemo(
+    () => rowExpandState(transitioningKey, editingId !== null),
+    [transitioningKey, editingId],
+  );
 
   if (!me.data || !ready) return <Loading />;
   const meData = me.data;
@@ -317,7 +340,7 @@ export function KakeiboPage() {
                     members={recordGroup?.members ?? []}
                     me={meData}
                     isLeaving={leaving.has(r.id)}
-                    onClick={() => setParams((p) => (p.set("edit", r.id), p), { replace: true })}
+                    onClick={() => openEdit(r.id)}
                   />
                 );
               })}
@@ -329,7 +352,7 @@ export function KakeiboPage() {
   }
 
   return (
-    <>
+    <RowExpandContext.Provider value={rowExpandValue}>
       <Page>
         {/* 見出しを押すと機能のシートが開き、ほかの拡張の画面へ近道できる。issue #26 */}
         {/* PC は中身が長く、下の帯(Dock)が末尾まで遠くなるため、ここに主な「+」を置く。issue #202 */}
@@ -487,6 +510,6 @@ export function KakeiboPage() {
         />
       )}
       {features && <FeatureSheet onClose={() => setFeatures(false)} />}
-    </>
+    </RowExpandContext.Provider>
   );
 }

@@ -7,7 +7,9 @@ import { defaultExtension } from "@extensions/client/registry";
 import type { ClientExtension } from "@extensions/client/types";
 import type { CalendarItem } from "@shared/api-types";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import type { MouseEvent } from "react";
 import { Link } from "react-router";
+import { markBoxExpandSource, useBoxExpandActive } from "@/lib/box-expand";
 import { cn } from "@/lib/utils";
 import type { ViewItem } from "@/modules/calendar/model";
 import { DefaultTodaySection } from "./DefaultTodaySection";
@@ -39,6 +41,11 @@ export function TodaySectionCard({
   const label = ext.manifest.label;
   const actions = ext.actions ?? [];
   const Body = ext.today?.Component;
+  // 節の見出しを押すと、その面がそのまま機能の画面に広がる動き(共有要素)。0044、0093、issue #241
+  const boxExpandActive = useBoxExpandActive();
+  const onNavClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (boxExpandActive) markBoxExpandSource(e.currentTarget);
+  };
   return (
     <section
       data-testid={`today-section-${ext.manifest.key}`}
@@ -47,7 +54,12 @@ export function TodaySectionCard({
     >
       <header className="flex items-center justify-between gap-2">
         {ext.nav ? (
-          <Link to={ext.nav.path} className="min-w-0 truncate text-sm font-bold text-ink no-underline">
+          <Link
+            to={ext.nav.path}
+            viewTransition={boxExpandActive}
+            onClick={onNavClick}
+            className="min-w-0 truncate text-sm font-bold text-ink no-underline"
+          >
             {label}
           </Link>
         ) : (

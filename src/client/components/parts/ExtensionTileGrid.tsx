@@ -1,10 +1,11 @@
 import type { ClientExtension } from "@extensions/client/types";
 import { GripVertical, Minus, Plus } from "lucide-react";
-import { type PointerEvent as ReactPointerEvent, useState } from "react";
+import { type MouseEvent, type PointerEvent as ReactPointerEvent, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 import { useGroups, useSetExtensionOrder } from "@/api/common";
 import { Button } from "@/components/ui/button";
+import { markBoxExpandSource, useBoxExpandActive } from "@/lib/box-expand";
 import { extensionIcon } from "@/lib/extension-visuals";
 import {
   permanentExtensionTiles,
@@ -67,10 +68,17 @@ function ExtensionLinkTile({
   onNavigate?: () => void;
 }) {
   const [entering] = useState(() => takeExtensionJustAdded(ext.manifest.key));
+  // タイルを押すと、その面がそのまま機能の画面に広がる動き(共有要素)。0044、0093、issue #241
+  const boxExpandActive = useBoxExpandActive();
+  const onClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (boxExpandActive) markBoxExpandSource(e.currentTarget);
+    onNavigate?.();
+  };
   return (
     <Link
       to={tileTo(ext)}
-      onClick={onNavigate}
+      viewTransition={boxExpandActive}
+      onClick={onClick}
       data-testid={`extension-tile-${ext.manifest.key}`}
       className={cn(
         "flex min-w-0 flex-col items-center gap-1.5 text-center text-ink no-underline",

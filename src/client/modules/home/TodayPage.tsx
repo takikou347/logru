@@ -21,6 +21,7 @@ import { useAppFrame } from "@/components/layout/AppShell";
 import { InstallBanner } from "@/components/parts/InstallBanner";
 import { NotificationBell } from "@/components/parts/NotificationBell";
 import { UsualShareOfferBanner } from "@/components/parts/UsualShareBanner";
+import { useTopBarViewTransitionStyle } from "@/lib/bars-view-transition";
 import {
   addDays,
   dateKey,
@@ -33,13 +34,14 @@ import {
   WEEKDAYS,
 } from "@/lib/dates";
 import { useHeadlineText, useTodaySections, useTodaySummaries } from "@/lib/extensions";
+import { RowExpandContext, rowExpandState, useRowExpandActive, useRowExpandTransition } from "@/lib/row-expand";
 import { computeOpenSectionKeys, DEFAULT_TODAY_PAGE_PREFS, orderTodaySectionKeys } from "@/lib/today-sections";
 import { useRecordScreen } from "@/lib/use-back";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useCalendar } from "../calendar/api";
 import { SearchButton } from "../calendar/components/SearchButton";
 import { WeekBand } from "../calendar/components/WeekBand";
-import { hiddenPeople, peopleOf, poolColorsOf, type ViewItem, viewItemsOf } from "../calendar/model";
+import { hiddenPeople, itemKey, peopleOf, poolColorsOf, type ViewItem, viewItemsOf } from "../calendar/model";
 import { useCalendarDelete } from "../calendar/use-calendar-delete";
 import { DayFlipDeck } from "./components/DayFlipDeck";
 import { FoldedFeatureGrid } from "./components/FoldedFeatureGrid";
@@ -166,6 +168,9 @@ export function TodayPage() {
   const allGroups = groups.data ?? [];
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const { hidden, leaving, remove } = useCalendarDelete();
+  // 行がそのままシートに広がる動き(共有要素)。ラボの「新しい見た目」のスマホだけで使う。0044、0093、issue #241
+  const rowExpandActive = useRowExpandActive();
+  const { transitioningKey, openRow, resetRowExpand } = useRowExpandTransition(rowExpandActive);
 
   const date = parseDateKey(params.get("date") ?? "") ?? today;
   const update = useCallback(
@@ -233,6 +238,9 @@ export function TodayPage() {
 
   const addNew = useCallback((d: Date) => setEditor({ mode: "new", date: d }), []);
   const open = useCallback((item: CalendarItem) => setEditor({ mode: "edit", item }), []);
+  // 節の行を押して開くときだけ、行がそのままシートに広がる動き(共有要素)を使う。探した結果・
+  // お知らせから開くとき(openSearchResult、openExt の下)は、押した行がいまの日に無いことがあるので使わない
+  const openFromRow = useCallback((item: CalendarItem) => openRow(itemKey(item), () => open(item)), [openRow, open]);
   // 探した結果を押したとき。その項目の日へ移り、項目を出した拡張の編集のシートを開く。F-38、0046
   const openSearchResult = useCallback(
     (item: CalendarItem) => {
@@ -295,6 +303,8 @@ export function TodayPage() {
 
   const onChangeDate = useCallback((dir: 1 | -1) => update(addDays(date, dir)), [update, date]);
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const rowExpandValue = useMemo(() => rowExpandState(transitioningKey, editor !== null), [transitioningKey, editor]);
+  const topBarVtStyle = useTopBarViewTransitionStyle();
 
   const editorKey = editor?.mode === "edit" ? editor.item.extension : defaultExtension.manifest.key;
   const Editor =
@@ -304,8 +314,11 @@ export function TodayPage() {
   );
 
   return (
-    <>
-      <header className="glass flex min-h-[58px] items-center justify-between gap-1 rounded-panel py-1.5 pr-1.5 pl-2">
+    <RowExpandContext.Provider value={rowExpandValue}>
+      <header
+        className="glass flex min-h-[58px] items-center justify-between gap-1 rounded-panel py-1.5 pr-1.5 pl-2"
+        style={topBarVtStyle}
+      >
         <Link
           to={`/spiral/${date.getFullYear()}`}
           aria-label="カレンダーを見る"
@@ -341,7 +354,7 @@ export function TodayPage() {
               openKeys={openKeys}
               toggleOpen={toggleOpen}
               onSelectWeekDay={update}
-              onOpenItem={open}
+              onOpenItem={openFromRow}
             />
           );
         }}
@@ -357,11 +370,14 @@ export function TodayPage() {
           onOpenItem={(item) => setEditor({ mode: "edit", item })}
           groups={allGroups}
           me={me.data}
-          onClose={() => setEditor(null)}
+          onClose={() => {
+            setEditor(null);
+            resetRowExpand();
+          }}
           onDelete={remove}
           addons={addons}
         />
       )}
-    </>
+    </RowExpandContext.Provider>
   );
 }

@@ -44,6 +44,12 @@ test("はじめの 3 回だけ、タブの下に名前が出る", async ({ page 
   await page.goto("/");
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
   await expect(tabs.getByTestId("tab-hint")).toHaveCount(5);
+  // 名前は帯の角丸の内側に収まる。帯の下の端にかからない
+  const bar = (await tabs.boundingBox())!;
+  for (const hint of await tabs.getByTestId("tab-hint").all()) {
+    const box = (await hint.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(bar.y + bar.height - 6);
+  }
 
   // 4 回目からは消える
   await page.evaluate(() => localStorage.setItem("logru:new-look-tab-hints-seen", "3"));

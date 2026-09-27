@@ -300,6 +300,100 @@ test("グループの「よく使う払い方」の既定を共有口座にす�
   await expect(sheet.getByRole("button", { name: /^口座/ })).toContainText("共有口座");
 });
 
+test("グループの「よく使う払い方」の既定は、作った人でなくてもメンバーなら変えられ、読み込み直しても残り、ほかのメンバーにも同じ既定が見える。0087、F-329", async ({
+  page,
+  browser,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await page.goto("/groups");
+  await page.getByLabel("グループの名前").fill("暮らし");
+  await page.getByRole("button", { name: "作る" }).click();
+  await page.getByRole("button", { name: "招待リンクを作る" }).click();
+  const inviteUrl = await page.getByLabel("招待リンク").inputValue();
+
+  await page.goto("/settings/extensions/kakeibo");
+  await page.getByRole("region", { name: "足すグループ" }).getByRole("button", { name: "暮らしを足す" }).click();
+  await expect(page.getByText("足しました")).toBeVisible();
+
+  const mikaPage = await (await browser.newContext()).newPage();
+  await signUp(mikaPage, { name: "みか", next: new URL(inviteUrl).pathname });
+  await mikaPage.getByRole("button", { name: "参加する" }).click();
+  await expect(mikaPage).toHaveURL(/group=/);
+  await addExtension(mikaPage, "家計簿");
+
+  await createAccount(page, "共有口座", { kind: "銀行", share: "暮らし" });
+
+  // 作った人(こた)でなく、みかがグループの設定で既定を変える
+  await mikaPage.goto("/kakeibo/accounts");
+  const mikaPanel = mikaPage.getByRole("region", { name: "暮らし" });
+  await mikaPanel.getByRole("button", { name: /^よく使う払い方/ }).click();
+  await mikaPage
+    .getByRole("dialog", { name: "よく使う払い方" })
+    .getByRole("option", { name: "共有口座で払う" })
+    .click();
+  await expect(mikaPanel.getByRole("button", { name: /^よく使う払い方/ })).toContainText("共有口座で払う");
+
+  // 読み込み直しても残る
+  await mikaPage.reload();
+  await expect(mikaPanel.getByRole("button", { name: /^よく使う払い方/ })).toContainText("共有口座で払う");
+
+  // 作った人(こた)の画面でも同じ既定になっている
+  await page.goto("/kakeibo/accounts");
+  const panel = page.getByRole("region", { name: "暮らし" });
+  await expect(panel.getByRole("button", { name: /^よく使う払い方/ })).toContainText("共有口座で払う");
+});
+
+test("グループを切り替えた直後はそのグループの既定の口座が入り、続けて記録するときや閉じて開き直したときは前回選んだ口座が入る。0087、F-329", async ({
+  page,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await createAccount(page, "現金", { openingBalance: "0" });
+
+  await page.goto("/groups");
+  await page.getByLabel("グループの名前").fill("暮らし");
+  await page.getByRole("button", { name: "作る" }).click();
+
+  await page.goto("/settings/extensions/kakeibo");
+  await page.getByRole("region", { name: "足すグループ" }).getByRole("button", { name: "暮らしを足す" }).click();
+  await expect(page.getByText("足しました")).toBeVisible();
+
+  await createAccount(page, "共有口座", { kind: "銀行", share: "暮らし" });
+
+  await page.goto("/kakeibo/accounts");
+  const panel = page.getByRole("region", { name: "暮らし" });
+  await panel.getByRole("button", { name: /^よく使う払い方/ }).click();
+  await page.getByRole("dialog", { name: "よく使う払い方" }).getByRole("option", { name: "共有口座で払う" }).click();
+  await expect(panel.getByRole("button", { name: /^よく使う払い方/ })).toContainText("共有口座で払う");
+
+  // グループを切り替えた直後は、そのグループの既定の口座(共有口座)が入る
+  const first = await openRecordSheet(page);
+  await pickShare(page, first, "暮らし");
+  await expect(first.getByRole("button", { name: /^口座/ })).toContainText("共有口座");
+
+  // 口座を手で現金に変え、続けて記録する。金額・メモだけが空になり、グループと口座は残る
+  await first.getByLabel("金額").fill("1000");
+  await first.getByRole("radio", { name: "食費" }).click();
+  await pickAccount(page, first, "口座", "現金");
+  await first.getByRole("button", { name: "続けて記録" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+  await expect(first.getByRole("button", { name: /^共有/ })).toContainText("暮らし");
+  await expect(first.getByRole("button", { name: /^口座/ })).toContainText("現金");
+
+  // 続けて 2 件目を保存し、シートを閉じる
+  await first.getByLabel("金額").fill("500");
+  await first.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("記録しました")).toBeVisible();
+
+  // 閉じて開き直しても、同じグループ(暮らし)のままなら前回選んだ口座(現金)が入る。共有口座の既定には戻らない
+  const second = await openRecordSheet(page);
+  await expect(second.getByRole("button", { name: /^共有/ })).toContainText("暮らし");
+  await expect(second.getByRole("button", { name: /^口座/ })).toContainText("現金");
+});
+
 test("カードの残高はマイナスになり、引き落としの振替で戻る。F-309、F-311", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await enableKakeibo(page);

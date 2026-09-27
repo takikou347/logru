@@ -1,10 +1,17 @@
 /**
- * 今日のページを、左右のスワイプで日めくりに送る。0092、issue #240
+ * 今日のページを、左右のスワイプで日めくりに送る。0092、0095、issue #240、#243
  *
  * MonthFlipDeck(#99)と同じ組み立て(複製した面を指に追従させ、離したら Web Animations API で
- * めくり切るか戻す)を、月の表ではなく今日のページ全体に使う。テーマ(紙・リキッドガラス)で
- * 動く見た目が違う。紙は綴じ目を軸に回り(rotateY)、リキッドガラスは板が傾いて抜け、次の板は
- * 奥から板が来るように、下の面をわずかに拡大・不透明にする。
+ * めくり切るか戻す)を、月の表ではなく今日のページ全体に使う。テーマ(紙・リキッドガラス・水・
+ * 夜空・木・季節)で動く見た目が違う。
+ *
+ * - 紙・木は不透明な「物」としてめくれる(綴じ目・天糊を軸に回り、下に影が差す)。紙は綴じ目(左)を
+ *   軸に回る。木は天糊(上端)を軸に反り、下へずれて破れ落ちるように見せる
+ * - リキッドガラス・水・夜空・季節は透ける面が横に流れて入れ替わる。水は少し弾んでから静まる
+ *   カーブ(--ease-page-flip)、夜空は弧を描くように少し持ち上がって沈む、季節はゆっくり浮いて流れる
+ *
+ * どのテーマも、値(長さ・緩急)は tokens.css の --dur-page-flip・--ease-page-flip から読む。
+ * テーマごとの値の置き場はそちら(0095)。ここでは形(transform の作り方)だけを持つ。
  *
  * スワイプは、見出しや余白など「行の外」でだけ効かせる。行の上(ボタン、リンク、入力、
  * 決定 0084 の SwipeRow)から始まった指は無視し、その行自身のタップ・スワイプに譲る。
@@ -22,7 +29,25 @@ const MAX_ANGLE_DEG = 100;
 const GLASS_TILT_DEG = 16;
 /** リキッドガラスが抜けるときの、横に動く距離(%) */
 const GLASS_SLIDE_PCT = 42;
-/** めくれた紙の裏に重ねる、黒の不透明度の最大 */
+/** 水が抜けるときの傾き。ガラスより少し浅く、弾む緩急(--ease-page-flip)で揺らぎを出す */
+const WATER_TILT_DEG = 12;
+/** 木が天糊(上端)を軸に反る角度 */
+const WOOD_CURL_DEG = 85;
+/** 木が反りながら落ちる距離(px) */
+const WOOD_FALL_PX = 60;
+/** 夜空が弧を描くときの、いちばん高く上がる距離(px) */
+const NIGHT_ARC_PX = 46;
+/** 夜空のページが抜けながら回る角度 */
+const NIGHT_ROTATE_DEG = 22;
+/** 夜空で、迎える面(星空)がわずかに回る角度。文字が傾いて見えない範囲に抑える */
+const NIGHT_BASE_ROTATE_DEG = 1.6;
+/** 季節が流れて抜けるときの、横に動く距離(%) */
+const SEASON_SLIDE_PCT = 36;
+/** 季節のページが浮いて上がる距離(px) */
+const SEASON_FLOAT_PX = 40;
+/** 季節で、迎える面がわずかに浮いた位置から下りてくる距離(px) */
+const SEASON_BASE_RISE_PX = 10;
+/** めくれた紙・木の裏に重ねる、黒の不透明度の最大 */
 const MAX_SHADE_OPACITY = 0.28;
 /** 横に動いたと決めるまでの遊び */
 const LOCK_PX = 10;
@@ -33,11 +58,22 @@ const VISUAL_RATIO = 0.6;
 /** 動きを減らす設定のときの、クロスフェードの長さ(ms) */
 const REDUCED_MS = 150;
 
-type Look = "paper" | "glass";
+type Look = "paper" | "glass" | "water" | "night" | "wood" | "season";
 
 /** その場の見た目の土台。既定はガラス。めくり始めるたびに読み直す */
 function readLook(): Look {
-  return typeof document !== "undefined" && document.documentElement.dataset.look === "paper" ? "paper" : "glass";
+  const v = typeof document !== "undefined" ? document.documentElement.dataset.look : undefined;
+  return v === "paper" || v === "water" || v === "night" || v === "wood" || v === "season" ? v : "glass";
+}
+
+/** 紙・木は不透明な「物」としてめくれる。それ以外は透ける面が流れて入れ替わる */
+function isPhysical(look: Look): boolean {
+  return look === "paper" || look === "wood";
+}
+
+/** めくる軸。紙・ガラス・水・夜空・季節は左端(綴じ目)、木だけ上端(天糊) */
+function transformOriginFor(look: Look): string {
+  return look === "wood" ? "top left" : "left";
 }
 
 /** スワイプを始めた指が、ボタン・リンク・入力・SwipeRow(0084)の上にあるか。あれば行のスワイプに譲る */
@@ -48,21 +84,56 @@ function startedOnRow(target: EventTarget | null): boolean {
 
 /** 複製した面(top)の transform */
 function topTransform(look: Look, progress: number): string {
-  if (look === "paper") return `perspective(${PERSPECTIVE_PX}px) rotateY(${-MAX_ANGLE_DEG * progress}deg)`;
-  return `perspective(${PERSPECTIVE_PX}px) translateX(${-GLASS_SLIDE_PCT * progress}%) rotateY(${-GLASS_TILT_DEG * progress}deg)`;
+  switch (look) {
+    case "paper":
+      return `perspective(${PERSPECTIVE_PX}px) rotateY(${-MAX_ANGLE_DEG * progress}deg)`;
+    case "wood":
+      return `perspective(${PERSPECTIVE_PX}px) rotateX(${-WOOD_CURL_DEG * progress}deg) translateY(${WOOD_FALL_PX * progress}px)`;
+    case "water":
+      return `perspective(${PERSPECTIVE_PX}px) translateX(${-GLASS_SLIDE_PCT * progress}%) rotateY(${-WATER_TILT_DEG * progress}deg)`;
+    case "night":
+      return `perspective(${PERSPECTIVE_PX}px) translateX(${-GLASS_SLIDE_PCT * progress}%) translateY(${-NIGHT_ARC_PX * Math.sin(progress * Math.PI)}px) rotateZ(${-NIGHT_ROTATE_DEG * progress}deg)`;
+    case "season":
+      return `perspective(${PERSPECTIVE_PX}px) translateX(${-SEASON_SLIDE_PCT * progress}%) translateY(${-SEASON_FLOAT_PX * progress}px)`;
+    default:
+      return `perspective(${PERSPECTIVE_PX}px) translateX(${-GLASS_SLIDE_PCT * progress}%) rotateY(${-GLASS_TILT_DEG * progress}deg)`;
+  }
 }
 function topOpacity(look: Look, progress: number): number {
-  return look === "glass" ? 1 - progress * 0.85 : 1;
+  if (look === "paper") return 1;
+  // 木は反り切る手前(7 割)までは見えたまま、そこから破れ落ちるように消える
+  if (look === "wood") return progress < 0.7 ? 1 : 1 - (progress - 0.7) / 0.3;
+  return 1 - progress * 0.85;
 }
 function shadeOpacity(look: Look, progress: number): number {
-  return look === "paper" ? MAX_SHADE_OPACITY * progress : 0;
+  return isPhysical(look) ? MAX_SHADE_OPACITY * progress : 0;
 }
-/** 下の面(base)。リキッドガラスだけ、次の日が奥から来るように少し縮めて薄くしておく */
+/** 下の面(base、次の日)。物としてめくれるテーマ以外は、下から迎える動きを付ける */
 function baseTransform(look: Look, progress: number): string {
-  return look === "glass" ? `scale(${0.95 + 0.05 * progress})` : "none";
+  switch (look) {
+    case "night":
+      // 星空が少し回る、という表の動きを、迎える面のごくわずかな回転で表す
+      return `rotate(${NIGHT_BASE_ROTATE_DEG * progress}deg) scale(${0.96 + 0.04 * progress})`;
+    case "season":
+      return `translateY(${SEASON_BASE_RISE_PX * (1 - progress)}px)`;
+    case "glass":
+    case "water":
+      return `scale(${0.95 + 0.05 * progress})`;
+    default:
+      return "none";
+  }
 }
 function baseOpacity(look: Look, progress: number): number {
-  return look === "glass" ? 0.75 + 0.25 * progress : 1;
+  switch (look) {
+    case "glass":
+    case "water":
+    case "night":
+      return 0.75 + 0.25 * progress;
+    case "season":
+      return 0.85 + 0.15 * progress;
+    default:
+      return 1;
+  }
 }
 
 /** tokens.css の --dur-page-flip、--ease-page-flip を読む。見つからなければ既定値 */
@@ -78,6 +149,11 @@ function motionEasing(): string {
     getComputedStyle(document.documentElement).getPropertyValue("--ease-page-flip").trim() ||
     "cubic-bezier(0.2, 0.9, 0.25, 1)"
   );
+}
+/** 季節のテーマで、日めくりを横切る葉の色。tokens.css の --season-accent を読む */
+function seasonAccent(): string {
+  if (typeof document === "undefined") return "#6e6153";
+  return getComputedStyle(document.documentElement).getPropertyValue("--season-accent").trim() || "#6e6153";
 }
 
 type GestureState = {
@@ -109,6 +185,7 @@ export function DayFlipDeck({
   const topRef = useRef<HTMLDivElement>(null);
   const shadeRef = useRef<HTMLDivElement>(null);
   const baseRef = useRef<HTMLDivElement>(null);
+  const leafRef = useRef<HTMLSpanElement>(null);
   const gestureRef = useRef<GestureState | null>(null);
   const busyRef = useRef(false);
   // めくり終えて実際に送った先。date がここに追いつくまで複製を残す
@@ -148,6 +225,19 @@ export function DayFlipDeck({
         ],
         { duration, easing, fill: "forwards" },
       );
+      // 季節のテーマは、めくりに合わせて葉が横切る。行き来の向きに沿って、反対側から入ってくる
+      if (look === "season" && committed && leafRef.current) {
+        const fromX = dir === 1 ? "-24px" : "424px";
+        const toX = dir === 1 ? "424px" : "-24px";
+        leafRef.current.animate(
+          [
+            { transform: `translate(${fromX}, 8px) rotate(-18deg)`, opacity: 0 },
+            { transform: "translate(200px, -18px) rotate(30deg)", opacity: 1, offset: 0.5 },
+            { transform: `translate(${toX}, 4px) rotate(60deg)`, opacity: 0 },
+          ],
+          { duration, easing: "ease-in-out" },
+        );
+      }
       const finish = () => {
         top.style.transform = topTransform(look, toProgress);
         anim.cancel();
@@ -273,6 +363,7 @@ export function DayFlipDeck({
   }, [onChangeDate, reducedMotion, settle]);
 
   const targetDate = peek ? addDays(date, peek.dir) : date;
+  const look = readLook();
 
   return (
     <div ref={viewportRef} data-testid="day-flip-viewport" className={peek ? "relative overflow-hidden" : "relative"}>
@@ -282,11 +373,22 @@ export function DayFlipDeck({
           ref={topRef}
           aria-hidden="true"
           className="absolute inset-0 top-0"
-          style={{ transformOrigin: "left", backfaceVisibility: "hidden" }}
+          style={{ transformOrigin: transformOriginFor(look), backfaceVisibility: "hidden" }}
         >
           {renderPage(date)}
           <div ref={shadeRef} className="pointer-events-none absolute inset-0 bg-black opacity-0" />
         </div>
+      )}
+      {peek && look === "season" && (
+        <span
+          ref={leafRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 left-0 z-10 h-4 w-4 opacity-0"
+          style={{
+            background: seasonAccent(),
+            clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+          }}
+        />
       )}
     </div>
   );

@@ -398,6 +398,134 @@
   }
 }
 
+/*
+ * 水・夜空・木・季節の保存した反応。0095、0093、issue #243
+ * 共通の item-enter(膨らんで入る動き)と、上の row-save-glass(fade-in)はそのまま使い、
+ * ::after の見せ方だけをテーマごとに差し替える。行の位置・大きさは動かさない(0093 の決まりのまま)。
+ * ::after は .item-enter の overflow:hidden の中に収まるので、行の外へ出た分は自然に隠れる。
+ */
+
+/* 水。押した行いっぱいに、輪が三重に広がって静まる */
+[data-lab-new-look][data-look="water"] .item-enter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-radial-gradient(circle at 50% 50%, var(--glass-shine) 0 2px, transparent 3px 16px);
+  transform: scale(0.15);
+  transform-origin: 50% 50%;
+  opacity: 0.9;
+  animation: row-save-ripple var(--dur-save) var(--ease-out);
+}
+@keyframes row-save-ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(0.15);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+/* 夜空。流れ星が行を斜めに横切る */
+[data-lab-new-look][data-look="night"] .item-enter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(3px 3px at 0 50%, #fff, transparent 65%),
+    linear-gradient(100deg, transparent 42%, rgba(230, 236, 255, 0.65) 49%, transparent 56%);
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 0 4px rgba(200, 220, 255, 0.8));
+  transform: translate(-30%, 30%);
+  opacity: 0;
+  animation: row-save-star var(--dur-save) var(--ease-out);
+}
+@keyframes row-save-star {
+  0% {
+    opacity: 0;
+    transform: translate(-30%, 30%);
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(130%, -60%);
+  }
+}
+
+/* 木。右端に朱の判が押される */
+[data-lab-new-look][data-look="wood"] .item-enter::after {
+  content: "";
+  position: absolute;
+  inset: auto;
+  top: 50%;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  margin-top: -15px;
+  border-radius: 6px;
+  background: radial-gradient(circle at 35% 30%, #c0392b, #8f2a1e 70%);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.15);
+  opacity: 0;
+  transform: scale(1.8) rotate(-14deg);
+  animation: row-save-stamp var(--dur-save) var(--ease-out);
+}
+@keyframes row-save-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.8) rotate(-14deg);
+  }
+  55% {
+    opacity: 0.92;
+    transform: scale(0.92) rotate(-2deg);
+  }
+  75% {
+    transform: scale(1.05) rotate(-2deg);
+  }
+  100% {
+    opacity: 0.88;
+    transform: scale(1) rotate(-2deg);
+  }
+}
+
+/* 季節。--season-accent の色の葉が、行を左から右へ舞う */
+[data-lab-new-look][data-look="season"] .item-enter::after {
+  content: "";
+  position: absolute;
+  inset: auto;
+  top: 8px;
+  left: -18px;
+  width: 12px;
+  height: 12px;
+  background: var(--season-accent);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  opacity: 0;
+  animation: row-save-leaf var(--dur-save) ease-in-out;
+}
+@keyframes row-save-leaf {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(-20deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(340px, 18px) rotate(70deg);
+  }
+}
+
 [data-leaving="true"] {
   opacity: 0;
   transform: scale(0.96);

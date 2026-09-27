@@ -1,5 +1,6 @@
 import { CalendarDays, House, Settings, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
+import { useLocation } from "react-router";
 import { useGroups } from "@/api/common";
 import { useDockViewTransitionStyle } from "@/lib/bars-view-transition";
 import { useFavoriteAdds, useQuickAdds } from "@/lib/extensions";
@@ -67,6 +68,12 @@ export function GlobalBottomTabs() {
   const newLook = useNewLookActive();
   const showHint = useShowTabHints(newLook);
   const vtStyle = useDockViewTransitionStyle();
+  // 「機能」(/settings/extensions)は「設定」(/settings)の道順に含まれる。既定の NavLink の判定
+  // (to から始まる道順すべて)のままだと、/settings/extensions では両方選ばれた色になる。
+  // 「/settings/extensions から始まる道順は機能、それ以外の /settings は設定」と 1 つに決める。issue #243
+  const { pathname } = useLocation();
+  const onExtensions = pathname === "/settings/extensions" || pathname.startsWith("/settings/extensions/");
+  const onSettings = pathname === "/settings" || (pathname.startsWith("/settings/") && !onExtensions);
   return (
     <nav
       aria-label="下のタブ"
@@ -82,8 +89,14 @@ export function GlobalBottomTabs() {
       <TabIconButton to="/" end icon={House} label="今日のページ" showHint={showHint} />
       <TabIconButton to="/?view=month" icon={CalendarDays} label="カレンダー" showHint={showHint} />
       <RadialAddButton items={quickAdds} favorites={favorites} showHint={showHint} pending={groups.isPending} />
-      <TabIconButton to="/settings/extensions" icon={SlidersHorizontal} label="機能" showHint={showHint} />
-      <TabIconButton to="/settings" icon={Settings} label="設定" showHint={showHint} />
+      <TabIconButton
+        to="/settings/extensions"
+        icon={SlidersHorizontal}
+        label="機能"
+        showHint={showHint}
+        active={onExtensions}
+      />
+      <TabIconButton to="/settings" icon={Settings} label="設定" showHint={showHint} active={onSettings} />
     </nav>
   );
 }

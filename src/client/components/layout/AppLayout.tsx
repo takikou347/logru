@@ -86,13 +86,19 @@ export function AccountMenu({ wide = false }: { wide?: boolean }) {
             <Link to="/groups">グループ</Link>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem asChild>
-          {/* 新しい見た目・スマホの下のタブの「設定」と同じアイコンにそろえる。0091、issue #239 */}
-          <Link to="/settings">
-            <Settings className="size-4" aria-hidden="true" />
-            設定
-          </Link>
-        </DropdownMenuItem>
+        {/*
+          PC(wide)は、この設定の行き先を左の列に直に置く(AppShell)。グループと同じ考えで、
+          ここでは二重に出さない。issue #243
+        */}
+        {!wide && (
+          <DropdownMenuItem asChild>
+            {/* 新しい見た目・スマホの下のタブの「設定」と同じアイコンにそろえる。0091、issue #239 */}
+            <Link to="/settings">
+              <Settings className="size-4" aria-hidden="true" />
+              設定
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={doSignOut}>ログアウト</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

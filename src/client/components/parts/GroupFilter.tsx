@@ -11,6 +11,7 @@ import { Chip } from "@/components/parts/Chip";
 import { Dot } from "@/components/parts/Panel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { groupColor } from "@/lib/colors";
+import { cn } from "@/lib/utils";
 
 /** グループの絞り込みの選択肢。すべて、自分だけ、共有のグループの 1 つずつ */
 export type GroupFilterOption = { key: string; pressed: boolean; onClick: () => void; label: ReactNode };
@@ -55,18 +56,22 @@ export function groupFilterOptions({
  * スマホの、横に流れる絞り込みの帯。はみ出すときだけ下にバーを出す。F-25
  * @param tourId 案内(ScreenTour)が指す data-tour。省くと付けない
  * @param children グループの後ろに足すもの。人のチップ、種類の入り切りなど
+ * @param className 足すクラス。カレンダーは新しい見た目・スマホでこの帯自体を隠し(`nl-hide`)、
+ *   上の帯の絞り込みアイコン 1 つにまとめる。issue #243
  */
 export function GroupFilterBand({
   options,
   tourId,
   children,
+  className,
 }: {
   options: GroupFilterOption[];
   tourId?: string;
   children?: ReactNode;
+  className?: string;
 }) {
   return (
-    <nav className="-mx-4 lg:hidden" aria-label="グループで絞る" data-tour={tourId}>
+    <nav className={cn("-mx-4 lg:hidden", className)} aria-label="グループで絞る" data-tour={tourId}>
       <ScrollArea
         orientation="horizontal"
         className="px-4"

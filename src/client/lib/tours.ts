@@ -22,6 +22,14 @@ export const BASE_TOURS = {
     },
   ],
   group: [{ target: '[data-tour="group-invite"]', text: "招待リンクを渡すと、7 日のあいだ相手がグループに入れます。" }],
+  // 新しい見た目・スマホの今日のページ(TodayPage)。0092 では配線していなかった案内を、この issue で足す。issue #243
+  today: [
+    { target: '[data-tour="today-swipe"]', text: "左右にスワイプすると、前の日・次の日へ移れます。" },
+    {
+      target: '[data-tour="today-folded"]',
+      text: "機能が増えると、ここに畳んだ機能が並びます。押すとその場で開きます。",
+    },
+  ],
   extensions: [
     {
       target: '[data-tour="extension-add"]',

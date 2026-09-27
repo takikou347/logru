@@ -5,7 +5,7 @@
  * `showHint` の間は、名前をアイコンの下に常に出す(はじめの 3 回)。
  */
 import type { LucideIcon } from "lucide-react";
-import { NavLink } from "react-router";
+import { Link, NavLink } from "react-router";
 import { useLongPressLabel } from "@/lib/use-long-press";
 import { cn } from "@/lib/utils";
 
@@ -15,32 +15,56 @@ export function TabIconButton({
   icon: Icon,
   label,
   showHint,
+  active,
 }: {
   to: string;
   end?: boolean;
   icon: LucideIcon;
   label: string;
   showHint?: boolean;
+  /**
+   * 選ばれた色にするかを、NavLink の既定の判定(to から始まる道順すべて)の代わりに自分で決める。
+   * 下のタブの「設定」(`/settings`)は、既定のままだと「機能」(`/settings/extensions`)の道順も
+   * 含んでしまい、その画面で両方選ばれた色になる。GlobalBottomTabs が、いまの道順から
+   * 1 つのタブだけを選ぶ形で計算して渡す。省くと今までどおり NavLink の既定の判定を使う。issue #243
+   */
+  active?: boolean;
 }) {
   const { pressed, consumeLongPress, handlers } = useLongPressLabel();
+  const linkClassName = cn(
+    "grid w-11 place-items-center rounded-full text-ink-2 aria-[current=page]:text-ink",
+    // 名前を下に出す間は、名前ごと帯の高さに収まるよう、押せる所の高さを詰める
+    showHint ? "h-9" : "h-11",
+  );
   return (
     <span className="relative flex min-w-0 flex-1 flex-col items-center gap-0.5">
-      <NavLink
-        to={to}
-        end={end}
-        aria-label={label}
-        className={cn(
-          "grid w-11 place-items-center rounded-full text-ink-2 aria-[current=page]:text-ink",
-          // 名前を下に出す間は、名前ごと帯の高さに収まるよう、押せる所の高さを詰める
-          showHint ? "h-9" : "h-11",
-        )}
-        onClick={(e) => {
-          if (consumeLongPress()) e.preventDefault();
-        }}
-        {...handlers}
-      >
-        <Icon className="size-5" aria-hidden="true" />
-      </NavLink>
+      {active === undefined ? (
+        <NavLink
+          to={to}
+          end={end}
+          aria-label={label}
+          className={linkClassName}
+          onClick={(e) => {
+            if (consumeLongPress()) e.preventDefault();
+          }}
+          {...handlers}
+        >
+          <Icon className="size-5" aria-hidden="true" />
+        </NavLink>
+      ) : (
+        <Link
+          to={to}
+          aria-label={label}
+          aria-current={active ? "page" : undefined}
+          className={linkClassName}
+          onClick={(e) => {
+            if (consumeLongPress()) e.preventDefault();
+          }}
+          {...handlers}
+        >
+          <Icon className="size-5" aria-hidden="true" />
+        </Link>
+      )}
       {showHint && (
         <small
           aria-hidden="true"

@@ -1,5 +1,6 @@
 import type { GroupMember, GroupSummary, Me } from "@shared/api-types";
 import { GROUP_COLORS } from "@shared/colors";
+import { Copy, ShieldCheck, ShieldMinus, Trash2 } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ import { ColorSwatches } from "@/components/parts/ColorSwatches";
 import { ExtensionToggleRow } from "@/components/parts/ExtensionToggleRow";
 import { FailurePanel, LoadFailure } from "@/components/parts/Failure";
 import { Field } from "@/components/parts/Field";
+import { IconOnlyButton } from "@/components/parts/IconOnlyButton";
 import { Dot, Empty, FieldMessage, Panel, PanelRow, RowButton } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { ScreenTour } from "@/components/parts/ScreenTour";
@@ -211,20 +213,30 @@ export function GroupDetailPage() {
                   このリンクを開いた人は、7 日のうちならグループに入れます。招待したい相手にだけ送ってください。
                 </FieldMessage>
                 <Input readOnly value={invite.url} aria-label="招待リンク" onFocus={(e) => e.target.select()} />
-                <Button className="self-start" onClick={copy} disabled={leavingInvite.has("invite")}>
+                {/* 新しい見た目・スマホはアイコンだけ、それ以外は文字のボタン。issue #243 */}
+                <Button className="nl-hide self-start" onClick={copy} disabled={leavingInvite.has("invite")}>
                   コピーする
                 </Button>
+                {/*
+                  読み上げの名前に「招待リンク」を含めると、getByLabel("招待リンク") がこのボタンにも
+                  当たってしまう(Playwright の getByLabel は aria-label を持つ要素なら input 以外にも
+                  当たり、隠れていても除かれない)。名前は「招待を」にして避ける。issue #243
+                */}
+                <IconOnlyButton
+                  icon={Copy}
+                  label="招待をコピーする"
+                  className="nl-only self-start bg-primary text-primary-foreground"
+                  onClick={copy}
+                  disabled={leavingInvite.has("invite")}
+                />
               </div>
             ) : (
               <Button variant="secondary" className="self-start" onClick={makeInvite}>
                 招待リンクを作る
               </Button>
             )}
-            <Button
-              variant="ghost"
-              className="self-start"
-              disabled={leavingInvite.has("invite")}
-              onClick={() => {
+            {(() => {
+              const revoke = () => {
                 if (!invite) {
                   void run(() => revokeInvites.mutateAsync(), "招待リンクをすべて取り消しました");
                   return;
@@ -234,10 +246,28 @@ export function GroupDetailPage() {
                     setInvite(null),
                   );
                 });
-              }}
-            >
-              招待リンクをすべて取り消す
-            </Button>
+              };
+              return (
+                <>
+                  <Button
+                    variant="ghost"
+                    className="nl-hide self-start"
+                    disabled={leavingInvite.has("invite")}
+                    onClick={revoke}
+                  >
+                    招待リンクをすべて取り消す
+                  </Button>
+                  {/* 「招待リンク」を含めない理由は、コピーするボタンと同じ。issue #243 */}
+                  <IconOnlyButton
+                    icon={Trash2}
+                    label="招待をすべて取り消す"
+                    className="nl-only self-start text-sun"
+                    onClick={revoke}
+                    disabled={leavingInvite.has("invite")}
+                  />
+                </>
+              );
+            })()}
           </Panel>
         )}
 
@@ -347,9 +377,23 @@ function MemberRow({
       </span>
       <span className="text-xs text-ink-2">{member.role === "admin" ? "管理者" : "メンバー"}</span>
       {canManage && (
-        <Button variant="ghost" size="sm" onClick={() => onRole(member.role === "admin" ? "member" : "admin")}>
-          {member.role === "admin" ? "メンバーに戻す" : "管理者にする"}
-        </Button>
+        <>
+          {/* 新しい見た目・スマホはアイコンだけ、それ以外は文字のボタン。issue #243 */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="nl-hide"
+            onClick={() => onRole(member.role === "admin" ? "member" : "admin")}
+          >
+            {member.role === "admin" ? "メンバーに戻す" : "管理者にする"}
+          </Button>
+          <IconOnlyButton
+            icon={member.role === "admin" ? ShieldMinus : ShieldCheck}
+            label={member.role === "admin" ? `${member.name} をメンバーに戻す` : `${member.name} を管理者にする`}
+            className="nl-only size-9"
+            onClick={() => onRole(member.role === "admin" ? "member" : "admin")}
+          />
+        </>
       )}
     </div>
   );

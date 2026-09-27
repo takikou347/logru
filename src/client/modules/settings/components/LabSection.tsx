@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react";
 import { Link } from "react-router";
 import { useMe } from "@/api/common";
-import { FieldMessage, Panel, PanelRow, rowClass } from "@/components/parts/Panel";
+import { FieldMessage, Panel, PanelRow, RowChevron, rowClass } from "@/components/parts/Panel";
 import { Switch } from "@/components/ui/switch";
 import { isLabEnabled, LAB_EXPERIMENTS, setLabEnabled } from "@/lib/lab";
 import { cn } from "@/lib/utils";
@@ -45,9 +45,7 @@ function LabPanel() {
             {ex.enabledLink && enabled[ex.key] && (
               <Link to={ex.enabledLink.to} className={cn(rowClass, "no-underline")}>
                 <span className="flex-1">{ex.enabledLink.label}</span>
-                <span className="text-lg text-ink-3" aria-hidden="true">
-                  ›
-                </span>
+                <RowChevron />
               </Link>
             )}
           </Fragment>

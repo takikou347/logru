@@ -15,7 +15,7 @@ export function FoldedFeatureGrid({
 }) {
   if (sections.length === 0) return null;
   return (
-    <div className="glass rounded-panel px-3 py-3">
+    <div className="glass rounded-panel px-3 py-3" data-tour="today-folded">
       <h2 className="mb-2 px-0.5 text-xs font-bold text-ink-2">畳んだ機能</h2>
       <div data-testid="today-folded-grid" className="grid grid-cols-3 gap-2">
         {sections.map((ext) => (

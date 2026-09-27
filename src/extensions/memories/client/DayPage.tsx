@@ -14,6 +14,7 @@ import type { MemoryRecord } from "../shared/types";
 import { useDeleteRecord, useInvalidateMemories, useMemoryList, useRecords } from "./api";
 import { Flow } from "./Flow";
 import { KomaStrip } from "./KomaStrip";
+import { useKomaDays } from "./koma-api";
 import { entriesOf, Lightbox } from "./Lightbox";
 import { MemoryShell, type ShellProps } from "./MemoryShell";
 import { PageFlip } from "./PageFlip";
@@ -61,6 +62,9 @@ function Day({ detail, me, groups, group }: ShellProps) {
   const [editing, setEditing] = useState<MemoryRecord | null>(null);
   const [photoAt, setPhotoAt] = useState<number | null>(null);
   const entries = entriesOf(records.data ?? []);
+  // 自分のひとコマは、旅先へ移ればいまの端末の時間帯に合わせ直した行を持つ。ここでもその時間帯で枠を数える。0022、#255
+  const komaDays = useKomaDays();
+  const komaTimeZone = komaDays.data?.find((d) => d.day === day)?.timeZone ?? memory.timeZone;
 
   return (
     <>
@@ -101,8 +105,8 @@ function Day({ detail, me, groups, group }: ShellProps) {
           )}
           {(memory.komaEnabled || (records.data ?? []).some((r) => r.kind === "koma")) && (
             <KomaStrip
-              dayStart={from}
-              timeZone={memory.timeZone}
+              dayStart={startOfDayIn(day, komaTimeZone)}
+              timeZone={komaTimeZone}
               records={records.data ?? []}
               nowPath={Date.now() >= from && Date.now() < to ? "/memories/koma/now" : undefined}
               onOpen={(r) =>

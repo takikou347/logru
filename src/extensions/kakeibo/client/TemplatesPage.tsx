@@ -1,6 +1,6 @@
-/** よく使う記録の画面。並べる。名前を直す、消す。F-326 */
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+/** よく使う記録の画面。並べる。押すと全部の欄を直せる、消す。0072、F-326、issue #248 */
+import { useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { Page, PageBar } from "@/components/layout/AppLayout";
@@ -9,7 +9,6 @@ import { EmptyState } from "@/components/parts/EmptyState";
 import { LoadFailure } from "@/components/parts/Failure";
 import { Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useRowMotion } from "@/lib/use-row-motion";
 import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
@@ -17,60 +16,27 @@ import { takeJustAdded } from "@/modules/calendar/recent-items";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { formatYen } from "../shared/format";
 import type { KakeiboTemplate } from "./api";
-import { useDeleteTemplate, useKakeiboGroups, useKakeiboTemplates, useSaveTemplate } from "./api";
+import { useDeleteTemplate, useKakeiboGroups, useKakeiboTemplates } from "./api";
+import { TemplateSheet } from "./TemplateSheet";
 
 /**
- * よく使う記録 1 件の行。名前を押すとその場で直せる。issue #12 と同じ「元に戻す」で消す。
- * 足した直後は膨らんで入り、消す途中は縮んで消える。直した直後は短く光る。0044、0048、0085、#226
+ * よく使う記録 1 件の行。押すと直すシートが開き、全部の欄を直せる。issue #12 と同じ「元に戻す」で消す。
+ * 足した直後は膨らんで入り、消す途中は縮んで消える。直した直後は短く光る。0044、0048、0085、#226、issue #248
  */
 function TemplateRow({
   template,
   isLeaving,
   isEdited,
-  onFlash,
+  onEdit,
   onRemove,
 }: {
   template: KakeiboTemplate;
   isLeaving: boolean;
   isEdited: boolean;
-  onFlash: () => void;
+  onEdit: () => void;
   onRemove: () => void;
 }) {
-  const saveTemplate = useSaveTemplate();
   const [entering] = useState(() => takeJustAdded(template.id));
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(template.name);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editing) {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    }
-  }, [editing]);
-
-  async function commit() {
-    const value = name.trim();
-    setEditing(false);
-    if (!value || value === template.name) return;
-    try {
-      await saveTemplate.mutateAsync({ id: template.id, body: { name: value } });
-      onFlash();
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  }
-
-  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      e.currentTarget.blur();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      setName(template.name);
-      setEditing(false);
-    }
-  }
 
   const detail = [
     template.type === "income" ? "収入" : "支出",
@@ -89,30 +55,10 @@ function TemplateRow({
       data-leaving={isLeaving || undefined}
       data-edited={isEdited || undefined}
     >
-      {editing ? (
-        <Input
-          ref={inputRef}
-          value={name}
-          maxLength={30}
-          aria-label={`${template.name} を直す`}
-          className="h-9"
-          onChange={(e) => setName(e.target.value)}
-          onBlur={() => void commit()}
-          onKeyDown={onKeyDown}
-        />
-      ) : (
-        <button
-          type="button"
-          className="flex min-w-0 flex-col items-start text-left"
-          onClick={() => {
-            setName(template.name);
-            setEditing(true);
-          }}
-        >
-          <span className="min-w-0 truncate text-[15px] font-medium">{template.name}</span>
-          <span className="text-xs text-ink-2">{detail}</span>
-        </button>
-      )}
+      <button type="button" className="flex min-w-0 flex-col items-start text-left" onClick={onEdit}>
+        <span className="min-w-0 truncate text-[15px] font-medium">{template.name}</span>
+        <span className="text-xs text-ink-2">{detail}</span>
+      </button>
       <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
         消す
       </Button>
@@ -130,40 +76,64 @@ export function TemplatesPage() {
   const { hidden, leaving, remove, flashing, flash } = useRowMotion("よく使う記録を消しました");
   useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
 
+  const [params, setParams] = useSearchParams();
+  const editingId = params.get("edit");
+  const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
+  // 同じ記録をもう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。RecurringsPage と同じ。#211
+  const editGen = useRef(0);
+
   if (!me.data) return <Loading />;
   const rows = (templates.data ?? []).filter((t) => !hidden.has(t.id));
+  const editing = rows.find((t) => t.id === editingId);
 
   return (
-    <Page>
-      <PageBar title="よく使う記録" back="/kakeibo" />
+    <>
+      <Page>
+        <PageBar title="よく使う記録" back="/kakeibo" />
 
-      {templates.error && !templates.data && (
-        <LoadFailure what="よく使う記録" error={templates.error} onRetry={() => void templates.refetch()} />
-      )}
-      {templates.isPending && <Loading />}
+        {templates.error && !templates.data && (
+          <LoadFailure what="よく使う記録" error={templates.error} onRetry={() => void templates.refetch()} />
+        )}
+        {templates.isPending && <Loading />}
 
-      {templates.data && (
-        <Panel>
-          {rows.length === 0 ? (
-            <EmptyState pose="coin" bordered={false} action={{ label: "支出を記録する", to: "/kakeibo?record=1" }}>
-              まだよく使う記録がありません。記録のシートの「よく使う記録にする」で残せます。
-            </EmptyState>
-          ) : (
-            <ul className="flex flex-col">
-              {rows.map((t) => (
-                <TemplateRow
-                  key={t.id}
-                  template={t}
-                  isLeaving={leaving.has(t.id)}
-                  isEdited={flashing.has(t.id)}
-                  onFlash={() => flash(t.id)}
-                  onRemove={() => remove(t.id, ({ keepalive }) => deleteTemplate.mutateAsync({ id: t.id, keepalive }))}
-                />
-              ))}
-            </ul>
-          )}
-        </Panel>
+        {templates.data && (
+          <Panel>
+            {rows.length === 0 ? (
+              <EmptyState pose="coin" bordered={false} action={{ label: "支出を記録する", to: "/kakeibo?record=1" }}>
+                まだよく使う記録がありません。記録のシートの「よく使う記録にする」で残せます。
+              </EmptyState>
+            ) : (
+              <ul className="flex flex-col">
+                {rows.map((t) => (
+                  <TemplateRow
+                    key={t.id}
+                    template={t}
+                    isLeaving={leaving.has(t.id)}
+                    isEdited={flashing.has(t.id)}
+                    onEdit={() => {
+                      editGen.current += 1;
+                      setParams((p) => (p.set("edit", t.id), p), { replace: true });
+                    }}
+                    onRemove={() =>
+                      remove(t.id, ({ keepalive }) => deleteTemplate.mutateAsync({ id: t.id, keepalive }))
+                    }
+                  />
+                ))}
+              </ul>
+            )}
+          </Panel>
+        )}
+      </Page>
+      {editing && (
+        <TemplateSheet
+          key={`${editingId}-${editGen.current}`}
+          groups={groups}
+          me={me.data}
+          template={editing}
+          onClose={closeEdit}
+          onSaved={flash}
+        />
       )}
-    </Page>
+    </>
   );
 }

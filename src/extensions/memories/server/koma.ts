@@ -8,7 +8,7 @@ import { sendPush } from "@server/core/push/send";
 import { and, desc, eq, gt, gte, inArray, lt, lte, ne } from "drizzle-orm";
 import { memoriesManifest } from "../manifest";
 import { addDaysToKey, DAY_MS, dayIndexOf, dayKeyIn, hourIn, startOfDayIn } from "../shared/days";
-import { KOMA_FIRST_HOUR, openSlots, slotAt } from "../shared/koma";
+import { KOMA_FIRST_HOUR, openSlots, slotAt, timeZoneDrifted } from "../shared/koma";
 import { komaDayInput, komaInput } from "../shared/schemas";
 import type { KomaDay, KomaNow } from "../shared/types";
 import { requireMemoriesGroup, usableGroupIds, usersUsingMemories } from "./access";
@@ -61,15 +61,27 @@ async function todayRow(db: DB, userId: string, now: number, tz: string): Promis
     .where(and(eq(memoryKomaDays.userId, userId), eq(memoryKomaDays.day, day)))
     .get();
   // つないだグループで思い出が使えなくなったら、始めていない扱いにする。始め直すと、別のグループにつなぎ直せる
-  if (found) return usable.includes(found.groupId) ? found : undefined;
+  if (found) {
+    if (!usable.includes(found.groupId)) return undefined;
+    // 旅先へ移ったら、今日の残りの枠をいまの端末の時間帯で数え直す。0022 の「困ること」。#255
+    if (timeZoneDrifted(found.timeZone, tz)) {
+      await db
+        .update(memoryKomaDays)
+        .set({ timeZone: tz })
+        .where(and(eq(memoryKomaDays.userId, userId), eq(memoryKomaDays.day, day)));
+      return { ...found, timeZone: tz };
+    }
+    return found;
+  }
   const memory = await komaMemoryOn(db, usable, now);
   if (!memory) return undefined;
+  // 枠は端末のいまの時間帯で数える。思い出の時間帯は、初めの候補を探すためだけに使う。#255
   const row = {
     userId,
-    day: dayKeyIn(now, memory.timeZone),
+    day,
     groupId: memory.groupId,
     memoryId: memory.id,
-    timeZone: memory.timeZone,
+    timeZone: tz,
   };
   await db.insert(memoryKomaDays).values(row).onConflictDoNothing();
   return db

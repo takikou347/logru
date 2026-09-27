@@ -607,6 +607,13 @@ export function ExpenseSheet({
 
           {splitting && (
             <>
+              {expense?.splits && (
+                // あとから入った人は、それまでの割り勘に入らない。記録したときの人数を出して伝える。0072 の困ること、issue #248
+                <FieldMessage>
+                  この記録を割ったのは、記録したときのメンバー {expense.splits.length}{" "}
+                  人です。あとから入った人は、この記録の割り勘には入りません。
+                </FieldMessage>
+              )}
               <PayerPickerRow
                 groups={groups}
                 members={splitMembers}

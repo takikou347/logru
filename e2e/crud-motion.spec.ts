@@ -174,11 +174,12 @@ test("よく使う記録を作ると膨らんで入り、直すと光り、消�
   const row = page.locator("li").filter({ hasText: "消す" });
   await expect(row).toHaveClass(/item-enter/);
 
-  // その場で名前を直すと、直後だけ光る印が付く
+  // 押すと直すシートが開き、名前を直すと、直後だけ光る印が付く。issue #248
   await page.getByText("いつもの買い物").click();
-  await page.getByLabel("いつもの買い物 を直す").fill("スーパー");
+  const edit = page.getByRole("dialog", { name: "よく使う記録を直す" });
+  await edit.getByLabel("名前").fill("スーパー");
   const edited = await watchAttribute(row, "data-edited", "true");
-  await page.getByLabel("いつもの買い物 を直す").press("Enter");
+  await edit.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("スーパー")).toBeVisible();
   await edited();
 

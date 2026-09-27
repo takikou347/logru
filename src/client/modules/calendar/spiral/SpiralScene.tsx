@@ -11,7 +11,8 @@ import type { DaySummary } from "./summarize";
 const RADIUS = 3.2;
 const HEIGHT = 7;
 const DOT_RADIUS = 0.09;
-const PHOTO_SIZE = 0.34;
+/** ひとコマの写真の大きさ。32px の tiny では色の塊に見えたため、1 段大きくした。0051、#256 */
+const PHOTO_SIZE = 0.46;
 const TARGET_FPS = 24;
 const MIN_DISTANCE = 4;
 const MAX_DISTANCE = 16;
@@ -37,7 +38,16 @@ function pinchDistance(pointers: Map<number, { x: number; y: number }>): number 
   return Math.hypot(a!.x - b!.x, a!.y - b!.y);
 }
 
-export function SpiralScene({ summaries, onPressDay }: { summaries: DaySummary[]; onPressDay: (date: Date) => void }) {
+export function SpiralScene({
+  summaries,
+  onPressDay,
+  onPressPhoto,
+}: {
+  summaries: DaySummary[];
+  onPressDay: (date: Date) => void;
+  /** ひとコマの写真を押したとき。日の点を押したときの onPressDay とは分ける。#256 */
+  onPressPhoto: (date: Date) => void;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: シーンは summaries が変わったときだけ作り直す
@@ -203,7 +213,7 @@ export function SpiralScene({ summaries, onPressDay }: { summaries: DaySummary[]
       const spriteIndex = photoSprites.indexOf(hit.object as THREE.Sprite);
       if (spriteIndex >= 0) {
         const date = photoDay[spriteIndex];
-        if (date) onPressDay(date);
+        if (date) onPressPhoto(date);
       }
     }
 

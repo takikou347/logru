@@ -5,8 +5,9 @@ import { Link, useNavigate, useParams } from "react-router";
 import { useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { LoadFailure } from "@/components/parts/Failure";
+import { PhotoLightbox } from "@/components/parts/PhotoLightbox";
 import { Button } from "@/components/ui/button";
-import { dateKey } from "@/lib/dates";
+import { dateKey, formatDay } from "@/lib/dates";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { decorate } from "../model";
 import { useYearCalendar } from "./api";
@@ -15,7 +16,11 @@ import { summarizeDays } from "./summarize";
 import { REDUCED_MOTION_QUERY, supportsWebGL } from "./support";
 import { daysInYear } from "./year-range";
 
-type ScenePropsShape = { summaries: ReturnType<typeof summarizeDays>; onPressDay: (date: Date) => void };
+type ScenePropsShape = {
+  summaries: ReturnType<typeof summarizeDays>;
+  onPressDay: (date: Date) => void;
+  onPressPhoto: (date: Date) => void;
+};
 
 /**
  * 1 年を 3D のらせんで見る画面。F-39、0051
@@ -61,8 +66,16 @@ export function SpiralPage() {
     [items, groups.data, me.data],
   );
   const summaries = useMemo(() => summarizeDays(days, decorated), [days, decorated]);
+  // ひとコマの写真がある日だけを並べ、写真を押したときの拡大表示で前後に移れるようにする。F-115 と同じ形。#256
+  const photoDays = useMemo(() => summaries.filter((s) => s.thumb), [summaries]);
+  const [photoIndex, setPhotoIndex] = useState<number | null>(null);
 
   const onPressDay = (date: Date) => navigate(`/?date=${dateKey(date)}&view=day`);
+  const onPressPhoto = (date: Date) => {
+    const i = photoDays.findIndex((d) => d.date.getTime() === date.getTime());
+    if (i >= 0) setPhotoIndex(i);
+  };
+  const photo = photoIndex !== null ? photoDays[photoIndex] : undefined;
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col" style={{ background: "var(--ground)" }}>
@@ -106,11 +119,29 @@ export function SpiralPage() {
             onRetry={() => location.reload()}
           />
         ) : want3D && Scene ? (
-          <Scene summaries={summaries} onPressDay={onPressDay} />
+          <Scene summaries={summaries} onPressDay={onPressDay} onPressPhoto={onPressPhoto} />
         ) : (
           <FlatYear year={validYear} summaries={summaries} today={new Date()} />
         )}
       </div>
+      {photo && (
+        <PhotoLightbox
+          title={photoDays.length > 1 ? `写真 ${photoIndex! + 1} / ${photoDays.length}` : "写真"}
+          src={photo.thumb!}
+          onClose={() => setPhotoIndex(null)}
+          onPrev={
+            photoDays.length > 1
+              ? () => setPhotoIndex((i) => ((i ?? 0) - 1 + photoDays.length) % photoDays.length)
+              : undefined
+          }
+          onNext={photoDays.length > 1 ? () => setPhotoIndex((i) => ((i ?? 0) + 1) % photoDays.length) : undefined}
+        >
+          <p className="text-sm text-ink-2">{formatDay(photo.date, { year: true })}</p>
+          <Button variant="secondary" className="self-start" asChild>
+            <Link to={`/?date=${dateKey(photo.date)}&view=day`}>その日を開く</Link>
+          </Button>
+        </PhotoLightbox>
+      )}
     </div>
   );
 }

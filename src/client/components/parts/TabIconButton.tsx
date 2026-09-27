@@ -38,7 +38,11 @@ export function TabIconButton({
         <Icon className="size-5" aria-hidden="true" />
       </NavLink>
       {showHint && (
-        <small aria-hidden="true" data-testid="tab-hint" className="truncate text-[10px] font-bold text-ink-2">
+        <small
+          aria-hidden="true"
+          data-testid="tab-hint"
+          className="text-[10px] leading-none font-bold whitespace-nowrap text-ink-2"
+        >
           {label}
         </small>
       )}

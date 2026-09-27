@@ -2,6 +2,8 @@ import { createRouter, HttpError } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
 import { groupInvites, groupMembers, groups } from "@server/core/db/schema";
+import { notify } from "@server/core/notifications/send";
+import { memberIdsOf } from "@server/modules/groups/membership";
 import type { InviteInfo } from "@shared/api-types";
 import { eq } from "drizzle-orm";
 
@@ -30,15 +32,27 @@ export const inviteRoutes = createRouter()
     return c.json(body);
   })
   .post("/:token/accept", requireUser, requireAgreement, async (c) => {
-    const { invite, reason } = await findInvite(c.get("db"), c.req.param("token"));
+    const db = c.get("db");
+    const me = c.get("user");
+    const { invite, groupName, reason } = await findInvite(db, c.req.param("token"));
     if (reason === "expired")
       throw new HttpError(400, "招待リンクの期限が切れています。新しいリンクを頼んでください。");
     if (reason === "revoked")
       throw new HttpError(400, "この招待リンクは取り消されています。新しいリンクを頼んでください。");
-    await c
-      .get("db")
+    // 先に前からいるメンバーを読んでおく。自分は後で入るので、まだ含まれない
+    const existingMemberIds = await memberIdsOf(db, invite.groupId);
+    await db
       .insert(groupMembers)
-      .values({ groupId: invite.groupId, userId: c.get("user").id, role: "member" })
+      .values({ groupId: invite.groupId, userId: me.id, role: "member" })
       .onConflictDoNothing();
+    // グループに入ったことを、前からいるメンバーに積む。0096、issue #245
+    await notify({
+      db,
+      env: c.env,
+      userIds: existingMemberIds,
+      actorId: me.id,
+      kind: "groups.member_joined",
+      payload: { groupName, byUserName: me.name },
+    });
     return c.json({ groupId: invite.groupId });
   });

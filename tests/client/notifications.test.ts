@@ -1,6 +1,7 @@
 import { describeEventNotification } from "@extensions/events/shared/notifications";
 import { describeMemoriesNotification } from "@extensions/memories/shared/notifications";
 import { describe, expect, it } from "vitest";
+import { describeCoreNotification } from "@/modules/notifications/describe";
 
 describe("予定の拡張の describeNotification。#32", () => {
   it("events.invite_accepted は、タイトルと予定を開く行き先にする", () => {
@@ -49,5 +50,21 @@ describe("思い出の拡張の describeNotification。F-116、#32", () => {
   it("memories.shiori_assigned は、そのしおりを開く行き先にする。issue #247", () => {
     const r = describeMemoriesNotification("memories.shiori_assigned", { memoryId: "m1", title: "箱根" });
     expect(r).toEqual({ text: "「箱根」の担当になりました。", path: "/memories/m1/shiori" });
+  });
+});
+
+describe("土台の describeCoreNotification。groups.* の文言と行き先。0096、issue #245", () => {
+  it("グループに入った", () => {
+    const r = describeCoreNotification("groups.member_joined", { groupName: "ふたり", byUserName: "みか" });
+    expect(r).toEqual({ text: "みかが「ふたり」に入りました。", path: "/groups" });
+  });
+
+  it("グループを抜けた", () => {
+    const r = describeCoreNotification("groups.member_left", { groupName: "ふたり", byUserName: "みか" });
+    expect(r).toEqual({ text: "みかが「ふたり」を抜けました。", path: "/groups" });
+  });
+
+  it("自分の kind でなければ null", () => {
+    expect(describeCoreNotification("events.invite_accepted", {})).toBeNull();
   });
 });

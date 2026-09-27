@@ -1,11 +1,18 @@
 import type { ExtensionShortcut } from "@extensions/client/types";
 import { useQuery } from "@tanstack/react-query";
-import { Gift } from "lucide-react";
+import { Gift, PartyPopper } from "lucide-react";
 import { api } from "@/api/client";
 import { DAY_MS, formatDay, startOfDay } from "@/lib/dates";
 
-/** `GET /api/events/upcoming-anniversary` の応答。0043 */
-type UpcomingAnniversary = { id: string; title: string; occurrenceAt: number } | null;
+/** `GET /api/events/upcoming-anniversary` の応答。0043、0097 */
+type UpcomingAnniversary = {
+  id: string;
+  title: string;
+  occurrenceAt: number;
+  kind: "birthday" | "anniversary";
+  /** 始まりの年からの差。0 なら最初の年で、まだ「◯年目」と呼べない */
+  yearsSince: number;
+} | null;
 
 const anniversaryKey = ["events", "upcoming-anniversary"] as const;
 
@@ -35,16 +42,33 @@ export function daysUntilLabel(occurrenceAt: number): string {
 /**
  * 近道の帯に出す、誕生日と記念日。毎年の繰り返しを選んだ予定の、次の回が 7 日以内に近づいたとき返す。F-37
  * 押すと、その予定のシートが開く。
+ *
+ * 誕生日は今までどおり(題名と、日付・あと何日)。記念日は形はそのままで、アイコンと文言だけ変える。
+ * 何年目かが分かれば添える(最初の年はまだ 1 年目と呼べないので添えない)。F-48、0097
  * @param enabled 予定の拡張はいつも有効なので、カレンダーが渡す真偽をそのまま使う
  */
 export function useAnniversaryShortcut(enabled: boolean): ExtensionShortcut | null {
   const { data } = useUpcomingAnniversary(enabled);
   if (!enabled || !data) return null;
+  if (data.kind !== "anniversary") {
+    return {
+      label: data.title,
+      sub: `${formatDay(new Date(data.occurrenceAt))}・${daysUntilLabel(data.occurrenceAt)}`,
+      path: `/?openExt=events&openId=${data.id}`,
+      action: "見る",
+      icon: Gift,
+    };
+  }
+  const until = daysUntilLabel(data.occurrenceAt);
+  const isToday = until === "今日";
+  const yearLabel = data.yearsSince > 0 ? `${data.yearsSince}年目` : null;
   return {
-    label: data.title,
-    sub: `${formatDay(new Date(data.occurrenceAt))}・${daysUntilLabel(data.occurrenceAt)}`,
+    label: isToday ? `今日は${data.title}の日` : `${data.title}まで`,
+    sub: isToday
+      ? (yearLabel ?? formatDay(new Date(data.occurrenceAt)))
+      : [until, yearLabel].filter(Boolean).join("・"),
     path: `/?openExt=events&openId=${data.id}`,
     action: "見る",
-    icon: Gift,
+    icon: PartyPopper,
   };
 }

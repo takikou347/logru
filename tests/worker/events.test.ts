@@ -27,6 +27,7 @@ function eventRow(overrides: Partial<EventRow> = {}): EventRow {
     repeatDaysOfWeek: null,
     repeatUntil: null,
     repeatCount: null,
+    anniversaryKind: "birthday",
     createdAt: new Date("2026-09-01T00:00:00.000Z"),
     updatedAt: new Date("2026-09-01T00:00:00.000Z"),
     ...overrides,
@@ -36,7 +37,13 @@ function eventRow(overrides: Partial<EventRow> = {}): EventRow {
 describe("expandOccurrences。F-36", () => {
   it("毎日は、土台の日付をそのまま進める", () => {
     const startsAt = new Date("2026-10-05T01:00:00.000Z");
-    const rule = { freq: "daily" as const, daysOfWeek: null, until: null, count: null };
+    const rule = {
+      freq: "daily" as const,
+      daysOfWeek: null,
+      until: null,
+      count: null,
+      anniversaryKind: "birthday" as const,
+    };
     const out = expandOccurrences(startsAt, rule, Date.UTC(2026, 9, 5), Date.UTC(2026, 9, 8));
     expect(out.map(iso)).toEqual(["2026-10-05T01:00:00.000Z", "2026-10-06T01:00:00.000Z", "2026-10-07T01:00:00.000Z"]);
   });
@@ -44,7 +51,13 @@ describe("expandOccurrences。F-36", () => {
   it("毎週は、選んだ曜日を複数、早い順に開く", () => {
     // 10 月 5 日は月曜。月と木を選ぶ
     const startsAt = new Date("2026-10-05T01:00:00.000Z");
-    const rule = { freq: "weekly" as const, daysOfWeek: [1, 4], until: null, count: null };
+    const rule = {
+      freq: "weekly" as const,
+      daysOfWeek: [1, 4],
+      until: null,
+      count: null,
+      anniversaryKind: "birthday" as const,
+    };
     const out = expandOccurrences(startsAt, rule, Date.UTC(2026, 9, 5), Date.UTC(2026, 9, 19));
     expect(out.map(iso)).toEqual([
       "2026-10-05T01:00:00.000Z", // 月
@@ -57,7 +70,13 @@ describe("expandOccurrences。F-36", () => {
   it("毎週の曜日は日本時間で数える。始まりが日本時間 9 時より前でも UTC の前日にずれない。0068", () => {
     // 2026-09-24 07:00 は日本時間で木曜。UTC では 1 時間早い暦の前日、水曜 22:00 になる
     const startsAt = new Date("2026-09-23T22:00:00.000Z");
-    const rule = { freq: "weekly" as const, daysOfWeek: [4], until: null, count: null };
+    const rule = {
+      freq: "weekly" as const,
+      daysOfWeek: [4],
+      until: null,
+      count: null,
+      anniversaryKind: "birthday" as const,
+    };
     const out = expandOccurrences(startsAt, rule, Date.UTC(2026, 8, 20), Date.UTC(2026, 9, 10));
     expect(out.map(iso)).toEqual([
       "2026-09-23T22:00:00.000Z", // 木、9/24 7:00 JST。始まり自身がその回に入る
@@ -68,21 +87,39 @@ describe("expandOccurrences。F-36", () => {
 
   it("毎週の既定は、始まりの日の曜日だけ", () => {
     const startsAt = new Date("2026-10-05T01:00:00.000Z");
-    const rule = { freq: "weekly" as const, daysOfWeek: null, until: null, count: null };
+    const rule = {
+      freq: "weekly" as const,
+      daysOfWeek: null,
+      until: null,
+      count: null,
+      anniversaryKind: "birthday" as const,
+    };
     const out = expandOccurrences(startsAt, rule, Date.UTC(2026, 9, 5), Date.UTC(2026, 9, 20));
     expect(out.map(iso)).toEqual(["2026-10-05T01:00:00.000Z", "2026-10-12T01:00:00.000Z", "2026-10-19T01:00:00.000Z"]);
   });
 
   it("毎月は、無い月をその回だけ飛ばす。1 月 31 日なら 2 月は出ない", () => {
     const startsAt = new Date("2026-01-31T00:00:00.000Z");
-    const rule = { freq: "monthly" as const, daysOfWeek: null, until: null, count: null };
+    const rule = {
+      freq: "monthly" as const,
+      daysOfWeek: null,
+      until: null,
+      count: null,
+      anniversaryKind: "birthday" as const,
+    };
     const out = expandOccurrences(startsAt, rule, Date.UTC(2026, 0, 1), Date.UTC(2026, 3, 1));
     expect(out.map(iso)).toEqual(["2026-01-31T00:00:00.000Z", "2026-03-31T00:00:00.000Z"]);
   });
 
   it("毎年は、うるう年でない 2 月 29 日をその年だけ飛ばす", () => {
     const startsAt = new Date("2024-02-29T00:00:00.000Z"); // 2024 はうるう年
-    const rule = { freq: "yearly" as const, daysOfWeek: null, until: null, count: null };
+    const rule = {
+      freq: "yearly" as const,
+      daysOfWeek: null,
+      until: null,
+      count: null,
+      anniversaryKind: "birthday" as const,
+    };
     const out = expandOccurrences(startsAt, rule, Date.UTC(2024, 0, 1), Date.UTC(2029, 0, 1));
     expect(out.map(iso)).toEqual(["2024-02-29T00:00:00.000Z", "2028-02-29T00:00:00.000Z"]);
   });
@@ -90,7 +127,13 @@ describe("expandOccurrences。F-36", () => {
   it("毎月の日にちは日本時間で数える。始まりが日本時間 9 時より前でも UTC の前日にずれない。0068", () => {
     // 2026-11-01 07:00 は日本時間で 11 月 1 日。UTC では前日 10 月 31 日 22:00 になる
     const startsAt = new Date("2026-10-31T22:00:00.000Z");
-    const rule = { freq: "monthly" as const, daysOfWeek: null, until: null, count: null };
+    const rule = {
+      freq: "monthly" as const,
+      daysOfWeek: null,
+      until: null,
+      count: null,
+      anniversaryKind: "birthday" as const,
+    };
     const out = expandOccurrences(startsAt, rule, Date.UTC(2026, 9, 1), Date.UTC(2027, 1, 15));
     expect(out.map(iso)).toEqual([
       "2026-10-31T22:00:00.000Z", // 11/1 7:00 JST。始まり自身がその回に入る
@@ -103,7 +146,13 @@ describe("expandOccurrences。F-36", () => {
   it("毎年の月日は日本時間で数える。始まりが日本時間 9 時より前でも UTC の前日にずれない。0068", () => {
     // 2027-01-01 07:00 は日本時間で 1 月 1 日。UTC では前年 12 月 31 日 22:00 になる
     const startsAt = new Date("2026-12-31T22:00:00.000Z");
-    const rule = { freq: "yearly" as const, daysOfWeek: null, until: null, count: null };
+    const rule = {
+      freq: "yearly" as const,
+      daysOfWeek: null,
+      until: null,
+      count: null,
+      anniversaryKind: "birthday" as const,
+    };
     const out = expandOccurrences(startsAt, rule, Date.UTC(2026, 0, 1), Date.UTC(2030, 0, 1));
     expect(out.map(iso)).toEqual([
       "2026-12-31T22:00:00.000Z", // 2027/1/1 7:00 JST。始まり自身がその回に入る
@@ -115,21 +164,39 @@ describe("expandOccurrences。F-36", () => {
 
   it("終わりの日付までで打ち切る。その日は含む", () => {
     const startsAt = new Date("2026-10-05T01:00:00.000Z");
-    const rule = { freq: "daily" as const, daysOfWeek: null, until: new Date(Date.UTC(2026, 9, 7)), count: null };
+    const rule = {
+      freq: "daily" as const,
+      daysOfWeek: null,
+      until: new Date(Date.UTC(2026, 9, 7)),
+      count: null,
+      anniversaryKind: "birthday" as const,
+    };
     const out = expandOccurrences(startsAt, rule, Date.UTC(2026, 9, 1), Date.UTC(2026, 9, 20));
     expect(out.map(iso)).toEqual(["2026-10-05T01:00:00.000Z", "2026-10-06T01:00:00.000Z", "2026-10-07T01:00:00.000Z"]);
   });
 
   it("終わりの回数までで打ち切る", () => {
     const startsAt = new Date("2026-10-05T01:00:00.000Z");
-    const rule = { freq: "daily" as const, daysOfWeek: null, until: null, count: 2 };
+    const rule = {
+      freq: "daily" as const,
+      daysOfWeek: null,
+      until: null,
+      count: 2,
+      anniversaryKind: "birthday" as const,
+    };
     const out = expandOccurrences(startsAt, rule, Date.UTC(2026, 9, 1), Date.UTC(2026, 9, 20));
     expect(out.map(iso)).toEqual(["2026-10-05T01:00:00.000Z", "2026-10-06T01:00:00.000Z"]);
   });
 
   it("期間の外の回は返さない。to は含まない", () => {
     const startsAt = new Date("2026-10-05T01:00:00.000Z");
-    const rule = { freq: "daily" as const, daysOfWeek: null, until: null, count: null };
+    const rule = {
+      freq: "daily" as const,
+      daysOfWeek: null,
+      until: null,
+      count: null,
+      anniversaryKind: "birthday" as const,
+    };
     const out = expandOccurrences(startsAt, rule, Date.UTC(2026, 9, 6), Date.UTC(2026, 9, 7));
     expect(out.map(iso)).toEqual(["2026-10-06T01:00:00.000Z"]);
   });
@@ -142,13 +209,30 @@ describe("repeatRuleOf", () => {
 
   it("repeat_freq があれば規則を返す", () => {
     const row = eventRow({ repeatFreq: "weekly", repeatDaysOfWeek: [1, 3], repeatCount: 5 });
-    expect(repeatRuleOf(row)).toEqual({ freq: "weekly", daysOfWeek: [1, 3], until: null, count: 5 });
+    expect(repeatRuleOf(row)).toEqual({
+      freq: "weekly",
+      daysOfWeek: [1, 3],
+      until: null,
+      count: 5,
+      anniversaryKind: "birthday",
+    });
+  });
+
+  it("毎年の種別も一緒に返す。0097", () => {
+    const row = eventRow({ repeatFreq: "yearly", anniversaryKind: "anniversary" });
+    expect(repeatRuleOf(row)?.anniversaryKind).toBe("anniversary");
   });
 });
 
 describe("nextOccurrenceOnOrAfter。誕生日と記念日の近道。F-37", () => {
   const startsAt = new Date("2020-09-20T00:00:00.000Z");
-  const rule = { freq: "yearly" as const, daysOfWeek: null, until: null, count: null };
+  const rule = {
+    freq: "yearly" as const,
+    daysOfWeek: null,
+    until: null,
+    count: null,
+    anniversaryKind: "birthday" as const,
+  };
 
   it("これから来る、いちばん早い回を返す", () => {
     expect(nextOccurrenceOnOrAfter(startsAt, rule, Date.UTC(2026, 8, 15))).toBe(Date.UTC(2026, 8, 20));
@@ -177,7 +261,13 @@ describe("dayBeforeUtc。これ以降の範囲で、いまの予定を終わら�
 describe("これ以降の範囲は、until をこの回の前日にすれば以降を含まない", () => {
   it("この回とそれより後を除き、前の回は残す", () => {
     const startsAt = new Date("2026-10-05T01:00:00.000Z");
-    const rule = { freq: "weekly" as const, daysOfWeek: [1], until: null, count: null };
+    const rule = {
+      freq: "weekly" as const,
+      daysOfWeek: [1],
+      until: null,
+      count: null,
+      anniversaryKind: "birthday" as const,
+    };
     const occurrenceAt = Date.UTC(2026, 9, 19); // 3 回目
     const truncated = { ...rule, until: dayBeforeUtc(occurrenceAt) };
     const out = expandOccurrences(startsAt, truncated, Date.UTC(2026, 9, 1), Date.UTC(2026, 10, 1));
@@ -254,12 +344,13 @@ describe("repeatColumns。入力を events の列にする。0043", () => {
     expect(repeatColumns(undefined)).toBeUndefined();
   });
 
-  it("null なら繰り返しをやめる", () => {
+  it("null なら繰り返しをやめる。種別も既定の誕生日に戻す。0097", () => {
     expect(repeatColumns(null)).toEqual({
       repeatFreq: null,
       repeatDaysOfWeek: null,
       repeatUntil: null,
       repeatCount: null,
+      anniversaryKind: "birthday",
     });
   });
 
@@ -271,6 +362,16 @@ describe("repeatColumns。入力を events の列にする。0043", () => {
   it("weekly では daysOfWeek をそのまま持つ", () => {
     const out = repeatColumns({ freq: "weekly", daysOfWeek: [2, 5] });
     expect(out?.repeatDaysOfWeek).toEqual([2, 5]);
+  });
+
+  it("yearly 以外では anniversaryKind を送っても既定の誕生日にする。0097", () => {
+    const out = repeatColumns({ freq: "monthly", anniversaryKind: "anniversary" });
+    expect(out?.anniversaryKind).toBe("birthday");
+  });
+
+  it("yearly では anniversaryKind をそのまま持つ。省けば誕生日。0097", () => {
+    expect(repeatColumns({ freq: "yearly", anniversaryKind: "anniversary" })?.anniversaryKind).toBe("anniversary");
+    expect(repeatColumns({ freq: "yearly" })?.anniversaryKind).toBe("birthday");
   });
 
   it("until と count を、それぞれの列にする", () => {
@@ -290,6 +391,12 @@ describe("繰り返しの入力の検証", () => {
     expect(repeatRuleInput.safeParse({ freq: "daily", count: 0 }).success).toBe(false);
     expect(repeatRuleInput.safeParse({ freq: "daily", count: 1000 }).success).toBe(false);
     expect(repeatRuleInput.safeParse({ freq: "daily", count: 999 }).success).toBe(true);
+  });
+
+  it("anniversaryKind は誕生日か記念日だけ受け付ける。0097", () => {
+    expect(repeatRuleInput.safeParse({ freq: "yearly", anniversaryKind: "anniversary" }).success).toBe(true);
+    expect(repeatRuleInput.safeParse({ freq: "yearly" }).success).toBe(true);
+    expect(repeatRuleInput.safeParse({ freq: "yearly", anniversaryKind: "other" }).success).toBe(false);
   });
 });
 

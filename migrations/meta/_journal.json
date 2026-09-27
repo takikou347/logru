@@ -190,6 +190,13 @@
       "when": 1790512579631,
       "tag": "0028_today_page",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1790520000000,
+      "tag": "0030_event_anniversary_kind",
+      "breakpoints": true
     }
   ]
 }

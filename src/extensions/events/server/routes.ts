@@ -24,6 +24,7 @@ import {
   type RepeatRuleInput,
   responseInput,
 } from "../shared/schemas";
+import { tokyoFieldsOf } from "../shared/tokyo";
 import { loadAttendees, toCalendarItem, toOccurrenceItem } from "./provider";
 import { DAY_MS, dayBeforeUtc, nextOccurrenceOnOrAfter, repeatRuleOf } from "./repeat";
 import { type EventRow, eventAttendees, eventOccurrenceEdits, events } from "./schema";
@@ -77,13 +78,21 @@ async function membersAmong(db: DB, groupId: string, ids: string[]): Promise<str
 export function repeatColumns(repeat: RepeatRuleInput | null | undefined) {
   if (repeat === undefined) return undefined;
   if (repeat === null) {
-    return { repeatFreq: null, repeatDaysOfWeek: null, repeatUntil: null, repeatCount: null };
+    return {
+      repeatFreq: null,
+      repeatDaysOfWeek: null,
+      repeatUntil: null,
+      repeatCount: null,
+      anniversaryKind: "birthday" as const,
+    };
   }
   return {
     repeatFreq: repeat.freq,
     repeatDaysOfWeek: repeat.freq === "weekly" ? (repeat.daysOfWeek ?? null) : null,
     repeatUntil: repeat.until != null ? new Date(repeat.until) : null,
     repeatCount: repeat.count ?? null,
+    // yearly 以外では使わないので、既定の誕生日に戻す。0097
+    anniversaryKind: repeat.freq === "yearly" ? (repeat.anniversaryKind ?? "birthday") : ("birthday" as const),
   };
 }
 
@@ -225,6 +234,7 @@ async function splitFollowing(
     repeatDaysOfWeek: current.repeatDaysOfWeek,
     repeatUntil: current.repeatUntil,
     repeatCount: current.repeatCount,
+    anniversaryKind: current.anniversaryKind,
   };
   const newEvent = {
     id: newId,
@@ -299,13 +309,23 @@ export const eventRoutes = createRouter()
     // 利用者の時間帯は持たないので、UTC の暦の今日で数える。0043
     const todayStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
     const windowEnd = todayStart + 7 * DAY_MS;
-    let best: { id: string; title: string; occurrenceAt: number } | null = null;
+    let best: {
+      id: string;
+      title: string;
+      occurrenceAt: number;
+      kind: "birthday" | "anniversary";
+      /** 始まりの年から、この回の年までの差。0 なら最初の年で、まだ「◯年目」と呼べない。0097 */
+      yearsSince: number;
+    } | null = null;
     for (const row of rows) {
       const rule = repeatRuleOf(row);
       if (!rule) continue;
       const next = nextOccurrenceOnOrAfter(row.startsAt, rule, todayStart);
       if (next == null || next > windowEnd) continue;
-      if (!best || next < best.occurrenceAt) best = { id: row.id, title: row.title, occurrenceAt: next };
+      if (!best || next < best.occurrenceAt) {
+        const yearsSince = tokyoFieldsOf(new Date(next)).year - tokyoFieldsOf(row.startsAt).year;
+        best = { id: row.id, title: row.title, occurrenceAt: next, kind: rule.anniversaryKind, yearsSince };
+      }
     }
     return c.json({ item: best });
   })

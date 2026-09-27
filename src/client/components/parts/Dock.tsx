@@ -60,7 +60,10 @@ export function GlobalBottomTabs() {
     <nav
       aria-label="下のタブ"
       className={cn(
-        "nl-only fixed z-20 items-center gap-1 !shadow-[var(--float-bar-shadow)]",
+        // 「+」を開いたとき、幕(z-40)と弧(z-45)は document.body へ portal で出す(RadialAddButton)。
+        // この帯の「×」がその上に見えるよう、帯自体はそれより高い z にする。シート・ダイアログ
+        // (z-50)より低くして、シートを開いたときはそちらが勝つようにする。issue #239
+        "nl-only fixed z-[48] items-center gap-1 !shadow-[var(--float-bar-shadow)]",
         "glass inset-x-[var(--float-bar-inset)] bottom-[var(--float-bar-bottom)] h-[var(--float-bar-height)] rounded-[var(--float-bar-radius)] px-2",
       )}
     >

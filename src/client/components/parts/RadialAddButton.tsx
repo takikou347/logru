@@ -10,6 +10,7 @@
 import type { ExtensionAction, FavoriteAdd } from "@extensions/client/types";
 import { Plus, Star } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
 import { angleOf, radialOffset, radialTiers } from "@/lib/radial-layout";
 import { useLongPressLabel } from "@/lib/use-long-press";
@@ -207,63 +208,68 @@ export function RadialAddButton({
           記録する
         </span>
       )}
-      {open && (
-        <>
-          {/*
-            後ろの幕。案 C の motion-radial-add と同じく、中身の丸が背景の文字と重ならないよう
-            暗くしてぼかす。どのテーマ(紙・リキッドガラス)でも同じ形。動きを減らす・透明度を
-            下げる設定では、ぼかさず暗くするだけにする。外を押すか下へ払うと閉じる。issue #239
-          */}
-          <button
-            type="button"
-            aria-label="閉じる"
-            className={cn(
-              "fixed inset-0 z-30 bg-black/55 transition-opacity duration-slow",
-              !reducedMotion && !reducedTransparency && "backdrop-blur-md backdrop-saturate-150",
-            )}
-            style={{
-              opacity: entered ? 1 : 0,
-              transitionDuration: reducedMotion ? "0ms" : undefined,
-            }}
-            onClick={() => setOpen(false)}
-          />
-          <span className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center">
-            <span className="pointer-events-auto relative size-0 bottom-[calc(var(--float-bar-bottom)+var(--float-bar-height)/2)]">
-              {tiers.flatMap((tier, ti) =>
-                tier.items.map((a, i) => (
-                  <RadialItem
-                    key={a.path}
-                    item={a}
-                    radius={tier.radius}
-                    angle={angleOf(i, tier.items.length)}
-                    delayMs={(ti * tier.items.length + i) * 45}
-                    reducedMotion={reducedMotion}
-                    entered={entered}
-                    onPick={pick}
-                  />
-                )),
+      {open &&
+        createPortal(
+          <>
+            {/*
+              後ろの幕。案 C の motion-radial-add と同じく、中身の丸が背景の文字と重ならないよう
+              暗くしてぼかす。どのテーマ(紙・リキッドガラス)でも同じ形。動きを減らす・透明度を
+              下げる設定では、ぼかさず暗くするだけにする。外を押すか下へ払うと閉じる。issue #239
+              下のタブの帯(nav)は `.glass` の backdrop-filter を持ち、fixed の基準(containing
+              block)になってしまうので、幕と弧は document.body へ portal で出す。画面全体を覆う
+            */}
+            <button
+              type="button"
+              aria-label="閉じる"
+              data-testid="radial-scrim"
+              className={cn(
+                "fixed inset-0 z-40 bg-black/55 transition-opacity duration-slow",
+                !reducedMotion && !reducedTransparency && "backdrop-blur-md backdrop-saturate-150",
               )}
-              {favorites.length > 0 && (
-                <span
-                  role="group"
-                  aria-label="よく使う記録"
-                  className="absolute left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 transition-opacity duration-slow"
-                  style={{
-                    bottom: `${outerRadius + 64}px`,
-                    opacity: entered ? 1 : 0,
-                    transitionDelay: reducedMotion ? "0ms" : "260ms",
-                    transitionDuration: reducedMotion ? "0ms" : undefined,
-                  }}
-                >
-                  {favorites.map((f) => (
-                    <FavoriteCard key={f.key} favorite={f} onPick={pick} />
-                  ))}
-                </span>
-              )}
+              style={{
+                opacity: entered ? 1 : 0,
+                transitionDuration: reducedMotion ? "0ms" : undefined,
+              }}
+              onClick={() => setOpen(false)}
+            />
+            <span className="pointer-events-none fixed inset-x-0 bottom-0 z-[45] flex justify-center">
+              <span className="pointer-events-auto relative size-0 bottom-[calc(var(--float-bar-bottom)+var(--float-bar-height)/2)]">
+                {tiers.flatMap((tier, ti) =>
+                  tier.items.map((a, i) => (
+                    <RadialItem
+                      key={a.path}
+                      item={a}
+                      radius={tier.radius}
+                      angle={angleOf(i, tier.items.length)}
+                      delayMs={(ti * tier.items.length + i) * 45}
+                      reducedMotion={reducedMotion}
+                      entered={entered}
+                      onPick={pick}
+                    />
+                  )),
+                )}
+                {favorites.length > 0 && (
+                  <span
+                    role="group"
+                    aria-label="よく使う記録"
+                    className="absolute left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 transition-opacity duration-slow"
+                    style={{
+                      bottom: `${outerRadius + 64}px`,
+                      opacity: entered ? 1 : 0,
+                      transitionDelay: reducedMotion ? "0ms" : "260ms",
+                      transitionDuration: reducedMotion ? "0ms" : undefined,
+                    }}
+                  >
+                    {favorites.map((f) => (
+                      <FavoriteCard key={f.key} favorite={f} onPick={pick} />
+                    ))}
+                  </span>
+                )}
+              </span>
             </span>
-          </span>
-        </>
-      )}
+          </>,
+          document.body,
+        )}
     </span>
   );
 }

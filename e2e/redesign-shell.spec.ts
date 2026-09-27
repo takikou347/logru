@@ -97,15 +97,35 @@ test("家計簿を足すと「+」に支出・収入が並び、放射から収�
   await enableNewLook(page);
   await page.goto("/");
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
-  // 3 種類以上になったので、放射(弧)で出る
+  // 3 種類以上になったので、放射(弧)で出る。弧と幕は document.body へ portal で出るので、
+  // 下のタブの帯(tabs)の外にある。page から探す。issue #239
   await tabs.getByRole("button", { name: "記録する" }).click();
-  await expect(tabs.getByRole("button", { name: "予定を足す" })).toBeVisible();
-  await expect(tabs.getByRole("button", { name: "支出を記録する" })).toBeVisible();
-  await tabs.getByRole("button", { name: "収入を記録する" }).click();
+  await expect(page.getByRole("button", { name: "予定を足す" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "支出を記録する" })).toBeVisible();
+  await page.getByRole("button", { name: "収入を記録する" }).click();
 
   const sheet = page.getByRole("dialog", { name: "記録する" });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByRole("radio", { name: "収入", checked: true })).toBeVisible();
+});
+
+test("「+」を開くと、幕が画面全体を覆う(下のタブの帯の中に閉じ込められない)", async ({ page }) => {
+  await addExtension(page, "家計簿");
+  await enableNewLook(page);
+  await page.goto("/");
+  const tabs = page.getByRole("navigation", { name: "下のタブ" });
+  await tabs.getByRole("button", { name: "記録する" }).click();
+
+  const scrim = page.getByTestId("radial-scrim");
+  await expect(scrim).toBeVisible();
+  const viewport = page.viewportSize();
+  if (!viewport) throw new Error("viewport が取れません");
+  await expect(async () => {
+    const box = await scrim.boundingBox();
+    expect(box).toBeTruthy();
+    expect(box!.width).toBeGreaterThanOrEqual(viewport.width - 1);
+    expect(box!.height).toBeGreaterThanOrEqual(viewport.height - 1);
+  }).toPass({ timeout: 5_000 });
 });
 
 test("家計簿のよく使う記録があると、「+」の上にカードで並び、押すとその記録が入った状態で開く", async ({ page }) => {
@@ -124,7 +144,8 @@ test("家計簿のよく使う記録があると、「+」の上にカードで�
   await page.goto("/");
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
   await tabs.getByRole("button", { name: "記録する" }).click();
-  await tabs
+  // よく使う記録のカードも、弧と同じく document.body へ portal で出るので page から探す
+  await page
     .getByRole("group", { name: "よく使う記録" })
     .getByRole("button", { name: /昼ごはん/ })
     .click();

@@ -11,6 +11,7 @@ import { useSheetSubmit } from "@/components/parts/use-sheet-submit";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { dateKey } from "@/lib/dates";
+import { handleEnterAdvancesField } from "@/lib/keyboard-field-nav";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_EXPENSE_CATEGORIES, KAKEIBO_INCOME_CATEGORIES, type KakeiboCategory } from "../shared/categories";
 import { isValidKakeiboAmount } from "../shared/format";
@@ -480,6 +481,7 @@ export function ExpenseSheet({
           e.preventDefault();
           void submit(false);
         }}
+        onKeyDown={handleEnterAdvancesField}
         noValidate
       >
         <fieldset disabled={!canEdit} className="contents">
@@ -516,7 +518,7 @@ export function ExpenseSheet({
                   ref={amountRef}
                   autoFocus
                   type="text"
-                  inputMode="numeric"
+                  inputMode="decimal"
                   pattern="[0-9]*"
                   placeholder="0"
                   value={amount}

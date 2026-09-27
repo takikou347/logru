@@ -1,13 +1,13 @@
-import { type AnimationEvent, type ReactNode, useEffect, useRef } from "react";
+import { type AnimationEvent, type CSSProperties, type ReactNode, useEffect, useRef } from "react";
 import { CloseButton } from "@/components/parts/CloseButton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { DATE_LIKE_INPUT_TYPES } from "@/lib/date-like-inputs";
+import { useKeyboardViewport } from "@/lib/keyboard-viewport";
+import { useNewLookActive } from "@/lib/lab";
 import { sheetOpened } from "@/lib/pwa-update";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
-
-/** `<input>` の、日付・時刻を選ぶネイティブな型 */
-const DATE_LIKE_INPUT_TYPES = new Set(["date", "time", "datetime-local", "month", "week"]);
 
 /**
  * iPhone の Safari は、日付・時刻の入力欄のネイティブな選択 UI を閉じるとき、シートの外側で
@@ -46,6 +46,10 @@ const CLOSE_FALLBACK_MS = 400;
  * `onOpenChange` で自分の開閉の状態を false にし、動きが終わったらこの部品が `onClose` を呼ぶ。
  * `open` を渡さなければ、これまでと同じく押した瞬間に `onClose` を呼ぶ(動きは待たない)。#192
  *
+ * 新しい見た目・スマホでは、OS のキーボードが出ると `visualViewport` を見てシートの下端を
+ * キーボードの上端に合わせる(`keyboard-viewport.ts`)。footer に `SheetFooterActions` を渡していれば、
+ * そちら側でキーボードの上の帯(前の欄・次の欄・保存)に切り替わる。0094、issue #242
+ *
  * @param title 見出し。読み上げではこの名前のダイアログになる
  * @param description 見出しの下の説明。省ける
  * @param bar 見出しの上に並べる行。進み具合と「飛ばす」など。渡すと、右上の閉じるボタンは出さない
@@ -80,6 +84,17 @@ export function ResponsiveSheet({
   const desktop = useMediaQuery("(min-width: 1024px)");
   // 新しい版が出ても、開いている間は読み込み直しを延ばす。0073
   useEffect(() => sheetOpened(), []);
+
+  // OS のキーボードが出たら、シートの下端をキーボードの上端に合わせて持ち上げる。新しい見た目・
+  // スマホだけ(入れていない人と PC には効かせない)。0094、issue #242
+  const newLook = useNewLookActive();
+  const keyboard = useKeyboardViewport(newLook && !desktop);
+  const keyboardLiftStyle: CSSProperties | undefined = keyboard.open
+    ? {
+        transform: `translateY(-${keyboard.liftPx}px)`,
+        transition: "transform var(--dur-keyboard) var(--ease-keyboard)",
+      }
+    : undefined;
 
   const controlled = openProp !== undefined;
   const open = controlled ? openProp : true;
@@ -174,6 +189,7 @@ export function ResponsiveSheet({
               ? "h-full max-h-full rounded-none border-0 px-5 pt-[max(16px,env(safe-area-inset-top))] pb-[max(16px,env(safe-area-inset-bottom))]"
               : "max-h-[calc(100dvh-var(--safe-top)-12px)] rounded-[34px] border border-(--glass-edge) bg-(--glass-flat) px-5 pt-2.5 pb-5.5",
           )}
+          style={keyboardLiftStyle}
         >
           {top}
           <SheetHeader className="p-0">

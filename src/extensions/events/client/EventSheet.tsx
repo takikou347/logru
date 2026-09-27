@@ -31,6 +31,7 @@ import {
   withTime,
 } from "@/lib/dates";
 import { vibrateShort } from "@/lib/haptics";
+import { handleEnterAdvancesField } from "@/lib/keyboard-field-nav";
 import { useOnline } from "@/lib/online";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { cn } from "@/lib/utils";
@@ -416,7 +417,13 @@ export function EventSheet({
         />
       )}
       {!canEdit && <Notice>この予定は見るだけです。直せるのは、作った人と招待された人です。</Notice>}
-      <form id={EVENT_FORM_ID} className="flex flex-col gap-3.5" onSubmit={submit} noValidate>
+      <form
+        id={EVENT_FORM_ID}
+        className="flex flex-col gap-3.5"
+        onSubmit={submit}
+        onKeyDown={handleEnterAdvancesField}
+        noValidate
+      >
         {/* 見るだけのときは、入力をまとめて押せなくする */}
         <fieldset disabled={!canEdit} className="contents">
           <Field label="題名">
@@ -427,6 +434,7 @@ export function EventSheet({
                 value={title}
                 maxLength={100}
                 placeholder="例: 歯医者"
+                enterKeyHint="next"
                 onChange={(e) => setTitle(e.target.value)}
               />
             )}

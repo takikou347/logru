@@ -47,3 +47,35 @@ test("本番では欄が出ない", async ({ page }) => {
   await page.reload();
   await expect(page.getByRole("region", { name: "ラボ" })).toHaveCount(0);
 });
+
+/**
+ * 見た目の土台(紙・リキッドガラス)。0090、F-43
+ *
+ * 「新しい見た目」を入れると「テーマを選ぶ」への道が出て、選ぶと html の data-look が変わる。
+ * 入れていない人は、テーマの画面へ行っても設定・見た目へ戻され、html の見た目は変わらない。
+ */
+test("新しい見た目を入れると、テーマを選ぶ道が出て、紙とガラスを切り替えられる。開き直しても残る", async ({ page }) => {
+  const lab = page.getByRole("region", { name: "ラボ" });
+  await lab.getByRole("switch", { name: "新しい見た目" }).click();
+
+  await lab.getByRole("link", { name: "テーマを選ぶ" }).click();
+  await expect(page).toHaveURL("/settings/theme");
+  await expect(page.locator("html")).not.toHaveAttribute("data-look", "paper");
+
+  const theme = page.getByRole("radiogroup", { name: "見た目の土台" });
+  await theme.getByRole("radio", { name: "紙" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-look", "paper");
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-look", "paper");
+  await expect(page.getByRole("radio", { name: "紙" })).toHaveAttribute("data-state", "checked");
+
+  await page.getByRole("radio", { name: "リキッドガラス" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-look", "glass");
+});
+
+test("新しい見た目を入れていない人は、テーマの画面を開いても設定・見た目へ戻される", async ({ page }) => {
+  await page.goto("/settings/theme");
+  await expect(page).toHaveURL("/settings/appearance");
+  await expect(page.locator("html")).not.toHaveAttribute("data-lab-new-look");
+});

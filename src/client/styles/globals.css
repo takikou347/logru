@@ -18,6 +18,16 @@
    * AppShell がこの1か所だけで使う。画面ごとに数値を書かない。0071
    */
   --dock-clearance: calc(94px + 12px + env(safe-area-inset-bottom));
+  /*
+   * 下のタブの帯の「浮いている」形。画面の端からの間、角丸、高さ、影の広さ。テーマに依らない
+   * 骨組みの値で、色や質感はここに置かない。今はどの画面もこの値を使っていない。刷新 2 の
+   * 5 個のタブの帯がこの値を使う。0090
+   */
+  --float-bar-inset: 14px;
+  --float-bar-bottom: calc(24px + env(safe-area-inset-bottom));
+  --float-bar-height: 64px;
+  --float-bar-radius: 32px;
+  --float-bar-shadow: 0 18px 40px -18px rgba(23, 32, 44, 0.35);
   --background: var(--ground);
   --foreground: var(--ink);
   --card: var(--glass-flat);
@@ -165,6 +175,16 @@
   & > :where(:not(.absolute, .fixed)) {
     position: relative;
   }
+}
+
+/*
+ * 見た目の土台「紙」は光沢の層を持たない。0090
+ * ぼかしと同じく、面の塗り(--glass-shine)を透明にするだけでは光沢の層(::before)が
+ * 透明な要素として残るため、ここで層そのものを消す。ラボの「新しい見た目」を入れていない人と、
+ * 紙以外を選んでいる人には当たらない
+ */
+:root[data-lab-new-look][data-look="paper"] .glass::before {
+  display: none;
 }
 
 /* 色の名前の点。色は .c-<名前> が --c に入れる */

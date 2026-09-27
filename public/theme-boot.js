@@ -1,13 +1,20 @@
-// 描画の前に明るさ、背景のテーマ、テーマカラーを当て、開いた瞬間のちらつきを防ぐ。0012、issue #50
+// 描画の前に明るさ、背景のテーマ、テーマカラー、見た目の土台を当て、開いた瞬間のちらつきを防ぐ。0012、issue #50、0090
 (function () {
   var mode = "system";
   var bgTheme = null;
   var accent = "aizumi";
+  var look = "glass";
   try {
     var v = JSON.parse(localStorage.getItem("logru-theme") || "null");
     if (v && v.mode) mode = v.mode;
     if (v && v.bgTheme) bgTheme = v.bgTheme;
     if (v && v.accent) accent = v.accent;
+  } catch (e) {}
+  // 見た目の土台(紙・リキッドガラス)。ラボの「新しい見た目」が入っていなければ tokens.css の
+  // 側で当たらないので、ここでは値を読むだけで済む。0090
+  try {
+    var storedLook = localStorage.getItem("logru-look");
+    if (storedLook === "paper" || storedLook === "glass") look = storedLook;
   } catch (e) {}
   // 選んだ値が無ければ、端末の「透明度を下げる」に合わせた既定にする。#95
   if (!bgTheme) bgTheme = window.matchMedia("(prefers-reduced-transparency: reduce)").matches ? "flat" : "glass";
@@ -16,4 +23,5 @@
   root.dataset.theme = dark ? "dark" : "light";
   root.dataset.bgTheme = bgTheme;
   root.dataset.accent = accent;
+  root.dataset.look = look;
 })();

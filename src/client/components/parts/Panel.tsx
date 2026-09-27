@@ -38,17 +38,14 @@ export function PanelRow({ className, ...props }: ComponentProps<"div">) {
   );
 }
 
+/** 面の中の押せる行に共通の並び。ボタンだけでなく、行の形をしたリンクにも使う */
+export const rowClass =
+  "flex min-h-12 w-full items-center gap-3 border-b border-line text-left text-[15px] last:border-b-0";
+
 /** 押せる行。右に「›」を出す。色の設定やグループの一覧に使う */
 export function RowButton({ className, children, ...props }: ComponentProps<"button">) {
   return (
-    <button
-      type="button"
-      className={cn(
-        "flex min-h-12 w-full items-center gap-3 border-b border-line text-left text-[15px] last:border-b-0",
-        className,
-      )}
-      {...props}
-    >
+    <button type="button" className={cn(rowClass, className)} {...props}>
       {children}
       <span className="text-lg text-ink-3" aria-hidden="true">
         ›

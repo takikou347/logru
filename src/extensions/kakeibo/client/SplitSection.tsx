@@ -141,7 +141,7 @@ export function SplitModeSection({
                 </span>
                 <Input
                   type="text"
-                  inputMode="numeric"
+                  inputMode="decimal"
                   aria-label={`${label}の負担額`}
                   value={customShares[id] ?? ""}
                   onChange={(e) => onChangeCustomShares({ ...customShares, [id]: sanitizeAmountInput(e.target.value) })}

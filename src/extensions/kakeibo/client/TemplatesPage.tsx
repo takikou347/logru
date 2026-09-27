@@ -1,4 +1,5 @@
 /** よく使う記録の画面。並べる。押すと全部の欄を直せる、消す。0072、F-326、issue #248 */
+import { Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
@@ -59,8 +60,9 @@ function TemplateRow({
         <span className="min-w-0 truncate text-[15px] font-medium">{template.name}</span>
         <span className="text-xs text-ink-2">{detail}</span>
       </button>
-      <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
-        消す
+      {/* アイコンだけ。読み上げの名前は今までどおり「消す」。issue #243 */}
+      <Button type="button" variant="ghost" size="icon" aria-label="消す" onClick={onRemove}>
+        <Trash2 className="size-4" aria-hidden="true" />
       </Button>
     </li>
   );

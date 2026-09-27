@@ -13,6 +13,10 @@ export function AuthShell({ children }: { children: ReactNode }) {
       <p className="mt-4.5 text-center text-xs leading-loose text-ink-2">
         <Link to="/terms">利用規約</Link> ・ <Link to="/privacy">プライバシーポリシー</Link>
       </p>
+      {/* ログインできない人でも表示を直せるように。Service Worker の navigateFallback の対象外。F-42、0089 */}
+      <p className="mt-1 text-center text-xs text-ink-2">
+        表示がおかしいときは <a href="/api/reset">こちら</a>
+      </p>
     </main>
   );
 }

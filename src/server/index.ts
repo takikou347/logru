@@ -19,6 +19,7 @@ import { groupRoutes } from "@server/modules/groups/routes";
 import { inviteRoutes } from "@server/modules/invites/routes";
 import { meRoutes } from "@server/modules/me/routes";
 import { notificationRoutes } from "@server/modules/notifications/routes";
+import { pwaRoutes } from "@server/modules/pwa/routes";
 import { searchRoutes } from "@server/modules/search/routes";
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
@@ -33,6 +34,8 @@ app.use("*", async (c, next) => {
 });
 
 app.get("/health", (c) => c.json({ ok: true }));
+// 表示が古いままの人が直す入口。ログインは求めない。F-42、0089
+app.route("/", pwaRoutes);
 app.route("/client-errors", clientErrorRoutes);
 app.route("/me", meRoutes);
 app.route("/groups", groupRoutes);

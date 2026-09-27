@@ -96,6 +96,12 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
+        // injectRegister: "script" にすると、vite-plugin-pwa は autoUpdate でも skipWaiting と
+        // clientsClaim を自動では入れない(injectRegister が "auto" のときだけの決まり)。入れないと、
+        // 新しい Service Worker は前のタブを閉じるまで控えたままで、controllerchange が起きない。
+        // 開いたまま切り替える 0073 の前提が崩れるので、ここで明示して入れる。F-42、0089
+        skipWaiting: true,
+        clientsClaim: true,
         // 端末への知らせを受ける処理。0023
         importScripts: ["/push-sw.js"],
         navigateFallback: "/index.html",

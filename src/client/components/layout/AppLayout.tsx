@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronLeft, House, Settings } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useMe } from "@/api/common";
 import { signOut } from "@/app/auth";
@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { BOX_EXPAND_NAME, consumeBoxExpandTarget, useBoxExpandActive } from "@/lib/box-expand";
 import { useBack } from "@/lib/use-back";
 import { cn } from "@/lib/utils";
 
@@ -159,7 +160,22 @@ export function PageBar({
   );
 }
 
-/** 設定やグループの画面の中身。PC では幅を絞る */
+/**
+ * 設定やグループの画面の中身。PC では幅を絞る。
+ *
+ * 節の見出し・機能のタイルから box-expand(lib/box-expand.ts)で来た画面のときだけ、最初の描画で
+ * 自分の面に同じ名前を付ける。押した行と同じ考え方(0044、0093)で、行き先の画面がどれでも
+ * 直さずに済むよう、共通のこの部品でまとめて受ける。issue #241
+ */
 export function Page({ children }: { children: ReactNode }) {
-  return <div className="flex w-full max-w-[640px] flex-col gap-3">{children}</div>;
+  const boxExpandActive = useBoxExpandActive();
+  const [named] = useState(() => boxExpandActive && consumeBoxExpandTarget());
+  return (
+    <div
+      className="flex w-full max-w-[640px] flex-col gap-3"
+      style={named ? { viewTransitionName: BOX_EXPAND_NAME } : undefined}
+    >
+      {children}
+    </div>
+  );
 }

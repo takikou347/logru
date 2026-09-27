@@ -3,6 +3,7 @@ import { CloseButton } from "@/components/parts/CloseButton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { sheetOpened } from "@/lib/pwa-update";
+import { useSheetExpandName } from "@/lib/row-expand";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +56,9 @@ const CLOSE_FALLBACK_MS = 400;
  * @param fullScreen スマホでは画面いっぱいに広げる。文字盤が出ても入力欄と結果が隠れにくい。探すのシートで使う。issue #23
  * @param open 呼び出し側が持つ、開いているかどうか。渡すと閉じる動きを待つ形になる。#192
  * @param onOpenChange Esc・外側・X を押したとき。`open` を渡したときだけ使う
+ * @param viewTransitionName 行がそのままシートに広がる動き(共有要素)の名前。押した行と同じ名前を
+ *   渡すと、View Transitions API が位置と大きさをつなげる。渡さなければ、開いた行の呼び出し側が
+ *   RowExpandContext(lib/row-expand.ts)に積んだ名前を使う。どちらも無ければ名前を付けない。0044、0093
  */
 export function ResponsiveSheet({
   title,
@@ -66,6 +70,7 @@ export function ResponsiveSheet({
   fullScreen,
   open: openProp,
   onOpenChange: onOpenChangeProp,
+  viewTransitionName,
 }: {
   title: string;
   description?: ReactNode;
@@ -76,8 +81,12 @@ export function ResponsiveSheet({
   fullScreen?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  viewTransitionName?: string;
 }) {
   const desktop = useMediaQuery("(min-width: 1024px)");
+  const ctxViewTransitionName = useSheetExpandName();
+  const vtName = viewTransitionName ?? ctxViewTransitionName;
+  const vtStyle = vtName ? { viewTransitionName: vtName } : undefined;
   // 新しい版が出ても、開いている間は読み込み直しを延ばす。0073
   useEffect(() => sheetOpened(), []);
 
@@ -136,6 +145,7 @@ export function ResponsiveSheet({
               panel,
               "max-h-[calc(100dvh-48px)] overflow-hidden rounded-panel border-(--glass-edge) bg-(--glass-flat) p-6",
             )}
+            style={vtStyle}
           >
             {top}
             <DialogHeader>
@@ -174,6 +184,7 @@ export function ResponsiveSheet({
               ? "h-full max-h-full rounded-none border-0 px-5 pt-[max(16px,env(safe-area-inset-top))] pb-[max(16px,env(safe-area-inset-bottom))]"
               : "max-h-[calc(100dvh-var(--safe-top)-12px)] rounded-[34px] border border-(--glass-edge) bg-(--glass-flat) px-5 pt-2.5 pb-5.5",
           )}
+          style={vtStyle}
         >
           {top}
           <SheetHeader className="p-0">

@@ -326,6 +326,66 @@
     transform: scale(0.96);
   }
 }
+
+/*
+ * 保存した反応。ラボの「新しい見た目」を入れた人だけ、item-enter の動きをテーマごとの反応に
+ * 置き換える(重ねない。上の item-enter の膨らんで入る動きとは同時に鳴らさない)。0044、0048、0093、issue #241
+ *
+ * 既定(リキッドガラス)は面に光が 1 回走る。::after の帯を右へ流す。行の位置・大きさは動かさない。
+ */
+[data-lab-new-look] .item-enter {
+  position: relative;
+  overflow: hidden;
+  animation: row-save-glass var(--dur-save) var(--ease-out);
+}
+[data-lab-new-look] .item-enter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 35%, var(--glass-shine) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: row-save-sweep var(--dur-save) var(--ease-out);
+  pointer-events: none;
+}
+@keyframes row-save-glass {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes row-save-sweep {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(120%);
+  }
+}
+
+/* 紙は光らせず、題名(data-title)が左から書き込まれるように見せる。光の帯(::after)は出さない */
+[data-lab-new-look][data-look="paper"] .item-enter {
+  animation: row-save-paper var(--dur-save) var(--ease-out);
+}
+[data-lab-new-look][data-look="paper"] .item-enter::after {
+  display: none;
+}
+@keyframes row-save-paper {
+  from {
+    opacity: 0.3;
+  }
+}
+[data-lab-new-look][data-look="paper"] .item-enter [data-title] {
+  display: inline-block;
+  animation: row-save-write var(--dur-save) linear;
+}
+@keyframes row-save-write {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
 [data-leaving="true"] {
   opacity: 0;
   transform: scale(0.96);
@@ -410,6 +470,27 @@
 ::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
+}
+
+/*
+ * 行がそのままシートに広がる動き(row-expand)、節・タイルがそのまま機能の画面に広がる動き
+ * (box-expand)。どちらも View Transitions API の共有要素。同時に広がる行・面は 1 つだけなので、
+ * 固定の名前でよい(lib/row-expand.ts、lib/box-expand.ts)。0044、0071、0093、issue #241
+ *
+ * root と違い、既定の mix-blend-mode(plus-lighter)は残す。0071 の「選んでいる日」と同じ考えで、
+ * 名前を持つ要素どうしがつながって見える。時間と緩急だけ 0044 のトークンに合わせる
+ */
+::view-transition-group(row-expand),
+::view-transition-old(row-expand),
+::view-transition-new(row-expand) {
+  animation-duration: var(--dur-expand);
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-group(box-expand),
+::view-transition-old(box-expand),
+::view-transition-new(box-expand) {
+  animation-duration: var(--dur-box-expand);
+  animation-timing-function: var(--ease-out);
 }
 
 /*

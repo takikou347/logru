@@ -83,7 +83,9 @@ jobs:
           DATABASE_ID: ${{ matrix.database_id }}
           TARGET: ${{ matrix.name }}
         run: |
-          for i in $(seq 1 20); do
+          # 問い合わせが途切れると、書き出しは取り消される。wrangler と同じく間を置かずに聞き続ける。0041
+          deadline=$(( $(date +%s) + 300 ))
+          while [ "$(date +%s)" -lt "$deadline" ]; do
             res=$(curl -sS -X POST \
               "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database/${DATABASE_ID}/export" \
               -H "Content-Type: application/json" \
@@ -116,7 +118,8 @@ jobs:
             fi
             # 途中経過の文面。完了の返事は signed_url を含むので出さない
             printf '%s' "$res" | jq -r '.result.messages[]?'
-            sleep 15
+            next=$(printf '%s' "$res" | jq -r '.result.at_bookmark // empty')
+            BOOKMARK="${next:-$BOOKMARK}"
           done
           echo "::error::${TARGET} のエクスポートが時間内に終わらなかった"
           exit 1

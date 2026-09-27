@@ -63,7 +63,8 @@ jobs:
             -d '{"output_format":"polling"}')
           bookmark=$(printf '%s' "$res" | jq -r '.result.at_bookmark // empty')
           if [ -z "$bookmark" ]; then
-            echo "::error::${{ matrix.name }} のエクスポートを始められなかった"
+            errors=$(printf '%s' "$res" | jq -r '[.errors[]? | "\(.code) \(.message)"] | join(", ")' 2>/dev/null || true)
+            echo "::error::${{ matrix.name }} のエクスポートを始められなかった: ${errors:-JSON でない返事}"
             exit 1
           fi
           echo "bookmark=$bookmark" >> "$GITHUB_OUTPUT"
@@ -88,6 +89,13 @@ jobs:
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer ${D1_BACKUP_API_TOKEN}" \
               -d "{\"output_format\":\"polling\",\"current_bookmark\":\"${BOOKMARK}\"}")
+            # エラーが返ったら待たずに止め、Cloudflare の番号と文面を出す
+            ok=$(printf '%s' "$res" | jq -r '.success // false' 2>/dev/null || echo false)
+            if [ "$ok" != "true" ]; then
+              errors=$(printf '%s' "$res" | jq -r '[.errors[]? | "\(.code) \(.message)"] | join(", ")' 2>/dev/null || true)
+              echo "::error::${TARGET} の書き出しの問い合わせにエラーが返った: ${errors:-JSON でない返事}"
+              exit 1
+            fi
             status=$(printf '%s' "$res" | jq -r '.result.status // empty')
             if [ "$status" = "complete" ]; then
               url=$(printf '%s' "$res" | jq -r '.result.result.signed_url // empty')
@@ -103,9 +111,11 @@ jobs:
               exit 0
             fi
             if [ "$status" = "error" ]; then
-              echo "::error::${TARGET} のエクスポートが失敗した"
+              echo "::error::${TARGET} のエクスポートが失敗した: $(printf '%s' "$res" | jq -r '.result.error // empty')"
               exit 1
             fi
+            # 途中経過の文面。完了の返事は signed_url を含むので出さない
+            printf '%s' "$res" | jq -r '.result.messages[]?'
             sleep 15
           done
           echo "::error::${TARGET} のエクスポートが時間内に終わらなかった"

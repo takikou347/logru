@@ -8,6 +8,10 @@
  * controllerchange を受けたら読み込み直す。ただし、シートを開いて入力の途中に読み込み直すと
  * 書いたものが消えるので、シートを閉じるかアプリに戻ってきた(visibilitychange)ときまで延ばす。
  * 延ばすかどうかの判定は、このファイルへ 1 か所にまとめる。0073
+ *
+ * vite.config.ts の workbox は skipWaiting と clientsClaim を明示して入れている。0089
+ * clientsClaim があると、開いた直後にも controllerchange が 1 度起きる(初めて制御された、だけ)。
+ * これは新しい版への切り替えではないので、読み込み直さない。
  */
 
 import { toast } from "sonner";
@@ -90,7 +94,15 @@ export function listenAutoUpdate(): void {
     true,
   );
 
+  // 開いた時点でまだ誰にも制御されていなければ、最初の controllerchange は新しい版への切り替えでなく
+  // 「初めて Service Worker に制御された」だけ。clientsClaim が入っているので、読み込んだその場で 1 度起きる。
+  // ここまでは読み込み直さない。0089
+  let hadControllerAtStart = Boolean(navigator.serviceWorker.controller);
   navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadControllerAtStart) {
+      hadControllerAtStart = true;
+      return;
+    }
     reloadPending = true;
     flushPendingReload();
   });

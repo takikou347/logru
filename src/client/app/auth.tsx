@@ -34,11 +34,18 @@ export function useAuth(): AuthState {
 /**
  * ログアウトする。端末に残した API の控えと、読み込んだデータも消す。
  * 共有の端末で、前の人の予定が見えないようにする。
+ *
+ * あわせて Service Worker に新しい版が無いか確かめさせる。共有の端末の次の人が、
+ * 古いままの版を引き継がないように。F-42、0089
  */
 export async function signOut(): Promise<void> {
   await firebaseSignOut(auth);
   await clearApiCache();
   queryClient.clear();
+  if ("serviceWorker" in navigator) {
+    const reg = await navigator.serviceWorker.getRegistration();
+    void reg?.update();
+  }
 }
 
 /** メールとパスワードで登録し、まだメールアドレスを確かめていないか */

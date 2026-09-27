@@ -13,6 +13,7 @@ import { clientErrorReporter, describeError } from "@/lib/error-report";
 import { detectInAppBrowser, externalBrowserRedirectUrl, withoutExternalBrowserParam } from "@/lib/in-app-browser";
 import { listenInstallPrompt } from "@/lib/pwa";
 import { listenAutoUpdate } from "@/lib/pwa-update";
+import { listenVersionCheck } from "@/lib/pwa-version-check";
 import { isSessionExpired, markSessionExpired } from "@/lib/session-expired";
 import { applyTheme, readStoredTheme, watchSystemTheme } from "@/lib/theme";
 import { AuthProvider, signOut } from "./auth";
@@ -79,6 +80,8 @@ if (redirectUrl) {
 
   // 新しい版を出したら、開き直さなくても画面を切り替える。F-41、0073
   listenAutoUpdate();
+  // 版の食い違いを自分で見つけて直す。上の仕組みが効かない端末への守り。F-42、0089
+  listenVersionCheck();
 
   const stored = readStoredTheme();
   applyTheme(stored.mode, stored.bgTheme, stored.accent);

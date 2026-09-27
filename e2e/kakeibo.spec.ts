@@ -271,6 +271,35 @@ test("口座を作り、支出・収入・振替を記録すると残高が合�
   await expect(page.getByTestId("kakeibo-assets")).toHaveText("¥12,000");
 });
 
+test("グループの「よく使う払い方」の既定を共有口座にすると、そのグループを選んだ記録のシートに口座の既定が入る。0069、0087、F-329", async ({
+  page,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await page.goto("/groups");
+  await page.getByLabel("グループの名前").fill("暮らし");
+  await page.getByRole("button", { name: "作る" }).click();
+
+  await page.goto("/settings/extensions/kakeibo");
+  await page.getByRole("region", { name: "足すグループ" }).getByRole("button", { name: "暮らしを足す" }).click();
+  await expect(page.getByText("足しました")).toBeVisible();
+
+  await createAccount(page, "共有口座", { share: "暮らし" });
+
+  // グループの設定で「共有口座で払う」を選ぶ
+  await page.goto("/kakeibo/accounts");
+  const panel = page.getByRole("region", { name: "暮らし" });
+  await panel.getByRole("button", { name: /^よく使う払い方/ }).click();
+  await page.getByRole("dialog", { name: "よく使う払い方" }).getByRole("option", { name: "共有口座で払う" }).click();
+  await expect(panel.getByRole("button", { name: /^よく使う払い方/ })).toContainText("共有口座で払う");
+
+  // 記録のシートで「暮らし」を選ぶと、口座に共有口座が既定として入る
+  const sheet = await openRecordSheet(page);
+  await pickShare(page, sheet, "暮らし");
+  await expect(sheet.getByRole("button", { name: /^口座/ })).toContainText("共有口座");
+});
+
 test("カードの残高はマイナスになり、引き落としの振替で戻る。F-309、F-311", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await enableKakeibo(page);
@@ -559,6 +588,40 @@ test("決めた日をもう過ぎて定期の記録を作ると、すぐその�
   // 現金の残高からすぐ引かれる
   await page.goto("/kakeibo/accounts");
   await expect(page.getByRole("link", { name: "現金" })).toContainText("-¥12,000");
+});
+
+test("定期の記録は振替も扱える。決めた日をもう過ぎていればすぐ入り、2 つの口座の残高が動く。0087、F-328", async ({
+  page,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableKakeibo(page);
+
+  await createAccount(page, "銀行", { kind: "銀行", openingBalance: "100000" });
+  await createAccount(page, "現金", { openingBalance: "0" });
+
+  // 毎月の日を 1 にすると、今日が何日でも必ずもう過ぎている
+  await page.goto("/kakeibo/recurrings");
+  await page
+    .getByRole("toolbar", { name: "定期の記録の操作" })
+    .getByRole("button", { name: "定期の記録を作る" })
+    .click();
+  const sheet = page.getByRole("dialog", { name: "定期の記録を作る" });
+  await sheet.getByRole("radio", { name: "振替" }).click();
+  await sheet.getByLabel("金額").fill("20000");
+  await pickAccount(page, sheet, "出す元", "銀行");
+  await pickAccount(page, sheet, "入れる先", "現金");
+  await sheet.getByLabel("毎月の日").fill("1");
+  await sheet.getByRole("button", { name: "保存する" }).click();
+  const today = tokyoDateParts(0);
+  await expect(page.getByText(`${today.month}月1日の分を記録しました`)).toBeVisible();
+
+  // 振替は「銀行 → 現金」として一覧に出て、それぞれの残高が動く
+  await page.goto("/kakeibo/recurrings");
+  await expect(page.getByText("銀行 → 現金")).toBeVisible();
+
+  await page.goto("/kakeibo/accounts");
+  await expect(page.getByRole("link", { name: "銀行" })).toContainText("¥80,000");
+  await expect(page.getByRole("link", { name: "現金" })).toContainText("¥20,000");
 });
 
 test("共有のグループを抜けると、抜けた人がそのグループに作った定期の記録は止まる。#198", async ({ page, browser }) => {

@@ -12,6 +12,7 @@ import { usableGroupIds, usableGroups } from "./access";
 import { kakeiboAccountsRoutes } from "./accounts-routes";
 import { kakeiboBudgetsRoutes } from "./budgets-routes";
 import { toExpenseDtos } from "./dto";
+import { kakeiboGroupSettingsRoutes } from "./group-settings-routes";
 import { kakeiboRecurringsRoutes } from "./recurring-routes";
 import { type KakeiboAccountRow, type KakeiboExpenseRow, kakeiboAccounts, kakeiboExpenses } from "./schema";
 import { kakeiboSettlementRoutes, kakeiboSettlementsRoutes } from "./settlement-routes";
@@ -176,6 +177,7 @@ export const kakeiboRoutes = createRouter()
   .route("/budgets", kakeiboBudgetsRoutes)
   .route("/recurrings", kakeiboRecurringsRoutes)
   .route("/templates", kakeiboTemplatesRoutes)
+  .route("/group-settings", kakeiboGroupSettingsRoutes)
   .get("/usage", async (c) => {
     const db = c.get("db");
     const userId = c.get("user").id;

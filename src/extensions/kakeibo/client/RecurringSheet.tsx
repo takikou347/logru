@@ -1,4 +1,4 @@
-/** 定期の記録を作る、直すシート。F-325 */
+/** 定期の記録を作る、直すシート。F-325、F-328 */
 import type { GroupSummary, Me } from "@shared/api-types";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
@@ -14,19 +14,21 @@ import { Input, Textarea } from "@/components/ui/input";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_EXPENSE_CATEGORIES, KAKEIBO_INCOME_CATEGORIES, type KakeiboCategory } from "../shared/categories";
 import { isValidKakeiboAmount } from "../shared/format";
+import type { KakeiboType } from "../shared/types";
 import type { KakeiboRecurring, KakeiboRecurringOccurrence } from "./api";
 import { useKakeiboAccounts, useSaveRecurring } from "./api";
 import { sanitizeAmountInput } from "./numeric-input";
 import { AccountPickerRow, monthKeyOf } from "./parts";
 
-const TYPE_LABELS: Record<"expense" | "income", string> = { expense: "支出", income: "収入" };
+const TYPE_LABELS: Record<KakeiboType, string> = { expense: "支出", income: "収入", transfer: "振替" };
 
 /** 下の footer のボタンから、シートの中の form を submit するのに使う */
 const RECURRING_FORM_ID = "kakeibo-recurring-form";
 
 /**
  * 定期の記録を作る、直すシート。種類、金額、カテゴリ、口座、メモ、グループ、毎月の日、始まりの月、
- * 終わりの月(省ける)を入れる。振替はまだ扱わない。F-325
+ * 終わりの月(省ける)を入れる。振替は、グループの代わりに出す元・入れる先の口座を選ぶ。
+ * 振替を置くグループは、記録の振替と同じ決め方でサーバーが決める。0069、0072、0087、F-325、F-328
  */
 export function RecurringSheet({
   groups,
@@ -63,10 +65,13 @@ export function RecurringSheet({
         alwaysOn: false,
       }),
   );
-  const [type, setType] = useState<"expense" | "income">(recurring?.type === "income" ? "income" : "expense");
+  const [type, setType] = useState<KakeiboType>(recurring?.type ?? "expense");
   const [amountText, setAmountText] = useState(recurring ? String(recurring.amount) : "");
-  const [category, setCategory] = useState<KakeiboCategory | null>(recurring?.category ?? null);
+  const [category, setCategory] = useState<KakeiboCategory | null>(
+    recurring && recurring.type !== "transfer" ? recurring.category : null,
+  );
   const [accountId, setAccountId] = useState<string | null>(recurring?.accountId ?? null);
+  const [toAccountId, setToAccountId] = useState<string | null>(recurring?.toAccountId ?? null);
   const [memo, setMemo] = useState(recurring?.memo ?? "");
   const [dayOfMonth, setDayOfMonth] = useState(recurring ? String(recurring.dayOfMonth) : String(new Date().getDate()));
   const [startMonth, setStartMonth] = useState(recurring?.startMonth ?? monthKeyOf(new Date()));
@@ -79,29 +84,47 @@ export function RecurringSheet({
     setAccountId(null);
   }
 
+  // 種類を変えると、選べる口座やカテゴリが変わるので選び直させる。ExpenseSheet と同じ考え方。F-328
+  function changeType(next: KakeiboType) {
+    setType(next);
+    setCategory(null);
+    setAccountId(null);
+    setToAccountId(null);
+  }
+
   const selectedGroup = groups.find((g) => g.id === groupId);
   const personalGroupId = groups.find((g) => g.isPersonal)?.id ?? null;
-  // 共有のグループなら、そのグループの口座と自分の口座の両方から選べる。0069、F-319
-  const accounts = useKakeiboAccounts(selectedGroup?.isPersonal ? groupId : null, Boolean(selectedGroup?.isPersonal));
+  // 振替は、選べる口座を「使えるグループ全部」から出す。支出・収入は、選んだグループの口座(共有のグループなら
+  // 自分の口座も立て替えの側として)だけ。0069、F-319、F-328
+  const accounts = useKakeiboAccounts(
+    type === "transfer" ? null : selectedGroup?.isPersonal ? groupId : null,
+    type === "transfer" || Boolean(selectedGroup?.isPersonal),
+  );
   const sharedAccounts = useKakeiboAccounts(
-    selectedGroup && !selectedGroup.isPersonal ? groupId : null,
-    Boolean(selectedGroup) && !selectedGroup?.isPersonal,
+    type !== "transfer" && selectedGroup && !selectedGroup.isPersonal ? groupId : null,
+    type !== "transfer" && Boolean(selectedGroup) && !selectedGroup?.isPersonal,
   );
   const personalAccounts = useKakeiboAccounts(
-    selectedGroup && !selectedGroup.isPersonal ? personalGroupId : null,
-    Boolean(selectedGroup) && !selectedGroup?.isPersonal && Boolean(personalGroupId),
+    type !== "transfer" && selectedGroup && !selectedGroup.isPersonal ? personalGroupId : null,
+    type !== "transfer" && Boolean(selectedGroup) && !selectedGroup?.isPersonal && Boolean(personalGroupId),
   );
-  const accountOptions = selectedGroup?.isPersonal
-    ? (accounts.data ?? [])
-    : [...(sharedAccounts.data ?? []), ...(personalAccounts.data ?? [])];
+  const accountOptions =
+    type === "transfer"
+      ? (accounts.data ?? [])
+      : selectedGroup?.isPersonal
+        ? (accounts.data ?? [])
+        : [...(sharedAccounts.data ?? []), ...(personalAccounts.data ?? [])];
 
   const categories = type === "income" ? KAKEIBO_INCOME_CATEGORIES : KAKEIBO_EXPENSE_CATEGORIES;
   const amountValue = Number(amountText);
   const dayValue = Number(dayOfMonth);
   const amountOk = isValidKakeiboAmount(amountText);
+  const categoryOk = type === "transfer" || category !== null;
+  const transferOk = type !== "transfer" || (Boolean(accountId) && Boolean(toAccountId) && accountId !== toAccountId);
   const canSubmit =
-    Boolean(groupId) &&
-    Boolean(category) &&
+    (type === "transfer" || Boolean(groupId)) &&
+    categoryOk &&
+    transferOk &&
     amountOk &&
     Number.isInteger(dayValue) &&
     dayValue >= 1 &&
@@ -111,38 +134,26 @@ export function RecurringSheet({
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!canSubmit || !category) return;
+    if (!canSubmit) return;
     await submitSheet(async () => {
+      const shared = {
+        type,
+        amount: amountValue,
+        category: type === "transfer" ? undefined : (category ?? undefined),
+        accountId,
+        toAccountId: type === "transfer" ? toAccountId : null,
+        memo: memo || null,
+        dayOfMonth: dayValue,
+        startMonth,
+        endMonth: endMonth || null,
+      };
       if (recurring) {
-        await saveRecurring.mutateAsync({
-          id: recurring.id,
-          body: {
-            type,
-            amount: amountValue,
-            category,
-            accountId,
-            memo: memo || null,
-            dayOfMonth: dayValue,
-            startMonth,
-            endMonth: endMonth || null,
-            paused,
-          },
-        });
+        await saveRecurring.mutateAsync({ id: recurring.id, body: { ...shared, paused } });
         toast("定期の記録を直しました");
         onSaved?.(recurring.id);
       } else {
         const created = await saveRecurring.mutateAsync({
-          body: {
-            groupId,
-            type,
-            amount: amountValue,
-            category,
-            accountId,
-            memo: memo || null,
-            dayOfMonth: dayValue,
-            startMonth,
-            endMonth: endMonth || null,
-          },
+          body: { ...shared, groupId: type === "transfer" ? undefined : groupId },
         });
         if (created.occurrence) {
           onCreated(created.occurrence);
@@ -184,16 +195,8 @@ export function RecurringSheet({
             種類
           </span>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="kakeibo-recurring-type-label">
-            {(["expense", "income"] as const).map((t) => (
-              <Chip
-                key={t}
-                role="radio"
-                aria-checked={type === t}
-                onClick={() => {
-                  setType(t);
-                  setCategory(null);
-                }}
-              >
+            {(Object.keys(TYPE_LABELS) as KakeiboType[]).map((t) => (
+              <Chip key={t} role="radio" aria-checked={type === t} onClick={() => changeType(t)}>
                 {TYPE_LABELS[t]}
               </Chip>
             ))}
@@ -212,23 +215,53 @@ export function RecurringSheet({
             />
           )}
         </Field>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-ink-2" id="kakeibo-recurring-category-label">
-            カテゴリ
-          </span>
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="kakeibo-recurring-category-label">
-            {categories.map((c) => (
-              <Chip key={c.key} role="radio" aria-checked={category === c.key} onClick={() => setCategory(c.key)}>
-                {c.label}
-              </Chip>
-            ))}
+        {type !== "transfer" && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-ink-2" id="kakeibo-recurring-category-label">
+              カテゴリ
+            </span>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="kakeibo-recurring-category-label">
+              {categories.map((c) => (
+                <Chip key={c.key} role="radio" aria-checked={category === c.key} onClick={() => setCategory(c.key)}>
+                  {c.label}
+                </Chip>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
         {/* 共有を口座の上に置き、選んだ直後に選べる口座が下に出る並びにする。0067、#194 */}
-        {!recurring && (
+        {/* 振替はグループをサーバーが決めるので選ばせない。0069、F-328 */}
+        {!recurring && type !== "transfer" && (
           <SharePickerRow groups={groups} me={me} value={groupId} onChange={setGroupId} extensionLabel="家計簿" />
         )}
-        <AccountPickerRow label="口座" accounts={accountOptions} value={accountId} onChange={setAccountId} allowNone />
+        {type === "transfer" ? (
+          <div className="flex flex-col gap-3.5">
+            <AccountPickerRow
+              label="出す元"
+              accounts={accountOptions}
+              value={accountId}
+              onChange={setAccountId}
+              allowNone={false}
+              excludeId={toAccountId}
+            />
+            <AccountPickerRow
+              label="入れる先"
+              accounts={accountOptions}
+              value={toAccountId}
+              onChange={setToAccountId}
+              allowNone={false}
+              excludeId={accountId}
+            />
+          </div>
+        ) : (
+          <AccountPickerRow
+            label="口座"
+            accounts={accountOptions}
+            value={accountId}
+            onChange={setAccountId}
+            allowNone
+          />
+        )}
         <Field label="毎月の日" hint="31 を選ぶと、その月の月末になります">
           {(p) => (
             <Input

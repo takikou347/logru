@@ -233,3 +233,21 @@ export const kakeiboTemplates = sqliteTable(
 
 /** 表の 1 行 */
 export type KakeiboTemplateRow = typeof kakeiboTemplates.$inferSelect;
+
+/**
+ * グループの「よく使う払い方」の既定。共有のグループだけ持つ。記録のシートでそのグループを選んだときの
+ * 口座の既定に使う。グループに「共有口座型・立て替え型」の切り替えは持たない考え方(0069)は変えない。0087、F-329
+ * 移行 0027
+ */
+export const kakeiboGroupSettings = sqliteTable("kakeibo_group_settings", {
+  groupId: text("group_id")
+    .primaryKey()
+    .references(() => groups.id, { onDelete: "cascade" }),
+  /** 既定にする共有口座。null は「自分の口座で立て替えて割る」。口座が消えると空に戻る */
+  defaultAccountId: text("default_account_id").references(() => kakeiboAccounts.id, { onDelete: "set null" }),
+  updatedBy: text("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: updatedAt(),
+});
+
+/** 表の 1 行 */
+export type KakeiboGroupSettingRow = typeof kakeiboGroupSettings.$inferSelect;

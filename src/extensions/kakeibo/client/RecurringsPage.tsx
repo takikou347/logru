@@ -19,29 +19,48 @@ import { poolColorsOf } from "@/modules/calendar/model";
 import { takeJustAdded } from "@/modules/calendar/recent-items";
 import { kakeiboCategoryLabel } from "../shared/categories";
 import { formatSignedYen, formatYen } from "../shared/format";
-import type { KakeiboRecurring, KakeiboRecurringOccurrence } from "./api";
-import { useDeleteExpense, useDeleteRecurring, useKakeiboGroups, useKakeiboRecurrings } from "./api";
+import type { KakeiboAccount, KakeiboRecurring, KakeiboRecurringOccurrence } from "./api";
+import {
+  useDeleteExpense,
+  useDeleteRecurring,
+  useKakeiboAccounts,
+  useKakeiboGroups,
+  useKakeiboRecurrings,
+} from "./api";
 import { formatMonthLabel } from "./parts";
 import { RecurringSheet } from "./RecurringSheet";
 
+/** 口座の名前。本人が作った定期の記録だけを読むので、隠す必要はない。見つからなければ「口座なし」。F-328 */
+function accountLabel(id: string | null, accounts: KakeiboAccount[]): string {
+  return accounts.find((a) => a.id === id)?.name ?? "口座なし";
+}
+
 /**
  * 定期の記録 1 件の行。押すと直すシートが開く。足した(元に戻した)直後は膨らんで入り、消す途中は縮んで消える。
- * 直した直後は短く光る。0044、0048、0085、#226
+ * 直した直後は短く光る。振替は「出す元 → 入れる先」を、記録の一覧の行(KakeiboPage)と同じ形で出す。
+ * 0044、0048、0085、#226、F-328
  */
 function RecurringListRow({
   recurring,
   groupLabel,
+  accounts,
   isLeaving,
   isEdited,
   onClick,
 }: {
   recurring: KakeiboRecurring;
   groupLabel: string;
+  accounts: KakeiboAccount[];
   isLeaving: boolean;
   isEdited: boolean;
   onClick: () => void;
 }) {
   const [entering] = useState(() => takeJustAdded(recurring.id));
+  const title =
+    recurring.type === "transfer"
+      ? `${accountLabel(recurring.accountId, accounts)} → ${accountLabel(recurring.toAccountId, accounts)}`
+      : kakeiboCategoryLabel(recurring.category);
+  const amount = recurring.type === "income" ? formatSignedYen(recurring.amount) : formatYen(recurring.amount);
   return (
     <li
       className={cn("border-line not-first:border-t", entering && "item-enter")}
@@ -51,7 +70,7 @@ function RecurringListRow({
       <button type="button" className="flex w-full items-center justify-between gap-3 py-2 text-left" onClick={onClick}>
         <span className="flex min-w-0 flex-col">
           <span className="min-w-0 truncate text-[15px] font-medium">
-            {kakeiboCategoryLabel(recurring.category)}
+            {title}
             {recurring.paused && "(止めている)"}
           </span>
           <span className="text-xs text-ink-2">
@@ -61,9 +80,7 @@ function RecurringListRow({
               : ""}
           </span>
         </span>
-        <span className="flex-none font-bold tabular-nums">
-          {recurring.type === "income" ? formatSignedYen(recurring.amount) : formatYen(recurring.amount)}
-        </span>
+        <span className="flex-none font-bold tabular-nums">{amount}</span>
       </button>
     </li>
   );
@@ -74,6 +91,8 @@ export function RecurringsPage() {
   const me = useMe();
   const { groups, ready } = useKakeiboGroups();
   const recurrings = useKakeiboRecurrings();
+  // 振替の「出す元 → 入れる先」の名前に使う。本人が使えるグループ全部の口座。F-328
+  const accounts = useKakeiboAccounts(null);
   const [params, setParams] = useSearchParams();
   useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
   const deleteExpense = useDeleteExpense();
@@ -146,6 +165,7 @@ export function RecurringsPage() {
                   key={r.id}
                   recurring={r}
                   groupLabel={groupLabel(r.groupId)}
+                  accounts={accounts.data ?? []}
                   isLeaving={leaving.has(r.id)}
                   isEdited={flashing.has(r.id)}
                   onClick={() => {

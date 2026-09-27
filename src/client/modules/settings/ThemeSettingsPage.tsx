@@ -10,10 +10,11 @@ import { poolColorsOf } from "../calendar/model";
 import { SettingsShell } from "./components/SettingsShell";
 
 /**
- * 設定の「テーマ」。/settings/theme。0090、F-43
+ * 設定の「テーマ」。/settings/theme。0090、0095、F-43
  *
  * ラボの「新しい見た目」を入れた人だけに出す。入れていなければ設定・見た目へ戻す。
- * 紙とリキッドガラスの見本を並べ、押した瞬間に画面へ効かせる。選んだ値はこの端末だけに残る
+ * 紙・リキッドガラス・水・夜空・木・季節の 6 つの見本を並べ、押した瞬間に画面へ効かせる。
+ * 選んだ値はこの端末だけに残る
  */
 export function ThemeSettingsPage() {
   const me = useMe();
@@ -27,7 +28,7 @@ export function ThemeSettingsPage() {
     <SettingsShell title="テーマ" poolColors={poolColorsOf(groups.data ?? [], me.data)} back="/settings/appearance">
       <Panel title="見た目の土台">
         <FieldMessage>
-          画面の配置は変わりません。面の色と質感、動きだけが変わります。選んだ見た目はこの端末に残ります。
+          画面の配置は変わりません。面の色と質感、背景、動きだけが変わります。選んだ見た目はこの端末に残ります。
         </FieldMessage>
         <RadioGroupPrimitive.Root
           value={look}
@@ -58,22 +59,72 @@ export function ThemeSettingsPage() {
 }
 
 /**
- * 見本の小さな面。選ぶための見本なので、いま当たっている実際のトークンではなく、
- * 紙とガラスをそれぞれ表す固定した色で描く
+ * 見本ごとの、選ぶための固定した見た目。実際のトークン(tokens.css)とは別に、ここだけの値で描く。
+ * 6 つを並べて見比べられるよう、どれも同じ大きさ・同じ構図(地の色 + 面 + 2 本の帯)にする
  */
+const PREVIEWS: Record<
+  Look,
+  { rounded: string; ground: string; surface: string; textStrong: string; textWeak: string }
+> = {
+  glass: {
+    rounded: "rounded-3xl",
+    ground: "bg-gradient-to-b from-[#d7dee6] to-[#c3ccd8]",
+    surface: "border border-white/60 bg-gradient-to-b from-white/70 to-white/35 backdrop-blur-sm",
+    textStrong: "bg-white/70",
+    textWeak: "bg-white/45",
+  },
+  paper: {
+    rounded: "rounded-[4px]",
+    ground: "bg-[#efe6cf]",
+    surface: "border border-[#e4d7b8] bg-[#f6eeda]",
+    textStrong: "bg-[#8a7a60]/50",
+    textWeak: "bg-[#8a7a60]/30",
+  },
+  water: {
+    rounded: "rounded-[26px]",
+    ground: "bg-gradient-to-b from-[#e4f4f5] to-[#93c9d1]",
+    surface: "border border-white/70 bg-gradient-to-b from-white/60 to-white/25",
+    textStrong: "bg-[#0f2c33]/55",
+    textWeak: "bg-[#0f2c33]/30",
+  },
+  night: {
+    rounded: "rounded-3xl",
+    ground: "bg-gradient-to-b from-[#05060d] to-[#131a30]",
+    surface: "border border-white/15 bg-[#12162a]/85",
+    textStrong: "bg-white/70",
+    textWeak: "bg-white/40",
+  },
+  wood: {
+    rounded: "rounded-[6px]",
+    ground: "bg-gradient-to-b from-[#ecd7ab] to-[#d8b378]",
+    surface: "border border-[#2b1a0c]/20 bg-[#f1e2bd]",
+    textStrong: "bg-[#2b1a0c]/55",
+    textWeak: "bg-[#2b1a0c]/30",
+  },
+  season: {
+    rounded: "rounded-[6px]",
+    ground: "bg-gradient-to-b from-[#f8e3ea] to-[#f3ece1]",
+    surface: "border border-[#241f1a]/15 bg-[#faf5ec]",
+    textStrong: "bg-[#d9577a]/70",
+    textWeak: "bg-[#241f1a]/25",
+  },
+};
+
 function LookPreview({ look }: { look: Look }) {
+  const p = PREVIEWS[look];
   return (
     <div
       className={cn(
-        "flex h-20 flex-col justify-end gap-1.5 p-3",
-        look === "paper"
-          ? "rounded-[4px] border border-[#e4d7b8] bg-[#f6eeda] shadow-[0_1px_3px_rgba(36,27,18,0.12)]"
-          : "rounded-3xl border border-white/60 bg-gradient-to-b from-white/70 to-white/35 shadow-[0_10px_24px_-12px_rgba(23,32,44,0.35)] backdrop-blur-sm",
+        "flex h-20 flex-col justify-end gap-1.5 p-3 shadow-[0_1px_3px_rgba(23,32,44,0.18)]",
+        p.rounded,
+        p.ground,
       )}
       aria-hidden="true"
     >
-      <span className={cn("h-2 w-10 rounded-full", look === "paper" ? "bg-[#8a7a60]/50" : "bg-white/70")} />
-      <span className={cn("h-2 w-16 rounded-full", look === "paper" ? "bg-[#8a7a60]/30" : "bg-white/45")} />
+      <div className={cn("flex flex-col gap-1.5 rounded-[10px] p-2", p.surface)}>
+        <span className={cn("h-2 w-10 rounded-full", p.textStrong)} />
+        <span className={cn("h-2 w-16 rounded-full", p.textWeak)} />
+      </div>
     </div>
   );
 }

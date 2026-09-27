@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 import { addExtension, closeMobileKeyboard, enableNewLook, openMobileKeyboard, signUp } from "./helpers";
 
 /**
@@ -11,6 +11,40 @@ import { addExtension, closeMobileKeyboard, enableNewLook, openMobileKeyboard, s
 /** 実機の数字キーパッド・かなキーパッドの見当の高さ(px) */
 const NUMERIC_KEYBOARD_PX = 291;
 const KANA_KEYBOARD_PX = 346;
+
+/** 欄がキーボードより上の見える範囲に収まっているか(上端も下端も) */
+async function expectWithinKeyboardViewport(locator: Locator, keyboardTop: number) {
+  await expect(async () => {
+    const box = await locator.boundingBox();
+    expect(box).toBeTruthy();
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(keyboardTop + 2);
+  }).toPass({ timeout: 5_000 });
+}
+
+/** シートの下端が、キーボードの上端から 2px 以内にあるか(隙間が無いか) */
+async function expectSheetFlushWithKeyboard(sheet: Locator, keyboardTop: number) {
+  await expect(async () => {
+    const box = await sheet.boundingBox();
+    expect(box).toBeTruthy();
+    expect(Math.abs(box!.y + box!.height - keyboardTop)).toBeLessThanOrEqual(2);
+  }).toPass({ timeout: 5_000 });
+}
+
+/** 2 つの欄の四角が重ならないか */
+async function expectNoOverlap(a: Locator, b: Locator) {
+  await expect(async () => {
+    const [boxA, boxB] = await Promise.all([a.boundingBox(), b.boundingBox()]);
+    expect(boxA).toBeTruthy();
+    expect(boxB).toBeTruthy();
+    const overlap =
+      boxA!.x < boxB!.x + boxB!.width &&
+      boxA!.x + boxA!.width > boxB!.x &&
+      boxA!.y < boxB!.y + boxB!.height &&
+      boxA!.y + boxA!.height > boxB!.y;
+    expect(overlap).toBe(false);
+  }).toPass({ timeout: 5_000 });
+}
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
@@ -29,27 +63,24 @@ test("支出のシート。キーボードが出ると持ち上がり、保存�
   if (!viewport) throw new Error("viewport が取れません");
   const keyboardTop = viewport.height - NUMERIC_KEYBOARD_PX;
 
+  const amount = sheet.getByLabel("金額");
+  await amount.focus();
   await openMobileKeyboard(page, NUMERIC_KEYBOARD_PX);
 
   // 下のタブの帯が隠れる
   await expect(page.getByRole("navigation", { name: "下のタブ" })).toBeHidden();
 
+  // シートの下端が、キーボードの上端にぴったり合う(隙間が無い)
+  await expectSheetFlushWithKeyboard(sheet, keyboardTop);
+
   // 保存(アイコンだけ、読み上げの名前は残る)がキーボードの見える範囲に来る
   const save = sheet.getByRole("button", { name: "保存する" });
   await expect(save).toBeVisible();
-  await expect(async () => {
-    const box = await save.boundingBox();
-    expect(box).toBeTruthy();
-    expect(box!.y + box!.height).toBeLessThanOrEqual(keyboardTop + 2);
-  }).toPass({ timeout: 5_000 });
+  await expectWithinKeyboardViewport(save, keyboardTop);
 
-  // 入力中の欄(金額)も隠れない
-  const amount = sheet.getByLabel("金額");
-  await expect(async () => {
-    const box = await amount.boundingBox();
-    expect(box).toBeTruthy();
-    expect(box!.y + box!.height).toBeLessThanOrEqual(keyboardTop + 2);
-  }).toPass({ timeout: 5_000 });
+  // 入力中の欄(金額)も、見える範囲に入り、保存の帯と重ならない
+  await expectWithinKeyboardViewport(amount, keyboardTop);
+  await expectNoOverlap(amount, save);
 });
 
 test("支出のシート。帯の前・次で欄を移れ、帯の保存で保存できる", async ({ page }) => {
@@ -95,7 +126,15 @@ test("予定のシート。キーボードが出ると持ち上がり、Enter �
   await openMobileKeyboard(page, KANA_KEYBOARD_PX);
   await expect(page.getByRole("navigation", { name: "下のタブ" })).toBeHidden();
 
+  // シートの下端が、キーボードの上端にぴったり合う(隙間が無い)
+  await expectSheetFlushWithKeyboard(sheet, keyboardTop);
+
+  const save = sheet.getByRole("button", { name: "保存する" });
   await title.fill("えいが");
+  // 入力中の欄(題名)も、見える範囲に入り、保存の帯と重ならない
+  await expectWithinKeyboardViewport(title, keyboardTop);
+  await expectNoOverlap(title, save);
+
   await title.press("Enter");
 
   // 送信されず(シートは開いたまま、知らせも出ない)、次の欄へ移る
@@ -104,12 +143,7 @@ test("予定のシート。キーボードが出ると持ち上がり、Enter �
   await expect(title).not.toBeFocused();
 
   // 帯の保存(アイコンだけ)で、あらためて保存できる
-  const save = sheet.getByRole("button", { name: "保存する" });
-  await expect(async () => {
-    const box = await save.boundingBox();
-    expect(box).toBeTruthy();
-    expect(box!.y + box!.height).toBeLessThanOrEqual(keyboardTop + 2);
-  }).toPass({ timeout: 5_000 });
+  await expectWithinKeyboardViewport(save, keyboardTop);
   await save.click();
   await expect(page.getByText("予定を足しました")).toBeVisible();
 });
@@ -140,11 +174,11 @@ test("リストに足す欄。シートを使わず、キーボードが出る�
   await openMobileKeyboard(page, KANA_KEYBOARD_PX);
 
   await expect(page.getByRole("navigation", { name: "下のタブ" })).toBeHidden();
-  await expect(async () => {
-    const box = await addInput.boundingBox();
-    expect(box).toBeTruthy();
-    expect(box!.y + box!.height).toBeLessThanOrEqual(keyboardTop + 2);
-  }).toPass({ timeout: 5_000 });
+  // 入力中の欄(足す欄)も、右の「足す」ボタンも見える範囲に入り、互いに重ならない
+  const addButton = page.getByRole("button", { name: "足す" });
+  await expectWithinKeyboardViewport(addInput, keyboardTop);
+  await expectWithinKeyboardViewport(addButton, keyboardTop);
+  await expectNoOverlap(addInput, addButton);
 
   // 改行で足して、欄は開いたまま続けて打てる。F-203 と同じ動き
   await addInput.fill("ばなな");

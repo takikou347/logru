@@ -1,4 +1,5 @@
 import { describeEventNotification } from "@extensions/events/shared/notifications";
+import { describeKakeiboNotification } from "@extensions/kakeibo/shared/notifications";
 import { describeMemoriesNotification } from "@extensions/memories/shared/notifications";
 import { describe, expect, it } from "vitest";
 import { describeCoreNotification } from "@/modules/notifications/describe";
@@ -50,6 +51,27 @@ describe("思い出の拡張の describeNotification。F-116、#32", () => {
   it("memories.shiori_assigned は、そのしおりを開く行き先にする。issue #247", () => {
     const r = describeMemoriesNotification("memories.shiori_assigned", { memoryId: "m1", title: "箱根" });
     expect(r).toEqual({ text: "「箱根」の担当になりました。", path: "/memories/m1/shiori" });
+  });
+});
+
+describe("家計簿の拡張の describeNotification。issue #246", () => {
+  it("kakeibo.expense_shared は、金額と負担額を文言に入れる", () => {
+    const r = describeKakeiboNotification("kakeibo.expense_shared", {
+      expenseId: "x1",
+      groupId: "g1",
+      month: "2026-09",
+      name: "IKEA",
+      amount: 12980,
+      share: 6490,
+      byUserName: "みか",
+    });
+    expect(r?.text).toBe("みかが IKEA ¥12,980 を立て替えました。あなたの負担 ¥6,490");
+    expect(r?.path).toBe("/kakeibo?month=2026-09&group=g1&edit=x1");
+  });
+
+  it("kakeibo.budget_exceeded は、予算の画面を開く行き先にする", () => {
+    const r = describeKakeiboNotification("kakeibo.budget_exceeded", { groupId: "g1", name: "食費" });
+    expect(r).toEqual({ text: "予算「食費」を超えました。", path: "/kakeibo/budgets?group=g1" });
   });
 });
 

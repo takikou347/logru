@@ -194,7 +194,7 @@ export const kakeiboRecurringsRoutes = createRouter()
     const created = (await db.select().from(kakeiboRecurrings).where(eq(kakeiboRecurrings.id, id)).get())!;
     // 決めた日をもう過ぎていたら、その月の分をすぐ入れる。kota の決定(2026-09-26)。0072
     const today = dateKeyOfJst(Date.now());
-    const occurrence = await tryInsertOccurrence(db, created, monthKeyOfDate(today), today);
+    const occurrence = await tryInsertOccurrence(db, c.env, created, monthKeyOfDate(today), today);
     const row = (await db.select().from(kakeiboRecurrings).where(eq(kakeiboRecurrings.id, id)).get())!;
     // 画面は occurrence があれば、その日付を知らせに出し、元に戻す(その 1 件を消す)道を付ける。#198
     const dto: KakeiboRecurringCreateDto = { ...toDto(row), occurrence };

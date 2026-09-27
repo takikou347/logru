@@ -1,6 +1,8 @@
 import { zValidator } from "@hono/zod-validator";
 import { createRouter, HttpError, validationHook } from "@server/core/app";
 import type { DB } from "@server/core/db/client";
+import { notify } from "@server/core/notifications/send";
+import { memberIdsOf } from "@server/modules/groups/membership";
 import { and, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { kakeiboBudgetInput, kakeiboBudgetPatchInput } from "../shared/schemas";
 import { requireKakeiboGroup, usableGroupIds } from "./access";
@@ -25,7 +27,7 @@ type KakeiboBudgetDto = {
  * その予算の期間に実際に使った額。そのグループの支出のうち、期間の中(終わりの日を含む)の日付のもの。
  * 振替と収入は入れない。F-324
  */
-async function usedAmount(db: DB, groupId: string, startDate: string, endDate: string): Promise<number> {
+export async function usedAmount(db: DB, groupId: string, startDate: string, endDate: string): Promise<number> {
   const rows = await db
     .select({ amount: kakeiboExpenses.amount })
     .from(kakeiboExpenses)
@@ -87,6 +89,44 @@ function toBudgetDto(row: KakeiboBudgetRow, used: number): KakeiboBudgetDto {
     amount: row.amount,
     used,
   };
+}
+
+/**
+ * 支出を書いた後、その日を含む予算が超えていれば、そのグループのメンバーに積む。
+ * 超えた日に 1 回だけ(dedupeKey)。既読になっていても、その日はもう積まない。0096、issue #246
+ * @param db D1 を包んだ Drizzle
+ * @param env Worker の環境変数
+ * @param groupId 支出のグループ
+ * @param date 支出の日付。`2026-09-24` の形
+ * @param actorId 支出を書いた人。自分には積まない
+ */
+export async function notifyBudgetExceeded(
+  db: DB,
+  env: Env,
+  groupId: string,
+  date: string,
+  actorId: string,
+): Promise<void> {
+  const budgets = await db
+    .select()
+    .from(kakeiboBudgets)
+    .where(
+      and(eq(kakeiboBudgets.groupId, groupId), lte(kakeiboBudgets.startDate, date), gte(kakeiboBudgets.endDate, date)),
+    );
+  for (const budget of budgets) {
+    const used = await usedAmount(db, budget.groupId, budget.startDate, budget.endDate);
+    if (used <= budget.amount) continue;
+    const memberIds = await memberIdsOf(db, groupId);
+    await notify({
+      db,
+      env,
+      userIds: memberIds,
+      actorId,
+      kind: "kakeibo.budget_exceeded",
+      payload: { budgetId: budget.id, name: budget.name, groupId },
+      dedupeKey: `${budget.id}_${date}`,
+    });
+  }
 }
 
 /**

@@ -620,6 +620,8 @@ test("期間の予算を作ると、家計簿の画面の上と予算の画面�
   await editSheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("予算を直しました")).toBeVisible();
   await expect(page.getByText("残り ¥17,000")).toBeVisible();
+  // 直すシートが閉じ切るまで待つ。閉じる途中の幕に押した指が当たると、次のシートが開かない
+  await expect(editSheet).toBeHidden();
 
   // 消すときは確認を挟まず、5 秒だけ「元に戻す」を出す。#194
   await page.getByText("食費").click();

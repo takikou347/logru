@@ -217,7 +217,7 @@ export function RecordBody({
         {mine && onEdit && (
           <button
             type="button"
-            aria-label="記録を直す"
+            aria-label="編集"
             className="ml-auto flex min-h-8 items-center gap-1 px-2 text-xs font-medium text-ink-2"
             onClick={() => onEdit(record)}
           >

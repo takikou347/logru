@@ -1,8 +1,7 @@
 import { clientExtension, defaultExtension } from "@extensions/client/registry";
-import type { EditorTarget, ItemEditScope } from "@extensions/client/types";
+import type { EditorTarget } from "@extensions/client/types";
 import type { CalendarItem, HomeWidgetEntry } from "@shared/api-types";
 import { defaultHomeLayout, mergeHomeLayout, visibleHomeLayout } from "@shared/home";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
   CalendarClock,
@@ -49,7 +48,6 @@ import { useEnabledExtensions } from "@/lib/extensions";
 import { BASE_TOURS } from "@/lib/tours";
 import { useRecordScreen } from "@/lib/use-back";
 import { useMediaQuery } from "@/lib/use-media-query";
-import { useRowMotion } from "@/lib/use-row-motion";
 import { withViewTransition } from "@/lib/view-transition";
 import { useSaveHomeLayout } from "../home/api";
 import { CalendarHomeProvider, type CalendarView, type MonthNav } from "../home/CalendarContext";
@@ -75,6 +73,7 @@ import {
   type ViewItem,
   viewItemsOf,
 } from "./model";
+import { useCalendarDelete } from "./use-calendar-delete";
 
 const VIEWS = [
   { value: "month", label: "月", icon: Calendar },
@@ -93,37 +92,6 @@ function useToday(): Date {
     return () => window.clearInterval(timer);
   }, []);
   return today;
-}
-
-/**
- * カレンダーの項目を消す。足す・消す・元に戻すの動きそのものは lib/use-row-motion が持つ。ここで足すのは、
- * 項目を出した拡張の deleteItem を呼び、消えたらカレンダーを読み直すこと。0012、0044、0048、0085、#98
- *
- * @returns hidden は一覧から外す項目の itemKey。leaving は縮んで消える動きの途中の itemKey。remove は消す関数
- */
-function useCalendarDelete() {
-  const qc = useQueryClient();
-  const { hidden, leaving, remove: removeRow } = useRowMotion("予定を消しました");
-
-  const remove = useCallback(
-    (item: CalendarItem, scope?: ItemEditScope) => {
-      const key = itemKey(item);
-      removeRow(key, async (opts) => {
-        try {
-          await clientExtension(item.extension)?.deleteItem?.(item.id, {
-            ...opts,
-            occurrenceAt: item.occurrenceAt,
-            scope,
-          });
-        } finally {
-          if (!opts.keepalive) await qc.invalidateQueries({ queryKey: ["calendar"] });
-        }
-      });
-    },
-    [removeRow, qc],
-  );
-
-  return { hidden, leaving, remove };
 }
 
 /**

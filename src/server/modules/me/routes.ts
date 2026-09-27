@@ -1,4 +1,4 @@
-import { toggleableExtensions } from "@extensions/server/registry";
+import { serverExtensions, toggleableExtensions } from "@extensions/server/registry";
 import { zValidator } from "@hono/zod-validator";
 import { type AppEnv, createRouter, HttpError, showLab, validationHook } from "@server/core/app";
 import { missingAgreements, requireAgreement, requireUser } from "@server/core/auth/middleware";
@@ -42,6 +42,7 @@ import {
   profileInput,
   pushSubscriptionInput,
   settingsInput,
+  todayPageInput,
   tourIdParam,
   usualShareInput,
 } from "@shared/schemas";
@@ -150,6 +151,7 @@ export const meRoutes = createRouter()
         toursSeen: settings.toursSeen,
         extensionOrder: settings.extensionOrder,
         usualShareGroupId: settings.usualShareGroupId,
+        todayPage: settings.todayPage,
       },
       needsAgreement: await missingAgreements(db, me.id),
       provider: me.provider,
@@ -295,6 +297,27 @@ export const meRoutes = createRouter()
       .values({ userId: c.get("user").id, ...values })
       .onConflictDoUpdate({ target: userSettings.userId, set: values });
     return c.json({ extensionOrder: order });
+  })
+  /**
+   * 今日のページの並べ方(よく使う順・足した順・自分で並べる)と見せ方(見出し、節ごとの開閉の上書き)。
+   * 知らない拡張の key は取り除く。毎回、全体を送り直す。0092、F-45
+   */
+  .put("/today-page", zValidator("json", todayPageInput, validationHook), async (c) => {
+    const known = new Set(serverExtensions.map((x) => x.manifest.key));
+    const { sortMode, headlineExtension, openOverrides } = c.req.valid("json");
+    const filteredOverrides = Object.fromEntries(Object.entries(openOverrides).filter(([key]) => known.has(key)));
+    const todayPage = {
+      sortMode,
+      headlineExtension: headlineExtension && known.has(headlineExtension) ? headlineExtension : null,
+      openOverrides: filteredOverrides,
+    };
+    const values = { todayPage, updatedAt: new Date() };
+    await c
+      .get("db")
+      .insert(userSettings)
+      .values({ userId: c.get("user").id, ...values })
+      .onConflictDoUpdate({ target: userSettings.userId, set: values });
+    return c.json({ todayPage });
   })
   /**
    * いつもの共有先を決める。null は「共有しない」を決めたことを表す。0063、F-40

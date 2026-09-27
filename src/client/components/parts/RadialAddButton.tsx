@@ -154,7 +154,7 @@ export function RadialAddButton({
           type="button"
           aria-label="記録する"
           data-testid="global-add"
-          className="grid size-11 place-items-center rounded-full text-ink-2"
+          className={cn("grid w-11 place-items-center rounded-full text-ink-2", showHint ? "h-9" : "h-11")}
           onClick={(e) => {
             if (consumeLongPress()) {
               e.preventDefault();
@@ -198,7 +198,7 @@ export function RadialAddButton({
         aria-label={open ? "閉じる" : "記録する"}
         data-testid="global-add"
         aria-expanded={open}
-        className="grid size-11 place-items-center rounded-full text-ink-2"
+        className={cn("grid w-11 place-items-center rounded-full text-ink-2", !open && showHint ? "h-9" : "h-11")}
         onClick={(e) => {
           if (consumeLongPress()) {
             e.preventDefault();

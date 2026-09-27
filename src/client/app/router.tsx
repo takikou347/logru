@@ -50,7 +50,7 @@ const routes: RouteObject[] = [
         children: [
           {
             path: "/",
-            lazy: async () => ({ Component: (await import("@/modules/calendar/CalendarPage")).CalendarPage }),
+            lazy: async () => ({ Component: (await import("@/modules/home/HomeRoute")).HomeRoute }),
           },
           {
             path: "/spiral/:year",

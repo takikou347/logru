@@ -187,6 +187,8 @@ for (const look of ["glass", "paper"] as const) {
       "/kakeibo",
       "/kakeibo/accounts",
       "/kakeibo/budgets",
+      "/kakeibo/recurrings",
+      "/kakeibo/templates",
       "/lists",
       listDetail,
       "/memories",

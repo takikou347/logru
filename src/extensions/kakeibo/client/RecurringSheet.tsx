@@ -207,7 +207,7 @@ export function RecurringSheet({
             <Input
               {...p}
               type="text"
-              inputMode="numeric"
+              inputMode="decimal"
               pattern="[0-9]*"
               value={amountText}
               onChange={(e) => setAmountText(sanitizeAmountInput(e.target.value))}

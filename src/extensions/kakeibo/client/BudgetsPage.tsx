@@ -130,6 +130,7 @@ export function BudgetsPage() {
         <Dock label="予算の操作">
           <PrimaryAddButton
             label="予算を作る"
+            icon={PiggyBank}
             addables={[
               {
                 key: "budget",

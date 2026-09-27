@@ -181,6 +181,7 @@ export function RecurringsPage() {
         <Dock label="定期の記録の操作">
           <PrimaryAddButton
             label="定期の記録を作る"
+            icon={Repeat}
             addables={[
               {
                 key: "recurring",

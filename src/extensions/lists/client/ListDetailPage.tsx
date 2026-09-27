@@ -13,6 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { formatShortDate } from "@/lib/dates";
+import { useKeyboardViewport } from "@/lib/keyboard-viewport";
+import { useNewLookActive } from "@/lib/lab";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { cn } from "@/lib/utils";
 import { markJustAdded, takeJustAdded } from "@/modules/calendar/recent-items";
@@ -24,12 +27,19 @@ import { GroupLabel } from "./parts";
 /**
  * 項目を足す欄。1 行打って Enter か右の「足す」を押すと足し、入力欄は空のまま次の項目を打てる。F-203
  * `autoFocus` は、いちばん新しいリストへの近道 `?add=1` から開いたときに使う。F-209
+ *
+ * リストはシートを使わない。新しい見た目・スマホで OS のキーボードが出ている間だけ、この欄を
+ * キーボードのすぐ上に固定する(`visualViewport` に合わせる)。入れていない人・PC・キーボードが
+ * 出ていない間は、これまでどおりリストの続きに流れる。0094、issue #242
  */
 function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean }) {
   const addItem = useAddItem(listId);
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const canSubmit = text.trim().length > 0;
+  const newLook = useNewLookActive();
+  const desktop = useMediaQuery("(min-width: 1024px)");
+  const keyboard = useKeyboardViewport(newLook && !desktop);
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
@@ -48,7 +58,18 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
   }
 
   return (
-    <form className="flex items-center gap-2 border-t border-line pt-2.5" onSubmit={submit}>
+    <form
+      className={cn(
+        "flex items-center gap-2 pt-2.5",
+        keyboard.open ? "glass fixed inset-x-2 z-30 rounded-full px-3 py-2" : "border-t border-line",
+      )}
+      style={
+        keyboard.open
+          ? { bottom: keyboard.liftPx + 8, transition: "bottom var(--dur-keyboard) var(--ease-keyboard)" }
+          : undefined
+      }
+      onSubmit={submit}
+    >
       <Input
         ref={inputRef}
         value={text}

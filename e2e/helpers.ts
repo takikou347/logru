@@ -272,3 +272,32 @@ export async function addMemories(page: Page, option: "記録する" | "思い�
     await page.getByRole("button", { name: "思い出を作る" }).click();
   }
 }
+
+/**
+ * OS のキーボードが出た状態を装う。issue #242
+ *
+ * iOS Safari は `window.innerHeight`(レイアウトのビューポート)を変えず、`visualViewport` だけ
+ * 縮む。Playwright は実機のキーボードを起こせないので、`visualViewport.height`・`offsetTop` を
+ * 上書きし、`resize` イベントを起こして近づける(`client/lib/keyboard-viewport.ts` が読む値)。
+ * @param heightPx キーボードの高さ(px)。実機の数字キーパッド・かなキーパッドの見当の値を使う
+ */
+export async function openMobileKeyboard(page: Page, heightPx: number) {
+  await page.evaluate((h) => {
+    const vv = window.visualViewport;
+    if (!vv) throw new Error("visualViewport が無い");
+    Object.defineProperty(vv, "height", { value: window.innerHeight - h, configurable: true });
+    Object.defineProperty(vv, "offsetTop", { value: 0, configurable: true });
+    vv.dispatchEvent(new Event("resize"));
+  }, heightPx);
+}
+
+/** キーボードを閉じた状態に戻す。openMobileKeyboard と対で使う */
+export async function closeMobileKeyboard(page: Page) {
+  await page.evaluate(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    Object.defineProperty(vv, "height", { value: window.innerHeight, configurable: true });
+    Object.defineProperty(vv, "offsetTop", { value: 0, configurable: true });
+    vv.dispatchEvent(new Event("resize"));
+  });
+}

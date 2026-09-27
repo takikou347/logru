@@ -54,6 +54,9 @@ export function Dock({
  * 「+」は、足している機能すべての記録の種類を放射で出す(useQuickAdds)。どの画面から押しても
  * 同じ並びになる。0 個なら決定 0086 と同じ扱いで出さない。家計簿を足していれば、よく使う記録
  * (useFavoriteAdds)を上に並べる。
+ *
+ * OS のキーボードが出ている間は隠す(`.nl-keyboard-hide`、globals.css)。保存や入力中の欄が
+ * この帯に隠れないようにするため。0094、issue #242
  */
 export function GlobalBottomTabs() {
   const quickAdds = useQuickAdds();
@@ -69,7 +72,7 @@ export function GlobalBottomTabs() {
         // 「+」を開いたとき、幕(z-40)と弧(z-45)は document.body へ portal で出す(RadialAddButton)。
         // この帯の「×」がその上に見えるよう、帯自体はそれより高い z にする。シート・ダイアログ
         // (z-50)より低くして、シートを開いたときはそちらが勝つようにする。issue #239
-        "nl-only fixed z-[48] items-center gap-1 !shadow-[var(--float-bar-shadow)]",
+        "nl-only nl-keyboard-hide fixed z-[48] items-center gap-1 !shadow-[var(--float-bar-shadow)]",
         "glass inset-x-[var(--float-bar-inset)] bottom-[var(--float-bar-bottom)] h-[var(--float-bar-height)] rounded-[var(--float-bar-radius)] px-2",
       )}
     >

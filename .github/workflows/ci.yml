@@ -13,9 +13,10 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  # 整形、型、単体テスト。1 分ほどで終わる
+  lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -27,16 +28,51 @@ jobs:
       - run: pnpm biome ci .
       - run: pnpm typecheck
       - run: pnpm test
+
+  # E2E は runner を分けて同時に流す。1 つで流すと 20 分を超えた。public なので分けても費用はかからない
+  e2e:
+    name: e2e (${{ matrix.shard }}/${{ strategy.job-total }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       # ubuntu の実行環境には Chrome が入っている。Playwright はそれを使う
-      - run: pnpm e2e
+      - run: pnpm e2e --shard=${{ matrix.shard }}/${{ strategy.job-total }}
         env:
           CI: "true"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: playwright-report
           retention-days: 7
+
+  # ブランチの保護が待つのはこの名前。lint と e2e が全部通ったときだけ通す
+  # always() にする。飛ばされたジョブは、保護の上では通った扱いになるため
+  check:
+    needs: [lint, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: lint と e2e の結果を確かめる
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$RESULTS"
+          for r in $RESULTS; do
+            [ "$r" = success ] || { echo "::error::lint か e2e が通っていない"; exit 1; }
+          done
 
   # main へ入れてよいのは develop、hotfix/、release/ だけ。ほかの PR は develop へ向ける
   branch-rule:

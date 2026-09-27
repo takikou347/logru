@@ -2,6 +2,8 @@ import { zValidator } from "@hono/zod-validator";
 import { createRouter, HttpError, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import type { DB } from "@server/core/db/client";
+import { notify } from "@server/core/notifications/send";
+import { memberIdsOf } from "@server/modules/groups/membership";
 import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { listInput, listItemInput, listItemPatchInput, listPatchInput } from "../shared/schemas";
 import { requireListsGroup, usableGroupIds } from "./access";
@@ -159,21 +161,32 @@ export const listsRoutes = createRouter()
   })
   .post("/:id/items", zValidator("json", listItemInput, validationHook), async (c) => {
     const db = c.get("db");
-    const userId = c.get("user").id;
-    const list = await loadUsableList(db, userId, c.req.param("id"));
+    const me = c.get("user");
+    const list = await loadUsableList(db, me.id, c.req.param("id"));
     const input = c.req.valid("json");
     // 1 つのリストに持てる項目の上限。上限が無いと、掃除しないまま増え続ける。0065、#161
     const [{ n } = { n: 0 }] = await db.select({ n: count() }).from(listItems).where(eq(listItems.listId, list.id));
     if (n >= ITEMS_LIMIT) throw new HttpError(409, `項目は ${ITEMS_LIMIT} 個までです。チェック済みを消してください。`);
     const id = crypto.randomUUID();
-    await db.insert(listItems).values({ id, listId: list.id, text: input.text, createdBy: userId });
+    await db.insert(listItems).values({ id, listId: list.id, text: input.text, createdBy: me.id });
+    // リストに項目が足されたことを、そのグループのほかのメンバーに積む。既読になるまでまとめる。0096、issue #247
+    const memberIds = await memberIdsOf(db, list.groupId);
+    await notify({
+      db,
+      env: c.env,
+      userIds: memberIds,
+      actorId: me.id,
+      kind: "lists.item_added",
+      payload: { listId: list.id, title: list.title, byUserName: me.name },
+      groupKey: list.id,
+    });
     const row = await db.select().from(listItems).where(eq(listItems.id, id)).get();
     return c.json(toItemDto(row!), 201);
   })
   .patch("/:id/items/:itemId", zValidator("json", listItemPatchInput, validationHook), async (c) => {
     const db = c.get("db");
-    const userId = c.get("user").id;
-    const list = await loadUsableList(db, userId, c.req.param("id"));
+    const me = c.get("user");
+    const list = await loadUsableList(db, me.id, c.req.param("id"));
     const item = await loadItem(db, list.id, c.req.param("itemId"));
     const input = c.req.valid("json");
     // 送った項目だけを直す。チェックの有無と文字は、片方だけの更新もありうる。F-203、F-204
@@ -185,12 +198,39 @@ export const listsRoutes = createRouter()
           ? {}
           : {
               checked: input.checked,
-              checkedBy: input.checked ? userId : null,
+              checkedBy: input.checked ? me.id : null,
               checkedAt: input.checked ? new Date() : null,
             }),
         updatedAt: new Date(),
       })
       .where(eq(listItems.id, item.id));
+    // チェックされたときだけ知らせる。まとめる。全部済みになったら、それも別に知らせる。0096、issue #247
+    if (input.checked === true && !item.checked) {
+      const memberIds = await memberIdsOf(db, list.groupId);
+      await notify({
+        db,
+        env: c.env,
+        userIds: memberIds,
+        actorId: me.id,
+        kind: "lists.item_checked",
+        payload: { listId: list.id, title: list.title, byUserName: me.name },
+        groupKey: list.id,
+      });
+      const items = await db
+        .select({ checked: listItems.checked })
+        .from(listItems)
+        .where(eq(listItems.listId, list.id));
+      if (items.length > 0 && items.every((i) => i.checked)) {
+        await notify({
+          db,
+          env: c.env,
+          userIds: memberIds,
+          actorId: me.id,
+          kind: "lists.all_checked",
+          payload: { listId: list.id, title: list.title },
+        });
+      }
+    }
     const row = await db.select().from(listItems).where(eq(listItems.id, item.id)).get();
     return c.json(toItemDto(row!));
   })

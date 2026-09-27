@@ -1,5 +1,6 @@
 import { describeEventNotification } from "@extensions/events/shared/notifications";
 import { describeKakeiboNotification } from "@extensions/kakeibo/shared/notifications";
+import { describeListsNotification } from "@extensions/lists/shared/notifications";
 import { describeMemoriesNotification } from "@extensions/memories/shared/notifications";
 import { describe, expect, it } from "vitest";
 import { describeCoreNotification } from "@/modules/notifications/describe";
@@ -72,6 +73,18 @@ describe("家計簿の拡張の describeNotification。issue #246", () => {
   it("kakeibo.budget_exceeded は、予算の画面を開く行き先にする", () => {
     const r = describeKakeiboNotification("kakeibo.budget_exceeded", { groupId: "g1", name: "食費" });
     expect(r).toEqual({ text: "予算「食費」を超えました。", path: "/kakeibo/budgets?group=g1" });
+  });
+});
+
+describe("共有リストの拡張の describeNotification。issue #247", () => {
+  it("lists.item_added は、まとめた件数をそのまま出す", () => {
+    const r = describeListsNotification("lists.item_added", { listId: "l1", title: "買い物", count: 3 });
+    expect(r).toEqual({ text: "「買い物」に 3 件足しました。", path: "/lists/l1" });
+  });
+
+  it("lists.all_checked は、そのリストを開く行き先にする", () => {
+    const r = describeListsNotification("lists.all_checked", { listId: "l1", title: "買い物" });
+    expect(r).toEqual({ text: "「買い物」の項目が、全部済みになりました。", path: "/lists/l1" });
   });
 });
 

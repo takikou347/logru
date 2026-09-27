@@ -1,5 +1,5 @@
 import type { GroupSummary, Me } from "@shared/api-types";
-import { Plus } from "lucide-react";
+import { ArrowUp, Plus } from "lucide-react";
 import { type FormEvent, type ReactNode, useMemo, useState } from "react";
 import { UserAvatar } from "@/components/parts/Avatars";
 import { Chip } from "@/components/parts/Chip";
@@ -16,7 +16,7 @@ import { memoryOfEvent } from "../shared/links";
 import type { ItemKind, MemoryDetail, MemoryItem } from "../shared/types";
 import { useItemMutations, useMemoryList } from "./api";
 import { MemoryShell, type ShellProps } from "./MemoryShell";
-import { formatClock } from "./parts";
+import { formatClock, useIconOnly } from "./parts";
 
 const KINDS = [
   { value: "wish", label: "やりたいこと" },
@@ -320,6 +320,7 @@ function AddRow({
   const [dueOn, setDueOn] = useState("");
   const [open, setOpen] = useState(false);
   const shared = group && group.members.length > 1;
+  const iconOnly = useIconOnly();
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -341,13 +342,14 @@ function AddRow({
     return (
       <button
         type="button"
+        aria-label={placeholder}
         className="flex min-h-11 w-full items-center gap-2.5 border-t border-line text-sm text-ink-2"
         onClick={() => setOpen(true)}
       >
         <span className="grid size-[22px] place-items-center rounded-[7px] border-2 border-dashed border-ink-3 text-ink-3">
           <Plus className="size-3.5" />
         </span>
-        {placeholder}
+        {!iconOnly && placeholder}
       </button>
     );
   }
@@ -403,10 +405,11 @@ function AddRow({
         </button>
         <button
           type="submit"
-          className="min-h-10 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground"
+          aria-label="足す"
+          className="flex min-h-10 items-center justify-center rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground"
           disabled={!title.trim() || add.isPending}
         >
-          足す
+          {iconOnly ? <ArrowUp className="size-4" aria-hidden="true" /> : "足す"}
         </button>
       </div>
     </form>

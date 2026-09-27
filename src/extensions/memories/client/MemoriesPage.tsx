@@ -22,7 +22,7 @@ import type { Memory, MemoryRecord } from "../shared/types";
 import { useMemoryGroups, useMemoryList } from "./api";
 import { CoverOpen } from "./Book";
 import { MemorySheet } from "./MemorySheet";
-import { formatClock, GroupLabel, PhotoImg } from "./parts";
+import { formatClock, GroupLabel, PhotoImg, useIconOnly } from "./parts";
 import { RecordSheet } from "./RecordSheet";
 
 const FILTER_KEY = "logru-memories-group";
@@ -70,6 +70,7 @@ export function MemoriesPage() {
   const list = useMemoryList(group);
   const [creating, setCreating] = useState(false);
   const [features, setFeatures] = useState(false);
+  const iconOnly = useIconOnly();
   const recording = params.get("record") === "1";
   const closeRecord = () => setParams((p) => (p.delete("record"), p), { replace: true });
 
@@ -105,9 +106,9 @@ export function MemoriesPage() {
           title="思い出"
           onTitleClick={() => setFeatures(true)}
           action={
-            <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
+            <Button variant="secondary" size="sm" aria-label="思い出を作る" onClick={() => setCreating(true)}>
               <BookOpen className="size-4" aria-hidden="true" />
-              思い出を作る
+              {!iconOnly && "思い出を作る"}
             </Button>
           }
         />

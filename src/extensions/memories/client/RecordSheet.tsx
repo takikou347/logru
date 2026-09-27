@@ -1,5 +1,5 @@
 import type { GroupSummary, Me } from "@shared/api-types";
-import { Camera, ImagePlus, RotateCw, X } from "lucide-react";
+import { Camera, ImagePlus, RotateCw, Trash2, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { FieldMessage, PanelRow } from "@/components/parts/Panel";
@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import type { MemoryItem, MemoryRecord, Photo } from "../shared/types";
 import { useDiscardPhoto, useInvalidateMemories, useSaveRecord } from "./api";
 import { preparePhoto, uploadPhoto } from "./image";
-import { PhotoImg } from "./parts";
+import { PhotoImg, useIconOnly } from "./parts";
 
 /** 写真の欄の 1 つ。送っている途中か、送り終えたか、失敗したか。fp は同じ写真を 2 回選んだのを見分ける印。#158 */
 type Slot =
@@ -71,6 +71,7 @@ export function RecordSheet({
   const invalidate = useInvalidateMemories();
   const saveRecord = useSaveRecord();
   const discardPhoto = useDiscardPhoto();
+  const iconOnly = useIconOnly();
   const [groupId, setGroupId] = useState(
     record?.groupId ??
       defaultShareGroupId(groups, defaultGroupId, {
@@ -232,8 +233,9 @@ export function RecordSheet({
       footer={
         <div className="flex justify-between gap-2">
           {record ? (
-            <Button variant="danger" onClick={remove}>
-              消す
+            <Button variant="danger" aria-label="消す" onClick={remove}>
+              <Trash2 className="size-4" aria-hidden="true" />
+              {!iconOnly && "消す"}
             </Button>
           ) : (
             <Button variant="ghost" onClick={close}>

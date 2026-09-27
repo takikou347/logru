@@ -22,6 +22,9 @@ export type Addable = {
  * @param sheetTitle 2 つ以上のときに開く、選ぶシートの見出し。無ければ label を使う
  * @param disabled いま押せないとき。足せるものが 1 つの画面だけで使う(例はまだ来ていない日の記録)
  * @param disabledLabel 押せないときの読み上げの名前。渡さなければ label のまま
+ * @param icon 足せるものが 1 つのとき、「+」の代わりに出すアイコン。右下に小さな「+」を重ねる。
+ *   下のタブの帯の「+」(記録する)と丸の形がそろっているので、「口座を作る」のように別の意味の
+ *   「作る」ボタンでは渡して見分けを付ける。渡さなければ今までどおり「+」だけ。issue #243
  */
 export function PrimaryAddButton({
   label,
@@ -29,12 +32,14 @@ export function PrimaryAddButton({
   sheetTitle,
   disabled,
   disabledLabel,
+  icon: CreateIcon,
 }: {
   label: string;
   addables: Addable[];
   sheetTitle?: string;
   disabled?: boolean;
   disabledLabel?: string;
+  icon?: LucideIcon;
 }) {
   const [open, setOpen] = useState(false);
   if (addables.length === 0) return null;
@@ -48,7 +53,16 @@ export function PrimaryAddButton({
         disabled={disabled}
         className="size-14 rounded-full p-0"
       >
-        <Plus className="size-6" aria-hidden="true" />
+        {CreateIcon ? (
+          <span className="relative grid place-items-center">
+            <CreateIcon className="size-6" aria-hidden="true" />
+            <span className="absolute -right-1 -bottom-1 grid size-3.5 place-items-center rounded-full bg-primary-foreground">
+              <Plus className="size-2.5 text-primary" aria-hidden="true" strokeWidth={3} />
+            </span>
+          </span>
+        ) : (
+          <Plus className="size-6" aria-hidden="true" />
+        )}
       </Button>
     );
   }

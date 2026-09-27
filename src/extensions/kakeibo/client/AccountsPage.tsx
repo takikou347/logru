@@ -1,5 +1,5 @@
 import type { GroupSummary } from "@shared/api-types";
-import { Pencil } from "lucide-react";
+import { Landmark, Pencil } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
@@ -228,6 +228,7 @@ export function AccountsPage() {
         <Dock label="口座の操作">
           <PrimaryAddButton
             label="口座を作る"
+            icon={Landmark}
             addables={[
               {
                 key: "account",

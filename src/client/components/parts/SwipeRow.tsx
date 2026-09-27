@@ -6,6 +6,9 @@
  * 並べ替えの `use-pointer-reorder.ts` と同じ考え方。
  *
  * `onEdit` を渡さないと「消す」だけになる(しおりの項目のように、その場で直す形が無い画面向け)。
+ *
+ * ラボの「新しい見た目」を入れた人は、スワイプで出る「直す」「消す」も PC の乗せて出す方と同じ
+ * アイコンだけにする(読み上げの名前は残す)。入れていない人には 1px も変えない。issue #243
  */
 import { Pencil, Trash2 } from "lucide-react";
 import {
@@ -16,6 +19,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useNewLookActive } from "@/lib/lab";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +27,14 @@ import { cn } from "@/lib/utils";
 const COMMIT_RATIO = 0.6;
 /** 横に引いたと見なす、指の動きのしきい値(px)。これより小さい動きでは縦か横かを決めない */
 const DIRECTION_LOCK_PX = 8;
+/** ボタン 1 つぶんの幅。w-[72px] と同じ値。0084 */
+const ACTION_BUTTON_WIDTH = 72;
+/**
+ * ラボの「新しい見た目」を入れた人は、開いた・引いている間の中身の左へのずれをこの値までに留める。
+ * 行の幅ぶん引ききって消す動き(rowWidth * COMMIT_RATIO を超える)は、この上限を掛けず、
+ * 今までどおり最後まで指に追従させる。issue #243
+ */
+const CONTENT_SHIFT_CAP = 16;
 
 type OpenRow = { id: string; close: () => void };
 /** 開いている行は 1 つだけ。新しく開くとき、これを見てほかを閉じる。0084 */
@@ -120,6 +132,10 @@ function TouchSwipeRow({
   children,
   className,
 }: Omit<SwipeRowProps, "editLabel" | "deleteLabel"> & { editLabel: string; deleteLabel: string }) {
+  const iconOnly = useNewLookActive();
+  // ボタンの数から幅を決める。実際の DOM 幅の計測(ドラッグの物差しに使う actionsRef の測定)とは別に、
+  // 「引ききって消す動きか、直す・消すを開く動きか」を見分けるためだけに使う
+  const actionsWidth = (onEdit ? 2 : 1) * ACTION_BUTTON_WIDTH;
   const rowRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -247,7 +263,7 @@ function TouchSwipeRow({
             }}
             className="flex w-[72px] flex-none items-center justify-center bg-field-strong text-sm font-bold text-ink"
           >
-            {editLabel}
+            {iconOnly ? <Pencil className="size-4" aria-hidden="true" /> : editLabel}
           </button>
         )}
         <button
@@ -257,19 +273,33 @@ function TouchSwipeRow({
           onClick={onDelete}
           className="flex w-[72px] flex-none items-center justify-center bg-destructive text-sm font-bold text-destructive-foreground"
         >
-          {deleteLabel}
+          {iconOnly ? <Trash2 className="size-4" aria-hidden="true" /> : deleteLabel}
         </button>
       </div>
-      <div
-        data-testid="swipe-row-content"
-        className="relative"
-        style={{
-          transform: `translateX(${dragX}px)`,
-          transition: dragging ? "none" : "transform var(--dur-base) var(--ease-out)",
-        }}
-      >
-        {children}
-      </div>
+      {(() => {
+        // 新しい見た目では、開いた・引いている間、中身の左へのずれを小さく留め(項目名やチェックが
+        // 消えて見えないようにする)、代わりに幅を引ききった分だけ狭める。中身の押せる範囲(1fr の
+        // 列いっぱいに伸びるボタンなど)が、右に出た「直す」「消す」の上まで伸びて奪い合わないようにする。
+        // 行の幅ぶん引ききって消す動きは、今までどおり最後まで指に追従させる。issue #243
+        const withinReveal = Math.abs(dragX) <= actionsWidth;
+        const shift = iconOnly && withinReveal ? Math.max(dragX, -CONTENT_SHIFT_CAP) : dragX;
+        const reveal = iconOnly && withinReveal ? Math.min(Math.abs(dragX), actionsWidth) : 0;
+        return (
+          <div
+            data-testid="swipe-row-content"
+            className="relative"
+            style={{
+              transform: `translateX(${shift}px)`,
+              width: reveal > 0 ? `calc(100% - ${reveal}px)` : undefined,
+              transition: dragging
+                ? "none"
+                : "transform var(--dur-base) var(--ease-out), width var(--dur-base) var(--ease-out)",
+            }}
+          >
+            {children}
+          </div>
+        );
+      })()}
     </div>
   );
 }

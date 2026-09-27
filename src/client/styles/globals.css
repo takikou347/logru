@@ -217,6 +217,21 @@
   }
 }
 
+/*
+ * 下のタブの帯に役目を移していない画面の Dock(口座、予算、定期の記録、思い出の 1 日・その日、
+ * ひとコマ)は、新しい見た目・スマホで帯の上へ持ち上げる。帯と同じ高さのままだと帯の後ろに隠れ、
+ * 押せない。持ち上げた Dock のぶん、中身の下の余白も足す(Dock の高さは「+」の 56px と内側の
+ * 余白 12px で 68px)。0091
+ */
+@media (max-width: 1023.98px) {
+  :root[data-lab-new-look] .nl-lift {
+    bottom: calc(var(--float-bar-bottom) + var(--float-bar-height) + 12px);
+  }
+  :root[data-lab-new-look]:has(.nl-lift) {
+    --dock-clearance: calc(var(--float-bar-height) + var(--float-bar-bottom) + 12px + 68px + 16px);
+  }
+}
+
 /* 色の名前の点。色は .c-<名前> が --c に入れる */
 @utility swatch-dot {
   background: var(--c);

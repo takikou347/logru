@@ -1,5 +1,6 @@
 import { CalendarDays, House, Settings, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
+import { useGroups } from "@/api/common";
 import { useFavoriteAdds, useQuickAdds } from "@/lib/extensions";
 import { useNewLookActive } from "@/lib/lab";
 import { useShowTabHints } from "@/lib/use-tab-hints";
@@ -13,7 +14,8 @@ import { TabIconButton } from "./TabIconButton";
  * それぞれの画面が自分で組む。ここは主な操作(PrimaryAddButton)だけを包む。
  * @param label 読み上げでの名前
  * @param covered 新しい見た目のスマホでは、この帯の役目を GlobalBottomTabs の「+」が引き継ぐか。
- *   渡した画面は、新しい見た目・スマホでこの帯そのものを隠す。0091、issue #239
+ *   渡した画面は、新しい見た目・スマホでこの帯そのものを隠す。渡さない画面は、下のタブの帯の
+ *   上へ持ち上げる(.nl-lift、globals.css)。0091、issue #239
  */
 export function Dock({
   label,
@@ -33,7 +35,9 @@ export function Dock({
       className={cn(
         "glass fixed right-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 flex items-center gap-1.5 rounded-full p-1.5",
         "lg:static lg:justify-end lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:before:hidden",
-        covered && "nl-hide",
+        // 渡さない画面(口座、予算、1 日など)は、新しい見た目・スマホで下のタブの帯の上へ持ち上げる。
+        // 帯と同じ高さに置くと、帯の後ろに隠れて押せない。0091
+        covered ? "nl-hide" : "nl-lift",
         className,
       )}
     >
@@ -54,6 +58,8 @@ export function Dock({
 export function GlobalBottomTabs() {
   const quickAdds = useQuickAdds();
   const favorites = useFavoriteAdds();
+  // 足している機能は、グループを読んでから決まる。読む前に「+」を押して、予定だけのつもりで開かないように
+  const groups = useGroups();
   const newLook = useNewLookActive();
   const showHint = useShowTabHints(newLook);
   return (
@@ -69,7 +75,7 @@ export function GlobalBottomTabs() {
     >
       <TabIconButton to="/" end icon={House} label="今日のページ" showHint={showHint} />
       <TabIconButton to="/?view=month" icon={CalendarDays} label="カレンダー" showHint={showHint} />
-      <RadialAddButton items={quickAdds} favorites={favorites} showHint={showHint} />
+      <RadialAddButton items={quickAdds} favorites={favorites} showHint={showHint} pending={groups.isPending} />
       <TabIconButton to="/settings/extensions" icon={SlidersHorizontal} label="機能" showHint={showHint} />
       <TabIconButton to="/settings" icon={Settings} label="設定" showHint={showHint} />
     </nav>

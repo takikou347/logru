@@ -621,7 +621,9 @@ test("期間の予算を作ると、家計簿の画面の上と予算の画面�
   // 予算の画面でも同じ額を見られ、直す・消すができる
   await page.goto("/kakeibo/budgets");
   await expect(page.getByText("使った額 ¥3,000")).toBeVisible();
-  await page.getByText("食費").click();
+  // この月のカテゴリ別の合計にも「食費」が出るので、押せる予算の行を role で絞る。issue #227
+  const budgetRow = page.getByRole("button", { name: /^食費/ });
+  await budgetRow.click();
   const editSheet = page.getByRole("dialog", { name: "予算を直す" });
   await editSheet.getByLabel("金額").fill("20000");
   await editSheet.getByRole("button", { name: "保存する" }).click();
@@ -631,7 +633,7 @@ test("期間の予算を作ると、家計簿の画面の上と予算の画面�
   await expect(editSheet).toBeHidden();
 
   // 消すときは確認を挟まず、5 秒だけ「元に戻す」を出す。#194
-  await page.getByText("食費").click();
+  await budgetRow.click();
   await page.getByRole("dialog", { name: "予算を直す" }).getByRole("button", { name: "消す" }).click();
   await expect(page.getByText("予算を消しました")).toBeVisible();
   await expect(page.getByText("まだ予算がありません。")).toBeVisible();

@@ -107,7 +107,7 @@ jobs:
                 exit 1
               fi
               echo "::add-mask::${url}"
-              curl -sS -o backup.sql "$url"
+              curl -sS --fail -o backup.sql "$url"
               url=""
               echo "${TARGET} のバックアップのサイズ: $(wc -c < backup.sql) バイト"
               exit 0

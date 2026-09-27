@@ -304,7 +304,8 @@ test("ラボの「新しい見た目」・スマホでは、足す・直す・�
   await enableNewLook(page);
   await page.goto(listDetail);
 
-  // 足す欄の「足す」ボタンは、読み上げの名前は変わらずアイコンだけになる
+  // 押すまでは「+」の行だけ。押すと入力欄が開き、「足す」ボタンは読み上げの名前を変えずアイコンだけになる。issue #243
+  await page.getByRole("button", { name: "項目を足す", exact: true }).click();
   const addInput = page.getByLabel("項目を足す");
   const addButton = page.getByRole("button", { name: "足す", exact: true });
   await expect(addButton).toBeVisible();

@@ -1,7 +1,13 @@
 import type { ClientExtension } from "@extensions/client/types";
 import { BadgeJapaneseYen, PiggyBank, Wallet } from "lucide-react";
 import { kakeiboManifest } from "../manifest";
-import { AssetsWidget, MonthTotalWidget, RecordHomeWidget, useMonthTotalHint } from "./HomeWidget";
+import {
+  AssetsWidget,
+  MonthTotalWidget,
+  RecordHomeWidget,
+  useKakeiboTodaySummary,
+  useMonthTotalHint,
+} from "./HomeWidget";
 import { KakeiboItemSheet } from "./KakeiboItemSheet";
 import { useKakeiboFavoriteAdds } from "./quick-adds";
 
@@ -25,6 +31,9 @@ export const kakeiboClient: ClientExtension = {
   ],
   useTileHint: useMonthTotalHint,
   useFavoriteAdds: useKakeiboFavoriteAdds,
+  // 今日のページの節は既定(その日のカレンダー項目をそのまま一覧で見せる)のままでよいので today は持たない。
+  // 畳んだときの要約だけ、その日の支出の合計にする。0092、issue #240
+  useTodaySummary: useKakeiboTodaySummary,
   widgets: [
     {
       key: "kakeibo.record",

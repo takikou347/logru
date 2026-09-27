@@ -3,6 +3,7 @@ import { ListChecks } from "lucide-react";
 import { listsManifest } from "../manifest";
 import { AddToListWidget, LatestListWidget, useLatestListHint } from "./HomeWidget";
 import { ListItemSheet } from "./ListItemSheet";
+import { ListsTodaySection } from "./TodaySection";
 
 /**
  * 共有リストの拡張の、画面の側。docs/logru/extensions/lists/design.md
@@ -15,6 +16,9 @@ export const listsClient: ClientExtension = {
   // 機能のシートには出さない。actions は「機能を足す」直後の案内だけに使う。0019
   actions: [{ label: "リストに足す", icon: ListChecks, path: "/lists/latest", hint: "いちばん新しいリストに" }],
   useTileHint: useLatestListHint,
+  // 共有リストは日付を持たないことが多いので、今日のページの節は日に依らず「いちばん新しいリスト」を
+  // 出す。既定(その日の項目をそのまま出す)だと、ほとんどの日が空になってしまうため。0092、issue #240
+  today: { Component: ListsTodaySection },
   widgets: [
     {
       key: "lists.latest",

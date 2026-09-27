@@ -86,6 +86,13 @@
    * 移るたびに続けて起こるので、3 段のどれに寄せても意味が変わってしまう。0044、issue #203
    */
   --dur-ambient: 900ms;
+  /*
+   * 今日のページを日めくりする動き。既定(リキッドガラス)は板が傾いて抜ける動き。紙を選んだ人だけ、
+   * 下の [data-lab-new-look][data-look="paper"] の節で綴じ目を軸に回る動きの値に上書きする。
+   * 新しい見た目を入れていない人はどの画面もこの値を使わないので、足しても見た目は変わらない。0092、issue #240
+   */
+  --dur-page-flip: 520ms;
+  --ease-page-flip: cubic-bezier(0.2, 0.9, 0.25, 1);
 
   /*
    * 画面の上の、ノッチなどにかかる安全な余白。CSS の変数越しに使うのは、シートの高さの上限の計算に
@@ -203,6 +210,9 @@
   --r-field: 8px;
   --blur: none;
   --glass-filter: none;
+  /* 今日のページの日めくり。綴じ目を軸に 1 枚が回る、少し速い動き。0092、issue #240 */
+  --dur-page-flip: 420ms;
+  --ease-page-flip: cubic-bezier(0.3, 0, 0.2, 1);
 }
 :root[data-theme="dark"][data-lab-new-look][data-look="paper"] {
   --ground: #1c1712;

@@ -59,6 +59,18 @@ export const userSettings = sqliteTable("user_settings", {
    * 移行 0020
    */
   usualShareAskedAt: integer("usual_share_asked_at", { mode: "timestamp_ms" }),
+  /**
+   * 今日のページの並べ方(よく使う順・足した順・自分で並べる)と見せ方(見出しに出す拡張、
+   * 節ごとの開閉の上書き)。自分で並べるは extensionOrder をそのまま使う。0092、F-45。移行 0028
+   */
+  todayPage: text("today_page", { mode: "json" })
+    .$type<{
+      sortMode: "favorite" | "added" | "manual";
+      headlineExtension: string | null;
+      openOverrides: Record<string, boolean>;
+    }>()
+    .notNull()
+    .default({ sortMode: "added", headlineExtension: null, openOverrides: {} }),
 });
 
 /** 規約に同意した版。最新の版の行が無ければ同意を取り直す。F-16 */

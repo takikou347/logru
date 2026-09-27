@@ -1,3 +1,4 @@
+import type { DayItem } from "@extensions/client/types";
 import { PiggyBank, Wallet } from "lucide-react";
 import { HomeWidgetCard } from "@/components/parts/HomeWidgetCard";
 import { formatYen } from "../shared/format";
@@ -23,6 +24,16 @@ export function useMonthTotalHint(enabled: boolean): string | null {
   const month = monthKeyOf(new Date());
   const summary = useKakeiboSummary(null, month, enabled);
   return enabled && summary.data ? formatYen(summary.data.totalExpense) : null;
+}
+
+/**
+ * 今日のページで、家計簿の節を畳んだときの要約。その日の支出の合計。カレンダーの項目(dayItems)は
+ * 日ごとの合計をすでに持つので、そのまま足すだけでよい。0092、issue #240
+ */
+export function useKakeiboTodaySummary(enabled: boolean, _date: Date, dayItems: DayItem[]): string | null {
+  if (!enabled) return null;
+  const total = dayItems.reduce((sum, item) => sum + (item.amount ?? 0), 0);
+  return total > 0 ? formatYen(total) : null;
 }
 
 /** 「今月の合計」。使えるすべてのグループを合わせた、今月の支出の合計を出す。F-306 */

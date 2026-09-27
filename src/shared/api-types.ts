@@ -10,6 +10,25 @@ export type AvatarKind = "initial" | "photo";
 /** 背景のテーマ。glass は奥を透かすガラス、flat は透かさず塗る。#50 */
 export type BgTheme = "glass" | "flat";
 
+/**
+ * 今日のページの節の並べ方。favorite・added はいまのところ同じ並び(拡張の一覧の順)を返す。
+ * よく使う頻度を数える仕組みが無いため。0092、F-45
+ */
+export type TodaySortMode = "favorite" | "added" | "manual";
+
+/**
+ * 今日のページの並べ方と見せ方。自分の画面だけの設定。0092、F-45
+ *
+ * openOverrides は、既定(6 個までは開く、7 個以上はよく使う上位だけ開く)から利用者が変えた節だけを持つ。
+ * 無い key は既定のままにする。
+ */
+export type TodayPagePrefs = {
+  sortMode: TodaySortMode;
+  /** 見出しに出す拡張の key。null なら出さない */
+  headlineExtension: string | null;
+  openOverrides: Record<string, boolean>;
+};
+
 /** `GET /api/me` の応答 */
 export type Me = {
   user: { id: string; name: string; email: string; image: string | null; avatarUrl: string | null };
@@ -28,6 +47,8 @@ export type Me = {
      * 空なら決めていない。0063、F-40
      */
     usualShareGroupId: string | null;
+    /** 今日のページの並べ方と見せ方。0092、F-45 */
+    todayPage: TodayPagePrefs;
   };
   /** 同意を取り直す文書。空なら同意済み */
   needsAgreement: LegalDocument[];

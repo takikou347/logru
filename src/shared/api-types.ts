@@ -102,6 +102,8 @@ export type RepeatRule = {
   until?: number | null;
   /** 終わりの回数 */
   count?: number | null;
+  /** yearly だけで使う。誕生日か記念日か。既定は誕生日。0097 */
+  anniversaryKind?: "birthday" | "anniversary";
 };
 
 /** カレンダーに並べる 1 件。拡張はこの形で項目を渡す。0002、0008 */

@@ -203,6 +203,17 @@ export async function swipeRowLeft(page: Page, row: Locator, dx: number) {
 }
 
 /**
+ * ラボの「新しい見た目」を入れる。刷新 2 以降の骨組み(下のタブの帯など)を確かめる e2e が使う。
+ * 0090、0091、issue #239
+ */
+export async function enableNewLook(page: Page) {
+  await page.goto("/settings/appearance");
+  const lab = page.getByRole("region", { name: "ラボ" });
+  await lab.getByRole("switch", { name: "新しい見た目" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-lab-new-look", "");
+}
+
+/**
  * 「機能を足す」画面で、指定した機能を自分だけで使えるようにする。issue #145
  * @param label 拡張の manifest.label(カードの見出し)
  */

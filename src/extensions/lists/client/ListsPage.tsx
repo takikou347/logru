@@ -38,10 +38,6 @@ export function ListsPage() {
   const creating = params.get("create") === "1";
   const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
   const filterOptions = groupFilterOptions({ groups, me: me.data, value: filterGroup, onChange: setGroup });
-  useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
-
-  if (!me.data || !ready) return <Loading />;
-  const data = me.data;
   // 足せるものはリストだけ。「+」を押すと直接シートが開く。issue #150
   const addables: Addable[] = [
     {
@@ -51,6 +47,10 @@ export function ListsPage() {
       onClick: () => setParams((p) => (p.set("create", "1"), p), { replace: true }),
     },
   ];
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
+
+  if (!me.data || !ready) return <Loading />;
+  const data = me.data;
 
   return (
     <>
@@ -104,7 +104,7 @@ export function ListsPage() {
           )}
         </LoadableSection>
 
-        <Dock label="リストの操作">
+        <Dock label="リストの操作" covered>
           <PrimaryAddButton label="リストを作る" addables={addables} />
         </Dock>
       </Page>

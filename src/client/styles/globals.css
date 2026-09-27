@@ -187,6 +187,36 @@
   display: none;
 }
 
+/*
+ * 刷新 2 の骨組み(下の 5 個のタブの帯、上の帯)。新しい見た目を入れていない人と、PC(1024px 以上)
+ * には当たらない。0091
+ *
+ * `.nl-only` は新しい見た目・スマホでだけ見せる。`.nl-hide` は、下のタブの帯に役目を移した
+ * 画面ごとの操作(カレンダーの「機能」「表示の単位」、各画面の Dock)を、新しい見た目・スマホで
+ * だけ隠す。どちらも新しい見た目を入れていない人には 1px も効かない。
+ */
+.nl-only {
+  display: none;
+}
+@media (max-width: 1023.98px) {
+  :root[data-lab-new-look] .nl-only {
+    display: flex;
+  }
+  :root[data-lab-new-look] .nl-hide {
+    display: none;
+  }
+}
+
+/*
+ * 下の帯の高さが、5 個のタブの帯(--float-bar-*)と今までの Dock で違うので、新しい見た目の
+ * スマホでは、中身に重ならないための余白(--dock-clearance)をこの帯の高さに合わせ直す。0091
+ */
+@media (max-width: 1023.98px) {
+  :root[data-lab-new-look] {
+    --dock-clearance: calc(var(--float-bar-height) + var(--float-bar-bottom) + 16px);
+  }
+}
+
 /* 色の名前の点。色は .c-<名前> が --c に入れる */
 @utility swatch-dot {
   background: var(--c);

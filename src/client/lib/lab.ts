@@ -6,7 +6,7 @@
  * true のときだけ出す。showLab が false のとき(本番)は useApplyLabExperiments も何もしない。
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export type LabExperiment = {
   key: string;
@@ -91,4 +91,23 @@ export function useApplyLabExperiments(showLab: boolean | undefined): void {
     if (!showLab) return;
     for (const ex of LAB_EXPERIMENTS) ex.apply(isLabEnabled(ex.key));
   }, [showLab]);
+}
+
+/**
+ * ラボの「新しい見た目」(`data-lab-new-look`)が html に付いているかを、変わるたびに読み直す。0091
+ *
+ * 見た目そのものの分岐は CSS の属性セレクタに任せる(0090)。この hook が要るのは、下のタブの帯の
+ * 「+」が放射になるかなど、CSS だけでは決められない振る舞いの分岐だけ。
+ */
+export function useNewLookActive(): boolean {
+  const [active, setActive] = useState(() => document.documentElement.hasAttribute("data-lab-new-look"));
+  useEffect(() => {
+    const el = document.documentElement;
+    const read = () => setActive(el.hasAttribute("data-lab-new-look"));
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(el, { attributes: true, attributeFilter: ["data-lab-new-look"] });
+    return () => observer.disconnect();
+  }, []);
+  return active;
 }

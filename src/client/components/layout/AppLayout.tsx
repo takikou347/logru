@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronLeft, House } from "lucide-react";
+import { ChevronDown, ChevronLeft, House, Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { useMe } from "@/api/common";
@@ -85,7 +85,11 @@ export function AccountMenu({ wide = false }: { wide?: boolean }) {
           </DropdownMenuItem>
         )}
         <DropdownMenuItem asChild>
-          <Link to="/settings">設定</Link>
+          {/* 新しい見た目・スマホの下のタブの「設定」と同じアイコンにそろえる。0091、issue #239 */}
+          <Link to="/settings">
+            <Settings className="size-4" aria-hidden="true" />
+            設定
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={doSignOut}>ログアウト</DropdownMenuItem>
       </DropdownMenuContent>

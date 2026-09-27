@@ -2,6 +2,7 @@ import { CalendarDays, SlidersHorizontal, Users } from "lucide-react";
 import { createContext, type ReactNode, useContext, useLayoutEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router";
 import { useMe } from "@/api/common";
+import { GlobalBottomTabs } from "@/components/parts/Dock";
 import { OfflineBand } from "@/components/parts/Failure";
 import { useAddableExtensions, useEnabledExtensions } from "@/lib/extensions";
 import { useApplyLabExperiments } from "@/lib/lab";
@@ -112,6 +113,8 @@ export function AppShell() {
           <OfflineBand className="-order-1" />
         </div>
       </main>
+      {/* 新しい見た目・スマホでだけ見える、5 個のタブの帯。0091、issue #239 */}
+      <GlobalBottomTabs />
     </SetAppFrameContext.Provider>
   );
 }

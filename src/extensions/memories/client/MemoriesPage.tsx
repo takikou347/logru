@@ -87,15 +87,15 @@ export function MemoriesPage() {
   }, [list.data, now]);
 
   const filterOptions = groupFilterOptions({ groups, me: me.data, value: group, onChange: setGroup });
+  // 足せるものは記録する 1 つだけ。「+」を押すと記録のシートを直に開く。思い出を作るのは見出しの右のボタンから。0062、#164
+  const addables: Addable[] = [
+    { key: "record", label: "記録する", icon: Camera, onClick: () => setParams((p) => (p.set("record", "1"), p)) },
+  ];
   useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
 
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
   const empty = list.data && list.data.memories.length === 0 && list.data.recent.length === 0;
-  // 足せるものは記録する 1 つだけ。「+」を押すと記録のシートを直に開く。思い出を作るのは見出しの右のボタンから。0062、#164
-  const addables: Addable[] = [
-    { key: "record", label: "記録する", icon: Camera, onClick: () => setParams((p) => (p.set("record", "1"), p)) },
-  ];
 
   return (
     <>
@@ -129,7 +129,7 @@ export function MemoriesPage() {
         {byYear.map(([year, ms]) => (
           <Shelf key={year} year={year} title="過去の思い出" memories={ms} me={data} />
         ))}
-        <Dock label="思い出の操作">
+        <Dock label="思い出の操作" covered>
           <PrimaryAddButton label="記録する" addables={addables} />
         </Dock>
       </Page>

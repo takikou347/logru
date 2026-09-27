@@ -144,7 +144,7 @@ export function AccountSheet({
             <Input
               {...p}
               type="text"
-              inputMode="numeric"
+              inputMode="decimal"
               value={openingBalance}
               onChange={(e) => setOpeningBalance(sanitizeAmountInput(e.target.value, true))}
               className="text-right"

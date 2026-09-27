@@ -1,5 +1,6 @@
 /** 精算の面。家計簿の画面を共有のグループで絞ったときだけ出す。0072、F-320、F-321、F-322 */
 import type { GroupSummary, Me } from "@shared/api-types";
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { UserAvatar } from "@/components/parts/Avatars";
 import { LoadableSection, PanelSkeleton } from "@/components/parts/LoadableSection";
@@ -85,15 +86,17 @@ export function SettlementPanel({ groups, group, me }: { groups: GroupSummary[];
                       <span className="flex flex-none items-center gap-2">
                         <b className="tabular-nums">{formatYen(s.amount)}</b>
                         {/* 共有のグループの精算は、書いた人でなくても消せる。0079 */}
+                        {/* アイコンだけ。読み上げの名前は今までどおり「消す」。issue #243 */}
                         <Button
                           type="button"
                           variant="ghost"
-                          size="sm"
+                          size="icon"
+                          aria-label="消す"
                           onClick={() =>
                             remove(s.id, ({ keepalive }) => deleteSettlement.mutateAsync({ id: s.id, keepalive }))
                           }
                         >
-                          消す
+                          <Trash2 className="size-4" aria-hidden="true" />
                         </Button>
                       </span>
                     </PanelRow>

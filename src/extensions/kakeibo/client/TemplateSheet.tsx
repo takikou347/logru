@@ -167,7 +167,7 @@ export function TemplateSheet({
             <Input
               {...p}
               type="text"
-              inputMode="numeric"
+              inputMode="decimal"
               pattern="[0-9]*"
               placeholder="省ける"
               value={amountText}

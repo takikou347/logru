@@ -1,6 +1,7 @@
 import { CalendarDays, House, Settings, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
 import { useGroups } from "@/api/common";
+import { useDockViewTransitionStyle } from "@/lib/bars-view-transition";
 import { useFavoriteAdds, useQuickAdds } from "@/lib/extensions";
 import { useNewLookActive } from "@/lib/lab";
 import { useShowTabHints } from "@/lib/use-tab-hints";
@@ -62,9 +63,11 @@ export function GlobalBottomTabs() {
   const groups = useGroups();
   const newLook = useNewLookActive();
   const showHint = useShowTabHints(newLook);
+  const vtStyle = useDockViewTransitionStyle();
   return (
     <nav
       aria-label="下のタブ"
+      style={vtStyle}
       className={cn(
         // 「+」を開いたとき、幕(z-40)と弧(z-45)は document.body へ portal で出す(RadialAddButton)。
         // この帯の「×」がその上に見えるよう、帯自体はそれより高い z にする。シート・ダイアログ

@@ -21,6 +21,7 @@ import { useAppFrame } from "@/components/layout/AppShell";
 import { InstallBanner } from "@/components/parts/InstallBanner";
 import { NotificationBell } from "@/components/parts/NotificationBell";
 import { UsualShareOfferBanner } from "@/components/parts/UsualShareBanner";
+import { useTopBarViewTransitionStyle } from "@/lib/bars-view-transition";
 import {
   addDays,
   dateKey,
@@ -303,6 +304,7 @@ export function TodayPage() {
   const onChangeDate = useCallback((dir: 1 | -1) => update(addDays(date, dir)), [update, date]);
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const rowExpandValue = useMemo(() => rowExpandState(transitioningKey, editor !== null), [transitioningKey, editor]);
+  const topBarVtStyle = useTopBarViewTransitionStyle();
 
   const editorKey = editor?.mode === "edit" ? editor.item.extension : defaultExtension.manifest.key;
   const Editor =
@@ -313,7 +315,10 @@ export function TodayPage() {
 
   return (
     <RowExpandContext.Provider value={rowExpandValue}>
-      <header className="glass flex min-h-[58px] items-center justify-between gap-1 rounded-panel py-1.5 pr-1.5 pl-2">
+      <header
+        className="glass flex min-h-[58px] items-center justify-between gap-1 rounded-panel py-1.5 pr-1.5 pl-2"
+        style={topBarVtStyle}
+      >
         <Link
           to={`/spiral/${date.getFullYear()}`}
           aria-label="カレンダーを見る"

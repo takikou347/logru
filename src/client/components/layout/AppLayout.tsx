@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useTopBarViewTransitionStyle } from "@/lib/bars-view-transition";
 import { BOX_EXPAND_NAME, consumeBoxExpandTarget, useBoxExpandActive } from "@/lib/box-expand";
 import { useBack } from "@/lib/use-back";
 import { cn } from "@/lib/utils";
@@ -130,8 +131,9 @@ export function PageBar({
   const hideOnDesktop = !back || backMobileOnly;
   const titleClass = cn("min-w-0 flex-1 truncate pl-2 text-[17px] font-bold", hideOnDesktop && "lg:pl-3");
   const goBack = useBack(back ?? "/");
+  const vtStyle = useTopBarViewTransitionStyle();
   return (
-    <header className="glass flex min-h-[58px] items-center gap-1 rounded-full py-1.5 pr-2.5 pl-1.5">
+    <header className="glass flex min-h-[58px] items-center gap-1 rounded-full py-1.5 pr-2.5 pl-1.5" style={vtStyle}>
       <Button asChild variant="ghost" size="icon" className={cn(hideOnDesktop && "lg:hidden")}>
         <Link to={goBack.to} aria-label="戻る" onClick={goBack.onClick}>
           <ChevronLeft className="size-5" />

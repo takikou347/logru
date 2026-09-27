@@ -478,7 +478,9 @@
  * 固定の名前でよい(lib/row-expand.ts、lib/box-expand.ts)。0044、0071、0093、issue #241
  *
  * root と違い、既定の mix-blend-mode(plus-lighter)は残す。0071 の「選んでいる日」と同じ考えで、
- * 名前を持つ要素どうしがつながって見える。時間と緩急だけ 0044 のトークンに合わせる
+ * 名前を持つ要素どうしがつながって見える。時間と緩急だけ 0044 のトークンに合わせる。
+ * z-index は 1。上の帯・下のタブの帯(nl-topbar、nl-dock。すぐ下)より低くし、広がる途中に
+ * 帯の上へ覆いかぶさらないようにする
  */
 ::view-transition-group(row-expand),
 ::view-transition-old(row-expand),
@@ -486,11 +488,68 @@
   animation-duration: var(--dur-expand);
   animation-timing-function: var(--ease-out);
 }
-::view-transition-group(box-expand),
-::view-transition-old(box-expand),
-::view-transition-new(box-expand) {
+::view-transition-group(row-expand) {
+  z-index: 1;
+}
+
+/*
+ * box-expand は、行き先の画面(数行の見出しの文字)と押した面(全画面のページ)で縦横比が大きく違う。
+ * 既定の crossfade(古い見た目と新しい見た目を同じ大きさへ重ねて引き伸ばす)だと、小さい文字が
+ * 大きく引き伸ばされてぼやけ、新しい画面は逆につぶれて小さく見える。2026-09-27 の kota の指摘。
+ *
+ * 古い見た目は最初の 3 割で消し、新しい見た目は面が育ち切る終盤(7 割から)にだけ現れるようにする。
+ * 間は面(group)に敷いた地の色だけが育つ、案 C の motion-box-expand と同じ形にした
+ */
+::view-transition-group(box-expand) {
   animation-duration: var(--dur-box-expand);
   animation-timing-function: var(--ease-out);
+  background: var(--field);
+  border-radius: var(--r-panel);
+  z-index: 1;
+}
+::view-transition-old(box-expand) {
+  animation: box-expand-old-out var(--dur-box-expand) var(--ease-out);
+  mix-blend-mode: normal;
+}
+::view-transition-new(box-expand) {
+  animation: box-expand-new-in var(--dur-box-expand) var(--ease-out);
+  mix-blend-mode: normal;
+}
+@keyframes box-expand-old-out {
+  0% {
+    opacity: 1;
+  }
+  30%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes box-expand-new-in {
+  0%,
+  70% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/*
+ * 上の帯(ページ自身の見出し、PageBar)と下のタブの帯(GlobalBottomTabs)。row-expand・box-expand が
+ * 広がる間、動かさずそのまま見せる。root(0071)と同じく動きを止め、既定の mix-blend-mode
+ * (plus-lighter)も戻す。z-index を row-expand・box-expand より高くし、広がる面が帯の上を
+ * 通り過ぎても帯が隠れたり薄れたりしないようにする。lib/bars-view-transition.ts、issue #241
+ */
+::view-transition-group(nl-topbar),
+::view-transition-group(nl-dock) {
+  z-index: 2;
+}
+::view-transition-old(nl-topbar),
+::view-transition-new(nl-topbar),
+::view-transition-old(nl-dock),
+::view-transition-new(nl-dock) {
+  animation: none;
+  mix-blend-mode: normal;
 }
 
 /*

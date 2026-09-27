@@ -3,7 +3,17 @@ import type { EditorTarget, ItemEditScope } from "@extensions/client/types";
 import type { CalendarItem, HomeWidgetEntry } from "@shared/api-types";
 import { defaultHomeLayout, mergeHomeLayout, visibleHomeLayout } from "@shared/home";
 import { useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, LayoutGrid, Pencil } from "lucide-react";
+import {
+  Calendar,
+  CalendarClock,
+  CalendarDays,
+  CalendarPlus,
+  CalendarRange,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  Pencil,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -67,9 +77,9 @@ import {
 } from "./model";
 
 const VIEWS = [
-  { value: "month", label: "月" },
-  { value: "week", label: "週" },
-  { value: "day", label: "日" },
+  { value: "month", label: "月", icon: Calendar },
+  { value: "week", label: "週", icon: CalendarRange },
+  { value: "day", label: "日", icon: CalendarClock },
 ] as const;
 
 /** 今日の 0 時。画面を開いたまま日付が変わったら追いかける */
@@ -408,8 +418,6 @@ export function CalendarPage() {
   useAppFrame({
     poolColors: poolColorsOf(allGroups, me.data),
     poolFocus: focusIndex >= 0 ? focusIndex : null,
-    // 新しい見た目・スマホの下のタブの「+」に渡す。0091、issue #239
-    addables: eventAddables,
     side: (
       <div className="flex flex-col gap-3">
         <SideGroupFilter
@@ -529,6 +537,8 @@ export function CalendarPage() {
             >
               <CalendarDays className="size-5" aria-hidden="true" />
             </Link>
+            {/* 表示の単位(月・週・日)。アイコンだけでも読み上げの名前は今までの「月」「週」「日」のまま。issue #239 */}
+            <Segmented label="表示の単位" value={view} options={VIEWS} onChange={changeView} iconOnly />
             <div className="flex items-center gap-0.5">
               {me.data && <SearchButton groups={allGroups} me={me.data} onOpen={openSearchResult} />}
               <NotificationBell />

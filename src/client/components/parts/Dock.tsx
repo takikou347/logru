@@ -1,6 +1,6 @@
 import { CalendarDays, House, Settings, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
-import { useAppFrameAddables } from "@/components/layout/app-frame";
+import { useFavoriteAdds, useQuickAdds } from "@/lib/extensions";
 import { useNewLookActive } from "@/lib/lab";
 import { useShowTabHints } from "@/lib/use-tab-hints";
 import { cn } from "@/lib/utils";
@@ -47,11 +47,13 @@ export function Dock({
  * 0090 の「浮いている」形の値(--float-bar-*)を使う。PC(1024px 以上)や、新しい見た目を
  * 入れていない人には出さない(.nl-only、globals.css)。0091、issue #239
  *
- * 「+」は、いま開いている画面が useAppFrame に渡した addables を放射で出す。渡していない画面
- * (設定、グループなど)では、渡すものが無く(決定 0086 と同じ扱い)、+ は出ない。
+ * 「+」は、足している機能すべての記録の種類を放射で出す(useQuickAdds)。どの画面から押しても
+ * 同じ並びになる。0 個なら決定 0086 と同じ扱いで出さない。家計簿を足していれば、よく使う記録
+ * (useFavoriteAdds)を上に並べる。
  */
 export function GlobalBottomTabs() {
-  const addables = useAppFrameAddables();
+  const quickAdds = useQuickAdds();
+  const favorites = useFavoriteAdds();
   const newLook = useNewLookActive();
   const showHint = useShowTabHints(newLook);
   return (
@@ -64,7 +66,7 @@ export function GlobalBottomTabs() {
     >
       <TabIconButton to="/" end icon={House} label="今日のページ" showHint={showHint} />
       <TabIconButton to="/?view=month" icon={CalendarDays} label="カレンダー" showHint={showHint} />
-      <RadialAddButton addables={addables} showHint={showHint} />
+      <RadialAddButton items={quickAdds} favorites={favorites} showHint={showHint} />
       <TabIconButton to="/settings/extensions" icon={SlidersHorizontal} label="機能" showHint={showHint} />
       <TabIconButton to="/settings" icon={Settings} label="設定" showHint={showHint} />
     </nav>

@@ -47,12 +47,7 @@ export function ListsPage() {
       onClick: () => setParams((p) => (p.set("create", "1"), p), { replace: true }),
     },
   ];
-  useAppFrame({
-    poolColors: poolColorsOf(groups, me.data),
-    side: <SideGroupFilter options={filterOptions} />,
-    // 新しい見た目・スマホの下のタブの「+」に渡す。0091、issue #239
-    addables,
-  });
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
 
   if (!me.data || !ready) return <Loading />;
   const data = me.data;

@@ -1,21 +1,23 @@
 /**
- * 下のタブの帯の中央の「+」。案 C の放射で、足せる記録の種類を弧に並べて出す。0091、issue #239
+ * 下のタブの帯の中央の「+」。案 C の放射で、足している機能すべての記録の種類を弧に並べて出す。
+ * 0091、issue #239
  *
- * 種類は、いま開いている画面が `useAppFrame` に渡した addables(その画面の「+」が今まで
- * 出していたものと同じ出どころ)。0 個なら決定 0086 に従って出さない。1 個なら弧を出さず直接開く。
- * 6 個以上は弧を 2 重にする(内側 4 つ、外側は残り)。動きを減らす設定では、弧に並んだ状態を
- * すぐ出す。
+ * 種類は `useQuickAdds`(足している拡張の actions を全部集めたもの)。どの画面から押しても同じ
+ * 並びになる。0 個なら決定 0086 に従って出さない。1 個なら弧を出さず直接開く。6 個以上は弧を
+ * 2 重にする(内側 4 つ、外側は残り)。動きを減らす設定では、弧に並んだ状態をすぐ出す。
+ * 上には、家計簿のよく使う記録(`useFavoriteAdds`、F-326)があれば並べる。
  */
-import { Plus } from "lucide-react";
+import type { ExtensionAction, FavoriteAdd } from "@extensions/client/types";
+import { Plus, Star } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Addable } from "@/components/parts/PrimaryAddButton";
+import { useNavigate } from "react-router";
 import { angleOf, radialOffset, radialTiers } from "@/lib/radial-layout";
 import { useLongPressLabel } from "@/lib/use-long-press";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 
 function RadialItem({
-  addable,
+  item,
   radius,
   angle,
   delayMs,
@@ -23,17 +25,17 @@ function RadialItem({
   entered,
   onPick,
 }: {
-  addable: Addable;
+  item: ExtensionAction;
   radius: number;
   angle: number;
   delayMs: number;
   reducedMotion: boolean;
   entered: boolean;
-  onPick: (a: Addable) => void;
+  onPick: (path: string) => void;
 }) {
   const { pressed, consumeLongPress, handlers } = useLongPressLabel();
   const { x, y } = radialOffset(angle, radius);
-  const Icon = addable.icon;
+  const Icon = item.icon;
   // 弧の中心(幅 0 の基準点)から、-50%,-50% で自分の大きさぶん引いてから (x, y) だけ動かす。
   // 閉じている間・飛ぶ前は基準点に重なって縮んでいる
   return (
@@ -47,14 +49,14 @@ function RadialItem({
     >
       <button
         type="button"
-        aria-label={addable.label}
+        aria-label={item.label}
         className="glass grid size-12 place-items-center rounded-full text-ink"
         onClick={(e) => {
           if (consumeLongPress()) {
             e.preventDefault();
             return;
           }
-          onPick(addable);
+          onPick(item.path);
         }}
         {...handlers}
       >
@@ -66,18 +68,42 @@ function RadialItem({
           data-testid="long-press-label"
           className="glass absolute left-1/2 bottom-[calc(100%+6px)] z-10 -translate-x-1/2 rounded-full px-2.5 py-1 text-[12px] font-bold whitespace-nowrap"
         >
-          {addable.label}
+          {item.label}
         </span>
       )}
     </span>
   );
 }
 
-export function RadialAddButton({ addables, showHint }: { addables: Addable[]; showHint?: boolean }) {
+/** 上に並ぶ、よく使う記録のカード。押すと 1 タップでその記録が入った状態のシートへ移る */
+function FavoriteCard({ favorite, onPick }: { favorite: FavoriteAdd; onPick: (path: string) => void }) {
+  const Icon = favorite.icon ?? Star;
+  return (
+    <button
+      type="button"
+      className="glass flex min-h-11 items-center gap-2 rounded-full py-1.5 pr-4 pl-2.5 text-[13px] font-bold whitespace-nowrap text-ink"
+      onClick={() => onPick(favorite.path)}
+    >
+      <Icon className="size-4 shrink-0" aria-hidden="true" />
+      {favorite.label}
+    </button>
+  );
+}
+
+export function RadialAddButton({
+  items,
+  favorites,
+  showHint,
+}: {
+  items: ExtensionAction[];
+  favorites: FavoriteAdd[];
+  showHint?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [entered, setEntered] = useState(false);
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const { pressed, consumeLongPress, handlers } = useLongPressLabel();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!open) {
@@ -93,15 +119,16 @@ export function RadialAddButton({ addables, showHint }: { addables: Addable[]; s
     return () => cancelAnimationFrame(frame);
   }, [open, reducedMotion]);
 
-  if (addables.length === 0) return null;
+  // 決定 0086 と同じ扱い。足せるものが 1 つも無ければ出さない
+  if (items.length === 0) return null;
 
-  const pick = (a: Addable) => {
+  const pick = (path: string) => {
     setOpen(false);
-    a.onClick();
+    navigate(path);
   };
 
-  if (addables.length === 1) {
-    const only = addables[0]!;
+  if (items.length === 1) {
+    const only = items[0]!;
     return (
       <span className="relative flex min-w-0 flex-1 flex-col items-center gap-0.5">
         <button
@@ -114,7 +141,7 @@ export function RadialAddButton({ addables, showHint }: { addables: Addable[]; s
               e.preventDefault();
               return;
             }
-            only.onClick();
+            navigate(only.path);
           }}
           {...handlers}
         >
@@ -138,7 +165,9 @@ export function RadialAddButton({ addables, showHint }: { addables: Addable[]; s
     );
   }
 
-  const tiers = radialTiers(addables);
+  const tiers = radialTiers(items);
+  // 弧のいちばん外の半径。よく使う記録の帯を、これより上に置く
+  const outerRadius = tiers.at(-1)?.radius ?? 128;
 
   return (
     <span className="relative flex min-w-0 flex-1 flex-col items-center">
@@ -190,8 +219,8 @@ export function RadialAddButton({ addables, showHint }: { addables: Addable[]; s
               {tiers.flatMap((tier, ti) =>
                 tier.items.map((a, i) => (
                   <RadialItem
-                    key={a.key}
-                    addable={a}
+                    key={a.path}
+                    item={a}
                     radius={tier.radius}
                     angle={angleOf(i, tier.items.length)}
                     delayMs={(ti * tier.items.length + i) * 45}
@@ -200,6 +229,23 @@ export function RadialAddButton({ addables, showHint }: { addables: Addable[]; s
                     onPick={pick}
                   />
                 )),
+              )}
+              {favorites.length > 0 && (
+                <span
+                  role="group"
+                  aria-label="よく使う記録"
+                  className="absolute left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 transition-opacity duration-slow"
+                  style={{
+                    bottom: `${outerRadius + 64}px`,
+                    opacity: entered ? 1 : 0,
+                    transitionDelay: reducedMotion ? "0ms" : "260ms",
+                    transitionDuration: reducedMotion ? "0ms" : undefined,
+                  }}
+                >
+                  {favorites.map((f) => (
+                    <FavoriteCard key={f.key} favorite={f} onPick={pick} />
+                  ))}
+                </span>
               )}
             </span>
           </span>

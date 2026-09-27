@@ -1,8 +1,9 @@
 import type { ClientExtension } from "@extensions/client/types";
-import { BadgeJapaneseYen, Wallet } from "lucide-react";
+import { BadgeJapaneseYen, PiggyBank, Wallet } from "lucide-react";
 import { kakeiboManifest } from "../manifest";
 import { AssetsWidget, MonthTotalWidget, RecordHomeWidget, useMonthTotalHint } from "./HomeWidget";
 import { KakeiboItemSheet } from "./KakeiboItemSheet";
+import { useKakeiboFavoriteAdds } from "./quick-adds";
 
 /**
  * 家計簿の拡張の、画面の側。docs/logru/extensions/kakeibo/design.md
@@ -17,8 +18,13 @@ export const kakeiboClient: ClientExtension = {
   icon: BadgeJapaneseYen,
   nav: { label: "家計簿", icon: Wallet, path: "/kakeibo", description: "支出の記録と合計" },
   // 機能のシートには出さない。actions は「機能を足す」直後の案内だけに使う。ホームの記録するウィジェットと同じ道。0019
-  actions: [{ label: "支出を記録する", icon: Wallet, path: "/kakeibo?record=1", hint: "金額とカテゴリ" }],
+  // 下のタブの帯の「+」の放射には、支出・収入の 2 つを出す。振替は使う人が少ないので出さない。0091、issue #239
+  actions: [
+    { label: "支出を記録する", icon: Wallet, path: "/kakeibo?record=1", hint: "金額とカテゴリ" },
+    { label: "収入を記録する", icon: PiggyBank, path: "/kakeibo?record=1&type=income" },
+  ],
   useTileHint: useMonthTotalHint,
+  useFavoriteAdds: useKakeiboFavoriteAdds,
   widgets: [
     {
       key: "kakeibo.record",

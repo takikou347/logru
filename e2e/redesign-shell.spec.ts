@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { enableNewLook, signUp } from "./helpers";
+import { addExtension, enableNewLook, signUp } from "./helpers";
 
 /**
  * 刷新 2。骨組み(上の帯、週の帯、下のタブ、「+」の放射)とアイコンだけの操作。0091、issue #239
@@ -81,19 +81,66 @@ test("「機能」「設定」タブで、それぞれの画面へ移る", async
   await expect(page).toHaveURL("/settings");
 });
 
-test("「+」は、いま開いている画面の足せるものをそのまま開く(予定を足す)", async ({ page }) => {
+test("「+」は足している機能ぶんの記録の種類を出す。どの画面から押しても同じで、予定だけなら直接開く", async ({
+  page,
+}) => {
   await enableNewLook(page);
-  await page.goto("/");
+  // 設定の画面から押しても、カレンダーの画面から押しても同じ(いま開いている画面の addables ではない)。issue #239
+  await page.goto("/settings");
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
   await tabs.getByRole("button", { name: "記録する" }).click();
   await expect(page.getByRole("dialog", { name: "新しい予定" })).toBeVisible();
 });
 
-test("設定の画面など、足せるものが無い画面では「+」が出ない", async ({ page }) => {
+test("家計簿を足すと「+」に支出・収入が並び、放射から収入を選ぶと収入が選ばれた状態で開く", async ({ page }) => {
+  await addExtension(page, "家計簿");
   await enableNewLook(page);
-  await page.goto("/settings");
+  await page.goto("/");
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
-  await expect(tabs.getByRole("button", { name: "記録する" })).toHaveCount(0);
+  // 3 種類以上になったので、放射(弧)で出る
+  await tabs.getByRole("button", { name: "記録する" }).click();
+  await expect(tabs.getByRole("button", { name: "予定を足す" })).toBeVisible();
+  await expect(tabs.getByRole("button", { name: "支出を記録する" })).toBeVisible();
+  await tabs.getByRole("button", { name: "収入を記録する" }).click();
+
+  const sheet = page.getByRole("dialog", { name: "記録する" });
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole("radio", { name: "収入", checked: true })).toBeVisible();
+});
+
+test("家計簿のよく使う記録があると、「+」の上にカードで並び、押すとその記録が入った状態で開く", async ({ page }) => {
+  await addExtension(page, "家計簿");
+  // よく使う記録を 1 つ作る
+  await page.goto("/kakeibo?record=1");
+  const create = page.getByRole("dialog", { name: "記録する" });
+  await create.getByLabel("金額").fill("900");
+  await create.getByRole("radio", { name: "食費" }).click();
+  await create.getByRole("button", { name: "よく使う記録にする" }).click();
+  await create.getByLabel("よく使う記録の名前").fill("昼ごはん");
+  await create.getByRole("button", { name: "残す" }).click();
+  await expect(page.getByText("よく使う記録にしました")).toBeVisible();
+
+  await enableNewLook(page);
+  await page.goto("/");
+  const tabs = page.getByRole("navigation", { name: "下のタブ" });
+  await tabs.getByRole("button", { name: "記録する" }).click();
+  await tabs
+    .getByRole("group", { name: "よく使う記録" })
+    .getByRole("button", { name: /昼ごはん/ })
+    .click();
+
+  const sheet = page.getByRole("dialog", { name: "記録する" });
+  await expect(sheet.getByLabel("金額")).toHaveValue("900");
+  await expect(sheet.getByRole("radio", { name: "食費", checked: true })).toBeVisible();
+});
+
+test("新しい見た目・スマホでも、上の帯の近くのアイコンだけの切り替えで週・日表示に移れる", async ({ page }) => {
+  await enableNewLook(page);
+  await page.goto("/");
+  await page.getByRole("radio", { name: "週" }).last().click();
+  await expect(page.getByRole("region", { name: "週の予定" })).toBeVisible();
+  await page.getByRole("radio", { name: "日" }).last().click();
+  await expect(page.getByRole("region", { name: "日の予定" })).toBeVisible();
 });
 
 test("PC(1024px 以上)では、新しい見た目でも下のタブの帯が出ない", async ({ page }) => {

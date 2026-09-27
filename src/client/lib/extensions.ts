@@ -6,7 +6,7 @@
  */
 
 import { clientExtensions } from "@extensions/client/registry";
-import type { ClientExtension } from "@extensions/client/types";
+import type { ClientExtension, ExtensionAction, FavoriteAdd } from "@extensions/client/types";
 import type { GroupSummary } from "@shared/api-types";
 import { useMemo } from "react";
 import { useGroups, useMe } from "@/api/common";
@@ -107,4 +107,25 @@ export function useShortcut() {
   // biome-ignore lint/correctness/useHookAtTopLevel: clientExtensions の並びは起動時に固定なので、呼ぶ順は毎回同じ
   const results = clientExtensions.map((x) => (x.useShortcut ? x.useShortcut(keys.has(x.manifest.key)) : null));
   return results.find((r) => r) ?? null;
+}
+
+/**
+ * 下のタブの帯の「+」の放射に出す、記録の種類。足している拡張の actions を、拡張の一覧の順に
+ * すべて集める。0 個なら決定 0086 と同じ扱い(呼び出し側が出さない)。0091、issue #239
+ */
+export function useQuickAdds(): ExtensionAction[] {
+  const enabled = useEnabledExtensions();
+  return useMemo(() => enabled.flatMap((x) => x.actions ?? []), [enabled]);
+}
+
+/**
+ * 「+」の放射の上に出す、よく使う記録。いまは家計簿だけが返す。
+ * hook の呼ぶ順を変えないよう、useShortcut と同じ形で、使えない拡張の hook も enabled を false にして呼ぶ。0091、issue #239
+ */
+export function useFavoriteAdds(): FavoriteAdd[] {
+  const enabled = useEnabledExtensions();
+  const keys = new Set(enabled.map((x) => x.manifest.key));
+  // biome-ignore lint/correctness/useHookAtTopLevel: clientExtensions の並びは起動時に固定なので、呼ぶ順は毎回同じ
+  const results = clientExtensions.map((x) => (x.useFavoriteAdds ? x.useFavoriteAdds(keys.has(x.manifest.key)) : null));
+  return results.flatMap((r) => r ?? []);
 }

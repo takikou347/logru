@@ -148,6 +148,10 @@ export function KakeiboPage() {
   const setMonth = (key: string) => setParams((p) => (p.set("month", key), p), { replace: true });
 
   const recording = params.get("record") === "1";
+  // 下のタブの帯の「+」の放射(収入を記録する)から開いたときの、最初の種類。0091、issue #239
+  const recordType = params.get("type") === "income" ? "income" : undefined;
+  // 「+」の放射の上のよく使う記録から開いたときの、当てるテンプレートの id。0091、issue #239
+  const recordTemplateId = params.get("template") ?? undefined;
   const openedFromWidget = params.get("from") === "widget";
   const closeRecord = () => {
     // ウィジェットから開いたときだけ、この画面に留まらずホーム(前の画面)へ戻る。0070、#201
@@ -155,7 +159,7 @@ export function KakeiboPage() {
       back.onClick();
       return;
     }
-    setParams((p) => (p.delete("record"), p), { replace: true });
+    setParams((p) => (p.delete("record"), p.delete("type"), p.delete("template"), p), { replace: true });
   };
   const editingId = params.get("edit");
   const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
@@ -164,12 +168,7 @@ export function KakeiboPage() {
   const openRecordSheet = () => setParams((p) => (p.set("record", "1"), p), { replace: true });
   // 足せるものは記録だけ。「+」を押すと直接シートが開く。issue #150
   const addables: Addable[] = [{ key: "expense", label: "支出を記録する", icon: Coins, onClick: openRecordSheet }];
-  useAppFrame({
-    poolColors: poolColorsOf(groups, me.data),
-    side: <SideGroupFilter options={filterOptions} />,
-    // 新しい見た目・スマホの下のタブの「+」に渡す。0091、issue #239
-    addables,
-  });
+  useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
 
   if (!me.data || !ready) return <Loading />;
   const meData = me.data;
@@ -468,7 +467,16 @@ export function KakeiboPage() {
           <PrimaryAddButton label="支出を記録する" addables={addables} />
         </Dock>
       </Page>
-      {recording && <ExpenseSheet groups={groups} me={meData} defaultGroupId={group} onClose={closeRecord} />}
+      {recording && (
+        <ExpenseSheet
+          groups={groups}
+          me={meData}
+          defaultGroupId={group}
+          onClose={closeRecord}
+          defaultType={recordType}
+          initialTemplateId={recordTemplateId}
+        />
+      )}
       {editing && (
         <ExpenseSheet
           groups={groups}

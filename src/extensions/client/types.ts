@@ -91,8 +91,17 @@ type ExtensionNav = { label: string; icon: LucideIcon; path: string; description
  * 「機能を足す」で足した直後の案内(トースト)に出す、すぐする操作。押すと path へ移る。例は「記録する」
  * 機能のシートには出さない。すぐする操作は、いつでもできるならホームのウィジェット、
  * 「いま」しかできないなら useShortcut が受け持つ。0019
+ *
+ * 新しい見た目・スマホの下のタブの帯の「+」の放射にも、足している拡張の全部をこの並びで出す。
+ * path は、その記録のシートが開いた状態で始まる道順にする(例 `/kakeibo?record=1`)。0091、issue #239
  */
-type ExtensionAction = { label: string; icon: LucideIcon; path: string; hint?: string };
+export type ExtensionAction = { label: string; icon: LucideIcon; path: string; hint?: string };
+
+/**
+ * 「+」の放射の上に出す、よく使う記録 1 つ。押すと、その記録が入った状態でシートが開く。0091、issue #239
+ * 例は家計簿のよく使う記録(F-326)。使用頻度を数える仕組みは無いので、拡張が持つ並びをそのまま使う
+ */
+export type FavoriteAdd = { key: string; label: string; icon?: LucideIcon; path: string };
 
 /**
  * いま押してほしい近道。カレンダーの上の帯に出す。F-26
@@ -181,6 +190,11 @@ export type ClientExtension = {
    * useShortcut と同じ理由で、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ
    */
   useTileHint?: (enabled: boolean) => string | null;
+  /**
+   * 下のタブの帯の「+」の放射の上に出す、よく使う記録を返す hook。無ければ出さない。
+   * useShortcut と同じ理由で、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ。0091、issue #239
+   */
+  useFavoriteAdds?: (enabled: boolean) => FavoriteAdd[] | null;
   /** ほかの拡張の編集シートに足す欄 */
   itemAddons?: ItemAddon[];
   /** 端末に知らせるもの。例は「ひとコマの時刻」。知らせる拡張を使っているときだけ、設定に知らせの欄を出す。F-23 */

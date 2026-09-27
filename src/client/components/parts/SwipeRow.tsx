@@ -222,8 +222,11 @@ function TouchSwipeRow({
     <div
       ref={rowRef}
       data-testid="swipe-row"
-      className={cn("relative overflow-hidden", className)}
+      // 指は行のどこから引いても拾う。戻る動きの途中や開いているときは、右端に「直す」「消す」が
+      // 出ているので、中身だけで拾うとそこから引いた指を取りこぼす。押すだけならボタンの click はそのまま動く
+      className={cn("relative touch-pan-y overflow-hidden", className)}
       data-swipe-open={open || undefined}
+      onPointerDown={onPointerDown}
     >
       <div
         ref={actionsRef}
@@ -259,12 +262,11 @@ function TouchSwipeRow({
       </div>
       <div
         data-testid="swipe-row-content"
-        className="relative touch-pan-y"
+        className="relative"
         style={{
           transform: `translateX(${dragX}px)`,
           transition: dragging ? "none" : "transform var(--dur-base) var(--ease-out)",
         }}
-        onPointerDown={onPointerDown}
       >
         {children}
       </div>

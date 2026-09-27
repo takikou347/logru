@@ -92,6 +92,41 @@ test("行の幅の 6 割ほど引き切ると、そのまま消える。5 秒だ
   await expect(page.getByText("にんじん")).toBeVisible();
 });
 
+test("浅く引いた行が戻りきる前に続けて引いても、指を拾って開く", async ({ page }) => {
+  await signUp(page, { name: "こた" });
+  await addExtension(page, "リスト");
+  await page.goto("/lists");
+  await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
+  await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("買い物");
+  await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
+  await expect(page).toHaveURL(/\/lists\/.+/);
+
+  const addInput = page.getByLabel("項目を足す");
+  await addInput.fill("にんじん");
+  await addInput.press("Enter");
+  await expect(page.getByText("にんじん")).toBeVisible();
+
+  const row = page.getByTestId("swipe-row").filter({ hasText: "にんじん" });
+  const box = await row.boundingBox();
+  if (!box) throw new Error("行の位置が取れなかった");
+  // 戻る動きの途中で次の指を置くため、CDP の指を先に用意し、2 回の引きの間に待ちを入れない。
+  // 戻る途中は行の右端に「直す」が少し出ていて、そこに置いた指も拾う必要がある
+  const client = await page.context().newCDPSession(page);
+  const y = box.y + box.height / 2;
+  const startX = box.x + box.width - 16;
+  const drag = async (dx: number) => {
+    await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: startX, y }] });
+    for (let i = 1; i <= 8; i++) {
+      const x = startX - (dx * i) / 8;
+      await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y }] });
+    }
+    await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  };
+  await drag(20);
+  await drag(120);
+  await expect(row).toHaveAttribute("data-swipe-open", "true");
+});
+
 test("縦にスクロールしても、行は横に動かない", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await addExtension(page, "リスト");

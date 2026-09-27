@@ -1,5 +1,6 @@
 import type { GroupMember, GroupSummary, Me } from "@shared/api-types";
 import { GROUP_COLORS } from "@shared/colors";
+import { Copy, ShieldCheck, ShieldMinus, Trash2 } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
@@ -13,13 +14,16 @@ import { ColorSwatches } from "@/components/parts/ColorSwatches";
 import { ExtensionToggleRow } from "@/components/parts/ExtensionToggleRow";
 import { FailurePanel, LoadFailure } from "@/components/parts/Failure";
 import { Field } from "@/components/parts/Field";
+import { IconOnlyButton } from "@/components/parts/IconOnlyButton";
 import { Dot, Empty, FieldMessage, Panel, PanelRow, RowButton } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { ScreenTour } from "@/components/parts/ScreenTour";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { groupColor, memberColor } from "@/lib/colors";
+import { useNewLookActive } from "@/lib/lab";
 import { BASE_TOURS } from "@/lib/tours";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { useExitOnly } from "@/lib/use-row-motion";
 import { poolColorsOf } from "../calendar/model";
 import {
@@ -58,6 +62,11 @@ export function GroupDetailPage() {
   const { leaving: leavingInvite, remove: removeInvite } = useExitOnly();
   const [colorTarget, setColorTarget] = useState<ColorTarget | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  // 招待の欄の右にアイコンを重ねる余白を、新しい見た目・スマホのときだけ空ける。nl-only と同じ条件
+  // (`@media (max-width: 1023.98px)`)。&& の右側が条件で呼ばれないよう、hook は別々に呼ぶ
+  const newLookActive = useNewLookActive();
+  const desktop = useMediaQuery("(min-width: 1024px)");
+  const newLook = newLookActive && !desktop;
   const group = groups.data?.find((g) => g.id === id);
   const extensions = useGroupExtensions(id, Boolean(group && !group.isPersonal));
   // 自分の画面での色。グループが読めるまでは決まらないので、その間は既定の並びのまま。0071
@@ -125,6 +134,16 @@ export function GroupDetailPage() {
     } catch {
       toast.error("コピーできませんでした。リンクを長押しして、コピーしてください。");
     }
+  }
+
+  function revoke() {
+    if (!invite) {
+      void run(() => revokeInvites.mutateAsync(), "招待リンクをすべて取り消しました");
+      return;
+    }
+    removeInvite("invite", () => {
+      void run(() => revokeInvites.mutateAsync(), "招待リンクをすべて取り消しました").then(() => setInvite(null));
+    });
   }
 
   async function leave() {
@@ -210,8 +229,44 @@ export function GroupDetailPage() {
                 <FieldMessage>
                   このリンクを開いた人は、7 日のうちならグループに入れます。招待したい相手にだけ送ってください。
                 </FieldMessage>
-                <Input readOnly value={invite.url} aria-label="招待リンク" onFocus={(e) => e.target.select()} />
-                <Button className="self-start" onClick={copy} disabled={leavingInvite.has("invite")}>
+                {/*
+                  欄は 1 つだけ持つ(nl-only・nl-hide で 2 つに複製しない)。複製すると、同じ
+                  aria-label="招待リンク" を持つ要素が 2 つでき、Playwright の getByLabel(隠れていても
+                  拾う)がどちらに当たるか不定になる。新しい見た目・スマホは、Input を relative の枠で
+                  囲み、右にコピー・取り消すのアイコンを絶対配置で重ねる(欄の行の高さは変えない)。
+                  幅 360px でも欄が読めるよう、新しい見た目のときだけ右の余白を空ける。issue #243
+                */}
+                <div className="relative">
+                  <Input
+                    readOnly
+                    value={invite.url}
+                    aria-label="招待リンク"
+                    className={newLook ? "pr-[88px]" : undefined}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  {/*
+                    読み上げの名前に「招待リンク」を含めると、getByLabel("招待リンク")(上の欄を指す)が
+                    このボタンにも当たってしまうため、「招待を」で始める。issue #243
+                  */}
+                  <div className="nl-only absolute inset-y-0 right-1 items-center gap-1">
+                    <IconOnlyButton
+                      icon={Copy}
+                      label="招待をコピーする"
+                      className="size-9 bg-primary text-primary-foreground"
+                      onClick={copy}
+                      disabled={leavingInvite.has("invite")}
+                    />
+                    <IconOnlyButton
+                      icon={Trash2}
+                      label="招待をすべて取り消す"
+                      className="size-9 text-sun"
+                      onClick={revoke}
+                      disabled={leavingInvite.has("invite")}
+                    />
+                  </div>
+                </div>
+                {/* 今までの見た目は、欄の下に文字のボタンを並べる */}
+                <Button className="nl-hide self-start" onClick={copy} disabled={leavingInvite.has("invite")}>
                   コピーする
                 </Button>
               </div>
@@ -220,24 +275,28 @@ export function GroupDetailPage() {
                 招待リンクを作る
               </Button>
             )}
+            {/*
+              まだ開いていない古い招待リンクが残っていることがあるので、いま出している欄が無くても
+              「すべて取り消す」は出す。新しい見た目・スマホでは、招待中の欄の上にアイコンで出すため
+              (上の relative の枠の中)、ここでは出さない。issue #243
+            */}
             <Button
               variant="ghost"
-              className="self-start"
+              className="nl-hide self-start"
               disabled={leavingInvite.has("invite")}
-              onClick={() => {
-                if (!invite) {
-                  void run(() => revokeInvites.mutateAsync(), "招待リンクをすべて取り消しました");
-                  return;
-                }
-                removeInvite("invite", () => {
-                  void run(() => revokeInvites.mutateAsync(), "招待リンクをすべて取り消しました").then(() =>
-                    setInvite(null),
-                  );
-                });
-              }}
+              onClick={revoke}
             >
               招待リンクをすべて取り消す
             </Button>
+            {!invite && (
+              <IconOnlyButton
+                icon={Trash2}
+                label="招待をすべて取り消す"
+                className="nl-only size-9 self-start text-sun"
+                onClick={revoke}
+                disabled={leavingInvite.has("invite")}
+              />
+            )}
           </Panel>
         )}
 
@@ -347,9 +406,23 @@ function MemberRow({
       </span>
       <span className="text-xs text-ink-2">{member.role === "admin" ? "管理者" : "メンバー"}</span>
       {canManage && (
-        <Button variant="ghost" size="sm" onClick={() => onRole(member.role === "admin" ? "member" : "admin")}>
-          {member.role === "admin" ? "メンバーに戻す" : "管理者にする"}
-        </Button>
+        <>
+          {/* 新しい見た目・スマホはアイコンだけ、それ以外は文字のボタン。issue #243 */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="nl-hide"
+            onClick={() => onRole(member.role === "admin" ? "member" : "admin")}
+          >
+            {member.role === "admin" ? "メンバーに戻す" : "管理者にする"}
+          </Button>
+          <IconOnlyButton
+            icon={member.role === "admin" ? ShieldMinus : ShieldCheck}
+            label={member.role === "admin" ? `${member.name} をメンバーに戻す` : `${member.name} を管理者にする`}
+            className="nl-only size-9"
+            onClick={() => onRole(member.role === "admin" ? "member" : "admin")}
+          />
+        </>
       )}
     </div>
   );

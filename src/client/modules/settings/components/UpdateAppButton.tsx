@@ -1,3 +1,4 @@
+import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { PanelRow, RowButton } from "@/components/parts/Panel";
 import { hardResetAndReload } from "@/lib/pwa-reset";
@@ -17,6 +18,7 @@ export function UpdateAppButton() {
       </PanelRow>
       <RowButton
         className="text-ink"
+        icon={RefreshCw}
         onClick={() => {
           toast("最新の版にしています…");
           void hardResetAndReload();

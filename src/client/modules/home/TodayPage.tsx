@@ -20,6 +20,7 @@ import { useGroups, useMe, useSetTodayPagePrefs } from "@/api/common";
 import { useAppFrame } from "@/components/layout/AppShell";
 import { InstallBanner } from "@/components/parts/InstallBanner";
 import { NotificationBell } from "@/components/parts/NotificationBell";
+import { ScreenTour } from "@/components/parts/ScreenTour";
 import { UsualShareOfferBanner } from "@/components/parts/UsualShareBanner";
 import { useTopBarViewTransitionStyle } from "@/lib/bars-view-transition";
 import {
@@ -36,6 +37,7 @@ import {
 import { useHeadlineText, useTodaySections, useTodaySummaries } from "@/lib/extensions";
 import { RowExpandContext, rowExpandState, useRowExpandActive, useRowExpandTransition } from "@/lib/row-expand";
 import { computeOpenSectionKeys, DEFAULT_TODAY_PAGE_PREFS, orderTodaySectionKeys } from "@/lib/today-sections";
+import { BASE_TOURS } from "@/lib/tours";
 import { useRecordScreen } from "@/lib/use-back";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useCalendar } from "../calendar/api";
@@ -43,6 +45,8 @@ import { SearchButton } from "../calendar/components/SearchButton";
 import { WeekBand } from "../calendar/components/WeekBand";
 import { hiddenPeople, itemKey, peopleOf, poolColorsOf, type ViewItem, viewItemsOf } from "../calendar/model";
 import { useCalendarDelete } from "../calendar/use-calendar-delete";
+import { REOPEN_PARAM } from "../onboarding/model";
+import { Onboarding } from "../onboarding/Onboarding";
 import { DayFlipDeck } from "./components/DayFlipDeck";
 import { FoldedFeatureGrid } from "./components/FoldedFeatureGrid";
 import { TodaySectionCard } from "./components/TodaySectionCard";
@@ -64,7 +68,7 @@ function useToday(): Date {
 function DayHeading({ date, headline }: { date: Date; headline: string | null }) {
   const hol = holidayName(date);
   return (
-    <div className="px-1 py-1">
+    <div className="px-1 py-1" data-tour="today-swipe">
       <div className="flex items-baseline gap-2">
         <span data-testid="today-day-number" className="text-[44px] leading-none font-bold tracking-[-0.02em]">
           {date.getDate()}
@@ -361,6 +365,14 @@ export function TodayPage() {
       />
 
       <div className="h-[var(--dock-clearance)]" aria-hidden="true" />
+
+      {/*
+        はじめての案内・画面の案内。0092 は今日のページに配線していなかった(困ること)。新しい見た目の
+        既定の行き先がこのページになるため、CalendarPage と同じ形でここにも置く。issue #243
+        設定から見直す間(URL に REOPEN_PARAM がある間)は、案内どうしが重ならないよう画面の案内を出さない
+      */}
+      {!editor && !params.has(REOPEN_PARAM) && <ScreenTour id="today" steps={BASE_TOURS.today} />}
+      {me.data && <Onboarding me={me.data} paused={editor !== null} onAddEvent={() => addNew(today)} />}
 
       {editor && Editor && me.data && (
         <Editor

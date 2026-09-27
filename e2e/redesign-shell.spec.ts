@@ -87,6 +87,23 @@ test("「機能」「設定」タブで、それぞれの画面へ移る", async
   await expect(page).toHaveURL("/settings");
 });
 
+test("下のタブは、設定の下の画面でも「機能」と「設定」のどちらか 1 つだけが選ばれた色になる。issue #243", async ({
+  page,
+}) => {
+  await enableNewLook(page);
+  const tabs = page.getByRole("navigation", { name: "下のタブ" });
+
+  // 「機能」(/settings/extensions)の道順は「設定」(/settings)から始まるが、選ばれるのは「機能」だけ
+  await page.goto("/settings/extensions");
+  await expect(tabs.getByRole("link", { name: "機能" })).toHaveAttribute("aria-current", "page");
+  await expect(tabs.getByRole("link", { name: "設定" })).not.toHaveAttribute("aria-current", "page");
+
+  // それ以外の設定の下の画面(見た目など)は「設定」が選ばれる
+  await page.goto("/settings/appearance");
+  await expect(tabs.getByRole("link", { name: "設定" })).toHaveAttribute("aria-current", "page");
+  await expect(tabs.getByRole("link", { name: "機能" })).not.toHaveAttribute("aria-current", "page");
+});
+
 test("「+」は足している機能ぶんの記録の種類を出す。どの画面から押しても同じで、予定だけなら直接開く", async ({
   page,
 }) => {

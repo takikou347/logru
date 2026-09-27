@@ -56,8 +56,10 @@ import { HomeEditBar } from "../home/components/HomeEditBar";
 import { WidgetGrid } from "../home/components/WidgetGrid";
 import { useHomeWidgetVisibility, useVisibleHomeWidgets } from "../home/layout";
 import { HOME_WIDGET_CATALOG, homeWidget } from "../home/widgets";
+import { REOPEN_PARAM } from "../onboarding/model";
 import { Onboarding } from "../onboarding/Onboarding";
 import { useCalendar, useMemberVisibility } from "./api";
+import { CalendarFilterButton } from "./components/CalendarFilterButton";
 import { KindChip, SideKinds, useHiddenKinds } from "./components/KindFilter";
 import { PeopleChip, SideGroup, useOpenGroups } from "./components/PeopleFilter";
 import { RefreshButton } from "./components/RefreshButton";
@@ -508,6 +510,19 @@ export function CalendarPage() {
             {/* 表示の単位(月・週・日)。アイコンだけでも読み上げの名前は今までの「月」「週」「日」のまま。issue #239 */}
             <Segmented label="表示の単位" value={view} options={VIEWS} onChange={changeView} iconOnly />
             <div className="flex items-center gap-0.5">
+              {/*
+                今までの「すべて・自分だけ・種類」の絞り込みの帯(GroupFilterBand、下に nl-hide で隠す)を、
+                このアイコン 1 つにまとめる。押すと、グループ・人・種類をまとめたシートが開く。issue #243
+              */}
+              <CalendarFilterButton
+                groupOptions={filterOptions}
+                peopleSections={sections}
+                hiddenPeople={hiddenIds}
+                onTogglePerson={togglePerson}
+                hiddenKinds={hiddenKinds}
+                onToggleKind={toggleKind}
+                tourId="group-filter"
+              />
               {me.data && <SearchButton groups={allGroups} me={me.data} onOpen={openSearchResult} />}
               <NotificationBell />
             </div>
@@ -540,7 +555,8 @@ export function CalendarPage() {
         グループが多いときは横に流れる。はみ出すときだけ、流せることが分かるよう下にバーを出す。F-25
         下の余白 12 px はバーの有無にかかわらず取る。バーは余白の下 4 px に重なり、チップとは 8 px あく。帯の高さは変わらない。0057
       */}
-      <GroupFilterBand options={filterOptions} tourId="group-filter">
+      {/* 新しい見た目・スマホでは、この帯を上の帯の絞り込みアイコンにまとめて隠す。issue #243 */}
+      <GroupFilterBand options={filterOptions} tourId="group-filter" className="nl-hide">
         {sections.length > 0 && (
           <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />
         )}
@@ -620,7 +636,10 @@ export function CalendarPage() {
 
       {features && <FeatureSheet onClose={() => setFeatures(false)} />}
 
-      {!editingHome && !editor && !features && <ScreenTour id="calendar" steps={BASE_TOURS.calendar} />}
+      {/* 設定から見直す間(URL に REOPEN_PARAM がある間)は、案内どうしが重ならないよう画面の案内を出さない。issue #243 */}
+      {!editingHome && !editor && !features && !params.has(REOPEN_PARAM) && (
+        <ScreenTour id="calendar" steps={BASE_TOURS.calendar} />
+      )}
 
       {me.data && <Onboarding me={me.data} paused={editor !== null} onAddEvent={() => addNew(today)} />}
 

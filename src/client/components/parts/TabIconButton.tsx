@@ -6,9 +6,14 @@
  * @param to 渡すと、その道順への NavLink になり、いまの画面なら aria-current で色が変わる
  * @param onClick 渡すと、画面を移らないただのボタンになる。同じ画面の中の場所へスクロールするときなど。
  *   `to` と同時には渡さない
+ * @param active `to` と一緒に渡すと、選ばれた色にするかを NavLink の既定の判定(to から始まる
+ *   道順すべて)の代わりに自分で決める。下のタブの「設定」(`/settings`)は、既定のままだと
+ *   「機能」(`/settings/extensions`)の道順も含んでしまい、その画面で両方選ばれた色になる。
+ *   GlobalBottomTabs が、いまの道順から 1 つのタブだけを選ぶ形で計算して渡す。省くと今までどおり
+ *   NavLink の既定の判定を使う。issue #243
  */
 import type { LucideIcon } from "lucide-react";
-import { NavLink } from "react-router";
+import { Link, NavLink } from "react-router";
 import { useLongPressLabel } from "@/lib/use-long-press";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +24,7 @@ export function TabIconButton({
   label,
   showHint,
   onClick,
+  active,
 }: {
   to?: string;
   end?: boolean;
@@ -26,6 +32,7 @@ export function TabIconButton({
   label: string;
   showHint?: boolean;
   onClick?: () => void;
+  active?: boolean;
 }) {
   const { pressed, consumeLongPress, handlers } = useLongPressLabel();
   const className = cn(
@@ -35,7 +42,7 @@ export function TabIconButton({
   );
   return (
     <span className="relative flex min-w-0 flex-1 flex-col items-center gap-0.5">
-      {to ? (
+      {to && active === undefined ? (
         <NavLink
           to={to}
           end={end}
@@ -48,6 +55,19 @@ export function TabIconButton({
         >
           <Icon className="size-5" aria-hidden="true" />
         </NavLink>
+      ) : to ? (
+        <Link
+          to={to}
+          aria-label={label}
+          aria-current={active ? "page" : undefined}
+          className={className}
+          onClick={(e) => {
+            if (consumeLongPress()) e.preventDefault();
+          }}
+          {...handlers}
+        >
+          <Icon className="size-5" aria-hidden="true" />
+        </Link>
       ) : (
         <button
           type="button"

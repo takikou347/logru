@@ -1,4 +1,5 @@
 import type { AttendeeResponse } from "@shared/api-types";
+import { ChevronRight, type LucideIcon } from "lucide-react";
 import { type ComponentProps, type ReactNode, useId } from "react";
 import { cn } from "@/lib/utils";
 
@@ -42,14 +43,48 @@ export function PanelRow({ className, ...props }: ComponentProps<"div">) {
 export const rowClass =
   "flex min-h-12 w-full items-center gap-3 border-b border-line text-left text-[15px] last:border-b-0";
 
-/** 押せる行。右に「›」を出す。色の設定やグループの一覧に使う */
-export function RowButton({ className, children, ...props }: ComponentProps<"button">) {
+/**
+ * 押せる行の右に出す印。今までの見た目は文字の「›」だけ。新しい見た目・スマホでは、
+ * A3 の見本にそろえて lucide の矢印アイコンにする。押せる行を作る場所(RowButton、行の形の
+ * Link)はこれを共通で使う。決定 0067、issue #243
+ */
+export function RowChevron() {
   return (
-    <button type="button" className={cn(rowClass, className)} {...props}>
-      {children}
-      <span className="text-lg text-ink-3" aria-hidden="true">
+    <>
+      <span className="nl-hide text-lg text-ink-3" aria-hidden="true">
         ›
       </span>
+      <ChevronRight className="nl-only size-4 flex-none text-ink-3" aria-hidden="true" />
+    </>
+  );
+}
+
+/**
+ * 押せる行の左に置く、丸いアイコン。新しい見た目・スマホでだけ出す(nl-only)。A3 の見本にそろえる。issue #243
+ * @param icon 省くと何も出さない。今までの見た目のまま変えない行(中身そのものを表す行など)に使う
+ */
+export function RowIcon({ icon: Icon }: { icon?: LucideIcon }) {
+  if (!Icon) return null;
+  return (
+    <span
+      className="nl-only size-9 flex-none items-center justify-center rounded-full bg-field text-ink-2"
+      aria-hidden="true"
+    >
+      <Icon className="size-4" />
+    </span>
+  );
+}
+
+/**
+ * 押せる行。右に「›」を出す。色の設定やグループの一覧に使う
+ * @param icon 渡すと、新しい見た目・スマホでだけ行の左に丸いアイコンを出す。issue #243
+ */
+export function RowButton({ className, icon, children, ...props }: ComponentProps<"button"> & { icon?: LucideIcon }) {
+  return (
+    <button type="button" className={cn(rowClass, className)} {...props}>
+      <RowIcon icon={icon} />
+      {children}
+      <RowChevron />
     </button>
   );
 }

@@ -47,8 +47,11 @@ export function useHiddenKinds() {
   return { hidden, toggle };
 }
 
-/** 拡張ごとの入り切りの行。押すたびに、その拡張の項目をカレンダーに出すか出さないかが入れ替わる */
-function KindToggles({
+/**
+ * 拡張ごとの入り切りの行。押すたびに、その拡張の項目をカレンダーに出すか出さないかが入れ替わる。
+ * KindChip のシートと、新しい見た目の絞り込みをまとめたシート(CalendarFilterButton)で共通に使う。issue #243
+ */
+export function KindToggles({
   hidden,
   onToggle,
   rowClass,

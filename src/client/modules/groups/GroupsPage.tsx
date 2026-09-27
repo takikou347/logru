@@ -4,7 +4,7 @@ import { useGroups, useMe } from "@/api/common";
 import { Page, PageBar } from "@/components/layout/AppLayout";
 import { useAppFrame } from "@/components/layout/AppShell";
 import { Field } from "@/components/parts/Field";
-import { Dot, Empty, Panel } from "@/components/parts/Panel";
+import { Dot, Empty, Panel, RowChevron } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { groupColor } from "@/lib/colors";
@@ -54,9 +54,7 @@ export function GroupsPage() {
                   <Dot color={groupColor(g, prefs)} className="size-3" />
                   <span className="flex-1">{g.name}</span>
                   <span className="text-xs text-ink-2">{`${g.members.length} 人${g.role === "admin" ? "・管理者" : ""}`}</span>
-                  <span className="text-lg text-ink-3" aria-hidden="true">
-                    ›
-                  </span>
+                  <RowChevron />
                 </Link>
               ))}
             </div>

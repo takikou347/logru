@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTopBarViewTransitionStyle } from "@/lib/bars-view-transition";
 import { BOX_EXPAND_NAME, consumeBoxExpandTarget, useBoxExpandActive } from "@/lib/box-expand";
+import { useNewLookActive } from "@/lib/lab";
 import { useBack } from "@/lib/use-back";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +50,7 @@ export const sideItemClass = navItem;
 export function AccountMenu({ wide = false }: { wide?: boolean }) {
   const me = useMe();
   const doSignOut = useSignOut();
+  const newLook = useNewLookActive();
   // ログイン済みの画面はこの枠を通る前に me を読み終えている。app/guards.tsx
   if (!me.data) return null;
   const { name, email } = me.data.user;
@@ -86,13 +88,19 @@ export function AccountMenu({ wide = false }: { wide?: boolean }) {
             <Link to="/groups">グループ</Link>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem asChild>
-          {/* 新しい見た目・スマホの下のタブの「設定」と同じアイコンにそろえる。0091、issue #239 */}
-          <Link to="/settings">
-            <Settings className="size-4" aria-hidden="true" />
-            設定
-          </Link>
-        </DropdownMenuItem>
+        {/*
+          新しい見た目の PC(wide)は、この設定の行き先を左の列に直に置く(AppShell)。グループと同じ
+          考えで、ここでは二重に出さない。入れていない人は今までどおりメニューの中。issue #243
+        */}
+        {!(wide && newLook) && (
+          <DropdownMenuItem asChild>
+            {/* 新しい見た目・スマホの下のタブの「設定」と同じアイコンにそろえる。0091、issue #239 */}
+            <Link to="/settings">
+              <Settings className="size-4" aria-hidden="true" />
+              設定
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={doSignOut}>ログアウト</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

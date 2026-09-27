@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addExtension, dayPanel, signUp, swipeRowLeft } from "./helpers";
+import { addExtension, dayPanel, enableNewLook, signUp, swipeRowLeft } from "./helpers";
 
 /** 機能の一覧で、リストを自分だけで使えるようにする */
 async function enableLists(page: Page) {
@@ -285,6 +285,56 @@ test("項目を足す欄の右の「足す」ボタンで足せる。文字が�
   await addInput.fill("たまねぎ");
   await addInput.press("Enter");
   await expect(page.getByText("たまねぎ")).toBeVisible();
+});
+
+test("ラボの「新しい見た目」・スマホでは、足す・直す・消すがアイコンだけになり、項目を押すと直すシートが開く。issue #243", async ({
+  page,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableLists(page);
+  // 新しい見た目・スマホでは、下の帯の「+」が主な足す操作の役目を持ち、画面ごとの Dock は隠れる(0091)。
+  // 作る操作そのものは既存の E2E(上のテスト)で確かめているので、ここでは入れる前に作っておく
+  await page.goto("/lists");
+  await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
+  await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("買い物");
+  await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
+  await expect(page).toHaveURL(/\/lists\/.+/);
+  const listDetail = new URL(page.url()).pathname;
+
+  await enableNewLook(page);
+  await page.goto(listDetail);
+
+  // 押すまでは「+」の行だけ。押すと入力欄が開き、「足す」ボタンは読み上げの名前を変えずアイコンだけになる。issue #243
+  await page.getByRole("button", { name: "項目を足す", exact: true }).click();
+  const addInput = page.getByLabel("項目を足す");
+  const addButton = page.getByRole("button", { name: "足す", exact: true });
+  await expect(addButton).toBeVisible();
+  await addInput.fill("にんじん");
+  await addButton.click();
+  await expect(page.getByText("にんじん")).toBeVisible();
+
+  // 項目の文字(直す)を押すと、その場の入力欄ではなく「項目を直す」シートが開く
+  await page.getByRole("button", { name: "にんじん を直す" }).click();
+  const edit = page.getByRole("dialog", { name: "項目を直す" });
+  await expect(edit).toBeVisible();
+  await edit.getByLabel("項目").fill("大根");
+  await edit.getByRole("button", { name: "保存する" }).click();
+  await expect(edit).toBeHidden();
+  await expect(page.getByText("大根")).toBeVisible();
+  await expect(page.getByText("にんじん")).toHaveCount(0);
+
+  // シートの「消す」でも消せる。5 秒だけ元に戻せる
+  await page.getByRole("button", { name: "大根 を直す" }).click();
+  await page.getByRole("dialog", { name: "項目を直す" }).getByRole("button", { name: "消す" }).click();
+  await expect(page.getByText("大根")).toBeHidden();
+  await page.getByRole("button", { name: "元に戻す" }).click();
+  await expect(page.getByText("大根")).toBeVisible();
+
+  // スワイプで出る「直す」「消す」もアイコンだけ(読み上げの名前は残る)
+  const row = page.locator("li", { hasText: "大根" });
+  await swipeRowLeft(page, row, 120);
+  await expect(row.getByRole("button", { name: "直す", exact: true })).toBeVisible();
+  await expect(row.getByRole("button", { name: "消す", exact: true })).toBeVisible();
 });
 
 test("リストの日付は日本時間の今日になる。日本時間の夜(世界時でも同じ日)", async ({ page }) => {

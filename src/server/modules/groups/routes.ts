@@ -4,8 +4,9 @@ import { type AppEnv, createRouter, HttpError, validationHook } from "@server/co
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import { AvatarSigner } from "@server/core/avatar";
 import { groupExtensions, groupInvites, groupMembers, groups } from "@server/core/db/schema";
+import { notify } from "@server/core/notifications/send";
 import { enforceRateLimit } from "@server/core/rate-limit";
-import { listGroups, requireMembership } from "@server/modules/groups/membership";
+import { listGroups, memberIdsOf, requireMembership } from "@server/modules/groups/membership";
 import type { ExtensionInfo } from "@shared/api-types";
 import { pickUnusedColor } from "@shared/colors";
 import { extensionToggleInput, groupInput, groupPatchInput, memberRoleInput } from "@shared/schemas";
@@ -135,7 +136,17 @@ export const groupRoutes = createRouter()
     }
     // 拡張に、抜ける人のデータを片付けさせる。予定の拡張は、その人を予定の参加者から外す。#28
     for (const x of serverExtensions) await x.onMemberLeave?.(db, groupId, me.id);
+    const remainingIds = await memberIdsOf(db, groupId);
     await db.delete(groupMembers).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, me.id)));
+    // グループを抜けたことを、残ったメンバーに積む。0096、issue #245
+    await notify({
+      db,
+      env: c.env,
+      userIds: remainingIds.filter((id) => id !== me.id),
+      actorId: me.id,
+      kind: "groups.member_left",
+      payload: { groupName: membership.name, byUserName: me.name },
+    });
     return c.body(null, 204);
   })
   .get("/:id/extensions", async (c) => {
@@ -153,26 +164,37 @@ export const groupRoutes = createRouter()
   })
   .put("/:id/extensions/:key", zValidator("json", extensionToggleInput, validationHook), async (c) => {
     const db = c.get("db");
+    const me = c.get("user");
     const groupId = c.req.param("id");
     const key = c.req.param("key");
-    await requireMembership(db, c.get("user").id, groupId, true);
+    const groupBefore = await requireMembership(db, me.id, groupId, true);
     if (!toggleableExtensions().some((x) => x.manifest.key === key)) throw new HttpError(404, "その拡張はありません。");
-    const values = { enabled: c.req.valid("json").enabled, updatedBy: c.get("user").id, updatedAt: new Date() };
+    const values = { enabled: c.req.valid("json").enabled, updatedBy: me.id, updatedAt: new Date() };
     // 無効にしても行は消さない。拡張のデータにも触れない。F-11
     await db
       .insert(groupExtensions)
       .values({ groupId, extensionKey: key, ...values })
       .onConflictDoUpdate({ target: [groupExtensions.groupId, groupExtensions.extensionKey], set: values });
     // 共有のグループで有効にした人は、自分でも使うとみなす。使うかどうかは自分だけのグループの切り替えで持つ。0019
-    const membership = await requireMembership(db, c.get("user").id, groupId);
+    const membership = await requireMembership(db, me.id, groupId);
     if (values.enabled && !membership.isPersonal) {
-      const personal = (await listGroups(db, c.get("user").id, avatarSigner(c))).find((g) => g.isPersonal);
+      const personal = (await listGroups(db, me.id, avatarSigner(c))).find((g) => g.isPersonal);
       if (personal) {
         await db
           .insert(groupExtensions)
           .values({ groupId: personal.id, extensionKey: key, ...values })
           .onConflictDoUpdate({ target: [groupExtensions.groupId, groupExtensions.extensionKey], set: values });
       }
+      // 共有のグループに機能が足されたことを、ほかのメンバーに積む。0096、issue #245
+      const memberIds = await memberIdsOf(db, groupId);
+      await notify({
+        db,
+        env: c.env,
+        userIds: memberIds,
+        actorId: me.id,
+        kind: "groups.extension_added",
+        payload: { groupName: groupBefore.name, extensionKey: key, byUserName: me.name },
+      });
     }
     return c.json({ key, enabled: values.enabled });
   });

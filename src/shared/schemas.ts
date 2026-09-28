@@ -118,6 +118,12 @@ export const todayPageInput = z.object({
     .refine((v) => Object.keys(v).length <= 60, { message: "節が多すぎます。" }),
 });
 
+/** `PUT /api/me/notification-prefs/:kind`。種類ごとの、一覧に出すか・端末にも知らせるか。0096、F-47 */
+export const notificationPrefInput = z.object({ list: z.boolean(), push: z.boolean() });
+
+/** `PUT /api/me/notification-prefs/:kind` の kind。長さだけ確かめ、知っている種類かはルートで見る */
+export const notificationKindParam = z.object({ kind: z.string().min(1).max(80) });
+
 /** カレンダーで 1 回に読める期間の上限。100 日 */
 const MAX_RANGE_MS = 100 * 24 * 60 * 60 * 1000;
 

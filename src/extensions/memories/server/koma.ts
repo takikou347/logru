@@ -4,7 +4,7 @@ import { createRouter, HttpError, validationHook } from "@server/core/app";
 import { runBatch } from "@server/core/db/batch";
 import type { DB } from "@server/core/db/client";
 import { groupExtensions, groupMembers } from "@server/core/db/schema";
-import { sendPush } from "@server/core/push/send";
+import { notify } from "@server/core/notifications/send";
 import { and, desc, eq, gt, gte, inArray, lt, lte, ne } from "drizzle-orm";
 import { memoriesManifest } from "../manifest";
 import { addDaysToKey, DAY_MS, dayIndexOf, dayKeyIn, hourIn, startOfDayIn } from "../shared/days";
@@ -384,11 +384,19 @@ export async function notifyKoma(db: DB, env: Env): Promise<void> {
     const memory = row.memoryId
       ? await db.select({ title: memories.title }).from(memories).where(eq(memories.id, row.memoryId)).get()
       : undefined;
-    await sendPush(db, env, [row.userId], {
-      title: memory?.title ?? "ひとコマ",
-      body: `${slot.hour} 時のひとコマを撮りましょう`,
-      path: "/memories/koma/now",
-      tag: "koma",
+    // 一覧にも 1 行残し、端末にも知らせる。どちらも本人あての知らせなので actorId は無い。0096、issue #244
+    await notify({
+      db,
+      env,
+      userIds: [row.userId],
+      kind: "memories.koma_slot",
+      payload: { hour: slot.hour },
+      push: {
+        title: memory?.title ?? "ひとコマ",
+        body: `${slot.hour} 時のひとコマを撮りましょう`,
+        path: "/memories/koma/now",
+        tag: "koma",
+      },
     });
     sent += 1;
   }

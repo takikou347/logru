@@ -1,8 +1,10 @@
 import { zValidator } from "@hono/zod-validator";
 import { createRouter, HttpError, validationHook } from "@server/core/app";
 import type { DB } from "@server/core/db/client";
+import { notify } from "@server/core/notifications/send";
 import { desc, eq } from "drizzle-orm";
 import { kakeiboSettlementInput } from "../shared/schemas";
+import { settlementRecipient } from "../shared/settlement";
 import { groupMemberIds, requireKakeiboGroup, usableGroupIds, usableGroups } from "./access";
 import { toSettlementDtos } from "./dto";
 import { type KakeiboAccountRow, kakeiboAccounts, kakeiboSettlements } from "./schema";
@@ -75,6 +77,18 @@ export const kakeiboSettlementsRoutes = createRouter()
       fromAccountId,
       toAccountId,
     });
+    // 精算したと記録されたことを、記録した人でない方(送った人・受け取った人のうち)に積む。0096、issue #246
+    const recipient = settlementRecipient(input, userId);
+    if (recipient) {
+      await notify({
+        db,
+        env: c.env,
+        userIds: [recipient],
+        actorId: userId,
+        kind: "kakeibo.settled",
+        payload: { settlementId: id, groupId: input.groupId, amount: input.amount, byUserName: c.get("user").name },
+      });
+    }
     const row = await db.select().from(kakeiboSettlements).where(eq(kakeiboSettlements.id, id)).get();
     const visibleGroupIds = new Set(await usableGroupIds(db, userId));
     return c.json((await toSettlementDtos(db, [row!], visibleGroupIds))[0], 201);

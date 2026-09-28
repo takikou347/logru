@@ -14,16 +14,17 @@ test("PC では左にメニュー、右に選んだ日の予定を出し、下�
 });
 
 test("左の列の下のアイコンから、設定を開き、ログアウトできる", async ({ page }) => {
+  // 新しい見た目・PC では、左の列に設定への道が直に出る。アカウントのメニューの「設定」は
+  // 二重に見せないため隠れる。issue #243
   const aside = page.getByRole("complementary", { name: "メニュー" });
-  await expect(aside.getByRole("link", { name: "設定" })).toHaveCount(0);
-  let menu = await openAccountMenu(page);
-  await expect(menu.getByText(user.email)).toBeVisible();
-  await expect(menu.getByRole("menuitem", { name: "グループ" })).toHaveCount(0);
-  await menu.getByRole("menuitem", { name: "設定" }).click();
+  await aside.getByRole("link", { name: "設定" }).click();
   await expect(page).toHaveURL(/\/settings\/appearance$/);
   await expect(page.getByRole("link", { name: "戻る" })).toBeHidden();
 
-  menu = await openAccountMenu(page);
+  const menu = await openAccountMenu(page);
+  await expect(menu.getByText(user.email)).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: "グループ" })).toHaveCount(0);
+  await expect(menu.getByRole("menuitem", { name: "設定" })).toHaveCount(0);
   await menu.getByRole("menuitem", { name: "ログアウト" }).click();
   await expect(page).toHaveURL(/\/login/);
 });

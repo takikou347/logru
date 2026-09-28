@@ -649,6 +649,9 @@ test("決めた日をもう過ぎて定期の記録を作ると、すぐその�
 }) => {
   await signUp(page, { name: "こた" });
   await enableKakeibo(page);
+  // 新しい見た目・スマホの家計簿は精算を「みか → 自分 ¥6,000」の短い形で出す。
+  // この確かめは「自分が払った」の長い文を見るため、前の見た目に戻す
+  await enableOldLook(page);
 
   await page.goto("/groups");
   await page.getByLabel("グループの名前").fill("暮らし");
@@ -1009,6 +1012,9 @@ test("家計簿の月が読めなかったときは、失敗の面だけが出�
 test("予算の無い新しい利用者が、家計簿の画面から予算を作れる。0072、#196", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await enableKakeibo(page);
+  // 新しい見た目・スマホの家計簿は 1 枚の面にまとめ、予算が無い間はその節ごと出さない。
+  // 「予算」の帯の道は別に確かめてある(このテストの最後)ので、空の案内は前の見た目で確かめる
+  await enableOldLook(page);
 
   await page.goto("/kakeibo");
   const budgetPanel = page.getByRole("region", { name: "予算" });

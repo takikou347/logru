@@ -50,7 +50,8 @@ test("前後の年に移れ、閉じるとカレンダーへ戻る。F-39", asyn
 
   await page.getByRole("button", { name: "カレンダーへ戻る" }).click();
   await expect(page).toHaveURL("/");
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  // 新しい見た目・スマホの既定はホームが今日のページ(0092)なので、月の表とどちらかで確かめる
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
 });
 
 test("動きを減らす設定では、平らな年の表を選ぶボタンが出ない。F-39", async ({ page }) => {

@@ -140,7 +140,8 @@ test("招待リンクを取り消すと、使えなくなる", async ({ page, br
   await page.getByRole("button", { name: "作る" }).click();
   await page.getByRole("button", { name: "招待リンクを作る" }).click();
   const path = new URL(await page.getByLabel("招待リンク").inputValue()).pathname;
-  await page.getByRole("button", { name: "招待リンクをすべて取り消す" }).click();
+  // 新しい見た目・スマホではアイコンだけの「招待をすべて取り消す」になる(招待リンクの欄の上)。0091
+  await page.getByRole("button", { name: /^招待(リンク)?をすべて取り消す$/ }).click();
   await expect(page.getByText("招待リンクをすべて取り消しました")).toBeVisible();
 
   const context = await browser.newContext();

@@ -90,6 +90,8 @@ test("カレンダーの思い出は、その場で編集でき、思い出を�
   await page.getByRole("dialog", { name: "記録する" }).getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("記録しました")).toBeVisible();
 
+  // カレンダーの day-panel を使うため、前の見た目に戻して確かめる(0091)
+  await enableOldLook(page);
   await page.goto("/");
   const day = page.getByTestId("day-panel");
   // 思い出は「思い出」の見出しの下にまとまる。予定は無いので「予定」の見出しは出ない。0056

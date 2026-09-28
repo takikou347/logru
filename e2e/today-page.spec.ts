@@ -48,8 +48,10 @@ test("節は足した機能の分だけ並ぶ", async ({ page }) => {
 });
 
 test("節の最後の行(近道)から、予定を足すシートが開く", async ({ page }) => {
-  await page.goto("/");
-  await page.getByTestId("today-section-events").getByRole("link", { name: "予定を足す" }).click();
+  // beforeEach で既に「/」にいる。ここでの読み直しは不要で、読み直し中に確かめて固まることがあった
+  const section = page.getByTestId("today-section-events");
+  await expect(section).toBeVisible();
+  await section.getByRole("link", { name: "予定を足す" }).click();
   await expect(page.getByRole("dialog", { name: "新しい予定" })).toBeVisible();
 });
 

@@ -192,7 +192,11 @@ for (const look of ["glass", "paper"] as const) {
     await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
     await expect(page).toHaveURL(/\/lists\/.+/);
     const listDetail = new URL(page.url()).pathname;
-    const addInput = page.getByLabel("項目を足す");
+    // アイコンだけの行で畳まれていることがある(0091)ため、押して欄を開いてから打つ
+    const addTrigger = page.getByRole("button", { name: "項目を足す" });
+    const addInput = page.getByRole("textbox", { name: "項目を足す" });
+    await expect(addTrigger.or(addInput)).toBeVisible();
+    if (await addTrigger.isVisible()) await addTrigger.click();
     await addInput.fill("にんじん");
     await addInput.press("Enter");
     await expect(page.getByText("にんじん")).toBeVisible();

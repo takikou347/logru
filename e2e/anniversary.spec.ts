@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addEventButton, enableOldLook, signUp } from "./helpers";
+import { addEventButton, signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
@@ -40,10 +40,8 @@ test.describe("毎年の予定の種別", () => {
     await sheet.getByRole("button", { name: "保存する" }).click();
     await expect(page.getByText("予定を足しました")).toBeVisible();
 
-    // 近道の帯(ShortcutBand)は新しい見た目・スマホの今日のページには無い(PC の左の列にだけある)。
-    // 前の見た目に戻して確かめる
-    await enableOldLook(page);
-    await page.reload();
+    // 近道の帯(ShortcutBand)は、スマホでは今日のページに無く、カレンダーの月の表の上に出る
+    await page.goto("/?view=month");
     const band = page.getByTestId("shortcut-band").filter({ visible: true });
     await expect(band).toContainText("結婚記念日まで");
     await expect(band).toContainText(daysLabel);
@@ -61,10 +59,8 @@ test.describe("毎年の予定の種別", () => {
     await sheet.getByRole("button", { name: "保存する" }).click();
     await expect(page.getByText("予定を足しました")).toBeVisible();
 
-    // 近道の帯(ShortcutBand)は新しい見た目・スマホの今日のページには無い(PC の左の列にだけある)。
-    // 前の見た目に戻して確かめる
-    await enableOldLook(page);
-    await page.reload();
+    // 近道の帯(ShortcutBand)は、スマホでは今日のページに無く、カレンダーの月の表の上に出る
+    await page.goto("/?view=month");
     const band = page.getByTestId("shortcut-band").filter({ visible: true });
     await expect(band).toContainText("けんたの誕生日");
     await expect(band).toContainText(occurrenceLabel);

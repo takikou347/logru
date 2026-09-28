@@ -1,12 +1,16 @@
 import { type APIRequestContext, type Browser, expect, type Page, test } from "@playwright/test";
-import { apiUser, dayPanel, pickShare, signUp } from "./helpers";
+import { addEventButton, apiUser, dayPanel, enableOldLook, pickShare, signUp } from "./helpers";
 
 /**
- * 「ふたり」のグループを作り、ほかの人を招待リンクで入れる。人ごとに別の端末で開く
+ * 「ふたり」のグループを作り、ほかの人を招待リンクで入れる。人ごとに別の端末で開く。
+ * カレンダーの月の表(day-panel)に留まるため、前の見た目に戻す。新しい見た目・スマホでは
+ * 下のタブの「記録する」が必ずホームへ移ってしまい(0091)、addEventButton がこの画面に
+ * 留まれない
  * @returns 入った人の画面。names の順
  */
 async function shareGroup(page: Page, browser: Browser, names: string[]) {
   await signUp(page, { name: "こた" });
+  await enableOldLook(page);
   await page.goto("/groups");
   await page.getByLabel("グループの名前").fill("ふたり");
   await page.getByRole("button", { name: "作る" }).click();
@@ -18,6 +22,7 @@ async function shareGroup(page: Page, browser: Browser, names: string[]) {
     await signUp(other, { name, next: path });
     await other.getByRole("button", { name: "参加する" }).click();
     await expect(other).toHaveURL(/group=/);
+    await enableOldLook(other);
     await other.goto("/");
     others.push(other);
   }
@@ -27,7 +32,7 @@ async function shareGroup(page: Page, browser: Browser, names: string[]) {
 
 /** 下の操作から予定を足し、「ふたり」に置いて、names の人を招待する */
 async function addInvited(page: Page, title: string, names: string[]) {
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill(title);
   await pickShare(page, sheet, "ふたり");
@@ -54,7 +59,7 @@ test("招待した相手には返事待ちの枠線で出て、参加すると�
   const [mika] = await shareGroup(page, browser, ["みか"]);
 
   // 共有しないときは、招待の欄を出さない
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const draft = page.getByRole("dialog", { name: "新しい予定" });
   await expect(draft.getByRole("group", { name: "招待する人" })).toHaveCount(0);
   await pickShare(page, draft, "ふたり");

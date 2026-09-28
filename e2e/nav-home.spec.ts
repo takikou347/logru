@@ -1,10 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addExtension, signUp } from "./helpers";
+import { addExtension, enableOldLook, signUp } from "./helpers";
 
 /**
  * スマホでは、PageBar を持つ画面の上の帯の右に、ホームへ戻る家のボタンを出す。issue #220
- * 「‹」で 3 回押さなくても、どの機能の画面からも 1 回でホーム(カレンダー)へ移れる。ホーム自身と
- * PC(lg 以上)には出さない。「‹」の動きは決定 0070 のまま変えない
+ * 「‹」で 3 回押さなくても、どの機能の画面からも 1 回でホームへ移れる。新しい見た目の既定では
+ * ホームは今日のページ(0092)、それ以外はカレンダー。ホーム自身と PC(lg 以上)には出さない。
+ * 「‹」の動きは決定 0070 のまま変えない
  */
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -14,7 +15,7 @@ async function clickHome(page: Page) {
   await expect(home).toBeVisible();
   await home.click();
   await expect(page).toHaveURL("/");
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
 }
 
 test("口座ごとの記録、ひとコマの今、リストの詳細、設定の機能の詳細から、家のボタンを 1 回押すとホームへ移る", async ({
@@ -45,6 +46,9 @@ test("口座ごとの記録、ひとコマの今、リストの詳細、設定�
 
   // リストの詳細。/lists/:id
   await addExtension(page, "リスト");
+  // リストの Dock(role="toolbar")は新しい見た目・スマホでは下のタブの帯に役目を移して
+  // 隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/lists");
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   const list = page.getByRole("dialog", { name: "リストを作る" });

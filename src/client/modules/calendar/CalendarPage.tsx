@@ -543,6 +543,7 @@ export function CalendarPage() {
               />
               {me.data && <SearchButton groups={allGroups} me={me.data} onOpen={openSearchResult} />}
               <NotificationBell />
+              <AccountMenu />
             </div>
           </header>
           <WeekBand selected={selected} today={today} items={items} onSelect={onPressDay} />
@@ -636,8 +637,13 @@ export function CalendarPage() {
         </Button>
       )}
 
-      {/* ウィジェットが少なく中身が短いと、浮いた下の帯にこのボタンが重なるので、帯と同じ高さの余白を足す。issue #24 */}
-      {!editingHome && <div className="h-[var(--dock-clearance)] lg:hidden" aria-hidden="true" />}
+      {/*
+        ウィジェットが少なく中身が短いと、浮いた下の帯にこのボタンが重なるので、帯と同じ高さの余白を足す。issue #24
+        新しい見た目・スマホの下のタブの帯(GlobalBottomTabs)は、ホームを編集している間も消えない。
+        編集中に消えるのは前の見た目の Dock だけなので、編集中も常に余白を取る。無いと、いちばん下の
+        ウィジェットの持ち手が帯の下に隠れ、指で引いての並べ替えが押せなくなる。issue #243
+      */}
+      <div className="h-[var(--dock-clearance)] lg:hidden" aria-hidden="true" />
 
       {/* スマホの下の帯。拡張の画面の Dock と同じ、浮いた丸のまとまりにする。左側の操作(機能、表示の単位)は変えない。0012、issue #150 */}
       {!editingHome && (

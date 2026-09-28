@@ -25,6 +25,15 @@
   root.dataset.bgTheme = bgTheme;
   root.dataset.accent = accent;
   root.dataset.look = look;
+  // 新しい見た目(見た目の土台)を既定で付ける。ラボの「前の見た目に戻す」を入れた人だけ付けない。
+  // マウント後でなく起動の最初から付けることで、開いた瞬間のちらつきを防ぐ。0090
+  try {
+    if (localStorage.getItem("logru:lab:old-look") !== "1") {
+      root.setAttribute("data-lab-new-look", "");
+    }
+  } catch (e) {
+    root.setAttribute("data-lab-new-look", "");
+  }
   // 季節のテーマの季節(3〜5 春、6〜8 夏、9〜11 秋、12〜2 冬、日本時間)。look が season 以外でも
   // 置いておいて害はない。src/client/lib/look.ts の currentSeason と同じ計算。0095
   try {

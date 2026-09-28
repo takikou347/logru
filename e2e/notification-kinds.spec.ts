@@ -1,5 +1,5 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
-import { addExtension, pickShare, signUp } from "./helpers";
+import { addEventButton, addExtension, enableOldLook, pickShare, signUp } from "./helpers";
 
 /**
  * 「ふたり」のグループを作り、ほかの人を招待リンクで入れる。notifications.spec.ts と同じ作り方。issue #244〜#247
@@ -48,7 +48,9 @@ test("共有リストに項目を足すと、ほかのメンバーのお知ら�
   // 共有のグループで有効にした人(こた)は自分でも使うとみなされる。みかは自分でも足す。0019
   await addExtension(mika!, "リスト");
 
-  // こたが「ふたり」でリストを作り、項目を 2 つ足す
+  // こたが「ふたり」でリストを作り、項目を 2 つ足す。リストの Dock は新しい見た目・スマホでは
+  // 下のタブの帯に役目を移して隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/lists");
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   const create = page.getByRole("dialog", { name: "リストを作る" });
@@ -92,7 +94,9 @@ test("種類ごとの設定で一覧を止めると、その種類のお知ら�
   await toggle.click();
   await expect(toggle).not.toBeChecked();
 
-  // こたが「ふたり」でリストを作り、項目を足す
+  // こたが「ふたり」でリストを作り、項目を足す。リストの Dock は新しい見た目・スマホでは
+  // 下のタブの帯に役目を移して隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/lists");
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   const create = page.getByRole("dialog", { name: "リストを作る" });
@@ -118,7 +122,9 @@ test("家計簿で立て替えると、負担する人のお知らせに金額�
   await enableForGroup(page, "ふたり", "家計簿");
   await addExtension(mika!, "家計簿");
 
-  // こたが「ふたり」で支出を記録する。口座を選ばないので、こたとみかで均等に割る
+  // こたが「ふたり」で支出を記録する。口座を選ばないので、こたとみかで均等に割る。家計簿の Dock は
+  // 新しい見た目・スマホでは下のタブの帯に役目を移して隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/kakeibo");
   await page.getByRole("toolbar", { name: "家計簿の操作" }).getByRole("button", { name: "支出を記録する" }).click();
   const sheet = page.getByRole("dialog", { name: "記録する" });
@@ -149,7 +155,7 @@ test("共有の予定を足すと、ほかのメンバーのお知らせに出�
 
   // こたが「ふたり」で予定を足す。招待はしない
   await page.goto("/");
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill("花火大会");
   await pickShare(page, sheet, "ふたり");

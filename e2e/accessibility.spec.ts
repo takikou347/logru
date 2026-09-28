@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
-import { addEvent, addExtension, logOut, signUp } from "./helpers";
+import { addEvent, addEventButton, addExtension, enableOldLook, logOut, signUp } from "./helpers";
 
 /**
  * 主な画面を axe-core で検査する。決定 0034 の読みやすさを、毎回の CI で壊していないか見る。issue #96
@@ -32,12 +32,19 @@ test("ログインの画面に重大な違反が無い", async ({ page }) => {
 });
 
 test("カレンダーの画面に重大な違反が無い", async ({ page }) => {
+  // 新しい見た目・スマホの既定はホームが今日のページ(0092)なので、カレンダーを明示して開く
+  await page.goto("/?view=month");
   await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
   await checkA11y(page, "カレンダー");
 });
 
+test("今日のページに重大な違反が無い", async ({ page }) => {
+  await expect(page.getByTestId("today-day-number")).toBeVisible();
+  await checkA11y(page, "今日のページ");
+});
+
 test("予定のシートに重大な違反が無い", async ({ page }) => {
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   await expect(page.getByRole("dialog", { name: "新しい予定" })).toBeVisible();
   await checkA11y(page, "予定のシート");
 });
@@ -93,6 +100,10 @@ test("共有リストの画面に重大な違反が無い", async ({ page }) => 
 
 test("1 年のらせんの画面に重大な違反が無い", async ({ page }) => {
   await addEvent(page, "歯医者");
+  // 年の見出しの「年を、らせんで見る」の道は、新しい見た目・スマホでは上の帯の別のアイコンに
+  // 変わる(issue #239)。前の見た目に戻して確かめる
+  await enableOldLook(page);
+  await page.goto("/?view=month");
   await page.getByRole("link", { name: /年を、らせんで見る/ }).click();
   await expect(page).toHaveURL(/\/spiral\//);
   await checkA11y(page, "1 年のらせん");

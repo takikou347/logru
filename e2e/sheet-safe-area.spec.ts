@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { addEventButton, signUp } from "./helpers";
 
 /**
  * iPhone の PWA では、上の安全な余白(env(safe-area-inset-top))がシートの上にかかる。
@@ -19,7 +19,7 @@ test("上の安全な余白を大きくしても、閉じるボタンは画面�
   page,
 }) => {
   // 繰り返しを開いて中身を増やし、シートの高さが上限にぶつかるようにする
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
   await sheet.getByLabel("題名").fill("長いシートの確認");
@@ -38,7 +38,7 @@ test("上の安全な余白を大きくしても、閉じるボタンは画面�
 });
 
 test("日付と時刻の入力は、ほかの入力と同じ幅になる", async ({ page }) => {
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   const titleBox = (await sheet.getByLabel("題名").boundingBox())!;
   const dateBox = (await sheet.getByLabel("日付").boundingBox())!;

@@ -1,11 +1,13 @@
 import { expect, type Page, test } from "@playwright/test";
-import { logIn, logOut, signUp } from "./helpers";
+import { enableOldLook, logIn, logOut, signUp } from "./helpers";
 
 // ほかのテストでは案内を止めている。ここでは止めずに、初めての人と同じにする。F-32
 test.use({ storageState: { cookies: [], origins: [] } });
 
 const guide = (page: Page) => page.getByRole("dialog");
-const monthTable = (page: Page) => page.getByRole("region", { name: "月の表" });
+// ホームが月の表(前の見た目、PC)か今日のページ(新しい見た目・スマホの既定、0092)かのどちらか
+const monthTable = (page: Page) =>
+  page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"));
 
 /** Tab だけで、名前の合うボタンまでフォーカスを進める */
 async function tabTo(page: Page, name: string) {
@@ -105,6 +107,10 @@ test("4 枚目で機能を紹介し、その場で足すと閉じたあとに機
   await guide(page).getByRole("button", { name: "あとで" }).click();
   await expect(guide(page)).toBeHidden();
 
+  // カレンダーの Dock(role="toolbar")の「機能」ダイアログは、新しい見た目・スマホでは下のタブの
+  // 帯に役目を移して隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
+  await page.goto("/");
   await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
   await expect(page.getByRole("dialog", { name: "機能" }).getByTestId("extension-tile-kakeibo")).toBeVisible();
 });

@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useGroups, useMe, useSetTodayPagePrefs } from "@/api/common";
+import { AccountMenu } from "@/components/layout/AppLayout";
 import { useAppFrame } from "@/components/layout/AppShell";
 import { InstallBanner } from "@/components/parts/InstallBanner";
 import { NotificationBell } from "@/components/parts/NotificationBell";
@@ -333,6 +334,7 @@ export function TodayPage() {
         <div className="flex items-center gap-0.5">
           {me.data && <SearchButton groups={allGroups} me={me.data} onOpen={openSearchResult} />}
           <NotificationBell />
+          <AccountMenu />
         </div>
       </header>
 

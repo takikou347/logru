@@ -1,14 +1,21 @@
 import { expect, test } from "@playwright/test";
-import { addEvent, enableNewLook, signUp, tokyoDateParts } from "./helpers";
+import { addEvent, enableNewLook, enableOldLook, signUp, tokyoDateParts } from "./helpers";
 
 // ヘッドレスの Chrome は端末によって WebGL の有無が変わる。E2E はいつも平らな年の表の道筋を通す。0051
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await signUp(page);
+  // 「年を、らせんで見る」の道は、カレンダーの月の表にしかない。新しい見た目・スマホの既定は
+  // ホームが今日のページ(0092)なので、カレンダー(月)を明示して開く
+  await signUp(page, { next: "/?view=month" });
+  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
 });
 
 test("月の表の年を押すと、その年をらせんで見る画面が開く。F-39", async ({ page }) => {
   const year = new Date().getFullYear();
+  // 年の見出しの「年を、らせんで見る」の道は、新しい見た目・スマホの上の帯では「カレンダーを見る」
+  // という別のアイコンに変わる(issue #239)。前の見た目に戻して確かめる
+  await enableOldLook(page);
+  await page.goto("/?view=month");
   await page.getByRole("link", { name: `${year} 年を、らせんで見る` }).click();
   await expect(page).toHaveURL(new RegExp(`/spiral/${year}$`));
   await expect(page.getByRole("region", { name: `${year} 年の表` })).toBeVisible();
@@ -43,7 +50,8 @@ test("前後の年に移れ、閉じるとカレンダーへ戻る。F-39", asyn
 
   await page.getByRole("button", { name: "カレンダーへ戻る" }).click();
   await expect(page).toHaveURL("/");
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  // 新しい見た目・スマホの既定はホームが今日のページ(0092)なので、月の表とどちらかで確かめる
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
 });
 
 test("動きを減らす設定では、平らな年の表を選ぶボタンが出ない。F-39", async ({ page }) => {

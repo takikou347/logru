@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addExtension, signUp } from "./helpers";
+import { addEventButton, addExtension, enableOldLook, signUp } from "./helpers";
 
 /**
  * 支出と予定のシートが、開いた時点で「保存する」が画面の中にあるか。
@@ -10,6 +10,9 @@ test.use({ viewport: { width: 390, height: 844 } });
 test("家計簿の記録のシートを開くと、保存するが画面の中に見える", async ({ page }) => {
   await signUp(page);
   await addExtension(page, "家計簿");
+  // 家計簿の Dock(role="toolbar")は新しい見た目・スマホでは下のタブの帯に役目を移して
+  // 隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/kakeibo");
   await page.getByRole("toolbar", { name: "家計簿の操作" }).getByRole("button", { name: "支出を記録する" }).click();
   const sheet = page.getByRole("dialog", { name: "記録する" });
@@ -21,7 +24,7 @@ test("家計簿の記録のシートを開くと、保存するが画面の中�
 
 test("新しい予定のシートを開くと、保存するが画面の中に見える", async ({ page }) => {
   await signUp(page);
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
 
@@ -31,7 +34,7 @@ test("新しい予定のシートを開くと、保存するが画面の中に�
 
 test("開く動きは 320ms 以下で、既定の 500ms より速い", async ({ page }) => {
   await signUp(page);
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
 
@@ -42,7 +45,7 @@ test("開く動きは 320ms 以下で、既定の 500ms より速い", async ({ 
 test("動きを減らす設定では、開閉の動きが出ない", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await signUp(page);
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
 
@@ -56,7 +59,7 @@ test("動きを減らす設定では、開閉の動きが出ない", async ({ pa
 
 test("やめるを押すと、閉じる動きが出てから消える", async ({ page }) => {
   await signUp(page);
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
 

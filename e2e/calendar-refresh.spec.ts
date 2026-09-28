@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { apiUser, dayPanel, signUp } from "./helpers";
+import { apiUser, dayPanel, enableOldLook, signUp } from "./helpers";
 
 /** 日本時間の今日の正午。ミリ秒の UTC */
 function tokyoNoonToday(): number {
@@ -22,6 +22,10 @@ test("読み直しのボタンは誰にでも出て、押すとグループの�
   await signUp(page);
   await page.goto(`/invite/${invite.token}`);
   await page.getByRole("button", { name: "参加する" }).click();
+  // 「カレンダーを読み直す」ボタンは、新しい見た目・スマホでは上の帯に出ない(issue #243)ため、
+  // 前の見た目に戻して確かめる
+  await enableOldLook(page);
+  await page.goto("/?view=month");
   await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
 
   const refresh = page.getByRole("button", { name: "カレンダーを読み直す" });

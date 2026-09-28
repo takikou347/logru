@@ -29,6 +29,7 @@ import {
 import { useBack } from "@/lib/use-back";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useRowMotion } from "@/lib/use-row-motion";
+import { useSetSearchParams } from "@/lib/use-set-search-params";
 import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { takeJustAdded } from "@/modules/calendar/recent-items";
@@ -172,17 +173,13 @@ function MonthNavActions({ month, onChange }: { month: string; onChange: (key: s
  */
 function KakeiboTabsRow({ onSettlement }: { onSettlement: () => void }) {
   return (
-    <div
-      role="tablist"
-      aria-label="家計簿の中の切り替え"
-      className="glass flex items-center justify-around rounded-full p-1"
-    >
+    <nav aria-label="家計簿の中の切り替え" className="glass flex items-center justify-around rounded-full p-1">
       <TabIconButton to="/kakeibo" end icon={List} label="記録" />
       <TabIconButton to="/kakeibo/budgets" icon={PieChart} label="予算" />
       <TabIconButton to="/kakeibo/accounts" icon={Landmark} label="口座" />
       <TabIconButton icon={HandCoins} label="精算" onClick={onSettlement} />
       <TabIconButton to="/kakeibo/recurrings" icon={Repeat} label="定期の記録" />
-    </div>
+    </nav>
   );
 }
 
@@ -200,7 +197,8 @@ function KakeiboTabsRow({ onSettlement }: { onSettlement: () => void }) {
 export function KakeiboPage() {
   const me = useMe();
   const { groups, ready } = useKakeiboGroups();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetSearchParams();
   const { hidden, leaving, remove: removeExpense } = useKakeiboRecordDelete();
   const [features, setFeatures] = useState(false);
   // ホームのウィジェット(?from=widget)から開いたシートは、閉じたらホームへ戻す。0070、#201
@@ -217,9 +215,8 @@ export function KakeiboPage() {
   const accounts = useKakeiboAccounts(group, ready);
   const budgets = useKakeiboBudgets(group, ready);
 
-  const setGroup = (id: string | null) =>
-    setParams((p) => (id ? p.set("group", id) : p.delete("group"), p), { replace: true });
-  const setMonth = (key: string) => setParams((p) => (p.set("month", key), p), { replace: true });
+  const setGroup = (id: string | null) => setParams((p) => (id ? p.set("group", id) : p.delete("group")));
+  const setMonth = (key: string) => setParams((p) => p.set("month", key));
 
   const recording = params.get("record") === "1";
   // 下のタブの帯の「+」の放射(収入を記録する)から開いたときの、最初の種類。0091、issue #239
@@ -233,17 +230,17 @@ export function KakeiboPage() {
       back.onClick();
       return;
     }
-    setParams((p) => (p.delete("record"), p.delete("type"), p.delete("template"), p), { replace: true });
+    setParams((p) => (p.delete("record"), p.delete("type"), p.delete("template")));
   };
   const editingId = params.get("edit");
   const closeEdit = () => {
-    setParams((p) => (p.delete("edit"), p), { replace: true });
+    setParams((p) => p.delete("edit"));
     resetRowExpand();
   };
-  const openEdit = (id: string) => openRow(id, () => setParams((p) => (p.set("edit", id), p), { replace: true }));
+  const openEdit = (id: string) => openRow(id, () => setParams((p) => p.set("edit", id)));
   const editing = summary.data?.records.find((r) => r.id === editingId);
   const filterOptions = groupFilterOptions({ groups, me: me.data, value: group, onChange: setGroup });
-  const openRecordSheet = () => setParams((p) => (p.set("record", "1"), p), { replace: true });
+  const openRecordSheet = () => setParams((p) => p.set("record", "1"));
   // 足せるものは記録だけ。「+」を押すと直接シートが開く。issue #150
   const addables: Addable[] = [{ key: "expense", label: "支出を記録する", icon: Coins, onClick: openRecordSheet }];
   useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });

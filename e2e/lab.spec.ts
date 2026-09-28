@@ -51,14 +51,11 @@ test("本番では欄が出ない", async ({ page }) => {
 /**
  * 見た目の土台(紙・リキッドガラス)。0090、F-43
  *
- * 「新しい見た目」を入れると「テーマを選ぶ」への道が出て、選ぶと html の data-look が変わる。
- * 入れていない人は、テーマの画面へ行っても設定・見た目へ戻され、html の見た目は変わらない。
+ * 新しい見た目は既定なので、設定・見た目の「見た目の土台」から「テーマ」を開くだけで選べる。
+ * ラボの「前の見た目に戻す」を入れた人は、テーマの画面で選んでも html の見た目は変わらない。
  */
-test("新しい見た目を入れると、テーマを選ぶ道が出て、紙とガラスを切り替えられる。開き直しても残る", async ({ page }) => {
-  const lab = page.getByRole("region", { name: "ラボ" });
-  await lab.getByRole("switch", { name: "新しい見た目" }).click();
-
-  await lab.getByRole("link", { name: "テーマを選ぶ" }).click();
+test("設定・見た目からテーマを開き、紙とガラスを切り替えられる。開き直しても残る", async ({ page }) => {
+  await page.getByRole("link", { name: "テーマ" }).click();
   await expect(page).toHaveURL("/settings/theme");
   await expect(page.locator("html")).not.toHaveAttribute("data-look", "paper");
 
@@ -74,8 +71,14 @@ test("新しい見た目を入れると、テーマを選ぶ道が出て、紙�
   await expect(page.locator("html")).toHaveAttribute("data-look", "glass");
 });
 
-test("新しい見た目を入れていない人は、テーマの画面を開いても設定・見た目へ戻される", async ({ page }) => {
+test("前の見た目に戻すを入れた人は、テーマの画面で選んでも data-lab-new-look が付かない", async ({ page }) => {
+  const lab = page.getByRole("region", { name: "ラボ" });
+  await lab.getByRole("switch", { name: "前の見た目に戻す" }).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-lab-new-look");
+
   await page.goto("/settings/theme");
-  await expect(page).toHaveURL("/settings/appearance");
+  const theme = page.getByRole("radiogroup", { name: "見た目の土台" });
+  await theme.getByRole("radio", { name: "紙" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-look", "paper");
   await expect(page.locator("html")).not.toHaveAttribute("data-lab-new-look");
 });

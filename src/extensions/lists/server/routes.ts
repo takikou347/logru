@@ -5,6 +5,7 @@ import type { DB } from "@server/core/db/client";
 import { notify } from "@server/core/notifications/send";
 import { memberIdsOf } from "@server/modules/groups/membership";
 import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { allItemsChecked } from "../shared/notifications";
 import { listInput, listItemInput, listItemPatchInput, listPatchInput } from "../shared/schemas";
 import { requireListsGroup, usableGroupIds } from "./access";
 import { type ListItemRow, type ListRow, listItems, lists } from "./schema";
@@ -220,7 +221,7 @@ export const listsRoutes = createRouter()
         .select({ checked: listItems.checked })
         .from(listItems)
         .where(eq(listItems.listId, list.id));
-      if (items.length > 0 && items.every((i) => i.checked)) {
+      if (allItemsChecked(items)) {
         await notify({
           db,
           env: c.env,

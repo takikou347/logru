@@ -1,4 +1,5 @@
 import { dateKeyOfJst, isDateKey, startOfDateJst } from "@extensions/lists/shared/dates";
+import { allItemsChecked } from "@extensions/lists/shared/notifications";
 import { listInput, listItemInput, listItemPatchInput, listPatchInput } from "@extensions/lists/shared/schemas";
 import { describe, expect, it } from "vitest";
 
@@ -72,5 +73,19 @@ describe("項目の入力。F-203、F-204", () => {
     expect(listItemPatchInput.safeParse({ text: "  " }).success).toBe(false);
     expect(listItemPatchInput.safeParse({ text: "あ".repeat(201) }).success).toBe(false);
     expect(listItemPatchInput.safeParse({ checked: true, text: "大根" }).success).toBe(true);
+  });
+});
+
+describe("リストの項目が全部済みになったか。0096、issue #247", () => {
+  it("すべてチェック済みなら true", () => {
+    expect(allItemsChecked([{ checked: true }, { checked: true }])).toBe(true);
+  });
+
+  it("1 件でも未チェックがあれば false", () => {
+    expect(allItemsChecked([{ checked: true }, { checked: false }])).toBe(false);
+  });
+
+  it("項目が 1 件も無ければ、全部済みとは言わない", () => {
+    expect(allItemsChecked([])).toBe(false);
   });
 });

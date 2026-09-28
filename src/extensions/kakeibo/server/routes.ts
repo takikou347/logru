@@ -12,6 +12,7 @@ import {
 } from "../shared/categories";
 import { DAY_MS, dateKeyOfJst, isMonthKey, monthRange } from "../shared/dates";
 import { kakeiboInput } from "../shared/schemas";
+import { expenseShareRecipients } from "../shared/splits";
 import { sumByType, summarizeExpenseByCategory } from "../shared/totals";
 import { usableGroupIds, usableGroups } from "./access";
 import { kakeiboAccountsRoutes } from "./accounts-routes";
@@ -360,8 +361,7 @@ export const kakeiboRoutes = createRouter()
     // 立て替えられたことを、負担する人(払った人を除く)に積む。あなたの負担額を文言に入れる。0096、issue #246
     const month = write.date.slice(0, 7);
     const name = input.memo || kakeiboCategoryLabel(write.category);
-    for (const share of shares) {
-      if (share.userId === write.paidBy) continue;
+    for (const share of expenseShareRecipients(shares, write.paidBy)) {
       await notify({
         db,
         env: c.env,

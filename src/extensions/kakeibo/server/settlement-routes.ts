@@ -4,6 +4,7 @@ import type { DB } from "@server/core/db/client";
 import { notify } from "@server/core/notifications/send";
 import { desc, eq } from "drizzle-orm";
 import { kakeiboSettlementInput } from "../shared/schemas";
+import { settlementRecipient } from "../shared/settlement";
 import { groupMemberIds, requireKakeiboGroup, usableGroupIds, usableGroups } from "./access";
 import { toSettlementDtos } from "./dto";
 import { type KakeiboAccountRow, kakeiboAccounts, kakeiboSettlements } from "./schema";
@@ -77,7 +78,7 @@ export const kakeiboSettlementsRoutes = createRouter()
       toAccountId,
     });
     // 精算したと記録されたことを、記録した人でない方(送った人・受け取った人のうち)に積む。0096、issue #246
-    const recipient = userId === input.fromUser ? input.toUser : userId === input.toUser ? input.fromUser : null;
+    const recipient = settlementRecipient(input, userId);
     if (recipient) {
       await notify({
         db,

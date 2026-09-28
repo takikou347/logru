@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { knownNotificationKinds, notificationKindDefaults } from "../../src/extensions/server/registry";
-import { isNotificationCleanupWindow, uniqueUserIds } from "../../src/server/core/notifications/send";
+import {
+  isNotificationCleanupWindow,
+  mergedPayload,
+  resolvePreference,
+  targetsExcludingActor,
+  uniqueUserIds,
+} from "../../src/server/core/notifications/send";
 import {
   buildPage,
   decodeCursor,
@@ -121,6 +127,72 @@ describe("notify() が積む相手の重複", () => {
 
   it("誰も渡さなければ空のまま", () => {
     expect(uniqueUserIds([])).toEqual([]);
+  });
+});
+
+describe("自分がした操作は自分には積まない。0096、issue #244〜#247", () => {
+  it("actorId と同じ人を、積む相手から外す", () => {
+    expect(targetsExcludingActor(["kota", "mika", "yuta"], "kota")).toEqual(["mika", "yuta"]);
+  });
+
+  it("actorId が積む相手に含まれていなければ、誰も外さない", () => {
+    expect(targetsExcludingActor(["mika", "yuta"], "kota")).toEqual(["mika", "yuta"]);
+  });
+
+  it("actorId を渡さなければ、誰も外さない", () => {
+    expect(targetsExcludingActor(["kota", "mika"])).toEqual(["kota", "mika"]);
+  });
+
+  it("actorId しか渡さなければ、積む相手は誰も残らない", () => {
+    expect(targetsExcludingActor(["kota"], "kota")).toEqual([]);
+  });
+
+  it("重なりも同時に取り除く", () => {
+    expect(targetsExcludingActor(["kota", "mika", "kota", "mika"], "kota")).toEqual(["mika"]);
+  });
+});
+
+describe("種類ごとの設定で一覧・端末を止める。0096、issue #244", () => {
+  it("利用者が変えていれば、その値を使う", () => {
+    expect(resolvePreference({ list: false, push: true }, { list: true, push: false })).toEqual({
+      list: false,
+      push: true,
+    });
+  });
+
+  it("変えていなければ、既定を使う", () => {
+    expect(resolvePreference(undefined, { list: true, push: false })).toEqual({ list: true, push: false });
+  });
+
+  it("一覧だけ止めた設定なら、一覧は false のまま既定に戻さない", () => {
+    expect(resolvePreference({ list: false, push: false }, { list: true, push: true })).toEqual({
+      list: false,
+      push: false,
+    });
+  });
+});
+
+describe("既読になるまで同じ相手をまとめる。0096、issue #244〜#247", () => {
+  it("まとめる相手が無ければ、count を 1 にして積む", () => {
+    expect(mergedPayload(undefined, { title: "買い物" })).toEqual({ title: "買い物", count: 1 });
+  });
+
+  it("未読の同じ行があれば、件数を足し合わせる", () => {
+    const existing = { title: "にんじん", count: 1 };
+    const incoming = { title: "たまねぎ" };
+    expect(mergedPayload(existing, incoming)).toEqual({ title: "たまねぎ", count: 2 });
+  });
+
+  it("まとめて足すとき、count を複数まとめて渡した分もそのまま足す(1 回のリクエストで複数件)", () => {
+    const existing = { count: 2 };
+    const incoming = { count: 3 };
+    expect(mergedPayload(existing, incoming)).toEqual({ count: 5 });
+  });
+
+  it("新しい出来事の値(名前など)で上書きする。まとめても、いちばん新しい内容を見せる", () => {
+    const existing = { byUserName: "みか", count: 1 };
+    const incoming = { byUserName: "こた" };
+    expect(mergedPayload(existing, incoming).byUserName).toBe("こた");
   });
 });
 

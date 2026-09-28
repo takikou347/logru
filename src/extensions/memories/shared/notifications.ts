@@ -10,6 +10,19 @@ function countOf(payload: Record<string, unknown>): number {
 }
 
 /**
+ * しおりの担当になったことを積むか。新しく決まった担当が居て、前の担当と違うときだけ。
+ * 自分を選んだときも積む対象にする(notify() の actorId で自分には除かれる)。0096、issue #247
+ * @param assigneeId 送られてきた担当。undefined なら送られていない(直さない)
+ * @param previousAssigneeId 直す前の担当。作るときは null
+ */
+export function shouldNotifyShioriAssignment(
+  assigneeId: string | null | undefined,
+  previousAssigneeId: string | null,
+): assigneeId is string {
+  return Boolean(assigneeId) && assigneeId !== previousAssigneeId;
+}
+
+/**
  * お知らせの kind と payload から、一覧の文言と押したときの行き先を作る。自分の拡張の kind でなければ null。
  * 日付は端末の時間帯までは持たないので、まとめて Asia/Tokyo で出す。0022 の記録と同じ割り切り
  *

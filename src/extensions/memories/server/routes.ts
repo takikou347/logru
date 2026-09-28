@@ -12,6 +12,7 @@ import { and, asc, count, desc, eq, gte, inArray, isNull, max } from "drizzle-or
 import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { addDaysToKey, DEFAULT_TIME_ZONE, dayKeyIn, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
+import { shouldNotifyShioriAssignment } from "../shared/notifications";
 import {
   eventLinkInput,
   itemCopyInput,
@@ -516,7 +517,7 @@ export const memoryRoutes = createRouter()
       dueOn: input.kind === "todo" ? input.dueOn : null,
       sortOrder: (last?.n ?? 0) + 1,
     });
-    if (input.kind !== "wish" && input.assigneeId) {
+    if (input.kind !== "wish" && shouldNotifyShioriAssignment(input.assigneeId, null)) {
       // しおりの担当になったことを、選ばれた人に積む。自分を選んだときは自分には積まない。0096、issue #247
       await notify({
         db,
@@ -609,8 +610,7 @@ export const memoryRoutes = createRouter()
     if (
       input.assigneeId !== undefined &&
       item.kind !== "wish" &&
-      input.assigneeId &&
-      input.assigneeId !== item.assigneeId
+      shouldNotifyShioriAssignment(input.assigneeId, item.assigneeId)
     ) {
       // しおりの担当が変わったことを、新しく選ばれた人に積む。自分を選んだときは自分には積まない。0096、issue #247
       await notify({

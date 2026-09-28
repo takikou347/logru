@@ -8,6 +8,7 @@ import { type KnownNotificationKind, notificationKindDefaults } from "@extension
 import type { DB } from "@server/core/db/client";
 import { notifications, userSettings } from "@server/core/db/schema";
 import { type PushPayload, sendPush } from "@server/core/push/send";
+import type { NotificationPref } from "@shared/notifications";
 import { and, eq, isNull, lt } from "drizzle-orm";
 
 /** 90 日を過ぎたお知らせを消すまでの猶予。仮の値。0032 */
@@ -30,6 +31,25 @@ export function isNotificationCleanupWindow(now: Date): boolean {
 /** 同じ人を 2 度渡しても、お知らせは 1 件だけ積む */
 export function uniqueUserIds(userIds: string[]): string[] {
   return [...new Set(userIds)];
+}
+
+/**
+ * 積む相手から、自分がした操作の本人を外す。自分がした操作は自分には積まない。0096、issue #244
+ * @param userIds 積む相手の候補。重なっていてもよい
+ * @param actorId この出来事をした人。無ければ誰も外さない
+ */
+export function targetsExcludingActor(userIds: string[], actorId?: string): string[] {
+  return uniqueUserIds(userIds).filter((id) => id !== actorId);
+}
+
+/**
+ * 種類ごとの「一覧に出す」「端末にも知らせる」を決める。利用者が変えていればその値、
+ * 変えていなければ拡張(か土台)が決めた既定を使う。0096、issue #244
+ * @param stored user_settings.notification_prefs に持つ、その kind の値。変えていなければ無い
+ * @param fallback その kind の既定
+ */
+export function resolvePreference(stored: NotificationPref | undefined, fallback: NotificationPref): NotificationPref {
+  return stored ?? fallback;
 }
 
 export type NotifyInput = {
@@ -57,18 +77,32 @@ export type NotifyInput = {
 };
 
 /** 利用者の、その kind の設定。無ければ既定を使う */
-async function preferenceFor(db: DB, userId: string, kind: string): Promise<{ list: boolean; push: boolean }> {
+async function preferenceFor(db: DB, userId: string, kind: string): Promise<NotificationPref> {
   const row = await db
     .select({ notificationPrefs: userSettings.notificationPrefs })
     .from(userSettings)
     .where(eq(userSettings.userId, userId))
     .get();
-  return row?.notificationPrefs[kind] ?? notificationKindDefaults(kind);
+  return resolvePreference(row?.notificationPrefs[kind], notificationKindDefaults(kind));
 }
 
 /** payload の count。数でなければ 1 件ぶんとみなす */
 function countOf(payload: Record<string, unknown>): number {
   return typeof payload.count === "number" && payload.count > 0 ? payload.count : 1;
+}
+
+/**
+ * 既読になるまで同じ相手をまとめるときの、積み増した payload。件数(count)を足し合わせ、
+ * それ以外は新しい出来事の値で置き換える(いちばん新しい actor の名前などを出すため)。0096、issue #244
+ * @param existing 未読で既にある行の payload。まとめる相手が無ければ渡さない
+ * @param incoming 今回の出来事の payload
+ */
+export function mergedPayload(
+  existing: Record<string, unknown> | undefined,
+  incoming: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!existing) return { ...incoming, count: countOf(incoming) };
+  return { ...incoming, count: countOf(existing) + countOf(incoming) };
 }
 
 /** 一覧に 1 行積む。groupKey があり、未読の同じ行があれば、件数を足して新しい順に上げる */
@@ -94,15 +128,19 @@ async function appendToList(
       )
       .get();
     if (existing) {
-      const prevPayload = existing.payload as Record<string, unknown>;
-      const merged = { ...payload, count: countOf(prevPayload) + countOf(payload) };
+      const merged = mergedPayload(existing.payload as Record<string, unknown>, payload);
       await db.update(notifications).set({ payload: merged, createdAt: now }).where(eq(notifications.id, existing.id));
       return;
     }
   }
-  await db
-    .insert(notifications)
-    .values({ id: crypto.randomUUID(), userId, kind, payload, groupKey: groupKey ?? null, createdAt: now });
+  await db.insert(notifications).values({
+    id: crypto.randomUUID(),
+    userId,
+    kind,
+    payload: mergedPayload(undefined, payload),
+    groupKey: groupKey ?? null,
+    createdAt: now,
+  });
 }
 
 /** dedupeKey の行が、既読かどうかを問わず既にあるか */
@@ -124,7 +162,7 @@ async function alreadyDeduped(db: DB, userId: string, kind: string, dedupeKey: s
  * 4. 「端末にも知らせる」なら push を送る
  */
 export async function notify(input: NotifyInput): Promise<void> {
-  const targets = uniqueUserIds(input.userIds).filter((id) => id !== input.actorId);
+  const targets = targetsExcludingActor(input.userIds, input.actorId);
   if (targets.length === 0) return;
   const now = new Date();
   for (const userId of targets) {

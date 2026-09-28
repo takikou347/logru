@@ -4,6 +4,7 @@ import type { DB } from "@server/core/db/client";
 import { notify } from "@server/core/notifications/send";
 import { memberIdsOf } from "@server/modules/groups/membership";
 import { and, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { budgetExceededDedupeKey, isBudgetExceeded } from "../shared/budgets";
 import { kakeiboBudgetInput, kakeiboBudgetPatchInput } from "../shared/schemas";
 import { requireKakeiboGroup, usableGroupIds } from "./access";
 import { type KakeiboBudgetRow, kakeiboBudgets, kakeiboExpenses } from "./schema";
@@ -115,7 +116,7 @@ export async function notifyBudgetExceeded(
     );
   for (const budget of budgets) {
     const used = await usedAmount(db, budget.groupId, budget.startDate, budget.endDate);
-    if (used <= budget.amount) continue;
+    if (!isBudgetExceeded(used, budget.amount)) continue;
     const memberIds = await memberIdsOf(db, groupId);
     await notify({
       db,
@@ -124,7 +125,7 @@ export async function notifyBudgetExceeded(
       actorId,
       kind: "kakeibo.budget_exceeded",
       payload: { budgetId: budget.id, name: budget.name, groupId },
-      dedupeKey: `${budget.id}_${date}`,
+      dedupeKey: budgetExceededDedupeKey(budget.id, date),
     });
   }
 }

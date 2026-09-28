@@ -9,6 +9,14 @@ function countOf(payload: Record<string, unknown>): number {
 }
 
 /**
+ * チェックした後の項目の一覧が、全部済みかどうか。1 件も無ければ false(まだ何も無いリストを
+ * 全部済みとは言わない)。0096、issue #247
+ */
+export function allItemsChecked(items: { checked: boolean }[]): boolean {
+  return items.length > 0 && items.every((i) => i.checked);
+}
+
+/**
  * お知らせの kind と payload から、一覧の文言と押したときの行き先を作る。自分の拡張の kind でなければ null。
  *
  * - lists.item_added: 項目が足された。まとめると件数を出す。押すとそのリスト

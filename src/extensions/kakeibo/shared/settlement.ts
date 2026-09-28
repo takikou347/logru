@@ -12,6 +12,16 @@ export type Transfer = { from: string; to: string; amount: number };
 type Balance = [userId: string, amount: number];
 
 /**
+ * 精算したと記録されたことを積む相手。記録した人でない方(送った人・受け取った人のうち)。
+ * 記録した人がどちらでもなければ null(積まない)。0096、issue #246
+ */
+export function settlementRecipient(entry: { fromUser: string; toUser: string }, recordedBy: string): string | null {
+  if (recordedBy === entry.fromUser) return entry.toUser;
+  if (recordedBy === entry.toUser) return entry.fromUser;
+  return null;
+}
+
+/**
  * ビットの DP で、部分集合をいくつに分けられるかを試す上限。人数がこれを超えたら、貪欲法だけで済ませる。
  * 部分集合を総当たりする(`splitIntoZeroSumGroups` の二重ループ)ため、計算量は人数の 3 の n 乗
  * (3^n)で増える。際限なく大きくすると時間がかかりすぎるので、人数の上限を 10 人にする。#199

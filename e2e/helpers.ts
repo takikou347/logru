@@ -245,7 +245,7 @@ export async function removeExtension(page: Page, label: string) {
  */
 export async function pickShare(page: Page, host: Locator, name: string) {
   await host.getByRole("button", { name: /^共有/ }).click();
-  await page.getByRole("dialog", { name: "共有する相手" }).getByRole("radio", { name }).click();
+  await page.getByRole("dialog", { name: "共有する相手" }).getByRole("option", { name }).click();
 }
 
 /**

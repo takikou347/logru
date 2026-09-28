@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { addEventButton, enableOldLook, signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
@@ -31,7 +31,7 @@ test.describe("毎年の予定の種別", () => {
   });
 
   test("記念日を選ぶと、記念日の帯が出る。誕生日と文言が違い、何年目も添える", async ({ page }) => {
-    await page.getByRole("button", { name: "予定を足す" }).last().click();
+    await addEventButton(page);
     const sheet = page.getByRole("dialog", { name: "新しい予定" });
     await sheet.getByLabel("題名").fill("結婚記念日");
     await sheet.getByLabel("日付").fill(startDate);
@@ -40,6 +40,9 @@ test.describe("毎年の予定の種別", () => {
     await sheet.getByRole("button", { name: "保存する" }).click();
     await expect(page.getByText("予定を足しました")).toBeVisible();
 
+    // 近道の帯(ShortcutBand)は新しい見た目・スマホの今日のページには無い(PC の左の列にだけある)。
+    // 前の見た目に戻して確かめる
+    await enableOldLook(page);
     await page.reload();
     const band = page.getByTestId("shortcut-band").filter({ visible: true });
     await expect(band).toContainText("結婚記念日まで");
@@ -48,7 +51,7 @@ test.describe("毎年の予定の種別", () => {
   });
 
   test("誕生日は種別を変えなければ、今までどおりの文言のまま", async ({ page }) => {
-    await page.getByRole("button", { name: "予定を足す" }).last().click();
+    await addEventButton(page);
     const sheet = page.getByRole("dialog", { name: "新しい予定" });
     await sheet.getByLabel("題名").fill("けんたの誕生日");
     await sheet.getByLabel("日付").fill(startDate);
@@ -58,6 +61,9 @@ test.describe("毎年の予定の種別", () => {
     await sheet.getByRole("button", { name: "保存する" }).click();
     await expect(page.getByText("予定を足しました")).toBeVisible();
 
+    // 近道の帯(ShortcutBand)は新しい見た目・スマホの今日のページには無い(PC の左の列にだけある)。
+    // 前の見た目に戻して確かめる
+    await enableOldLook(page);
     await page.reload();
     const band = page.getByTestId("shortcut-band").filter({ visible: true });
     await expect(band).toContainText("けんたの誕生日");
@@ -69,7 +75,7 @@ test.describe("毎年の予定の種別", () => {
   });
 
   test("種別を変えて保存できる", async ({ page }) => {
-    await page.getByRole("button", { name: "予定を足す" }).last().click();
+    await addEventButton(page);
     const sheet = page.getByRole("dialog", { name: "新しい予定" });
     await sheet.getByLabel("題名").fill("開店記念日");
     await sheet.getByRole("radio", { name: "毎年" }).click();

@@ -17,6 +17,7 @@ import { LoadableSection, PanelSkeleton } from "@/components/parts/LoadableSecti
 import { Panel } from "@/components/parts/Panel";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { useRowMotion } from "@/lib/use-row-motion";
+import { useSetSearchParams } from "@/lib/use-set-search-params";
 import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { takeJustAdded } from "@/modules/calendar/recent-items";
@@ -114,16 +115,17 @@ export function BudgetsPage() {
   const budgets = useKakeiboBudgets(null, ready);
   const month = monthKeyOf(new Date());
   const summary = useKakeiboSummary(null, month, ready);
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetSearchParams();
   useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
   const deleteBudget = useDeleteBudget();
   // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。縮んで消える動きと、直した行を光らせる印も持つ。#194、0085、#226
   const { hidden, leaving, remove, flashing, flash } = useRowMotion("予算を消しました");
 
   const creating = params.get("create") === "1";
-  const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
+  const closeCreate = () => setParams((p) => p.delete("create"));
   const editingId = params.get("edit");
-  const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
+  const closeEdit = () => setParams((p) => p.delete("edit"));
   const handleDelete = (budget: KakeiboBudget) =>
     remove(budget.id, ({ keepalive }) => deleteBudget.mutateAsync({ id: budget.id, keepalive }));
   // 同じ予算をもう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。
@@ -160,7 +162,7 @@ export function BudgetsPage() {
               bordered={false}
               action={{
                 label: "予算を作る",
-                onClick: () => setParams((p) => (p.set("create", "1"), p), { replace: true }),
+                onClick: () => setParams((p) => p.set("create", "1")),
               }}
             >
               まだ予算がありません。期間と金額を決めて、使いすぎを防ぎます。
@@ -180,7 +182,7 @@ export function BudgetsPage() {
                   isEdited={flashing.has(b.id)}
                   onClick={() => {
                     editGen.current += 1;
-                    setParams((p) => (p.set("edit", b.id), p), { replace: true });
+                    setParams((p) => p.set("edit", b.id));
                   }}
                 />
               ))}
@@ -197,7 +199,7 @@ export function BudgetsPage() {
                 key: "budget",
                 label: "予算を作る",
                 icon: PiggyBank,
-                onClick: () => setParams((p) => (p.set("create", "1"), p), { replace: true }),
+                onClick: () => setParams((p) => p.set("create", "1")),
               },
             ]}
           />

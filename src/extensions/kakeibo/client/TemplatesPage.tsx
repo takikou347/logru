@@ -11,6 +11,7 @@ import { LoadFailure } from "@/components/parts/Failure";
 import { Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { useRowMotion } from "@/lib/use-row-motion";
+import { useSetSearchParams } from "@/lib/use-set-search-params";
 import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { takeJustAdded } from "@/modules/calendar/recent-items";
@@ -78,9 +79,10 @@ export function TemplatesPage() {
   const { hidden, leaving, remove, flashing, flash } = useRowMotion("よく使う記録を消しました");
   useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
 
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetSearchParams();
   const editingId = params.get("edit");
-  const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
+  const closeEdit = () => setParams((p) => p.delete("edit"));
   // 同じ記録をもう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。RecurringsPage と同じ。#211
   const editGen = useRef(0);
 
@@ -114,7 +116,7 @@ export function TemplatesPage() {
                     isEdited={flashing.has(t.id)}
                     onEdit={() => {
                       editGen.current += 1;
-                      setParams((p) => (p.set("edit", t.id), p), { replace: true });
+                      setParams((p) => p.set("edit", t.id));
                     }}
                     onRemove={() =>
                       remove(t.id, ({ keepalive }) => deleteTemplate.mutateAsync({ id: t.id, keepalive }))

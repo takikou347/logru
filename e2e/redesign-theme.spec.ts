@@ -45,6 +45,13 @@ test("季節のテーマは、日本時間の月で春夏秋冬を決める", as
   await signUp(page);
   await enableNewLook(page);
 
+  // 見本(ThemeSettingsPage の LookPreview)の強調の色の Tailwind クラス。--season-accent(tokens.css)と同じ値。issue #227
+  const accentClass: Record<string, string> = {
+    spring: "bg-[#d9577a]/70",
+    summer: "bg-[#3f9c5a]/70",
+    autumn: "bg-[#c1552c]/70",
+    winter: "bg-[#6f93c4]/70",
+  };
   const cases: { at: string; season: string }[] = [
     { at: "2026-04-10T10:00:00+09:00", season: "spring" },
     { at: "2026-07-10T10:00:00+09:00", season: "summer" },
@@ -54,7 +61,12 @@ test("季節のテーマは、日本時間の月で春夏秋冬を決める", as
   for (const c of cases) {
     await page.clock.setFixedTime(new Date(c.at));
     await page.goto("/settings/theme");
-    await page.getByRole("radiogroup", { name: "見た目の土台" }).getByRole("radio", { name: "季節" }).click();
+    const seasonRadio = page.getByRole("radiogroup", { name: "見た目の土台" }).getByRole("radio", { name: "季節" });
+    // 選ぶ前から、見本の強調の色(いちばん濃い帯)が今の季節に合っている。issue #227
+    const strongBar = seasonRadio.getByTestId("look-preview").locator("> div > span").first();
+    const strongBarClass = (await strongBar.getAttribute("class")) ?? "";
+    expect(strongBarClass).toContain(accentClass[c.season]!);
+    await seasonRadio.click();
     await expect(page.locator("html")).toHaveAttribute("data-season", c.season);
   }
 });

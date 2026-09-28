@@ -200,7 +200,7 @@ export async function pickShare(page: Page, host: Locator, name: string): Promis
   if (await visible(row, 1_500)) {
     await row.first().click();
     const picker = page.getByRole("dialog", { name: "共有する相手" });
-    const option = picker.getByRole("radio", { name });
+    const option = picker.getByRole("option", { name });
     if (await visible(option)) {
       await option.click();
       await expect(picker).toBeHidden();

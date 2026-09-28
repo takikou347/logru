@@ -24,6 +24,13 @@ export const events = sqliteTable(
     repeatUntil: integer("repeat_until", { mode: "timestamp_ms" }),
     /** 繰り返しの終わりの回数。repeat_until と同時には入らない。0043 */
     repeatCount: integer("repeat_count"),
+    /**
+     * 毎年の繰り返しの種別。誕生日か記念日か。yearly 以外では使わない。既定は誕生日で、
+     * 今ある毎年の予定もそのまま誕生日になる。0097
+     */
+    anniversaryKind: text("anniversary_kind", { enum: ["birthday", "anniversary"] })
+      .notNull()
+      .default("birthday"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

@@ -3,6 +3,9 @@ import { z } from "zod";
 /** 繰り返しの周期。0043 */
 const REPEAT_FREQS = ["daily", "weekly", "monthly", "yearly"] as const;
 
+/** 毎年の繰り返しの種別。誕生日か記念日か。yearly だけで使う。0097 */
+const ANNIVERSARY_KINDS = ["birthday", "anniversary"] as const;
+
 /** 繰り返す予定を直す、消すときの範囲。この回だけ・これ以降・全部。画面の側は ItemEditScope。0043 */
 const EDIT_SCOPES = ["this", "following", "all"] as const;
 
@@ -14,6 +17,8 @@ export const repeatRuleInput = z
     daysOfWeek: z.array(z.number().int().min(1).max(7)).min(1).max(7).optional(),
     until: z.number().int().optional(),
     count: z.number().int().min(1, "回数は 1 以上にしてください。").max(999, "回数は 999 までです。").optional(),
+    /** yearly だけで使う。省くと誕生日。0097 */
+    anniversaryKind: z.enum(ANNIVERSARY_KINDS).optional(),
   })
   .refine((v) => v.until == null || v.count == null, {
     message: "終わりは、日付か回数のどちらかにしてください。",

@@ -10,3 +10,16 @@ export type BudgetSpan = { startDate: string; endDate: string };
 export function upcomingOrCurrentBudgets<T extends BudgetSpan>(budgets: T[], today: string): T[] {
   return budgets.filter((b) => b.endDate >= today).sort((a, b) => a.startDate.localeCompare(b.startDate));
 }
+
+/** 予算を超えたか。使った額が予算の額より多いときだけ超えたとみなす。0096、issue #246 */
+export function isBudgetExceeded(used: number, amount: number): boolean {
+  return used > amount;
+}
+
+/**
+ * 予算を超えた知らせを、既読かどうかを問わず 1 日 1 回だけにする目印。同じ予算・同じ日は同じ値になる。
+ * 0096、issue #246
+ */
+export function budgetExceededDedupeKey(budgetId: string, date: string): string {
+  return `${budgetId}_${date}`;
+}

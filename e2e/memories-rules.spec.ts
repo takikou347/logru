@@ -46,13 +46,42 @@ test("記録はいつでも「共有しない」を選べる", async ({ page }) 
   await expect(shareRow).toContainText("自分だけ");
   await shareRow.click();
   const picker = page.getByRole("dialog", { name: "共有する相手" });
-  await expect(picker.getByRole("radio", { name: "共有しない" })).toHaveAttribute("aria-checked", "true");
-  await expect(picker.getByRole("radio", { name: "ふたり" })).toBeVisible();
+  await expect(picker.getByRole("option", { name: "共有しない" })).toHaveAttribute("aria-selected", "true");
+  await expect(picker.getByRole("option", { name: "ふたり" })).toBeVisible();
   // 選んでいる行をもう一度押して、値を変えずに閉じる
-  await picker.getByRole("radio", { name: "共有しない" }).click();
+  await picker.getByRole("option", { name: "共有しない" }).click();
   await sheet.getByLabel("文章").fill("ひとりのメモ");
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("記録しました")).toBeVisible();
+});
+
+test("共有する相手の一覧は上下キーで前後の行へ移れる。#249", async ({ page }) => {
+  await signUp(page);
+  await groupWithMemories(page, "ふたり");
+  await page.goto("/memories?record=1");
+  const sheet = page.getByRole("dialog", { name: "記録する" });
+  await sheet.getByRole("button", { name: /^共有/ }).click();
+  const picker = page.getByRole("dialog", { name: "共有する相手" });
+  const none = picker.getByRole("option", { name: "共有しない" });
+  const futari = picker.getByRole("option", { name: "ふたり" });
+
+  await none.focus();
+  await expect(none).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(futari).toBeFocused();
+  // 端では何もしない
+  await page.keyboard.press("ArrowDown");
+  await expect(futari).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(none).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(none).toBeFocused();
+
+  // フォーカスしている行を Enter で選べる
+  await futari.focus();
+  await page.keyboard.press("Enter");
+  await expect(picker).toBeHidden();
+  await expect(sheet.getByRole("button", { name: /^共有/ })).toContainText("ふたり");
 });
 
 test("写真を足した後も共有先を変えられる。保存すると選んだ共有先に付く。0057、#158", async ({ page }) => {
@@ -70,7 +99,7 @@ test("写真を足した後も共有先を変えられる。保存すると選�
 
   await shareRow.click();
   const picker = page.getByRole("dialog", { name: "共有する相手" });
-  await picker.getByRole("radio", { name: "ふたり" }).click();
+  await picker.getByRole("option", { name: "ふたり" }).click();
   await expect(shareRow).toContainText("ふたり");
 
   await sheet.getByRole("button", { name: "保存する" }).click();

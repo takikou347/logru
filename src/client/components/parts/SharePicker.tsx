@@ -6,10 +6,13 @@
  * 予定・思い出・記録・家計簿のシートと、共有リストで使う。
  *
  * その拡張をまだ足していないグループは選べないが、薄く並べて理由と行き先を出す。#164
+ *
+ * 一覧は `role="listbox"`・`role="option"` で組む。`PickerRow`(0080)と同じ考え方。#249
+ * 上下キーで行を移れるようにする(`handleOptionListKeyDown`)。端では何もしない。
  */
 import type { GroupSummary, Me } from "@shared/api-types";
 import { Check } from "lucide-react";
-import { useState } from "react";
+import { type KeyboardEvent, useState } from "react";
 import { Link } from "react-router";
 import { useGroups } from "@/api/common";
 import { UserAvatarStack } from "@/components/parts/Avatars";
@@ -17,6 +20,22 @@ import { Dot, FieldMessage, RowButton } from "@/components/parts/Panel";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { groupColor } from "@/lib/colors";
 import { cn } from "@/lib/utils";
+
+/**
+ * `role="option"` の一覧の中で、上下キーで前後の行へフォーカスを移す。端では何もしない。#249
+ * @param e キーボードのイベント。`role="listbox"` の div に付ける
+ */
+function handleOptionListKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+  const options = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="option"]:not(:disabled)'));
+  if (options.length === 0) return;
+  const from = options.indexOf(document.activeElement as HTMLButtonElement);
+  const dir = e.key === "ArrowDown" ? 1 : -1;
+  const next = options[from === -1 ? (dir === 1 ? 0 : options.length - 1) : from + dir];
+  if (!next) return;
+  e.preventDefault();
+  next.focus();
+}
 
 /** 一覧の 1 行の見た目。44 px 以上、色の点、名前、メンバーの小さなアバター、選んでいる印 */
 function ShareRow({
@@ -35,8 +54,8 @@ function ShareRow({
   return (
     <button
       type="button"
-      role="radio"
-      aria-checked={checked}
+      role="option"
+      aria-selected={checked}
       onClick={onSelect}
       className="flex min-h-12 w-full items-center gap-3 border-b border-line text-left text-[15px] last:border-b-0"
     >
@@ -150,7 +169,7 @@ export function SharePickerRow({
       {disabled && disabledReason && <FieldMessage>{disabledReason}</FieldMessage>}
       {open && (
         <ResponsiveSheet title="共有する相手" onClose={() => setOpen(false)}>
-          <div role="radiogroup" aria-label="共有する相手" className="flex flex-col">
+          <div role="listbox" aria-label="共有する相手" onKeyDown={handleOptionListKeyDown} className="flex flex-col">
             {choices.map((g) => (
               <ShareRow
                 key={g.id}

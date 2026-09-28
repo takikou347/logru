@@ -1,6 +1,6 @@
 /**
- * 端末の共有シートで写真を送る。Web Share API の Level 2(ファイルの共有)。#258
- * 共有したことは記録しない。技術の遊びとして足すだけの、小さな道具。
+ * 端末の共有シートで、写真(ファイル)や文字を送る。#258、issue #227
+ * 共有したことは記録しない。写真は Web Share API の Level 2(ファイルの共有)。技術の遊びとして足すだけの、小さな道具。
  */
 
 /** ファイルの共有に対応しているかを、実際に写真を読み込まずに見分けるためだけの、ダミーの JPEG */
@@ -35,4 +35,21 @@ export function sharePhoto(
   nav: Pick<Navigator, "share"> = globalThis.navigator,
 ): Promise<void> {
   return nav.share({ ...meta, files: [file] });
+}
+
+/**
+ * 文字を端末の共有シートで送る。無い端末(PC の一部)は、代わりにクリップボードへコピーする。issue #227
+ * 呼び出す側は、送るのをやめただけ(AbortError)を失敗として扱わないこと
+ * @returns 実際に使った方法
+ */
+export async function shareText(
+  data: { title?: string; text: string },
+  nav: Pick<Navigator, "share" | "clipboard"> = globalThis.navigator,
+): Promise<"shared" | "copied"> {
+  if (typeof nav.share === "function") {
+    await nav.share(data);
+    return "shared";
+  }
+  await nav.clipboard.writeText(data.text);
+  return "copied";
 }

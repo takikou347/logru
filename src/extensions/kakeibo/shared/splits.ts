@@ -38,3 +38,12 @@ export function splitNone(amount: number, payerId: string): KakeiboSplitShare[] 
 export function sumSplitShares(shares: KakeiboSplitShare[]): number {
   return shares.reduce((n, s) => n + s.amount, 0);
 }
+
+/**
+ * 立て替えられたことを積む相手。負担する人のうち、払った人を除く。0096、issue #246
+ * @param shares 記録の負担額の一覧
+ * @param paidBy 払った人。割らない記録・振替・収入は null で、その場合は誰にも積まない
+ */
+export function expenseShareRecipients(shares: KakeiboSplitShare[], paidBy: string | null): KakeiboSplitShare[] {
+  return shares.filter((s) => s.userId !== paidBy);
+}

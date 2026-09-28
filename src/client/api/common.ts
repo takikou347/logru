@@ -1,6 +1,7 @@
 /** 複数の機能が使う hook。1 つの機能に閉じるものは modules/<機能>/api.ts か extensions/<名前>/client/api.ts に置く */
 
 import type { GroupSummary, Me, TodayPagePrefs } from "@shared/api-types";
+import type { NotificationPref } from "@shared/notifications";
 import { addTourSeen } from "@shared/tours";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -120,6 +121,37 @@ export function useSetTodayPagePrefs() {
       await qc.cancelQueries({ queryKey: keys.me });
       const prev = qc.getQueryData<Me>(keys.me);
       if (prev) qc.setQueryData<Me>(keys.me, { ...prev, settings: { ...prev.settings, todayPage } });
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(keys.me, ctx.prev);
+      toast.error((e as Error).message);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.me }),
+  });
+}
+
+/**
+ * 種類ごとの、一覧に出すか・端末にも知らせるかを変える。押した瞬間に画面に効かせ、失敗したら元に戻す。
+ * 設定の「お知らせ」が使う。0096、F-47
+ */
+export function useSetNotificationPref() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ kind, pref }: { kind: string; pref: NotificationPref }) =>
+      api<{ notificationPrefs: Record<string, NotificationPref> }>(`/me/notification-prefs/${kind}`, {
+        method: "PUT",
+        body: pref,
+      }),
+    onMutate: async ({ kind, pref }) => {
+      await qc.cancelQueries({ queryKey: keys.me });
+      const prev = qc.getQueryData<Me>(keys.me);
+      if (prev) {
+        qc.setQueryData<Me>(keys.me, {
+          ...prev,
+          settings: { ...prev.settings, notificationPrefs: { ...prev.settings.notificationPrefs, [kind]: pref } },
+        });
+      }
       return { prev };
     },
     onError: (e, _v, ctx) => {

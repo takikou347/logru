@@ -16,7 +16,7 @@ export const kakeiboServer: ServerExtension = {
   search: searchKakeibo,
   routes: { basePath: "/kakeibo", router: kakeiboRoutes },
   // 5 分おきの Cron から呼ばれる。決めた日になった定期の記録を入れる。0072、F-325
-  scheduled: (db) => insertDueRecurringRecords(db),
+  scheduled: (db, env) => insertDueRecurringRecords(db, env),
   // 抜けた人が作った、そのグループの定期の記録を止める。次の処理で入らなくなる。#198、0076
   onMemberLeave: pauseRecurringsForLeaver,
 };

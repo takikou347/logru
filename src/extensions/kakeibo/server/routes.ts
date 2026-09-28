@@ -3,14 +3,20 @@ import { createRouter, HttpError, validationHook } from "@server/core/app";
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import { runBatch } from "@server/core/db/batch";
 import type { DB } from "@server/core/db/client";
+import { notify } from "@server/core/notifications/send";
 import { and, count, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
-import { KAKEIBO_EXPENSE_CATEGORY_KEYS, KAKEIBO_INCOME_CATEGORY_KEYS } from "../shared/categories";
+import {
+  KAKEIBO_EXPENSE_CATEGORY_KEYS,
+  KAKEIBO_INCOME_CATEGORY_KEYS,
+  kakeiboCategoryLabel,
+} from "../shared/categories";
 import { DAY_MS, dateKeyOfJst, isMonthKey, monthRange } from "../shared/dates";
 import { kakeiboInput } from "../shared/schemas";
+import { expenseShareRecipients } from "../shared/splits";
 import { sumByType, summarizeExpenseByCategory } from "../shared/totals";
 import { usableGroupIds, usableGroups } from "./access";
 import { kakeiboAccountsRoutes } from "./accounts-routes";
-import { kakeiboBudgetsRoutes } from "./budgets-routes";
+import { kakeiboBudgetsRoutes, notifyBudgetExceeded } from "./budgets-routes";
 import { toExpenseDtos } from "./dto";
 import { kakeiboGroupSettingsRoutes } from "./group-settings-routes";
 import { kakeiboRecurringsRoutes } from "./recurring-routes";
@@ -343,17 +349,39 @@ export const kakeiboRoutes = createRouter()
   })
   .post("/", zValidator("json", kakeiboInput, validationHook), async (c) => {
     const db = c.get("db");
-    const userId = c.get("user").id;
+    const me = c.get("user");
     const input = c.req.valid("json");
-    const { write, shares } = await resolveWrite(db, userId, input);
+    const { write, shares } = await resolveWrite(db, me.id, input);
     const id = crypto.randomUUID();
     // 記録と負担の行を 1 回の書き込みにする。途中で切れて負担の行だけ無い記録が残らないよう。#198
     await runBatch(db, [
-      db.insert(kakeiboExpenses).values({ id, createdBy: userId, memo: input.memo || null, ...write }),
+      db.insert(kakeiboExpenses).values({ id, createdBy: me.id, memo: input.memo || null, ...write }),
       ...splitStatements(db, id, shares),
     ]);
+    // 立て替えられたことを、負担する人(払った人を除く)に積む。あなたの負担額を文言に入れる。0096、issue #246
+    const month = write.date.slice(0, 7);
+    const name = input.memo || kakeiboCategoryLabel(write.category);
+    for (const share of expenseShareRecipients(shares, write.paidBy)) {
+      await notify({
+        db,
+        env: c.env,
+        userIds: [share.userId],
+        actorId: me.id,
+        kind: "kakeibo.expense_shared",
+        payload: {
+          expenseId: id,
+          groupId: write.groupId,
+          month,
+          name,
+          amount: write.amount,
+          share: share.amount,
+          byUserName: me.name,
+        },
+      });
+    }
+    if (write.type === "expense") await notifyBudgetExceeded(db, c.env, write.groupId, write.date, me.id);
     const row = await db.select().from(kakeiboExpenses).where(eq(kakeiboExpenses.id, id)).get();
-    const visibleGroupIds = new Set(await usableGroupIds(db, userId));
+    const visibleGroupIds = new Set(await usableGroupIds(db, me.id));
     return c.json((await toExpenseDtos(db, [row!], visibleGroupIds))[0], 201);
   })
   .patch("/:id", zValidator("json", kakeiboInput, validationHook), async (c) => {

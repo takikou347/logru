@@ -57,6 +57,7 @@ function repeatRuleToClient(rule: RepeatRule | null): ClientRepeatRule | undefin
     daysOfWeek: rule.daysOfWeek ?? undefined,
     until: rule.until ? rule.until.getTime() : null,
     count: rule.count ?? null,
+    anniversaryKind: rule.anniversaryKind,
   };
 }
 
@@ -125,7 +126,10 @@ export function toOccurrenceItem(
  * @param to 期間の終わり。含まない
  */
 export function occurrencesFor(
-  row: Pick<EventRow, "startsAt" | "repeatFreq" | "repeatDaysOfWeek" | "repeatUntil" | "repeatCount">,
+  row: Pick<
+    EventRow,
+    "startsAt" | "repeatFreq" | "repeatDaysOfWeek" | "repeatUntil" | "repeatCount" | "anniversaryKind"
+  >,
   edits: Map<number, EventOccurrenceEditRow> | undefined,
   from: number,
   to: number,

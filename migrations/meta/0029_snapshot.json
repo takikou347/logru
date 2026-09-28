@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "880c7bb6-c948-4109-ab9e-ee60354ea978",
-  "prevId": "d6fe3262-fc9e-4aa6-bff7-7fa02f5827be",
+  "id": "da81380b-d892-4f3e-95b2-1dd5247dbdce",
+  "prevId": "880c7bb6-c948-4109-ab9e-ee60354ea978",
   "tables": {
     "color_prefs": {
       "name": "color_prefs",
@@ -1157,6 +1157,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "anniversary_kind": {
+          "name": "anniversary_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'birthday'"
         },
         "created_at": {
           "name": "created_at",

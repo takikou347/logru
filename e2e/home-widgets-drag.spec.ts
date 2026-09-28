@@ -1,8 +1,18 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { signUp, touchDrag } from "./helpers";
 
 // スマホの幅。0029、#121
 test.use({ viewport: { width: 390, height: 844 } });
+
+/**
+ * 画面のいちばん下までスクロールする。新しい見た目・スマホでは下のタブの帯が固定で浮いており、
+ * `scrollIntoViewIfNeeded` は要素が幾何学的に見えるところで止まるため、帯の裏に隠れたままのことがある。
+ * 実際に下まで送ってから位置を測る
+ */
+async function scrollToBottom(page: Page) {
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.waitForTimeout(200);
+}
 
 test.beforeEach(async ({ page }) => {
   // ホームの並べ替えはカレンダーの画面の機能。新しい見た目・スマホの既定はホームが今日のページ
@@ -24,7 +34,7 @@ test("スマホで、持ち手を指で引いてウィジェットを並べ替�
   const calendarFrame = grid.locator('[data-widget-key="home.calendar"]');
 
   // 持ち手を画面内に収めてから位置を測る。boundingBox は画面外でも値を返すので、押す前に自分でスクロールする
-  await upcomingHandle.scrollIntoViewIfNeeded();
+  await scrollToBottom(page);
   const from = await upcomingHandle.boundingBox();
   const to = await calendarFrame.boundingBox();
   if (!from || !to) throw new Error("枠の位置が取れなかった");
@@ -62,7 +72,7 @@ test("動きを減らす設定でも、持ち手を指で引いてウィジェ�
   const upcomingHandle = grid.locator('[data-widget-key="home.upcoming"]').getByTestId("widget-handle");
   const calendarFrame = grid.locator('[data-widget-key="home.calendar"]');
 
-  await upcomingHandle.scrollIntoViewIfNeeded();
+  await scrollToBottom(page);
   const from = await upcomingHandle.boundingBox();
   const to = await calendarFrame.boundingBox();
   if (!from || !to) throw new Error("枠の位置が取れなかった");

@@ -982,10 +982,13 @@ test("家計簿で月を移ると、新しい月が読めるまで前の月の�
   await page.getByRole("button", { name: "前の月" }).click();
   await expect(page.getByTestId("kakeibo-total")).toHaveText("¥1,500");
   await expect(page.getByText("この月の記録はまだありません。")).toHaveCount(0);
+  // 300ms ほど裏で読み直しが続くと、面の隅に小さく回る印が出る。#249
+  await expect(page.getByTestId("loadable-refreshing").first()).toBeVisible();
 
-  // 届くと、前の月には記録が無いので 0 になる
+  // 届くと、前の月には記録が無いので 0 になる。印は消える
   await expect(page.getByTestId("kakeibo-total")).toHaveText("¥0", { timeout: 5_000 });
   await expect(page.getByText("この月の記録はまだありません。")).toBeVisible();
+  await expect(page.getByTestId("loadable-refreshing")).toHaveCount(0);
 });
 
 test("家計簿の月が読めなかったときは、失敗の面だけが出て、空の案内は並ばない。#195", async ({ page }) => {

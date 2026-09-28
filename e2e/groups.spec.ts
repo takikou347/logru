@@ -1,5 +1,5 @@
 import { type Browser, expect, test } from "@playwright/test";
-import { addEvent, apiUser, dayPanel, PASSWORD, signUp } from "./helpers";
+import { addEvent, apiUser, dayPanel, enableOldLook, PASSWORD, signUp } from "./helpers";
 
 async function newUser(browser: Browser, next?: string) {
   const context = await browser.newContext();
@@ -12,6 +12,8 @@ async function newUser(browser: Browser, next?: string) {
 test("招待したパートナーと、グループの予定を見合える", async ({ page, context, browser }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await signUp(page, { name: "こた" });
+  // カレンダーの day-panel、グループで絞るを使うため、前の見た目に戻して確かめる(0091)
+  await enableOldLook(page);
 
   // グループを作って招待リンクを出す
   await page.goto("/groups");
@@ -35,6 +37,9 @@ test("招待したパートナーと、グループの予定を見合える", as
   await expect(partner.page.getByRole("heading", { name: "「ふたり」への招待" })).toBeVisible();
   await partner.page.getByRole("button", { name: "参加する" }).click();
   await expect(partner.page).toHaveURL(/group=/);
+  // enableOldLook は実際に切り替えるとき /settings/appearance へ移ってしまう。カレンダーに戻す
+  await enableOldLook(partner.page);
+  await partner.page.goto("/");
 
   // こた がグループの予定を足すと、みか にも見える
   await page.goto("/");
@@ -57,7 +62,11 @@ test("招待したパートナーと、グループの予定を見合える", as
 });
 
 test("グループの一覧に自分だけのグループは出ず、直接開いても一覧へ戻る", async ({ page }) => {
-  await signUp(page);
+  await signUp(page, { name: "こた" });
+  // 「グループで絞る」の帯は、新しい見た目・スマホでは上の帯の絞り込みアイコンにまとめて隠れる
+  // (issue #243)。前の見た目に戻して確かめる
+  await enableOldLook(page);
+  await page.goto("/");
   // 自分だけのグループの ID は、絞り込みの URL から分かる
   await page
     .getByRole("navigation", { name: "グループで絞る" })

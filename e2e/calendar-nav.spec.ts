@@ -1,12 +1,17 @@
 import { expect, test } from "@playwright/test";
-import { signUp, swipeHorizontal } from "./helpers";
+import { enableOldLook, signUp, swipeHorizontal } from "./helpers";
 
 /**
  * 月送りの日めくり(#99)と、View Transitions での切り替え(#100)。0049
+ *
+ * 上の帯の月の見出し(month-number)は、新しい見た目・スマホでは上の帯から無くなる(issue #239)。
+ * 前の見た目に戻して確かめる
  */
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
+  await enableOldLook(page);
+  await page.goto("/");
 });
 
 test("スマホでスワイプすると、前後の月へ移る", async ({ page }) => {

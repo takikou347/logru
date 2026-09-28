@@ -1,10 +1,10 @@
 import { expect, type Locator, test } from "@playwright/test";
-import { addExtension, closeMobileKeyboard, enableNewLook, openMobileKeyboard, signUp } from "./helpers";
+import { addExtension, closeMobileKeyboard, enableOldLook, openMobileKeyboard, signUp } from "./helpers";
 
 /**
  * 刷新 5。入力のシートを OS のキーボードに合わせる(保存をキーボードの上に)。0094、issue #242
  *
- * ラボの「新しい見た目」を入れた人のスマホだけに出る。Playwright は実機のキーボードを起こせないので、
+ * 新しい見た目はスマホの既定で出る。Playwright は実機のキーボードを起こせないので、
  * `openMobileKeyboard`(helpers.ts)で `visualViewport` を縮め、`resize` を起こして近づける。
  */
 
@@ -53,7 +53,6 @@ test.beforeEach(async ({ page }) => {
 test("支出のシート。キーボードが出ると持ち上がり、保存がキーボードの上に来て、下のタブの帯が隠れる", async ({
   page,
 }) => {
-  await enableNewLook(page);
   await addExtension(page, "家計簿");
   await page.goto("/kakeibo?record=1");
   const sheet = page.getByRole("dialog", { name: "記録する" });
@@ -84,7 +83,6 @@ test("支出のシート。キーボードが出ると持ち上がり、保存�
 });
 
 test("支出のシート。帯の前・次で欄を移れ、帯の保存で保存できる", async ({ page }) => {
-  await enableNewLook(page);
   await addExtension(page, "家計簿");
   await page.goto("/kakeibo?record=1");
   const sheet = page.getByRole("dialog", { name: "記録する" });
@@ -112,7 +110,6 @@ test("支出のシート。帯の前・次で欄を移れ、帯の保存で保�
 });
 
 test("予定のシート。キーボードが出ると持ち上がり、Enter は送信でなく次の欄へ移る(次へ)", async ({ page }) => {
-  await enableNewLook(page);
   await page.goto("/?new=1");
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
@@ -151,18 +148,17 @@ test("予定のシート。キーボードが出ると持ち上がり、Enter �
 test("リストに足す欄。シートを使わず、キーボードが出るとキーボードのすぐ上に付き、下のタブの帯が隠れる", async ({
   page,
 }) => {
-  // リストを作る操作(「リストの操作」の Dock)は新しい見た目・スマホでは「+」の放射に役目が移り、
-  // 隠れる(0091)。リストを作ってから新しい見た目を入れる
+  // リストを作る操作(「リストの操作」の Dock)は新しい見た目・スマホでは下のタブの帯に役目が
+  // 移り、隠れる(0091)。まだ 1 つも無いので、空の案内の「リストを作る」から作る
   await addExtension(page, "リスト");
   await page.goto("/lists");
-  await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
+  await page.getByRole("button", { name: "リストを作る" }).click();
   const create = page.getByRole("dialog", { name: "リストを作る" });
   await create.getByLabel("名前").fill("買い物");
   await create.getByRole("button", { name: "作る" }).click();
   await expect(page).toHaveURL(/\/lists\/.+/);
   const listUrl = page.url();
 
-  await enableNewLook(page);
   await page.goto(listUrl);
 
   const addInput = page.getByLabel("項目を足す");
@@ -190,10 +186,10 @@ test("リストに足す欄。シートを使わず、キーボードが出る�
   await expect(page.getByRole("navigation", { name: "下のタブ" })).toBeVisible();
 });
 
-test("新しい見た目を入れていない人には、キーボードが出ても今までどおり(下のタブの帯も帯の保存も無い)", async ({
+test("前の見た目に戻すを入れた人には、キーボードが出ても今までどおり(下のタブの帯も帯の保存も無い)", async ({
   page,
 }) => {
-  // 新しい見た目を入れていない
+  await enableOldLook(page);
   await addExtension(page, "家計簿");
   await page.goto("/kakeibo?record=1");
   const sheet = page.getByRole("dialog", { name: "記録する" });

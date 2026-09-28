@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addExtension, closeMobileKeyboard, enableNewLook, openMobileKeyboard, signUp } from "./helpers";
+import { addExtension, closeMobileKeyboard, enableOldLook, openMobileKeyboard, signUp } from "./helpers";
 
 /** 実機の数字キーパッドの見当の高さ(px)。redesign-keyboard.spec.ts と同じ値 */
 const NUMERIC_KEYBOARD_PX = 291;
@@ -7,14 +7,13 @@ const NUMERIC_KEYBOARD_PX = 291;
 /**
  * 刷新 4。画面の移り変わり(行がシートに広がる、節が機能の画面に広がる)。0093、F-46、issue #241
  *
- * ラボの「新しい見た目」を入れたスマホだけに出る。行 → シート、節・タイル → 機能の画面の
+ * 新しい見た目はスマホの既定で出る。行 → シート、節・タイル → 機能の画面の
  * 共有要素は View Transitions API の名前(view-transition-name)を付けて作る。名前は要素の
  * インラインスタイルに残るので、`[style*="..."]` で付いているかを確かめる。
  */
 
 test("新しい見た目で、予定の行を押すとシートに広がる動きの名前が付き、閉じると元の行の位置に戻る", async ({ page }) => {
   await signUp(page, { name: "こた" });
-  await enableNewLook(page);
 
   await page.goto("/?new=1");
   const newSheet = page.getByRole("dialog", { name: "新しい予定" });
@@ -46,7 +45,6 @@ test("新しい見た目で、予定の行を押すとシートに広がる動�
 
 test("家計簿の記録の行を押すとシートに広がる動きの名前が付く", async ({ page }) => {
   await signUp(page, { name: "こた" });
-  await enableNewLook(page);
   await addExtension(page, "家計簿");
 
   // 新しい見た目のスマホでは、下の帯(Dock)は「+」の放射に隠れる(0091)。今日のページの
@@ -70,7 +68,6 @@ test("家計簿の記録の行を押すとシートに広がる動きの名前�
 
 test("動きを減らす設定では、行を押しても共有要素の名前を付けない。シートは開く", async ({ page }) => {
   await signUp(page, { name: "こた" });
-  await enableNewLook(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
 
   await page.goto("/?new=1");
@@ -85,8 +82,9 @@ test("動きを減らす設定では、行を押しても共有要素の名前�
   await expect(page.locator('[style*="row-expand"]')).toHaveCount(0);
 });
 
-test("ラボの「新しい見た目」を入れていない人は、行を押しても共有要素の名前を付けない", async ({ page }) => {
+test("前の見た目に戻すを入れた人は、行を押しても共有要素の名前を付けない", async ({ page }) => {
   await signUp(page, { name: "こた" });
+  await enableOldLook(page);
 
   await page.goto("/?new=1");
   const newSheet = page.getByRole("dialog", { name: "新しい予定" });
@@ -104,7 +102,6 @@ test("節の見出しを押すと機能の画面へ広がる動きの名前が�
   page,
 }) => {
   await signUp(page, { name: "こた" });
-  await enableNewLook(page);
   await addExtension(page, "家計簿");
 
   await page.goto("/");
@@ -123,7 +120,6 @@ test("節の見出しを押すと機能の画面へ広がる動きの名前が�
 
 test("機能のタイルを押すと機能の画面へ広がる動きの名前が付く", async ({ page }) => {
   await signUp(page, { name: "こた" });
-  await enableNewLook(page);
   await addExtension(page, "家計簿");
 
   await page.goto("/settings/extensions");
@@ -132,9 +128,10 @@ test("機能のタイルを押すと機能の画面へ広がる動きの名前�
   await expect(page.locator('[style*="box-expand"]')).toHaveCount(1);
 });
 
-test("ラボの「新しい見た目」を入れていない人は、節・タイルを押しても共有要素の名前を付けない", async ({ page }) => {
+test("前の見た目に戻すを入れた人は、節・タイルを押しても共有要素の名前を付けない", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await addExtension(page, "家計簿");
+  await enableOldLook(page);
 
   await page.goto("/settings/extensions");
   await page.getByTestId("extension-tile-kakeibo").click();
@@ -146,7 +143,6 @@ test("行→シートの動きで開いた家計簿の記録でも、OS のキ�
   page,
 }) => {
   await signUp(page, { name: "こた" });
-  await enableNewLook(page);
   await addExtension(page, "家計簿");
 
   await page.goto("/");

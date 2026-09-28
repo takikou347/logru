@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { logIn, PASSWORD, signUp } from "./helpers";
+import { enableOldLook, logIn, PASSWORD, signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
@@ -11,7 +11,7 @@ test("スマホは設定の目次から各節へ移り、戻るボタンで目�
   await expect(toc.getByRole("link", { name: /見た目/ })).toBeVisible();
   await toc.getByRole("link", { name: /見た目/ }).click();
   await expect(page).toHaveURL(/\/settings\/appearance$/);
-  await expect(page.getByRole("heading", { name: "見た目" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "見た目", level: 1 })).toBeVisible();
   await page.getByRole("link", { name: "戻る" }).click();
   await expect(page).toHaveURL(/\/settings$/);
 });
@@ -86,6 +86,9 @@ test("テーマカラーと自分の色を選べる", async ({ page }) => {
     "aria-checked",
     "true",
   );
+  // 「グループで絞る」の帯は、新しい見た目・スマホでは上の帯の絞り込みアイコンにまとめて隠れる
+  // (issue #243)。前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/");
   await expect(
     page

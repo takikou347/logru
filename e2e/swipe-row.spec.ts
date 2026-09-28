@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addExtension, signUp, swipeRowLeft, touchDrag } from "./helpers";
+import { addExtension, enableOldLook, signUp, swipeRowLeft, touchDrag } from "./helpers";
 
 /**
  * 共有リストの項目行で、SwipeRow(共通部品、0084、#225)の指の動きを確かめる。
@@ -11,6 +11,7 @@ test("項目を左へ引くと「直す」「消す」が出る。「直す」�
   await signUp(page, { name: "こた" });
   await addExtension(page, "リスト");
   await page.goto("/lists");
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("買い物");
   await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
@@ -46,6 +47,7 @@ test("半分より浅く引くと閉じ、半分を超えると開いたまま�
   await signUp(page, { name: "こた" });
   await addExtension(page, "リスト");
   await page.goto("/lists");
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("買い物");
   await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
@@ -71,6 +73,7 @@ test("行の幅の 6 割ほど引き切ると、そのまま消える。5 秒だ
   await signUp(page, { name: "こた" });
   await addExtension(page, "リスト");
   await page.goto("/lists");
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("買い物");
   await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
@@ -96,6 +99,7 @@ test("浅く引いた行が戻りきる前に続けて引いても、指を拾�
   await signUp(page, { name: "こた" });
   await addExtension(page, "リスト");
   await page.goto("/lists");
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("買い物");
   await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
@@ -131,6 +135,7 @@ test("縦にスクロールしても、行は横に動かない", async ({ page 
   await signUp(page, { name: "こた" });
   await addExtension(page, "リスト");
   await page.goto("/lists");
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("買い物");
   await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();

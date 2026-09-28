@@ -26,7 +26,7 @@ test("Google で初めて入ると、規約に同意してからカレンダー�
   await expect(page.getByRole("heading", { name: "規約への同意" })).toBeVisible();
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "同意して始める" }).click();
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
   await page.goto("/settings/account");
   await expect(
     page.getByRole("region", { name: "アカウント" }).getByText("グーグル花子", { exact: true }),
@@ -40,7 +40,7 @@ test("Google で入り直しても、同意は取り直さず、同じ人のま�
   await googleSignIn(page, email, "グーグル花子");
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "同意して始める" }).click();
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
 
   await logOut(page);
 
@@ -50,7 +50,7 @@ test("Google で入り直しても、同意は取り直さず、同じ人のま�
   const popup = await popupPromise;
   await popup.getByText(email).click();
   await popup.waitForEvent("close");
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
 });
 
 test("メールで登録したのと同じアドレスで Google から入ると、同じアカウントに入る", async ({ page }) => {
@@ -59,7 +59,7 @@ test("メールで登録したのと同じアドレスで Google から入ると
   await logOut(page);
 
   await googleSignIn(page, email, "グーグル花子");
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
   // 表示名は D1 の値のまま。別の人として作り直していない
   await page.goto("/settings/account");
   await expect(
@@ -77,7 +77,7 @@ test("メールを確かめる前に同じアドレスで Google から入ると
   // 確かめていないアドレスのパスワードは、他人が登録したものかもしれない。Google の側を残す
   // この端末で同じアドレスが登録の画面で同意しているので、同意の画面は出ない
   await googleSignIn(page, email, "グーグル花子");
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
   await logOut(page);
   await logIn(page, email);
   await expect(page.getByText("メールアドレスかパスワードが違います。")).toBeVisible();

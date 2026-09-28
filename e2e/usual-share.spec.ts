@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addEvent, addExtension, dayPanel, pickShare, signUp } from "./helpers";
+import { addEvent, addEventButton, addExtension, dayPanel, enableOldLook, pickShare, signUp } from "./helpers";
 
 /** グループを作り、カレンダーへ戻る */
 async function createGroup(page: Page, name: string) {
@@ -23,7 +23,7 @@ test("設定でいつもの共有先を決めると、次に足す予定の既�
   await setUsualShare(page, "ふたり");
 
   await page.goto("/");
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   const shareRow = sheet.getByRole("button", { name: /^共有/ });
   await expect(shareRow).toContainText("ふたり");
@@ -36,10 +36,13 @@ test("画面でグループを絞っているときは、いつもの共有先�
   await createGroup(page, "かぞく");
   await setUsualShare(page, "ふたり");
 
+  // 「グループで絞る」の帯は、新しい見た目・スマホでは上の帯の絞り込みアイコンにまとめて隠れる
+  // (issue #243)。前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "グループで絞る" });
   await nav.getByRole("button", { name: "かぞく" }).click();
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   const shareRow = sheet.getByRole("button", { name: /^共有/ });
   await expect(shareRow).toContainText("かぞく");
@@ -53,6 +56,9 @@ test("いつもの共有先が、その拡張を足していないグループ�
   await createGroup(page, "ふたり");
   await setUsualShare(page, "ふたり");
 
+  // 家計簿の Dock(role="toolbar")は新しい見た目・スマホでは下のタブの帯に役目を移して
+  // 隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/kakeibo");
   // 空の月は、下の帯の主なボタンと空の表示のボタンが同じ「支出を記録する」を名乗るので、帯の方を選ぶ
   await page.getByRole("toolbar", { name: "家計簿の操作" }).getByRole("button", { name: "支出を記録する" }).click();
@@ -93,6 +99,8 @@ test("聞かれて「する」を選ぶと、そのグループが次に足す�
   await expect(banner).toBeHidden();
 
   await addEvent(page, "打ち合わせ");
+  // 月の表(day-panel)で見るため、カレンダーを明示して開く
+  await page.goto("/?view=month");
   await dayPanel(page)
     .getByRole("button", { name: /打ち合わせ/ })
     .click();

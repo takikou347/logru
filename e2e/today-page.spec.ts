@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addExtension, enableNewLook, signUp, swipeHorizontal, touchDrag } from "./helpers";
+import { addExtension, enableOldLook, signUp, swipeHorizontal, touchDrag } from "./helpers";
 
 /** 今日のページに出ている節(today-section-*)の、画面の上からの並び。key だけ(今日-section- の後ろ)を返す */
 async function sectionOrder(page: Page): Promise<string[]> {
@@ -12,7 +12,7 @@ async function sectionOrder(page: Page): Promise<string[]> {
 /**
  * 刷新 3。ホームを「今日のページ」にし、機能の節と日めくりを作る。0092、F-45、issue #240
  *
- * ラボの「新しい見た目」を入れたスマホ(1024px 未満)だけに出る。入れていない人と PC は
+ * 新しい見た目はスマホ(1024px 未満)の既定。ラボの「前の見た目に戻す」を入れた人と PC は
  * 今までのカレンダー(月・週・日)のまま(既存の redesign-shell、home-widgets、calendar 系の
  * E2E が確かめる)。
  *
@@ -22,8 +22,7 @@ async function sectionOrder(page: Page): Promise<string[]> {
  */
 
 test.beforeEach(async ({ page }) => {
-  await signUp(page);
-  await enableNewLook(page);
+  await signUp(page, { next: "/" });
 });
 
 test("新しい見た目で今日のページが出る。予定の節が並ぶ", async ({ page }) => {
@@ -32,15 +31,11 @@ test("新しい見た目で今日のページが出る。予定の節が並ぶ",
   await expect(page.getByTestId("today-section-events")).toBeVisible();
 });
 
-test("入れていない人は今までのまま。今日のページは出ない", async ({ page, context }) => {
-  // 同じ利用者で、新しい見た目を切ってから開き直す
-  await page.goto("/settings/appearance");
-  await page.getByRole("region", { name: "ラボ" }).getByRole("switch", { name: "新しい見た目" }).click();
-  await expect(page.locator("html")).not.toHaveAttribute("data-lab-new-look");
+test("前の見た目に戻すを入れた人は今までのまま。今日のページは出ない", async ({ page }) => {
+  await enableOldLook(page);
   await page.goto("/");
   await expect(page.getByTestId("today-day-number")).toHaveCount(0);
   await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
-  void context;
 });
 
 test("節は足した機能の分だけ並ぶ", async ({ page }) => {

@@ -5,7 +5,10 @@ import { signUp, touchDrag } from "./helpers";
 test.use({ viewport: { width: 390, height: 844 } });
 
 test.beforeEach(async ({ page }) => {
-  await signUp(page);
+  // ホームの並べ替えはカレンダーの画面の機能。新しい見た目・スマホの既定はホームが今日のページ
+  // (0092)なので、カレンダー(月)を明示して開く
+  await signUp(page, { next: "/?view=month" });
+  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
 });
 
 test("スマホで、持ち手を指で引いてウィジェットを並べ替え、保存すると読み直しても残る。#121", async ({ page }) => {

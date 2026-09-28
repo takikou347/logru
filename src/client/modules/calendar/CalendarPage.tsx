@@ -525,6 +525,7 @@ export function CalendarPage() {
               />
               {me.data && <SearchButton groups={allGroups} me={me.data} onOpen={openSearchResult} />}
               <NotificationBell />
+              <AccountMenu />
             </div>
           </header>
           <WeekBand selected={selected} today={today} items={items} onSelect={onPressDay} />

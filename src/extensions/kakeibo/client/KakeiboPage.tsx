@@ -172,17 +172,13 @@ function MonthNavActions({ month, onChange }: { month: string; onChange: (key: s
  */
 function KakeiboTabsRow({ onSettlement }: { onSettlement: () => void }) {
   return (
-    <div
-      role="tablist"
-      aria-label="家計簿の中の切り替え"
-      className="glass flex items-center justify-around rounded-full p-1"
-    >
+    <nav aria-label="家計簿の中の切り替え" className="glass flex items-center justify-around rounded-full p-1">
       <TabIconButton to="/kakeibo" end icon={List} label="記録" />
       <TabIconButton to="/kakeibo/budgets" icon={PieChart} label="予算" />
       <TabIconButton to="/kakeibo/accounts" icon={Landmark} label="口座" />
       <TabIconButton icon={HandCoins} label="精算" onClick={onSettlement} />
       <TabIconButton to="/kakeibo/recurrings" icon={Repeat} label="定期の記録" />
-    </div>
+    </nav>
   );
 }
 

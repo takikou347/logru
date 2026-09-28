@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addEvent, apiUser, dayPanel, logIn, signUp } from "./helpers";
+import { addEvent, apiUser, dayPanel, enableOldLook, logIn, signUp } from "./helpers";
 
 /** スマホの「人」のボタンからシートを開き、「ふたり」のまとまりでその人の印を押して閉じる */
 async function togglePerson(page: Page, name: string) {
@@ -16,6 +16,8 @@ test("相手の印を外すと相手の予定が消え、読み込み直して�
 }) => {
   test.setTimeout(90_000);
   const kota = await signUp(page, { name: "こた" });
+  // カレンダーの day-panel、グループで絞るを使うため、前の見た目に戻して確かめる(0091)
+  await enableOldLook(page);
   await page.goto("/groups");
   await page.getByLabel("グループの名前").fill("ふたり");
   await page.getByRole("button", { name: "作る" }).click();
@@ -27,6 +29,7 @@ test("相手の印を外すと相手の予定が消え、読み込み直して�
   await signUp(partner, { name: "みか", next: path });
   await partner.getByRole("button", { name: "参加する" }).click();
   await expect(partner).toHaveURL(/group=/);
+  await enableOldLook(partner);
   await partner.goto("/");
   await addEvent(partner, "みかの予定", "ふたり");
 
@@ -70,6 +73,8 @@ test("相手の印を外すと相手の予定が消え、読み込み直して�
   const otherContext = await browser.newContext();
   const other = await otherContext.newPage();
   await logIn(other, kota.email);
+  await enableOldLook(other);
+  await other.goto("/");
   await expect(dayPanel(other).getByRole("button", { name: /こたの予定/ })).toBeVisible();
   await expect(dayPanel(other).getByRole("button", { name: /みかの予定/ })).toHaveCount(0);
   await otherContext.close();

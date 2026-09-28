@@ -1,18 +1,15 @@
 import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
-import { Navigate } from "react-router";
 import { useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { FieldMessage, Panel } from "@/components/parts/Panel";
-import { isLabEnabled } from "@/lib/lab";
 import { LOOKS, type Look, useStoredLook } from "@/lib/look";
 import { cn } from "@/lib/utils";
 import { poolColorsOf } from "../calendar/model";
 import { SettingsShell } from "./components/SettingsShell";
 
 /**
- * 設定の「テーマ」。/settings/theme。0090、0095、F-43
+ * 設定の「テーマ」。/settings/theme。設定・見た目から道が出る、ラボを通さない画面。0090、0095、F-43
  *
- * ラボの「新しい見た目」を入れた人だけに出す。入れていなければ設定・見た目へ戻す。
  * 紙・リキッドガラス・水・夜空・木・季節の 6 つの見本を並べ、押した瞬間に画面へ効かせる。
  * 選んだ値はこの端末だけに残る
  */
@@ -22,7 +19,6 @@ export function ThemeSettingsPage() {
   const [look, setLook] = useStoredLook();
 
   if (!me.data) return <Loading />;
-  if (!me.data.showLab || !isLabEnabled("new-look")) return <Navigate to="/settings/appearance" replace />;
 
   return (
     <SettingsShell title="テーマ" poolColors={poolColorsOf(groups.data ?? [], me.data)} back="/settings/appearance">

@@ -1,9 +1,9 @@
 /**
- * ラボの「新しい見た目」で選ぶ、面の描き方。0090、0095、F-43
+ * 設定・見た目の「テーマ」で選ぶ、面の描き方。0090、0095、F-43
  *
  * 選べるのは紙・リキッドガラス・水・夜空・木・季節の 6 つ。既定はリキッドガラス。html の
  * data-look に反映し、tokens.css の `:root[data-lab-new-look][data-look="..."]` がそのときだけ
- * 色や面を上書きする。ラボの「新しい見た目」(`src/client/lib/lab.ts` の new-look)を切ると、
+ * 色や面を上書きする。ラボで「前の見た目に戻す」(`src/client/lib/lab.ts` の old-look)を入れると、
  * data-look が残っていても tokens.css 側では何も上書きされない。選んだ値は端末ごと
  * (localStorage)に持つ。
  */

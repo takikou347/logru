@@ -1,12 +1,15 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
-import { addExtension, addMemories, dayPanel, pickShare, signUp } from "./helpers";
+import { addEventButton, addExtension, addMemories, dayPanel, enableOldLook, pickShare, signUp } from "./helpers";
 
 /**
  * 「ふたり」のグループを作り、ほかの人を招待リンクで入れる。invitations.spec.ts と同じ作り方。
+ * カレンダーの月の表(day-panel)に留まるため、前の見た目に戻す。新しい見た目・スマホでは
+ * 下のタブの「記録する」が必ずホームへ移ってしまい(0091)、addEventButton がこの画面に留まれない
  * @returns 入った人の画面。names の順
  */
 async function shareGroup(page: Page, browser: Browser, names: string[]) {
   await signUp(page, { name: "こた" });
+  await enableOldLook(page);
   await page.goto("/groups");
   await page.getByLabel("グループの名前").fill("ふたり");
   await page.getByRole("button", { name: "作る" }).click();
@@ -18,6 +21,7 @@ async function shareGroup(page: Page, browser: Browser, names: string[]) {
     await signUp(other, { name, next: path });
     await other.getByRole("button", { name: "参加する" }).click();
     await expect(other).toHaveURL(/group=/);
+    await enableOldLook(other);
     await other.goto("/");
     others.push(other);
   }
@@ -27,7 +31,7 @@ async function shareGroup(page: Page, browser: Browser, names: string[]) {
 
 /** 下の操作から予定を足し、「ふたり」に置いて、names の人を招待する */
 async function addInvited(page: Page, title: string, names: string[]) {
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill(title);
   await pickShare(page, sheet, "ふたり");
@@ -171,7 +175,7 @@ test("いいねを外して付け直しても、お知らせは 1 件のまま�
   await article.getByRole("button", { name: /いいねを付ける/ }).click();
   await expect(article.getByRole("button", { name: /いいねを外す/ })).toBeVisible();
 
-  // 外して付け直しても、こたに届くお知らせは 1 件のまま。ベルはカレンダーの帯にだけある
+  // 外して付け直しても、こたに届くお知らせは 1 件のまま。ベルは上の帯にある
   await page.goto("/");
   await expect(bellButton(page)).toHaveAccessibleName("お知らせ。未読 1 件");
   await bellButton(page).click();

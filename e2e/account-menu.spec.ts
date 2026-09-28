@@ -11,7 +11,7 @@ test("スマホは上の帯のアイコンから、名前とメールアドレ�
   await menu.getByRole("menuitem", { name: "グループ" }).click();
   await expect(page).toHaveURL(/\/groups$/);
 
-  // グループの一覧から戻るボタンでカレンダーへ戻り、今度は設定を開く
+  // グループの一覧から戻るボタンでホームへ戻り、今度は設定を開く
   await page.getByRole("link", { name: "戻る" }).click();
   menu = await openAccountMenu(page);
   await menu.getByRole("menuitem", { name: "設定" }).click();

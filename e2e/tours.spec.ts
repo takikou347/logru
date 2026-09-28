@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addExtension, signUp } from "./helpers";
+import { addExtension, enableOldLook, signUp } from "./helpers";
 
 /**
  * 画面ごとの案内(コーチマーク)は、ほかのテストの操作を隠さないよう .env.test で VITE_TOURS=off にして切っている。
@@ -25,6 +25,9 @@ test("家計簿を初めて開くと、記録と口座・予算の案内が 1 �
   await signUp(page, { next: "/" });
   await page.getByRole("dialog").getByRole("button", { name: "飛ばす" }).click();
   await addExtension(page, "家計簿");
+  // 案内の指す先([aria-label="家計簿の操作"])は、新しい見た目・スマホでは下のタブの帯に
+  // 役目を移して隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/kakeibo");
 
   const text = page.getByText("「+」で支出を記録できます", { exact: false });
@@ -42,6 +45,9 @@ test("共有リストを初めて開くと、項目の足し方とスワイプ�
   await signUp(page, { next: "/" });
   await page.getByRole("dialog").getByRole("button", { name: "飛ばす" }).click();
   await addExtension(page, "リスト");
+  // リストの Dock(role="toolbar")は新しい見た目・スマホでは下のタブの帯に役目を移して
+  // 隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/lists");
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("買い物");

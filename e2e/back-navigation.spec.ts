@@ -1,14 +1,18 @@
 import { expect, test } from "@playwright/test";
-import { addExtension, signUp } from "./helpers";
+import { addExtension, enableOldLook, signUp } from "./helpers";
 
 /**
  * 「‹」は、決まった画面ではなく前に表示していた画面へ戻る。0070
  * 記録が無い(URL を直に開いたなど)ときだけ、決まった先へ移る。
+ *
+ * 1 本目はカレンダーの Dock の「機能」ダイアログを経由する。このダイアログは新しい見た目・
+ * スマホでは下のタブの帯に役目を移して隠れる(0091)ため、前の見た目に戻して確かめる。
  */
 
 test("カレンダー→家計簿→口座の画面まで進み、「‹」を 2 回押すとカレンダーに戻る", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await addExtension(page, "家計簿");
+  await enableOldLook(page);
 
   await page.goto("/");
   await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
@@ -38,7 +42,9 @@ test("設定→機能→機能の詳細まで進み、「‹」はひとつ前�
   await signUp(page);
 
   await page.goto("/settings");
-  await page.getByRole("link", { name: "機能" }).click();
+  // 新しい見た目・スマホでは、下のタブの帯にも同じ名前の道(アイコンだけ)があるため、
+  // 中身(main)の側の行だけに絞る
+  await page.getByRole("main").getByRole("link", { name: "機能" }).click();
   await expect(page).toHaveURL(/\/settings\/extensions$/);
 
   // 「外部のカレンダー」は自分の画面(nav)を持たないので、タイルを押すと機能の詳細が開く

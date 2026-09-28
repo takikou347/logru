@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { addExtension, addMemories, signUp, tokyoDateParts } from "./helpers";
+import { addExtension, addMemories, enableOldLook, signUp, tokyoDateParts } from "./helpers";
 
 /** 来月の `yyyy-mm` の形。今月はもう始まりを過ぎているとみなされ、すぐ記録されてしまうのを避ける */
 function nextMonthKey(): string {
@@ -155,6 +155,9 @@ test("よく使う記録を作ると膨らんで入り、直すと光り、消�
   await enableKakeibo(page);
 
   // よく使う記録は、記録するシートの「よく使う記録にする」から作る。F-326
+  // 家計簿の Dock(role="toolbar")は新しい見た目・スマホでは下のタブの帯に役目を移して
+  // 隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/kakeibo");
   await page.getByRole("toolbar", { name: "家計簿の操作" }).getByRole("button", { name: "支出を記録する" }).click();
   const record = page.getByRole("dialog", { name: "記録する" });

@@ -47,13 +47,23 @@ export function AvatarSection({ me }: { me: Me }) {
     <Panel title="アバター">
       <div className="flex items-center gap-4">
         <UserAvatar userId={me.user.id} me={me} size={64} />
-        <div className="flex flex-col gap-2">
-          <Button type="button" variant="secondary" disabled={busyNow} onClick={() => inputRef.current?.click()}>
+        {/* 2 つのボタンは、アバターの右に同じ幅で縦にそろえる。枠は、ライトの白い面でも見える濃さにする。#275 */}
+        <div data-testid="avatar-actions" className="flex w-44 flex-col gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="border-ink-3/50"
+            disabled={busyNow}
+            onClick={() => inputRef.current?.click()}
+          >
             写真を選ぶ
           </Button>
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
+            size="sm"
+            className="border-ink-3/50"
             disabled={busyNow || me.settings.avatarKind === "initial"}
             onClick={onReset}
           >

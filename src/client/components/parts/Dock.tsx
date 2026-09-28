@@ -4,8 +4,6 @@ import { useLocation } from "react-router";
 import { useGroups } from "@/api/common";
 import { useDockViewTransitionStyle } from "@/lib/bars-view-transition";
 import { useFavoriteAdds, useQuickAdds } from "@/lib/extensions";
-import { useNewLookActive } from "@/lib/lab";
-import { useShowTabHints } from "@/lib/use-tab-hints";
 import { cn } from "@/lib/utils";
 import { RadialAddButton } from "./RadialAddButton";
 import { TabIconButton } from "./TabIconButton";
@@ -35,8 +33,10 @@ export function Dock({
       role="toolbar"
       aria-label={label}
       className={cn(
-        "glass fixed right-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 flex items-center gap-1.5 rounded-full p-1.5",
-        "lg:static lg:justify-end lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:before:hidden",
+        // ガラスの面はスマホ(1024px 未満)だけ。PC では面を持たず、中身の末尾に「+」だけを置く。
+        // lg: で背景を消す書き方は、glass の background(まとめ書き)に負けて白い帯が残った。#275
+        "max-lg:glass fixed right-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 flex items-center gap-1.5 rounded-full p-1.5",
+        "lg:static lg:justify-end lg:rounded-none lg:p-0",
         // 渡さない画面(口座、予算、1 日など)は、新しい見た目・スマホで下のタブの帯の上へ持ち上げる。
         // 帯と同じ高さに置くと、帯の後ろに隠れて押せない。0091
         covered ? "nl-hide" : "nl-lift",
@@ -65,8 +65,6 @@ export function GlobalBottomTabs() {
   const favorites = useFavoriteAdds();
   // 足している機能は、グループを読んでから決まる。読む前に「+」を押して、予定だけのつもりで開かないように
   const groups = useGroups();
-  const newLook = useNewLookActive();
-  const showHint = useShowTabHints(newLook);
   const vtStyle = useDockViewTransitionStyle();
   // 「機能」(/settings/extensions)は「設定」(/settings)の道順に含まれる。既定の NavLink の判定
   // (to から始まる道順すべて)のままだと、/settings/extensions では両方選ばれた色になる。
@@ -86,17 +84,11 @@ export function GlobalBottomTabs() {
         "glass inset-x-[var(--float-bar-inset)] bottom-[var(--float-bar-bottom)] h-[var(--float-bar-height)] rounded-[var(--float-bar-radius)] px-2",
       )}
     >
-      <TabIconButton to="/" end icon={House} label="今日のページ" showHint={showHint} />
-      <TabIconButton to="/?view=month" icon={CalendarDays} label="カレンダー" showHint={showHint} />
-      <RadialAddButton items={quickAdds} favorites={favorites} showHint={showHint} pending={groups.isPending} />
-      <TabIconButton
-        to="/settings/extensions"
-        icon={SlidersHorizontal}
-        label="機能"
-        showHint={showHint}
-        active={onExtensions}
-      />
-      <TabIconButton to="/settings" icon={Settings} label="設定" showHint={showHint} active={onSettings} />
+      <TabIconButton to="/" end icon={House} label="今日のページ" />
+      <TabIconButton to="/?view=month" icon={CalendarDays} label="カレンダー" />
+      <RadialAddButton items={quickAdds} favorites={favorites} pending={groups.isPending} />
+      <TabIconButton to="/settings/extensions" icon={SlidersHorizontal} label="機能" active={onExtensions} />
+      <TabIconButton to="/settings" icon={Settings} label="設定" active={onSettings} />
     </nav>
   );
 }

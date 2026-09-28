@@ -21,8 +21,6 @@ test("前の見た目に戻すを入れた人には、下のタブの帯が出�
 });
 
 test("新しい見た目は既定で、下のタブが 5 つアイコンだけで並ぶ。読み上げの名前は残る", async ({ page }) => {
-  // 4 回目以降を装う。はじめの 3 回の名前を消してから、アイコンだけの見た目を確かめる
-  await page.evaluate(() => localStorage.setItem("logru:new-look-tab-hints-seen", "3"));
   await page.goto("/");
 
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
@@ -36,29 +34,29 @@ test("新しい見た目は既定で、下のタブが 5 つアイコンだけ�
   await expect(tabs.getByRole("link", { name: "機能" })).toBeVisible();
   await expect(tabs.getByRole("link", { name: "設定" })).toBeVisible();
 
-  // アイコンだけ。名前を常に出す文字(はじめの 3 回の注記)は無い
+  // アイコンだけ。名前を常に出す文字は無い
   await expect(tabs.getByTestId("tab-hint")).toHaveCount(0);
 });
 
-test("はじめの 3 回だけ、タブの下に名前が出る", async ({ page }) => {
-  await page.goto("/");
+test("下のタブはいつもアイコンだけで、開いた回数によらず名前の文字は出ない。押せる高さは 44px", async ({ page }) => {
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
-  await expect(tabs.getByTestId("tab-hint")).toHaveCount(5);
-  // 名前は帯の角丸の内側に収まる。帯の下の端にかからない
-  const bar = (await tabs.boundingBox())!;
-  for (const hint of await tabs.getByTestId("tab-hint").all()) {
-    const box = (await hint.boundingBox())!;
-    expect(box.y + box.height).toBeLessThanOrEqual(bar.y + bar.height - 6);
+  // 1 回目も、開き直した何回目も同じ。アイコンの下に名前は出ない(kota の判断、2026-09-29)
+  for (let i = 0; i < 4; i++) {
+    await page.goto("/");
+    await expect(tabs).toBeVisible();
+    await expect(tabs.getByTestId("tab-hint")).toHaveCount(0);
+    // 名前の文字を持つ要素は無く、読み上げの名前だけがある
+    await expect(tabs.locator("small")).toHaveCount(0);
+    await expect(tabs.getByRole("link", { name: "設定" })).toBeVisible();
   }
-
-  // 4 回目からは消える
-  await page.evaluate(() => localStorage.setItem("logru:new-look-tab-hints-seen", "3"));
-  await page.reload();
-  await expect(tabs.getByTestId("tab-hint")).toHaveCount(0);
+  for (const name of ["今日のページ", "カレンダー", "機能", "設定"]) {
+    const box = (await tabs.getByRole("link", { name }).boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+  expect((await tabs.getByRole("button", { name: "記録する" }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
 });
 
 test("長押しで名前が出て、離しても操作はしない", async ({ page }) => {
-  await page.evaluate(() => localStorage.setItem("logru:new-look-tab-hints-seen", "3"));
   await page.goto("/");
 
   const tabs = page.getByRole("navigation", { name: "下のタブ" });

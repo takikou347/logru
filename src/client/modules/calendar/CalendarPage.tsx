@@ -516,6 +516,45 @@ export function CalendarPage() {
       */}
       {!editingHome && (
         <>
+          {/*
+            いま何月かと、前後の月へ移る操作。A3 の見本の「9月 2026」と ‹ › の行。#275
+            月・週・日のどの表示でも、選んでいる日の月を出す。矢印は表示の単位ぶん(月なら 1 か月)動く
+          */}
+          <div className="nl-only items-center justify-between gap-2 px-2" data-testid="nl-month-bar">
+            <h1 className="flex items-baseline gap-2" aria-live="polite">
+              <span data-testid="nl-month-title" className="text-[34px] leading-none font-bold">
+                {selected.getMonth() + 1}月
+              </span>
+              <span className="text-[17px] font-medium text-ink-2">{selected.getFullYear()}</span>
+            </h1>
+            <div className="flex items-center gap-1">
+              {showTodayButton && (
+                <button
+                  type="button"
+                  className="min-h-10 shrink-0 rounded-full border border-(--glass-edge) bg-field px-3.5 text-[13px] font-bold whitespace-nowrap"
+                  onClick={() => update({ date: today })}
+                >
+                  今日
+                </button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={view === "month" ? "前の月" : "前へ"}
+                onClick={() => move(-1)}
+              >
+                <ChevronLeft className="size-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={view === "month" ? "次の月" : "次へ"}
+                onClick={() => move(1)}
+              >
+                <ChevronRight className="size-5" />
+              </Button>
+            </div>
+          </div>
           <header className="nl-only glass min-h-[58px] items-center justify-between gap-1 rounded-panel py-1.5 pr-1.5 pl-2">
             <Link
               to={`/spiral/${selected.getFullYear()}`}

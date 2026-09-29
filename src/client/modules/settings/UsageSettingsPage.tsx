@@ -5,8 +5,12 @@ import { HelpSection } from "./components/HelpSection";
 import { InstallGuideButton } from "./components/InstallGuideButton";
 import { ResetToursButton } from "./components/ResetToursButton";
 import { SettingsShell } from "./components/SettingsShell";
+import { UpdateAppButton } from "./components/UpdateAppButton";
 
-/** 設定の「使い方」。はじめての案内、画面の案内、ホーム画面に追加する手順、よくある質問。F-32、F-33、F-34、#72 */
+/**
+ * 設定の「使い方」。はじめての案内、画面の案内、ホーム画面に追加する手順、アプリを最新にする、よくある質問。
+ * F-32、F-33、F-34、F-42、#72、0089
+ */
 export function UsageSettingsPage() {
   const me = useMe();
   const groups = useGroups();
@@ -16,6 +20,7 @@ export function UsageSettingsPage() {
       <HelpSection>
         <ResetToursButton />
         <InstallGuideButton />
+        <UpdateAppButton />
       </HelpSection>
     </SettingsShell>
   );

@@ -106,6 +106,24 @@ export const extensionOrderInput = z.object({ order: z.array(z.string().min(1).m
  */
 export const usualShareInput = z.object({ groupId: z.string().min(1).max(64).nullable() });
 
+/**
+ * `PUT /api/me/today-page`。今日のページの並べ方と見せ方。毎回、全体を送り直す。0092、F-45
+ * openOverrides は多くても足している拡張の数ぶんで足りるので、足した機能の並び(60)と同じ上限にする
+ */
+export const todayPageInput = z.object({
+  sortMode: z.enum(["favorite", "added", "manual"]),
+  headlineExtension: z.string().min(1).max(80).nullable(),
+  openOverrides: z
+    .record(z.string().min(1).max(80), z.boolean())
+    .refine((v) => Object.keys(v).length <= 60, { message: "節が多すぎます。" }),
+});
+
+/** `PUT /api/me/notification-prefs/:kind`。種類ごとの、一覧に出すか・端末にも知らせるか。0096、F-47 */
+export const notificationPrefInput = z.object({ list: z.boolean(), push: z.boolean() });
+
+/** `PUT /api/me/notification-prefs/:kind` の kind。長さだけ確かめ、知っている種類かはルートで見る */
+export const notificationKindParam = z.object({ kind: z.string().min(1).max(80) });
+
 /** カレンダーで 1 回に読める期間の上限。100 日 */
 const MAX_RANGE_MS = 100 * 24 * 60 * 60 * 1000;
 

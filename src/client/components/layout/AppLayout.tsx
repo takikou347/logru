@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronLeft, House } from "lucide-react";
-import type { ReactNode } from "react";
+import { ChevronDown, ChevronLeft, House, Settings } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useMe } from "@/api/common";
 import { signOut } from "@/app/auth";
@@ -13,6 +13,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useTopBarViewTransitionStyle } from "@/lib/bars-view-transition";
+import { BOX_EXPAND_NAME, consumeBoxExpandTarget, useBoxExpandActive } from "@/lib/box-expand";
+import { useNewLookActive } from "@/lib/lab";
 import { useBack } from "@/lib/use-back";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +50,7 @@ export const sideItemClass = navItem;
 export function AccountMenu({ wide = false }: { wide?: boolean }) {
   const me = useMe();
   const doSignOut = useSignOut();
+  const newLook = useNewLookActive();
   // ログイン済みの画面はこの枠を通る前に me を読み終えている。app/guards.tsx
   if (!me.data) return null;
   const { name, email } = me.data.user;
@@ -84,9 +88,19 @@ export function AccountMenu({ wide = false }: { wide?: boolean }) {
             <Link to="/groups">グループ</Link>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem asChild>
-          <Link to="/settings">設定</Link>
-        </DropdownMenuItem>
+        {/*
+          新しい見た目の PC(wide)は、この設定の行き先を左の列に直に置く(AppShell)。グループと同じ
+          考えで、ここでは二重に出さない。入れていない人は今までどおりメニューの中。issue #243
+        */}
+        {!(wide && newLook) && (
+          <DropdownMenuItem asChild>
+            {/* 新しい見た目・スマホの下のタブの「設定」と同じアイコンにそろえる。0091、issue #239 */}
+            <Link to="/settings">
+              <Settings className="size-4" aria-hidden="true" />
+              設定
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={doSignOut}>ログアウト</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -125,8 +139,9 @@ export function PageBar({
   const hideOnDesktop = !back || backMobileOnly;
   const titleClass = cn("min-w-0 flex-1 truncate pl-2 text-[17px] font-bold", hideOnDesktop && "lg:pl-3");
   const goBack = useBack(back ?? "/");
+  const vtStyle = useTopBarViewTransitionStyle();
   return (
-    <header className="glass flex min-h-[58px] items-center gap-1 rounded-full py-1.5 pr-2.5 pl-1.5">
+    <header className="glass flex min-h-[58px] items-center gap-1 rounded-full py-1.5 pr-2.5 pl-1.5" style={vtStyle}>
       <Button asChild variant="ghost" size="icon" className={cn(hideOnDesktop && "lg:hidden")}>
         <Link to={goBack.to} aria-label="戻る" onClick={goBack.onClick}>
           <ChevronLeft className="size-5" />
@@ -155,7 +170,22 @@ export function PageBar({
   );
 }
 
-/** 設定やグループの画面の中身。PC では幅を絞る */
+/**
+ * 設定やグループの画面の中身。PC では幅を絞る。
+ *
+ * 節の見出し・機能のタイルから box-expand(lib/box-expand.ts)で来た画面のときだけ、最初の描画で
+ * 自分の面に同じ名前を付ける。押した行と同じ考え方(0044、0093)で、行き先の画面がどれでも
+ * 直さずに済むよう、共通のこの部品でまとめて受ける。issue #241
+ */
 export function Page({ children }: { children: ReactNode }) {
-  return <div className="flex w-full max-w-[640px] flex-col gap-3">{children}</div>;
+  const boxExpandActive = useBoxExpandActive();
+  const [named] = useState(() => boxExpandActive && consumeBoxExpandTarget());
+  return (
+    <div
+      className="flex w-full max-w-[640px] flex-col gap-3"
+      style={named ? { viewTransitionName: BOX_EXPAND_NAME } : undefined}
+    >
+      {children}
+    </div>
+  );
 }

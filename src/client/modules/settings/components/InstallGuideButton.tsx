@@ -1,3 +1,4 @@
+import { Smartphone } from "lucide-react";
 import { useState } from "react";
 import { InstallGuideSheet } from "@/components/parts/InstallGuideSheet";
 import { RowButton } from "@/components/parts/Panel";
@@ -12,7 +13,7 @@ export function InstallGuideButton() {
   if (currentPlatform() === "desktop" || currentStandalone()) return null;
   return (
     <>
-      <RowButton className="text-ink" onClick={() => setOpen(true)}>
+      <RowButton className="text-ink" icon={Smartphone} onClick={() => setOpen(true)}>
         <span className="flex-1">ホーム画面に追加する</span>
       </RowButton>
       {open && <InstallGuideSheet onClose={() => setOpen(false)} />}

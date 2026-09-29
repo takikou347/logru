@@ -80,6 +80,16 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
   try {
     res = await send(path, opts, false);
     if (res.status === 401 && !opts.token && auth.currentUser) res = await send(path, opts, true);
+    // メールを確かめた直後に画面を離れると、トークンの取り直しが途中で切れ、端末は「確かめた」のに
+    // トークンは古いまま残る。サーバーが EMAIL_NOT_VERIFIED を返し、確かめる画面と行き来して
+    // 「読み込んでいます」から進めなくなる。端末が確かめ済みなら、1 度だけ取り直して送り直す。#276
+    if (res.status === 403 && !opts.token && auth.currentUser?.emailVerified) {
+      const peek = (await res
+        .clone()
+        .json()
+        .catch(() => ({}))) as { code?: string };
+      if (peek.code === "EMAIL_NOT_VERIFIED") res = await send(path, opts, true);
+    }
   } catch (e) {
     if (isAuthFailure(e)) {
       handlers.onSessionExpired?.();

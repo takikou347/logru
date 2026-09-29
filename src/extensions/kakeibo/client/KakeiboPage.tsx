@@ -1,6 +1,6 @@
 import type { GroupMember, Me } from "@shared/api-types";
-import { ChevronLeft, ChevronRight, Coins } from "lucide-react";
-import { useCallback, useState } from "react";
+import { ChevronLeft, ChevronRight, Coins, HandCoins, Landmark, List, PieChart, Repeat } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
@@ -15,10 +15,21 @@ import { LoadableSection, PanelSkeleton } from "@/components/parts/LoadableSecti
 import { Empty, Panel, PanelRow } from "@/components/parts/Panel";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
+import { TabIconButton } from "@/components/parts/TabIconButton";
 import { Button } from "@/components/ui/button";
 import { dateKey, formatShortDate } from "@/lib/dates";
+import { useNewLookActive } from "@/lib/lab";
+import {
+  RowExpandContext,
+  rowExpandState,
+  useRowExpandActive,
+  useRowExpandName,
+  useRowExpandTransition,
+} from "@/lib/row-expand";
 import { useBack } from "@/lib/use-back";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { useRowMotion } from "@/lib/use-row-motion";
+import { useSetSearchParams } from "@/lib/use-set-search-params";
 import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { takeJustAdded } from "@/modules/calendar/recent-items";
@@ -31,6 +42,7 @@ import type { KakeiboExpense, KakeiboSummary } from "./api";
 import { useDeleteExpense, useKakeiboAccounts, useKakeiboBudgets, useKakeiboGroups, useKakeiboSummary } from "./api";
 import { BudgetRow } from "./BudgetPanel";
 import { ExpenseSheet } from "./ExpenseSheet";
+import { KakeiboNewLookCard } from "./KakeiboNewLookCard";
 import { accountRefLabel, addMonthsToKey, formatMonthLabel, kakeiboPersonName, monthKeyOf } from "./parts";
 import { SettlementPanel } from "./SettlementPanel";
 
@@ -64,10 +76,13 @@ function RecordRow({
   const mySplit = record.splits?.find((s) => s.userId === me.user.id);
   // 描いた瞬間に 1 度だけ読む。足した直後の再描画と、月を移る・グループを絞り直す再描画を見分けるため
   const [entering] = useState(() => takeJustAdded(record.id));
+  // 行がそのままシートに広がる動き(共有要素)。押した行だけが名前を持つ。0044、0093、issue #241
+  const viewTransitionName = useRowExpandName(record.id);
   return (
     <li
       className={cn("border-line not-first:border-t", entering && "item-enter")}
       data-leaving={isLeaving || undefined}
+      style={viewTransitionName ? { viewTransitionName } : undefined}
     >
       <button
         type="button"
@@ -77,7 +92,9 @@ function RecordRow({
         <time className="text-sm font-medium whitespace-nowrap text-ink-2">{formatShortDate(record.date)}</time>
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="flex min-w-0 items-baseline gap-1.5">
-            <span className="min-w-0 truncate text-sm font-medium">{relation}</span>
+            <span data-title className="min-w-0 truncate text-sm font-medium">
+              {relation}
+            </span>
             {account && <span className="min-w-0 truncate text-xs text-ink-2">{account}</span>}
           </span>
           <span className="flex min-w-0 items-center justify-between gap-2">
@@ -120,20 +137,75 @@ function useKakeiboRecordDelete() {
 }
 
 /**
+ * 上の帯に入れる、アイコンだけの月の送り。新しい見た目・スマホでだけ使う。古い見た目は、今までどおり
+ * 中身の上に別の帯(月送りの glass の帯)を出す。issue #243
+ */
+function MonthNavActions({ month, onChange }: { month: string; onChange: (key: string) => void }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label="前の月"
+        onClick={() => onChange(addMonthsToKey(month, -1))}
+      >
+        <ChevronLeft className="size-4" />
+      </Button>
+      <span className="text-[15px] font-bold tabular-nums">{Number(month.split("-")[1])}月</span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label="次の月"
+        onClick={() => onChange(addMonthsToKey(month, 1))}
+      >
+        <ChevronRight className="size-4" />
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * 家計簿の中の、アイコンだけの切り替えの列。記録・予算・口座・精算・定期。新しい見た目・スマホだけ。
+ * いまは 1 画面のスクロールと別画面へのリンクなので、記録・予算・口座・定期は今ある画面への道にする。
+ * 精算はこの画面の中の精算の面へスクロールする(専用の画面がまだ無いため)。A3 の itabs、issue #243
+ */
+function KakeiboTabsRow({ onSettlement }: { onSettlement: () => void }) {
+  return (
+    <nav aria-label="家計簿の中の切り替え" className="glass flex items-center justify-around rounded-full p-1">
+      <TabIconButton to="/kakeibo" end icon={List} label="記録" />
+      <TabIconButton to="/kakeibo/budgets" icon={PieChart} label="予算" />
+      <TabIconButton to="/kakeibo/accounts" icon={Landmark} label="口座" />
+      <TabIconButton icon={HandCoins} label="精算" onClick={onSettlement} />
+      <TabIconButton to="/kakeibo/recurrings" icon={Repeat} label="定期の記録" />
+    </nav>
+  );
+}
+
+/**
  * 家計簿の画面。F-303
  *
  * すべて、自分だけ、グループで絞る。月を選んで、その月の合計とカテゴリ別の合計、口座の残高、記録の一覧を見る。
  * `?record=1` で開くと記録のシート、`?edit=<id>` で開くと直すシートを出す。
  * `?month=` と `?group=` は、カレンダーの日ごとの合計から移ったときにも使う。
+ *
+ * 新しい見た目・スマホでは、上の帯に月送りを移し、記録・予算・口座・精算・定期の切り替えの列を足し、
+ * 予算・合計・精算・記録を 1 枚の面にまとめる(`KakeiboNewLookCard`)。カテゴリ別の合計と口座の一覧は
+ * この面には出さない(口座は切り替えの列から)。古い見た目・PC は変えない。A3、issue #243
  */
 export function KakeiboPage() {
   const me = useMe();
   const { groups, ready } = useKakeiboGroups();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetSearchParams();
   const { hidden, leaving, remove: removeExpense } = useKakeiboRecordDelete();
   const [features, setFeatures] = useState(false);
   // ホームのウィジェット(?from=widget)から開いたシートは、閉じたらホームへ戻す。0070、#201
   const back = useBack("/");
+  // 行がそのままシートに広がる動き(共有要素)。ラボの「新しい見た目」のスマホだけで使う。0044、0093、issue #241
+  const rowExpandActive = useRowExpandActive();
+  const { transitioningKey, openRow, resetRowExpand } = useRowExpandTransition(rowExpandActive);
 
   const groupParam = params.get("group");
   const group = groups.some((g) => g.id === groupParam) ? groupParam : null;
@@ -143,11 +215,14 @@ export function KakeiboPage() {
   const accounts = useKakeiboAccounts(group, ready);
   const budgets = useKakeiboBudgets(group, ready);
 
-  const setGroup = (id: string | null) =>
-    setParams((p) => (id ? p.set("group", id) : p.delete("group"), p), { replace: true });
-  const setMonth = (key: string) => setParams((p) => (p.set("month", key), p), { replace: true });
+  const setGroup = (id: string | null) => setParams((p) => (id ? p.set("group", id) : p.delete("group")));
+  const setMonth = (key: string) => setParams((p) => p.set("month", key));
 
   const recording = params.get("record") === "1";
+  // 下のタブの帯の「+」の放射(収入を記録する)から開いたときの、最初の種類。0091、issue #239
+  const recordType = params.get("type") === "income" ? "income" : undefined;
+  // 「+」の放射の上のよく使う記録から開いたときの、当てるテンプレートの id。0091、issue #239
+  const recordTemplateId = params.get("template") ?? undefined;
   const openedFromWidget = params.get("from") === "widget";
   const closeRecord = () => {
     // ウィジェットから開いたときだけ、この画面に留まらずホーム(前の画面)へ戻る。0070、#201
@@ -155,13 +230,27 @@ export function KakeiboPage() {
       back.onClick();
       return;
     }
-    setParams((p) => (p.delete("record"), p), { replace: true });
+    setParams((p) => (p.delete("record"), p.delete("type"), p.delete("template")));
   };
   const editingId = params.get("edit");
-  const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
+  const closeEdit = () => {
+    setParams((p) => p.delete("edit"));
+    resetRowExpand();
+  };
+  const openEdit = (id: string) => openRow(id, () => setParams((p) => p.set("edit", id)));
   const editing = summary.data?.records.find((r) => r.id === editingId);
   const filterOptions = groupFilterOptions({ groups, me: me.data, value: group, onChange: setGroup });
+  const openRecordSheet = () => setParams((p) => p.set("record", "1"));
+  // 足せるものは記録だけ。「+」を押すと直接シートが開く。issue #150
+  const addables: Addable[] = [{ key: "expense", label: "支出を記録する", icon: Coins, onClick: openRecordSheet }];
   useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
+  const rowExpandValue = useMemo(
+    () => rowExpandState(transitioningKey, editingId !== null),
+    [transitioningKey, editingId],
+  );
+  // 新しい見た目・スマホでだけ、A3 の 1 枚の面に載せ替える。PC は変えない。issue #243
+  const desktop = useMediaQuery("(min-width: 1024px)");
+  const newLookMobile = useNewLookActive() && !desktop;
 
   if (!me.data || !ready) return <Loading />;
   const meData = me.data;
@@ -169,9 +258,8 @@ export function KakeiboPage() {
   // 今日を含む予算と、これからの予算だけを出す。終わった予算は出さない。F-324
   const today = dateKey(new Date());
   const handleDeleteExpense = (expense: KakeiboExpense) => removeExpense(expense);
-  const openRecordSheet = () => setParams((p) => (p.set("record", "1"), p), { replace: true });
-  // 足せるものは記録だけ。「+」を押すと直接シートが開く。issue #150
-  const addables: Addable[] = [{ key: "expense", label: "支出を記録する", icon: Coins, onClick: openRecordSheet }];
+  const scrollToSettlement = () =>
+    document.getElementById("kakeibo-settlement")?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   /** 「この月の合計」から「記録」までの、summary から作る面。data が届いてから呼ぶ。0078、#195 */
   function summaryPanels(data: KakeiboSummary) {
@@ -313,7 +401,7 @@ export function KakeiboPage() {
                     members={recordGroup?.members ?? []}
                     me={meData}
                     isLeaving={leaving.has(r.id)}
-                    onClick={() => setParams((p) => (p.set("edit", r.id), p), { replace: true })}
+                    onClick={() => openEdit(r.id)}
                   />
                 );
               })}
@@ -325,7 +413,7 @@ export function KakeiboPage() {
   }
 
   return (
-    <>
+    <RowExpandContext.Provider value={rowExpandValue}>
       <Page>
         {/* 見出しを押すと機能のシートが開き、ほかの拡張の画面へ近道できる。issue #26 */}
         {/* PC は中身が長く、下の帯(Dock)が末尾まで遠くなるため、ここに主な「+」を置く。issue #202 */}
@@ -333,137 +421,184 @@ export function KakeiboPage() {
           title="家計簿"
           onTitleClick={() => setFeatures(true)}
           action={
-            <div className="hidden lg:block">
-              <PrimaryAddButton label="支出を記録する" addables={addables} />
-            </div>
+            newLookMobile ? (
+              <MonthNavActions month={month} onChange={setMonth} />
+            ) : (
+              <div className="hidden lg:block">
+                <PrimaryAddButton label="支出を記録する" addables={addables} />
+              </div>
+            )
           }
         />
         <GroupFilterBand options={filterOptions} />
 
-        <div className="glass flex items-center justify-between rounded-full px-2 py-1.5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="前の月"
-            onClick={() => setMonth(addMonthsToKey(month, -1))}
-          >
-            <ChevronLeft className="size-5" />
-          </Button>
-          <span className="text-[15px] font-bold">{formatMonthLabel(month)}</span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="次の月"
-            onClick={() => setMonth(addMonthsToKey(month, 1))}
-          >
-            <ChevronRight className="size-5" />
-          </Button>
-        </div>
+        {newLookMobile ? (
+          <>
+            <KakeiboTabsRow onSettlement={scrollToSettlement} />
+            <LoadableSection query={budgets} what="予算" skeleton={<PanelSkeleton lines={5} />}>
+              {(budgetRows) => (
+                <LoadableSection query={summary} what="家計簿" skeleton={<PanelSkeleton lines={5} />}>
+                  {(data) => (
+                    <KakeiboNewLookCard
+                      data={data}
+                      budgets={budgetRows}
+                      groups={groups}
+                      group={group}
+                      month={month}
+                      selectedGroup={selectedGroup}
+                      me={meData}
+                      today={today}
+                      hidden={hidden}
+                      leaving={leaving}
+                      openEdit={openEdit}
+                      openRecordSheet={openRecordSheet}
+                    />
+                  )}
+                </LoadableSection>
+              )}
+            </LoadableSection>
+          </>
+        ) : (
+          <>
+            <div className="glass flex items-center justify-between rounded-full px-2 py-1.5">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="前の月"
+                onClick={() => setMonth(addMonthsToKey(month, -1))}
+              >
+                <ChevronLeft className="size-5" />
+              </Button>
+              <span className="text-[15px] font-bold">{formatMonthLabel(month)}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="次の月"
+                onClick={() => setMonth(addMonthsToKey(month, 1))}
+              >
+                <ChevronRight className="size-5" />
+              </Button>
+            </div>
 
-        {/* 予算の道は、いつでも定期の記録・よく使う記録の帯にも出す。#196 */}
-        <LoadableSection query={budgets} what="予算" skeleton={<PanelSkeleton lines={3} />}>
-          {(budgetRows) => {
-            const shownBudgets = upcomingOrCurrentBudgets(budgetRows, today);
-            return (
-              <Panel title="予算">
-                {shownBudgets.length > 0 ? (
-                  <div className="flex flex-col">
-                    {shownBudgets.map((b) => (
-                      <BudgetRow key={b.id} budget={b} />
-                    ))}
-                  </div>
-                ) : budgetRows.length === 0 ? (
-                  <EmptyState pose="coin" bordered={false} action={{ label: "予算を作る", to: "/kakeibo/budgets" }}>
-                    まだ予算がありません。期間と金額を決めて、使いすぎを防ぎます。
-                  </EmptyState>
-                ) : (
-                  <Empty>今の予算はありません。</Empty>
-                )}
-              </Panel>
-            );
-          }}
-        </LoadableSection>
+            {/* 予算の道は、いつでも定期の記録・よく使う記録の帯にも出す。#196 */}
+            <LoadableSection query={budgets} what="予算" skeleton={<PanelSkeleton lines={3} />}>
+              {(budgetRows) => {
+                const shownBudgets = upcomingOrCurrentBudgets(budgetRows, today);
+                return (
+                  <Panel title="予算">
+                    {shownBudgets.length > 0 ? (
+                      <div className="flex flex-col">
+                        {shownBudgets.map((b) => (
+                          <BudgetRow key={b.id} budget={b} />
+                        ))}
+                      </div>
+                    ) : budgetRows.length === 0 ? (
+                      <EmptyState pose="coin" bordered={false} action={{ label: "予算を作る", to: "/kakeibo/budgets" }}>
+                        まだ予算がありません。期間と金額を決めて、使いすぎを防ぎます。
+                      </EmptyState>
+                    ) : (
+                      <Empty>今の予算はありません。</Empty>
+                    )}
+                  </Panel>
+                );
+              }}
+            </LoadableSection>
 
-        <LoadableSection query={summary} what="家計簿" skeleton={<PanelSkeleton lines={5} />}>
-          {summaryPanels}
-        </LoadableSection>
+            <LoadableSection query={summary} what="家計簿" skeleton={<PanelSkeleton lines={5} />}>
+              {summaryPanels}
+            </LoadableSection>
 
-        <LoadableSection query={accounts} what="口座" skeleton={<PanelSkeleton lines={3} />}>
-          {(accountsList) => {
-            // グループごとに分けて並べる。自分の口座は総資産、共有口座はそのグループの合計を見出しにする。issue #177
-            const groupedAccounts = groups
-              .map((g) => ({ group: g, accounts: accountsList.filter((a) => a.groupId === g.id) }))
-              .filter((g) => g.accounts.length > 0);
-            return (
-              <Panel title="口座">
-                {accountsList.length === 0 ? (
-                  <EmptyState pose="coin" bordered={false} action={{ label: "口座を作る", to: "/kakeibo/accounts" }}>
-                    まだ口座がありません。作ると、残高と総資産が分かります。
-                  </EmptyState>
-                ) : (
-                  <>
-                    <div className="flex flex-col gap-3">
-                      {groupedAccounts.map(({ group: g, accounts: groupAccounts }) => {
-                        const total = groupAccounts.reduce((n, a) => n + a.balance, 0);
-                        return (
-                          <div key={g.id} className="flex flex-col">
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="min-w-0 truncate text-sm text-ink-2">
-                                {g.isPersonal ? "総資産" : `${g.name}の共有口座`}
-                              </span>
-                              <span
-                                className="text-xl font-extrabold tabular-nums"
-                                data-testid={g.isPersonal ? "kakeibo-assets" : undefined}
-                              >
-                                {formatYen(total)}
-                              </span>
-                            </div>
-                            <div className="flex flex-col">
-                              {groupAccounts.map((a) => (
-                                <PanelRow key={a.id}>
-                                  <Link
-                                    to={`/kakeibo/accounts/${a.id}`}
-                                    className="min-w-0 flex-1 truncate text-ink no-underline"
+            <LoadableSection query={accounts} what="口座" skeleton={<PanelSkeleton lines={3} />}>
+              {(accountsList) => {
+                // グループごとに分けて並べる。自分の口座は総資産、共有口座はそのグループの合計を見出しにする。issue #177
+                const groupedAccounts = groups
+                  .map((g) => ({ group: g, accounts: accountsList.filter((a) => a.groupId === g.id) }))
+                  .filter((g) => g.accounts.length > 0);
+                return (
+                  <Panel title="口座">
+                    {accountsList.length === 0 ? (
+                      <EmptyState
+                        pose="coin"
+                        bordered={false}
+                        action={{ label: "口座を作る", to: "/kakeibo/accounts" }}
+                      >
+                        まだ口座がありません。作ると、残高と総資産が分かります。
+                      </EmptyState>
+                    ) : (
+                      <>
+                        <div className="flex flex-col gap-3">
+                          {groupedAccounts.map(({ group: g, accounts: groupAccounts }) => {
+                            const total = groupAccounts.reduce((n, a) => n + a.balance, 0);
+                            return (
+                              <div key={g.id} className="flex flex-col">
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="min-w-0 truncate text-sm text-ink-2">
+                                    {g.isPersonal ? "総資産" : `${g.name}の共有口座`}
+                                  </span>
+                                  <span
+                                    className="text-xl font-extrabold tabular-nums"
+                                    data-testid={g.isPersonal ? "kakeibo-assets" : undefined}
                                   >
-                                    {a.name}
-                                  </Link>
-                                  <span className="font-bold tabular-nums">{formatYen(a.balance)}</span>
-                                </PanelRow>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <Link to="/kakeibo/accounts" className="text-xs text-ink-2 underline underline-offset-2">
-                      口座の画面へ
-                    </Link>
-                  </>
-                )}
-              </Panel>
-            );
-          }}
-        </LoadableSection>
+                                    {formatYen(total)}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col">
+                                  {groupAccounts.map((a) => (
+                                    <PanelRow key={a.id}>
+                                      <Link
+                                        to={`/kakeibo/accounts/${a.id}`}
+                                        className="min-w-0 flex-1 truncate text-ink no-underline"
+                                      >
+                                        {a.name}
+                                      </Link>
+                                      <span className="font-bold tabular-nums">{formatYen(a.balance)}</span>
+                                    </PanelRow>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <Link to="/kakeibo/accounts" className="text-xs text-ink-2 underline underline-offset-2">
+                          口座の画面へ
+                        </Link>
+                      </>
+                    )}
+                  </Panel>
+                );
+              }}
+            </LoadableSection>
 
-        <Panel>
-          <div className="flex items-center gap-4 text-xs text-ink-2 underline underline-offset-2">
-            <Link to="/kakeibo/budgets">予算</Link>
-            <Link to="/kakeibo/recurrings">定期の記録</Link>
-            <Link to="/kakeibo/templates">よく使う記録</Link>
-          </div>
-        </Panel>
+            <Panel>
+              <div className="flex items-center gap-4 text-xs text-ink-2 underline underline-offset-2">
+                <Link to="/kakeibo/budgets">予算</Link>
+                <Link to="/kakeibo/recurrings">定期の記録</Link>
+                <Link to="/kakeibo/templates">よく使う記録</Link>
+              </div>
+            </Panel>
+          </>
+        )}
 
         {/* 空の月は中身が短く、浮いた「+」が中身に重なるので、下の帯と同じ高さの余白を足す。issue #24 */}
         <div className="h-[var(--dock-clearance)] lg:hidden" aria-hidden="true" />
 
         {/* PC の主な「+」は上の見出しの帯にある。ここは PC で隠す。issue #202 */}
-        <Dock label="家計簿の操作" className="lg:hidden">
+        <Dock label="家計簿の操作" className="lg:hidden" covered>
           <PrimaryAddButton label="支出を記録する" addables={addables} />
         </Dock>
       </Page>
-      {recording && <ExpenseSheet groups={groups} me={meData} defaultGroupId={group} onClose={closeRecord} />}
+      {recording && (
+        <ExpenseSheet
+          groups={groups}
+          me={meData}
+          defaultGroupId={group}
+          onClose={closeRecord}
+          defaultType={recordType}
+          initialTemplateId={recordTemplateId}
+        />
+      )}
       {editing && (
         <ExpenseSheet
           groups={groups}
@@ -474,6 +609,6 @@ export function KakeiboPage() {
         />
       )}
       {features && <FeatureSheet onClose={() => setFeatures(false)} />}
-    </>
+    </RowExpandContext.Provider>
   );
 }

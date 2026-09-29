@@ -1,13 +1,15 @@
 import type { BgTheme, Me, ThemeMode } from "@shared/api-types";
 import { ACCENT_COLORS, GROUP_COLORS } from "@shared/colors";
 import { useState } from "react";
+import { Link } from "react-router";
 import { useColorPref, useGroups, useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { ColorSheet } from "@/components/parts/ColorSheet";
 import { ColorSwatches } from "@/components/parts/ColorSwatches";
-import { Dot, FieldMessage, Panel, RowButton } from "@/components/parts/Panel";
+import { Dot, FieldMessage, Panel, RowButton, RowChevron, rowClass } from "@/components/parts/Panel";
 import { Segmented } from "@/components/parts/Segmented";
 import { groupColor, memberColor } from "@/lib/colors";
+import { cn } from "@/lib/utils";
 import { poolColorsOf } from "../calendar/model";
 import { AvatarSection } from "./AvatarSection";
 import { useUpdateSettings } from "./api";
@@ -29,8 +31,9 @@ const BG_THEMES = [
 type Target = { type: "group" | "user"; id: string; title: string; fallback: string };
 
 /**
- * 設定の「見た目」。アバター、明るさ、背景のテーマ、テーマカラー、自分の色、グループとメンバーの色、ラボ。
- * F-13〜F-15、F-18、0038、0039、F-35。見た目の設定は、押した瞬間に画面に効かせてから送る。issue #102
+ * 設定の「見た目」。アバター、明るさ、背景のテーマ、見た目の土台(テーマの画面への道)、
+ * テーマカラー、自分の色、グループとメンバーの色、ラボ。
+ * F-13〜F-15、F-18、0038、0039、F-35、0090。見た目の設定は、押した瞬間に画面に効かせてから送る。issue #102
  */
 export function AppearanceSettingsPage() {
   const me = useMe();
@@ -73,6 +76,14 @@ export function AppearanceSettingsPage() {
           options={BG_THEMES}
           onChange={(bgTheme) => change({ bgTheme })}
         />
+      </Panel>
+
+      <Panel title="見た目の土台">
+        <FieldMessage>紙やリキッドガラスなど、面の質感や動きを選べます。選んだ値はこの端末に残ります。</FieldMessage>
+        <Link to="/settings/theme" className={cn(rowClass, "no-underline")}>
+          <span className="flex-1">テーマ</span>
+          <RowChevron />
+        </Link>
       </Panel>
 
       <Panel title="テーマカラー">

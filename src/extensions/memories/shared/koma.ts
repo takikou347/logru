@@ -45,6 +45,14 @@ export function openSlots(now: number, timeZone: string): KomaSlot[] {
   return out;
 }
 
+/**
+ * その日の行に保存した時間帯が、いまの端末の時間帯とずれているか。0022、#255
+ * ずれていれば、旅先へ移ったとみなし、その日の残りの枠をいまの端末の時間帯で数え直す。
+ */
+export function timeZoneDrifted(stored: string, live: string): boolean {
+  return Boolean(live) && live !== stored;
+}
+
 /** その日の枠の始まりの時刻を 16 個並べる。確認画面と 1 日の面の目盛りに使う */
 export function slotsOfDay(dayStart: number, timeZone: string): KomaSlot[] {
   const out: KomaSlot[] = [];

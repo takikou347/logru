@@ -1,8 +1,13 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addEvent, addExtension, dayPanel, removeExtension, signUp } from "./helpers";
+import { addEvent, addExtension, dayPanel, enableOldLook, removeExtension, signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
+  // ホームの並べ替えはカレンダーの画面の機能。新しい見た目・スマホでは下のタブの「記録する」が
+  // 必ずホームへ移ってしまう(0091)ため、addEvent がこの画面に留まれない。前の見た目に戻して確かめる
+  await enableOldLook(page);
+  await page.goto("/?view=month");
+  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
 });
 
 /** 機能の一覧で、思い出を足すか外すかを切り替える */
@@ -87,7 +92,7 @@ test("ホームを編集して並べ替え、外す。保存すると読み直�
 
 test("思い出を使うと、ホームに「ひとコマ」と「記録する」が最初から並び、1 回押すだけで開く。#78", async ({ page }) => {
   await setMemories(page, true);
-  await page.goto("/");
+  await page.goto("/?view=month");
   const grid = page.getByTestId("widget-grid");
   const koma = grid.getByTestId("widget-koma");
   const record = grid.getByTestId("widget-record");
@@ -99,12 +104,12 @@ test("思い出を使うと、ホームに「ひとコマ」と「記録する�
   await koma.click();
   await expect(page).toHaveURL(/\/memories\/koma$/);
 
-  await page.goto("/");
+  await page.goto("/?view=month");
   await grid.getByTestId("widget-record").click();
   await expect(page.getByRole("dialog", { name: "記録する" })).toBeVisible();
 
   // ほかのウィジェットと同じ操作で並べ替えられる。外して「ウィジェットを足す」から戻せる
-  await page.goto("/");
+  await page.goto("/?view=month");
   await page.getByRole("button", { name: "ホームを編集" }).click();
   const frames = grid.getByTestId("widget-frame");
   await expect(frames).toHaveCount(5);
@@ -129,13 +134,13 @@ test("思い出を使うと、ホームに「ひとコマ」と「記録する�
 
   // 思い出を使わないと、2 つはホームから消える。使い直すと、元の場所に戻る
   await setMemories(page, false);
-  await page.goto("/");
+  await page.goto("/?view=month");
   await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
   await expect(grid.getByTestId("widget-koma")).toHaveCount(0);
   await expect(grid.getByTestId("widget-record")).toHaveCount(0);
 
   await setMemories(page, true);
-  await page.goto("/");
+  await page.goto("/?view=month");
   await expect(grid.getByTestId("widget-koma")).toBeVisible();
   await page.getByRole("button", { name: "ホームを編集" }).click();
   await expect(frames.nth(3)).toHaveAttribute("data-widget-key", "memories.record");

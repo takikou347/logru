@@ -91,8 +91,40 @@ type ExtensionNav = { label: string; icon: LucideIcon; path: string; description
  * 「機能を足す」で足した直後の案内(トースト)に出す、すぐする操作。押すと path へ移る。例は「記録する」
  * 機能のシートには出さない。すぐする操作は、いつでもできるならホームのウィジェット、
  * 「いま」しかできないなら useShortcut が受け持つ。0019
+ *
+ * 新しい見た目・スマホの下のタブの帯の「+」の放射にも、足している拡張の全部をこの並びで出す。
+ * path は、その記録のシートが開いた状態で始まる道順にする(例 `/kakeibo?record=1`)。0091、issue #239
  */
-type ExtensionAction = { label: string; icon: LucideIcon; path: string; hint?: string };
+export type ExtensionAction = { label: string; icon: LucideIcon; path: string; hint?: string };
+
+/**
+ * 「+」の放射の上に出す、よく使う記録 1 つ。押すと、その記録が入った状態でシートが開く。0091、issue #239
+ * 例は家計簿のよく使う記録(F-326)。使用頻度を数える仕組みは無いので、拡張が持つ並びをそのまま使う
+ */
+export type FavoriteAdd = { key: string; label: string; icon?: LucideIcon; path: string };
+
+/**
+ * 今日のページの節が受け取るもの。0092、issue #240
+ *
+ * dayItems は、見せている日の、この拡張のカレンダー項目だけ(ItemEditorProps.dayItemsOf と同じ形)。
+ * 予定・家計簿・思い出のように、その日の項目をカレンダーへ渡している拡張はここに実データが入る。
+ * 共有リストのように日付を持たないことが多い拡張は、空でも困らない中身にする(いちばん新しいリストの
+ * 残り数など、日に依らない中身を出す)。
+ */
+export type TodaySectionProps = {
+  /** 見せている日 */
+  date: Date;
+  /** 見せている日が今日か。今日しか対応していない中身(ひとコマなど)が、ほかの日の表し方を選ぶのに使う */
+  isToday: boolean;
+  dayItems: DayItem[];
+  /** 項目を押したとき、この拡張の編集シートを開く */
+  onOpenItem: (item: CalendarItem) => void;
+};
+
+/**
+ * 今日のページに出す節。無ければ、今日のページはその日の項目をそのまま一覧で見せる既定の節を使う。0092、issue #240
+ */
+export type TodaySection = { Component: ComponentType<TodaySectionProps> };
 
 /**
  * いま押してほしい近道。カレンダーの上の帯に出す。F-26
@@ -181,6 +213,25 @@ export type ClientExtension = {
    * useShortcut と同じ理由で、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ
    */
   useTileHint?: (enabled: boolean) => string | null;
+  /**
+   * 下のタブの帯の「+」の放射の上に出す、よく使う記録を返す hook。無ければ出さない。
+   * useShortcut と同じ理由で、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ。0091、issue #239
+   */
+  useFavoriteAdds?: (enabled: boolean) => FavoriteAdd[] | null;
+  /**
+   * 今日のページの節の中身。無ければ、その日の項目(dayItems)をそのまま一覧で見せる既定の節を使う。0092、issue #240
+   */
+  today?: TodaySection;
+  /**
+   * 今日のページで、この節を畳んだときの要約。7 文字ほどを目安に返す。無ければ、その日の項目の件数を使う。
+   * hook なので、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ。0092、issue #240
+   */
+  useTodaySummary?: (enabled: boolean, date: Date, dayItems: DayItem[]) => string | null;
+  /**
+   * その日の見出しの 1 行。設定の「機能」の「見出し」で、この拡張を選べるようになる。無ければ選択肢に出さない。
+   * hook なので、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ。0092、issue #240
+   */
+  useHeadline?: (enabled: boolean, date: Date, dayItems: DayItem[]) => string | null;
   /** ほかの拡張の編集シートに足す欄 */
   itemAddons?: ItemAddon[];
   /** 端末に知らせるもの。例は「ひとコマの時刻」。知らせる拡張を使っているときだけ、設定に知らせの欄を出す。F-23 */

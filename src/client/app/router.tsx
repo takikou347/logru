@@ -50,7 +50,7 @@ const routes: RouteObject[] = [
         children: [
           {
             path: "/",
-            lazy: async () => ({ Component: (await import("@/modules/calendar/CalendarPage")).CalendarPage }),
+            lazy: async () => ({ Component: (await import("@/modules/home/HomeRoute")).HomeRoute }),
           },
           {
             path: "/spiral/:year",
@@ -75,6 +75,12 @@ const routes: RouteObject[] = [
             path: "/settings/appearance",
             lazy: async () => ({
               Component: (await import("@/modules/settings/AppearanceSettingsPage")).AppearanceSettingsPage,
+            }),
+          },
+          {
+            path: "/settings/theme",
+            lazy: async () => ({
+              Component: (await import("@/modules/settings/ThemeSettingsPage")).ThemeSettingsPage,
             }),
           },
           {

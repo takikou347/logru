@@ -1,4 +1,4 @@
-import { toggleableExtensions } from "@extensions/server/registry";
+import { knownNotificationKinds, serverExtensions, toggleableExtensions } from "@extensions/server/registry";
 import { zValidator } from "@hono/zod-validator";
 import { type AppEnv, createRouter, HttpError, showLab, validationHook } from "@server/core/app";
 import { missingAgreements, requireAgreement, requireUser } from "@server/core/auth/middleware";
@@ -39,9 +39,12 @@ import {
   homeLayoutInput,
   homeLayoutQuery,
   memberVisibilityInput,
+  notificationKindParam,
+  notificationPrefInput,
   profileInput,
   pushSubscriptionInput,
   settingsInput,
+  todayPageInput,
   tourIdParam,
   usualShareInput,
 } from "@shared/schemas";
@@ -150,6 +153,8 @@ export const meRoutes = createRouter()
         toursSeen: settings.toursSeen,
         extensionOrder: settings.extensionOrder,
         usualShareGroupId: settings.usualShareGroupId,
+        todayPage: settings.todayPage,
+        notificationPrefs: settings.notificationPrefs,
       },
       needsAgreement: await missingAgreements(db, me.id),
       provider: me.provider,
@@ -296,6 +301,53 @@ export const meRoutes = createRouter()
       .onConflictDoUpdate({ target: userSettings.userId, set: values });
     return c.json({ extensionOrder: order });
   })
+  /**
+   * 今日のページの並べ方(よく使う順・足した順・自分で並べる)と見せ方(見出し、節ごとの開閉の上書き)。
+   * 知らない拡張の key は取り除く。毎回、全体を送り直す。0092、F-45
+   */
+  .put("/today-page", zValidator("json", todayPageInput, validationHook), async (c) => {
+    const known = new Set(serverExtensions.map((x) => x.manifest.key));
+    const { sortMode, headlineExtension, openOverrides } = c.req.valid("json");
+    const filteredOverrides = Object.fromEntries(Object.entries(openOverrides).filter(([key]) => known.has(key)));
+    const todayPage = {
+      sortMode,
+      headlineExtension: headlineExtension && known.has(headlineExtension) ? headlineExtension : null,
+      openOverrides: filteredOverrides,
+    };
+    const values = { todayPage, updatedAt: new Date() };
+    await c
+      .get("db")
+      .insert(userSettings)
+      .values({ userId: c.get("user").id, ...values })
+      .onConflictDoUpdate({ target: userSettings.userId, set: values });
+    return c.json({ todayPage });
+  })
+  /**
+   * 種類ごとの、一覧に出すか・端末にも知らせるか。知らない kind は 404。0096、F-47
+   * 既定から変えた種類だけを notificationPrefs に持つ。毎回、その 1 種類だけを書き換える
+   */
+  .put(
+    "/notification-prefs/:kind",
+    zValidator("param", notificationKindParam, validationHook),
+    zValidator("json", notificationPrefInput, validationHook),
+    async (c) => {
+      const db = c.get("db");
+      const me = c.get("user");
+      const kind = c.req.valid("param").kind;
+      if (!knownNotificationKinds().includes(kind)) throw new HttpError(404, "その種類はありません。");
+      const row = await db
+        .select({ notificationPrefs: userSettings.notificationPrefs })
+        .from(userSettings)
+        .where(eq(userSettings.userId, me.id))
+        .get();
+      const notificationPrefs = { ...(row?.notificationPrefs ?? {}), [kind]: c.req.valid("json") };
+      await db
+        .insert(userSettings)
+        .values({ userId: me.id, notificationPrefs, updatedAt: new Date() })
+        .onConflictDoUpdate({ target: userSettings.userId, set: { notificationPrefs, updatedAt: new Date() } });
+      return c.json({ notificationPrefs });
+    },
+  )
   /**
    * いつもの共有先を決める。null は「共有しない」を決めたことを表す。0063、F-40
    * 「いつもの共有先にしますか」の問いへの答えも、ここを呼ぶ。送るたびに、もう聞いたことにする

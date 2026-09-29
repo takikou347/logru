@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { addMemories, removeExtension, signUp, tokyoDateParts } from "./helpers";
+import { addEventButton, addMemories, enableOldLook, removeExtension, signUp, tokyoDateParts } from "./helpers";
 
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
 
@@ -21,6 +21,9 @@ test("自分で思い出を外すと、グループでは足していても入�
   await removeExtension(page, "思い出");
   await expect(page.getByText("外しました")).toBeVisible();
 
+  // カレンダーの Dock(role="toolbar")の「機能」ダイアログは、新しい見た目・スマホでは下のタブの
+  // 帯に役目を移して隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/");
   await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
   const sheet = page.getByRole("dialog", { name: "機能" });
@@ -43,13 +46,42 @@ test("記録はいつでも「共有しない」を選べる", async ({ page }) 
   await expect(shareRow).toContainText("自分だけ");
   await shareRow.click();
   const picker = page.getByRole("dialog", { name: "共有する相手" });
-  await expect(picker.getByRole("radio", { name: "共有しない" })).toHaveAttribute("aria-checked", "true");
-  await expect(picker.getByRole("radio", { name: "ふたり" })).toBeVisible();
+  await expect(picker.getByRole("option", { name: "共有しない" })).toHaveAttribute("aria-selected", "true");
+  await expect(picker.getByRole("option", { name: "ふたり" })).toBeVisible();
   // 選んでいる行をもう一度押して、値を変えずに閉じる
-  await picker.getByRole("radio", { name: "共有しない" }).click();
+  await picker.getByRole("option", { name: "共有しない" }).click();
   await sheet.getByLabel("文章").fill("ひとりのメモ");
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("記録しました")).toBeVisible();
+});
+
+test("共有する相手の一覧は上下キーで前後の行へ移れる。#249", async ({ page }) => {
+  await signUp(page);
+  await groupWithMemories(page, "ふたり");
+  await page.goto("/memories?record=1");
+  const sheet = page.getByRole("dialog", { name: "記録する" });
+  await sheet.getByRole("button", { name: /^共有/ }).click();
+  const picker = page.getByRole("dialog", { name: "共有する相手" });
+  const none = picker.getByRole("option", { name: "共有しない" });
+  const futari = picker.getByRole("option", { name: "ふたり" });
+
+  await none.focus();
+  await expect(none).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(futari).toBeFocused();
+  // 端では何もしない
+  await page.keyboard.press("ArrowDown");
+  await expect(futari).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(none).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(none).toBeFocused();
+
+  // フォーカスしている行を Enter で選べる
+  await futari.focus();
+  await page.keyboard.press("Enter");
+  await expect(picker).toBeHidden();
+  await expect(sheet.getByRole("button", { name: /^共有/ })).toContainText("ふたり");
 });
 
 test("写真を足した後も共有先を変えられる。保存すると選んだ共有先に付く。0057、#158", async ({ page }) => {
@@ -67,7 +99,7 @@ test("写真を足した後も共有先を変えられる。保存すると選�
 
   await shareRow.click();
   const picker = page.getByRole("dialog", { name: "共有する相手" });
-  await picker.getByRole("radio", { name: "ふたり" }).click();
+  await picker.getByRole("option", { name: "ふたり" }).click();
   await expect(shareRow).toContainText("ふたり");
 
   await sheet.getByRole("button", { name: "保存する" }).click();
@@ -87,6 +119,8 @@ test("カレンダーの思い出は、その場で編集でき、思い出を�
   await page.getByRole("dialog", { name: "記録する" }).getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("記録しました")).toBeVisible();
 
+  // カレンダーの day-panel を使うため、前の見た目に戻して確かめる(0091)
+  await enableOldLook(page);
   await page.goto("/");
   const day = page.getByTestId("day-panel");
   // 思い出は「思い出」の見出しの下にまとまる。予定は無いので「予定」の見出しは出ない。0056
@@ -108,7 +142,7 @@ test("カレンダーの思い出は、その場で編集でき、思い出を�
 
 test("予定を足すシートで日付を変えると、その日の予定に切り替わる", async ({ page }) => {
   await signUp(page);
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill("明日の用事");
   const { key, month, day } = tokyoDateParts(1);
@@ -116,7 +150,7 @@ test("予定を足すシートで日付を変えると、その日の予定に�
   await sheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("予定を足しました")).toBeVisible();
 
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const again = page.getByRole("dialog", { name: "新しい予定" });
   await expect(again.getByRole("region", { name: /の予定$/ })).toHaveCount(0);
   await again.getByLabel("日付").fill(key);

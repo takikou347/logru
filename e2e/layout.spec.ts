@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { addEventButton, enableOldLook, signUp } from "./helpers";
 
 /**
- * スマホの幅で、画面が崩れないことを見る。
+ * スマホの幅で、画面が崩れないことを見る。前の見た目のカレンダーの帯・Dock を確かめる
+ * (新しい見た目・スマホの同じ観点は e2e/redesign-layout.spec.ts が確かめる)。
  * 前は、10 月のように 2 桁の月で上の帯が横にあふれ、「今日」が 2 行になり、
  * アカウントの丸が画面の外に出ていた。シートは透けて、後ろのカレンダーが文字に重なっていた。
  */
@@ -33,11 +34,13 @@ async function lineCount(locator: import("@playwright/test").Locator) {
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
+  await enableOldLook(page);
+  await page.goto("/");
 });
 
 test("上の帯の高さは、月が 1 桁でも 2 桁でも、「今日」が出ても変わらない", async ({ page }) => {
   // 月を移るたびに帯の高さが変わると落ち着かない。スマホではいつも月と年の下へ操作を置く
-  const header = page.locator("header");
+  const header = page.locator("header:visible");
   const height = async () => (await header.boundingBox())!.height;
   const before = await height();
   await page.getByRole("button", { name: "次の月" }).click();
@@ -66,12 +69,15 @@ test("2 桁の月でも、上の帯は画面に収まり、「今日」は 1 行
 });
 
 test("下の操作の帯も、画面に収まる", async ({ page }) => {
+  // 前の見た目に戻す・トップへの行き来で描き終わりが遅れることがあるので、帯が出てから測る
+  await expect(page.getByRole("toolbar", { name: "カレンダーの操作" })).toBeVisible();
   expect(await fitsInScreen(page, '[role="toolbar"]')).toEqual([]);
-  await expect(page.getByRole("button", { name: "予定を足す" })).toBeInViewport();
+  // 下のタブの帯(GlobalBottomTabs)の「+」も display: none のまま同じ読み上げ名を持つため、見えている方に絞る
+  await expect(page.getByRole("button", { name: "予定を足す" }).and(page.locator(":visible"))).toBeInViewport();
 });
 
 test("シートは透けない。後ろのカレンダーが文字に重ならない", async ({ page }) => {
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
   // 位置と大きさだけを持つ [data-slot="sheet-content"] は透明にし、開閉の動きを付ける。0077

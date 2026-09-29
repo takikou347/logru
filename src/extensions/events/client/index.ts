@@ -1,4 +1,5 @@
 import type { ClientExtension } from "@extensions/client/types";
+import { CalendarPlus } from "lucide-react";
 import { eventsManifest } from "../manifest";
 import { describeEventNotification } from "../shared/notifications";
 import { deleteEvent, loadEvent } from "./api";
@@ -13,4 +14,7 @@ export const eventsClient: ClientExtension = {
   describeNotification: describeEventNotification,
   loadItem: loadEvent,
   useShortcut: useAnniversaryShortcut,
+  // 今日に新しい予定のシートが開いた状態で始まる。ホーム画面のアイコンの近道(shortcuts)と同じ道順。
+  // 下のタブの帯の「+」の放射にも出す。0091、issue #239
+  actions: [{ label: "予定を足す", icon: CalendarPlus, path: "/?new=1" }],
 };

@@ -1,3 +1,4 @@
+import { Compass } from "lucide-react";
 import { toast } from "sonner";
 import { useResetTours } from "@/api/common";
 import { RowButton } from "@/components/parts/Panel";
@@ -11,6 +12,7 @@ export function ResetToursButton() {
   return (
     <RowButton
       className="text-ink"
+      icon={Compass}
       disabled={reset.isPending}
       onClick={() => reset.mutate(undefined, { onSuccess: () => toast("次に開いた画面で、案内をもう一度出します") })}
     >

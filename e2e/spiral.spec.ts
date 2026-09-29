@@ -1,14 +1,21 @@
 import { expect, test } from "@playwright/test";
-import { addEvent, signUp, tokyoDateParts } from "./helpers";
+import { addEvent, enableNewLook, enableOldLook, signUp, tokyoDateParts } from "./helpers";
 
 // ヘッドレスの Chrome は端末によって WebGL の有無が変わる。E2E はいつも平らな年の表の道筋を通す。0051
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await signUp(page);
+  // 「年を、らせんで見る」の道は、カレンダーの月の表にしかない。新しい見た目・スマホの既定は
+  // ホームが今日のページ(0092)なので、カレンダー(月)を明示して開く
+  await signUp(page, { next: "/?view=month" });
+  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
 });
 
 test("月の表の年を押すと、その年をらせんで見る画面が開く。F-39", async ({ page }) => {
   const year = new Date().getFullYear();
+  // 年の見出しの「年を、らせんで見る」の道は、新しい見た目・スマホの上の帯では「カレンダーを見る」
+  // という別のアイコンに変わる(issue #239)。前の見た目に戻して確かめる
+  await enableOldLook(page);
+  await page.goto("/?view=month");
   await page.getByRole("link", { name: `${year} 年を、らせんで見る` }).click();
   await expect(page).toHaveURL(new RegExp(`/spiral/${year}$`));
   await expect(page.getByRole("region", { name: `${year} 年の表` })).toBeVisible();
@@ -43,7 +50,8 @@ test("前後の年に移れ、閉じるとカレンダーへ戻る。F-39", asyn
 
   await page.getByRole("button", { name: "カレンダーへ戻る" }).click();
   await expect(page).toHaveURL("/");
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  // 新しい見た目・スマホの既定はホームが今日のページ(0092)なので、月の表とどちらかで確かめる
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
 });
 
 test("動きを減らす設定では、平らな年の表を選ぶボタンが出ない。F-39", async ({ page }) => {
@@ -51,4 +59,32 @@ test("動きを減らす設定では、平らな年の表を選ぶボタンが�
   await page.goto(`/spiral/${year}`);
   await expect(page.getByRole("button", { name: "らせんで見る" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "平らな表で見る" })).toHaveCount(0);
+});
+
+test("ラボの「新しい見た目」・スマホでは、らせんの全画面の間は下のタブの帯が隠れ、閉じると戻る。issue #243", async ({
+  page,
+}) => {
+  await enableNewLook(page);
+  const year = new Date().getFullYear();
+  const tabs = page.getByRole("navigation", { name: "下のタブ" });
+  await page.goto("/");
+  await expect(tabs).toBeVisible();
+
+  await page.goto(`/spiral/${year}`);
+  await expect(page.getByRole("region", { name: `${year} 年の表` })).toBeVisible();
+  // 帯は DOM には残るが、らせんの全画面(z-49)が上に重なり、帯の場所を押しても帯には届かない
+  const box = (await tabs.boundingBox())!;
+  const coveredBySpiral = await page.evaluate(
+    ({ x, y }) => {
+      const el = document.elementFromPoint(x, y);
+      const nav = document.querySelector('nav[aria-label="下のタブ"]');
+      return !!el && el !== nav && !nav?.contains(el);
+    },
+    { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+  );
+  expect(coveredBySpiral, "らせんの全画面の間は、下のタブの帯には届かない").toBe(true);
+
+  await page.getByRole("button", { name: "カレンダーへ戻る" }).click();
+  await expect(page).toHaveURL("/");
+  await expect(tabs).toBeVisible();
 });

@@ -22,7 +22,7 @@ import type { Memory, MemoryRecord } from "../shared/types";
 import { useMemoryGroups, useMemoryList } from "./api";
 import { CoverOpen } from "./Book";
 import { MemorySheet } from "./MemorySheet";
-import { formatClock, GroupLabel, PhotoImg } from "./parts";
+import { formatClock, GroupLabel, PhotoImg, useIconOnly } from "./parts";
 import { RecordSheet } from "./RecordSheet";
 
 const FILTER_KEY = "logru-memories-group";
@@ -70,6 +70,7 @@ export function MemoriesPage() {
   const list = useMemoryList(group);
   const [creating, setCreating] = useState(false);
   const [features, setFeatures] = useState(false);
+  const iconOnly = useIconOnly();
   const recording = params.get("record") === "1";
   const closeRecord = () => setParams((p) => (p.delete("record"), p), { replace: true });
 
@@ -87,15 +88,15 @@ export function MemoriesPage() {
   }, [list.data, now]);
 
   const filterOptions = groupFilterOptions({ groups, me: me.data, value: group, onChange: setGroup });
+  // 足せるものは記録する 1 つだけ。「+」を押すと記録のシートを直に開く。思い出を作るのは見出しの右のボタンから。0062、#164
+  const addables: Addable[] = [
+    { key: "record", label: "記録する", icon: Camera, onClick: () => setParams((p) => (p.set("record", "1"), p)) },
+  ];
   useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
 
   if (!me.data || !ready) return <Loading />;
   const data = me.data;
   const empty = list.data && list.data.memories.length === 0 && list.data.recent.length === 0;
-  // 足せるものは記録する 1 つだけ。「+」を押すと記録のシートを直に開く。思い出を作るのは見出しの右のボタンから。0062、#164
-  const addables: Addable[] = [
-    { key: "record", label: "記録する", icon: Camera, onClick: () => setParams((p) => (p.set("record", "1"), p)) },
-  ];
 
   return (
     <>
@@ -105,9 +106,9 @@ export function MemoriesPage() {
           title="思い出"
           onTitleClick={() => setFeatures(true)}
           action={
-            <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
+            <Button variant="secondary" size="sm" aria-label="思い出を作る" onClick={() => setCreating(true)}>
               <BookOpen className="size-4" aria-hidden="true" />
-              思い出を作る
+              {!iconOnly && "思い出を作る"}
             </Button>
           }
         />
@@ -129,7 +130,7 @@ export function MemoriesPage() {
         {byYear.map(([year, ms]) => (
           <Shelf key={year} year={year} title="過去の思い出" memories={ms} me={data} />
         ))}
-        <Dock label="思い出の操作">
+        <Dock label="思い出の操作" covered>
           <PrimaryAddButton label="記録する" addables={addables} />
         </Dock>
       </Page>

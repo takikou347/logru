@@ -1,9 +1,18 @@
 import { clientExtension, defaultExtension } from "@extensions/client/registry";
-import type { EditorTarget, ItemEditScope } from "@extensions/client/types";
+import type { EditorTarget } from "@extensions/client/types";
 import type { CalendarItem, HomeWidgetEntry } from "@shared/api-types";
 import { defaultHomeLayout, mergeHomeLayout, visibleHomeLayout } from "@shared/home";
-import { useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, ChevronLeft, ChevronRight, LayoutGrid, Pencil } from "lucide-react";
+import {
+  Calendar,
+  CalendarClock,
+  CalendarDays,
+  CalendarPlus,
+  CalendarRange,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  Pencil,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -36,10 +45,10 @@ import {
   weekDays,
 } from "@/lib/dates";
 import { useEnabledExtensions } from "@/lib/extensions";
+import { RowExpandContext, rowExpandState, useRowExpandActive, useRowExpandTransition } from "@/lib/row-expand";
 import { BASE_TOURS } from "@/lib/tours";
 import { useRecordScreen } from "@/lib/use-back";
 import { useMediaQuery } from "@/lib/use-media-query";
-import { useRowMotion } from "@/lib/use-row-motion";
 import { withViewTransition } from "@/lib/view-transition";
 import { useSaveHomeLayout } from "../home/api";
 import { CalendarHomeProvider, type CalendarView, type MonthNav } from "../home/CalendarContext";
@@ -48,12 +57,15 @@ import { HomeEditBar } from "../home/components/HomeEditBar";
 import { WidgetGrid } from "../home/components/WidgetGrid";
 import { useHomeWidgetVisibility, useVisibleHomeWidgets } from "../home/layout";
 import { HOME_WIDGET_CATALOG, homeWidget } from "../home/widgets";
+import { REOPEN_PARAM } from "../onboarding/model";
 import { Onboarding } from "../onboarding/Onboarding";
 import { useCalendar, useMemberVisibility } from "./api";
+import { CalendarFilterButton } from "./components/CalendarFilterButton";
 import { KindChip, SideKinds, useHiddenKinds } from "./components/KindFilter";
 import { PeopleChip, SideGroup, useOpenGroups } from "./components/PeopleFilter";
 import { RefreshButton } from "./components/RefreshButton";
 import { SearchButton } from "./components/SearchButton";
+import { WeekBand } from "./components/WeekBand";
 import {
   groupPeopleOf,
   hiddenPeople,
@@ -64,11 +76,12 @@ import {
   type ViewItem,
   viewItemsOf,
 } from "./model";
+import { useCalendarDelete } from "./use-calendar-delete";
 
 const VIEWS = [
-  { value: "month", label: "月" },
-  { value: "week", label: "週" },
-  { value: "day", label: "日" },
+  { value: "month", label: "月", icon: Calendar },
+  { value: "week", label: "週", icon: CalendarRange },
+  { value: "day", label: "日", icon: CalendarClock },
 ] as const;
 
 /** 今日の 0 時。画面を開いたまま日付が変わったら追いかける */
@@ -82,37 +95,6 @@ function useToday(): Date {
     return () => window.clearInterval(timer);
   }, []);
   return today;
-}
-
-/**
- * カレンダーの項目を消す。足す・消す・元に戻すの動きそのものは lib/use-row-motion が持つ。ここで足すのは、
- * 項目を出した拡張の deleteItem を呼び、消えたらカレンダーを読み直すこと。0012、0044、0048、0085、#98
- *
- * @returns hidden は一覧から外す項目の itemKey。leaving は縮んで消える動きの途中の itemKey。remove は消す関数
- */
-function useCalendarDelete() {
-  const qc = useQueryClient();
-  const { hidden, leaving, remove: removeRow } = useRowMotion("予定を消しました");
-
-  const remove = useCallback(
-    (item: CalendarItem, scope?: ItemEditScope) => {
-      const key = itemKey(item);
-      removeRow(key, async (opts) => {
-        try {
-          await clientExtension(item.extension)?.deleteItem?.(item.id, {
-            ...opts,
-            occurrenceAt: item.occurrenceAt,
-            scope,
-          });
-        } finally {
-          if (!opts.keepalive) await qc.invalidateQueries({ queryKey: ["calendar"] });
-        }
-      });
-    },
-    [removeRow, qc],
-  );
-
-  return { hidden, leaving, remove };
 }
 
 /**
@@ -216,7 +198,14 @@ export function CalendarPage() {
     [groupFilter],
   );
 
-  const open = useCallback((item: ViewItem) => setEditor({ mode: "edit", item }), []);
+  // 行がそのままシートに広がる動き(共有要素)。ラボの「新しい見た目」のスマホだけで使う。月の表の下の
+  // 選んだ日の一覧、週・日の表示の行が対象。カレンダーの行は SwipeRow・長押しを持たないので、取り合わない。0093、issue #227
+  const rowExpandActive = useRowExpandActive();
+  const { transitioningKey, openRow, resetRowExpand } = useRowExpandTransition(rowExpandActive);
+  const open = useCallback(
+    (item: ViewItem) => openRow(itemKey(item), () => setEditor({ mode: "edit", item })),
+    [openRow],
+  );
   // 探した結果を押したとき。その日を表示し、項目を出した拡張の編集のシートを開く。F-38、0046
   const openSearchResult = useCallback(
     (item: CalendarItem) => {
@@ -387,6 +376,11 @@ export function CalendarPage() {
   const addons = enabledExtensions.flatMap((x) =>
     (x.itemAddons ?? []).filter((a) => a.extension === editorKey).map((a) => a.Component),
   );
+  const closeEditor = useCallback(() => {
+    setEditor(null);
+    resetRowExpand();
+  }, [resetRowExpand]);
+  const rowExpandValue = useMemo(() => rowExpandState(transitioningKey, editor !== null), [transitioningKey, editor]);
 
   /** グループで絞る選択肢。自分だけのグループは「自分だけの予定」と書く。0009、0057 */
   const filterOptions = groupFilterOptions({
@@ -396,6 +390,10 @@ export function CalendarPage() {
     onChange: (id) => update({ group: id }),
     personalLabel: "自分だけの予定",
   });
+  // 絞り込みのアイコンの隣に出す、選んでいるグループ(や、自分だけなら人)の短い名前。
+  // 「すべて」を選んでいるときは出さない。issue #227
+  const selectedGroup = groupFilter ? allGroups.find((g) => g.id === groupFilter) : undefined;
+  const filterChipLabel = selectedGroup ? (selectedGroup.isPersonal ? "自分だけ" : selectedGroup.name) : null;
 
   // 足せるものは予定だけ。「+」を押すと選んでいる日で直接シートが開く。issue #150、拡張のものは拡張の画面が持つ。0019
   // 読み上げの名前に選んだ日を入れる。予定を足す入口はここだけなので、どの日に足すかを名前で伝える。0012、0062、issue #150
@@ -452,14 +450,14 @@ export function CalendarPage() {
   });
 
   return (
-    <>
+    <RowExpandContext.Provider value={rowExpandValue}>
       {/*
         スマホの幅では、月と年に「今日」「前」「次」「読み直す」「知らせ」「アカウント」を足すと 1 行に入らない。
         入る月と入らない月で高さが変わると落ち着かないので、スマホではいつも月と年の下へ操作を置く。
         9 月でも 10 月でも、「今日」が出ても出なくても、帯の形は変わらない。PC は 1 行のまま
       */}
       {!editingHome && (
-        <header className="glass flex min-h-[58px] flex-wrap items-center gap-x-2 gap-y-1 rounded-panel py-1.5 pr-1.5 pl-4 lg:flex-nowrap lg:pl-5">
+        <header className="nl-hide glass flex min-h-[58px] flex-wrap items-center gap-x-2 gap-y-1 rounded-panel py-1.5 pr-1.5 pl-4 lg:flex-nowrap lg:pl-5">
           <h1 className="flex shrink-0 items-baseline gap-1" aria-live="polite">
             <span data-testid="month-number" className="text-[38px] leading-none font-bold">
               {selected.getMonth() + 1}
@@ -512,6 +510,85 @@ export function CalendarPage() {
         </header>
       )}
 
+      {/*
+        新しい見た目・スマホの上の帯。月(押すと年をらせんで見る)、探す、お知らせをアイコンだけで並べ、
+        下に 1 週間の帯を出す。PC は上の今までの帯のまま(nl-hide/nl-only は globals.css)。0091、issue #239
+      */}
+      {!editingHome && (
+        <>
+          {/*
+            いま何月かと、前後の月へ移る操作。A3 の見本の「9月 2026」と ‹ › の行。#275
+            月・週・日のどの表示でも、選んでいる日の月を出す。矢印は表示の単位ぶん(月なら 1 か月)動く
+          */}
+          <div className="nl-only items-center justify-between gap-2 px-2" data-testid="nl-month-bar">
+            <h1 className="flex items-baseline gap-2" aria-live="polite">
+              <span data-testid="nl-month-title" className="text-[34px] leading-none font-bold">
+                {selected.getMonth() + 1}月
+              </span>
+              <span className="text-[17px] font-medium text-ink-2">{selected.getFullYear()}</span>
+            </h1>
+            <div className="flex items-center gap-1">
+              {showTodayButton && (
+                <button
+                  type="button"
+                  className="min-h-10 shrink-0 rounded-full border border-(--glass-edge) bg-field px-3.5 text-[13px] font-bold whitespace-nowrap"
+                  onClick={() => update({ date: today })}
+                >
+                  今日
+                </button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={view === "month" ? "前の月" : "前へ"}
+                onClick={() => move(-1)}
+              >
+                <ChevronLeft className="size-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={view === "month" ? "次の月" : "次へ"}
+                onClick={() => move(1)}
+              >
+                <ChevronRight className="size-5" />
+              </Button>
+            </div>
+          </div>
+          <header className="nl-only glass min-h-[58px] items-center justify-between gap-1 rounded-panel py-1.5 pr-1.5 pl-2">
+            <Link
+              to={`/spiral/${selected.getFullYear()}`}
+              aria-label="カレンダーを見る"
+              className="grid size-11 place-items-center rounded-full text-ink-2"
+            >
+              <CalendarDays className="size-5" aria-hidden="true" />
+            </Link>
+            {/* 表示の単位(月・週・日)。アイコンだけでも読み上げの名前は今までの「月」「週」「日」のまま。issue #239 */}
+            <Segmented label="表示の単位" value={view} options={VIEWS} onChange={changeView} iconOnly />
+            <div className="flex items-center gap-0.5">
+              {/*
+                今までの「すべて・自分だけ・種類」の絞り込みの帯(GroupFilterBand、下に nl-hide で隠す)を、
+                このアイコン 1 つにまとめる。押すと、グループ・人・種類をまとめたシートが開く。issue #243
+              */}
+              <CalendarFilterButton
+                groupOptions={filterOptions}
+                peopleSections={sections}
+                hiddenPeople={hiddenIds}
+                onTogglePerson={togglePerson}
+                hiddenKinds={hiddenKinds}
+                onToggleKind={toggleKind}
+                tourId="group-filter"
+                selectedLabel={filterChipLabel}
+              />
+              {me.data && <SearchButton groups={allGroups} me={me.data} onOpen={openSearchResult} />}
+              <NotificationBell />
+              <AccountMenu />
+            </div>
+          </header>
+          <WeekBand selected={selected} today={today} items={items} onSelect={onPressDay} />
+        </>
+      )}
+
       {/* ホーム画面に追加する案内。上の帯のすぐ下に並べる。F-34 */}
       {!editingHome && <InstallBanner className="-order-1" />}
 
@@ -536,7 +613,8 @@ export function CalendarPage() {
         グループが多いときは横に流れる。はみ出すときだけ、流せることが分かるよう下にバーを出す。F-25
         下の余白 12 px はバーの有無にかかわらず取る。バーは余白の下 4 px に重なり、チップとは 8 px あく。帯の高さは変わらない。0057
       */}
-      <GroupFilterBand options={filterOptions} tourId="group-filter">
+      {/* 新しい見た目・スマホでは、この帯を上の帯の絞り込みアイコンにまとめて隠す。issue #243 */}
+      <GroupFilterBand options={filterOptions} tourId="group-filter" className="nl-hide">
         {sections.length > 0 && (
           <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />
         )}
@@ -598,12 +676,19 @@ export function CalendarPage() {
         </Button>
       )}
 
-      {/* ウィジェットが少なく中身が短いと、浮いた下の帯にこのボタンが重なるので、帯と同じ高さの余白を足す。issue #24 */}
-      {!editingHome && <div className="h-[var(--dock-clearance)] lg:hidden" aria-hidden="true" />}
+      {/*
+        ウィジェットが少なく中身が短いと、浮いた下の帯にこのボタンが重なるので、帯と同じ高さの余白を足す。issue #24
+        新しい見た目・スマホの下のタブの帯(GlobalBottomTabs)は、ホームを編集している間も消えない。
+        編集中に消えるのは前の見た目の Dock だけなので、編集中も常に余白を取る。無いと、いちばん下の
+        ウィジェットの持ち手が帯の下に隠れ、指で引いての並べ替えが押せなくなる。issue #243
+      */}
+      <div className="h-[var(--dock-clearance)] lg:hidden" aria-hidden="true" />
 
       {/* スマホの下の帯。拡張の画面の Dock と同じ、浮いた丸のまとまりにする。左側の操作(機能、表示の単位)は変えない。0012、issue #150 */}
       {!editingHome && (
-        <Dock label="カレンダーの操作" className="lg:hidden">
+        // 新しい見た目・スマホでは、この帯の役目(機能・+)を下のタブの帯(GlobalBottomTabs)が引き継ぐ。
+        // 表示の単位(月・週・日)は、刷新 3 で今日のページを作り直すまでの間、月の表のままになる。0091、issue #239
+        <Dock label="カレンダーの操作" className="lg:hidden" covered>
           <Button variant="ghost" size="icon" aria-label="機能" onClick={() => setFeatures(true)}>
             <LayoutGrid className="size-5" />
           </Button>
@@ -614,7 +699,10 @@ export function CalendarPage() {
 
       {features && <FeatureSheet onClose={() => setFeatures(false)} />}
 
-      {!editingHome && !editor && !features && <ScreenTour id="calendar" steps={BASE_TOURS.calendar} />}
+      {/* 設定から見直す間(URL に REOPEN_PARAM がある間)は、案内どうしが重ならないよう画面の案内を出さない。issue #243 */}
+      {!editingHome && !editor && !features && !params.has(REOPEN_PARAM) && (
+        <ScreenTour id="calendar" steps={BASE_TOURS.calendar} />
+      )}
 
       {me.data && <Onboarding me={me.data} paused={editor !== null} onAddEvent={() => addNew(today)} />}
 
@@ -635,11 +723,11 @@ export function CalendarPage() {
           onOpenItem={(item) => setEditor({ mode: "edit", item })}
           groups={allGroups}
           me={me.data}
-          onClose={() => setEditor(null)}
+          onClose={closeEditor}
           onDelete={remove}
           addons={addons}
         />
       )}
-    </>
+    </RowExpandContext.Provider>
   );
 }

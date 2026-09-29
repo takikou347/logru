@@ -1,8 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { addExtension, signUp } from "./helpers";
+import { addEventButton, addExtension, enableOldLook, signUp } from "./helpers";
 
 test("下の操作の「機能」で機能のシートが開き、「+」で機能を足す画面へ移れる。issue #145", async ({ page }) => {
   await signUp(page);
+  // カレンダーの Dock(role="toolbar")は新しい見た目・スマホでは下のタブの帯に役目を移して
+  // 隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
+  await page.goto("/");
   await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
   const sheet = page.getByRole("dialog", { name: "機能" });
   await expect(sheet.getByRole("link", { name: /グループ/ })).toBeVisible();
@@ -32,13 +36,16 @@ test("機能のタイルは、長い名前の代わりに短い名前を出す�
 
 test("「予定を足す」は予定のシートだけを開く", async ({ page }) => {
   await signUp(page);
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   await expect(page.getByRole("dialog", { name: "新しい予定" })).toBeVisible();
 });
 
 test("外すと確認のシートに「記録は消えません」と出る。外して足し直しても記録は残る。issue #145", async ({ page }) => {
   await signUp(page);
   await addExtension(page, "家計簿");
+  // 家計簿の Dock(role="toolbar")は新しい見た目・スマホでは下のタブの帯に役目を移して
+  // 隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/kakeibo");
   // 空の月は、下の帯の主なボタンと空の表示のボタンが同じ「支出を記録する」を名乗るので、帯の方を選ぶ
   await page.getByRole("toolbar", { name: "家計簿の操作" }).getByRole("button", { name: "支出を記録する" }).click();
@@ -78,6 +85,9 @@ test("グループが多くても、グループの絞り込みは横に流れ�
     await page.getByRole("button", { name: "作る" }).click();
     await expect(page.getByRole("heading", { name })).toBeVisible();
   }
+  // 「グループで絞る」の帯は、新しい見た目・スマホでは上の帯の絞り込みアイコンにまとめて隠れる
+  // (issue #243)。前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "グループで絞る" });
   const last = nav.getByRole("button", { name: "町内会" });

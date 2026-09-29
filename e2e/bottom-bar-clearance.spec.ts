@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addExtension, addMemories, signUp } from "./helpers";
+import { addEventButton, addExtension, addMemories, enableOldLook, signUp } from "./helpers";
 
 /**
  * 下に浮かぶ帯(Dock、カレンダーの下の操作)に、中身のいちばん下が隠れないことを確かめる。
@@ -27,8 +27,12 @@ async function scrollToBottom(page: import("@playwright/test").Page) {
 }
 
 test("カレンダー: 「このあと」がいくつあっても、下の帯より上に見える", async ({ page }) => {
+  // カレンダーの Dock(role="toolbar")は新しい見た目・スマホでは下のタブの帯に役目を移して
+  // 隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
+  await page.goto("/");
   for (let i = 0; i < 6; i++) {
-    await page.getByRole("button", { name: "予定を足す" }).last().click();
+    await addEventButton(page);
     const sheet = page.getByRole("dialog", { name: "新しい予定" });
     await sheet.getByLabel("題名").fill(`予定 ${i}`);
     const start = new Date(Date.now() + (i + 1) * 86_400_000);
@@ -47,6 +51,9 @@ test("カレンダー: 「このあと」がいくつあっても、下の帯よ
 
 test("思い出: 棚がいくつあっても、下の帯より上に見える", async ({ page }) => {
   await addExtension(page, "思い出");
+  // 思い出の Dock(role="toolbar")は新しい見た目・スマホでは下のタブの帯に役目を移して
+  // 隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/memories");
   for (let i = 0; i < 4; i++) {
     await addMemories(page, "思い出を作る");
@@ -77,9 +84,12 @@ test("家計簿: 記録が無い月でも、空の表示が下の帯より上に
 
 /**
  * 家計簿の「記録」の面の下端が、下の帯より上にあることを確かめる。
- * 読み込みや数字の動きで面の高さが後から変わることがあるので、落ち着くまで下へ送り直して測る
+ * 読み込みや数字の動きで面の高さが後から変わることがあるので、落ち着くまで下へ送り直して測る。
+ * 家計簿の Dock(role="toolbar")は新しい見た目・スマホでは下のタブの帯に役目を移して隠れる
+ * (0091)ため、前の見た目に戻して確かめる
  */
 async function expectKakeiboAboveDock(page: import("@playwright/test").Page) {
+  await enableOldLook(page);
   await expect(async () => {
     await scrollToBottom(page);
     const toolbar = await page.getByRole("toolbar", { name: "家計簿の操作" }).boundingBox();
@@ -92,6 +102,7 @@ async function expectKakeiboAboveDock(page: import("@playwright/test").Page) {
 
 test("家計簿: 記録がいくつあっても、下の帯より上に見える", async ({ page }) => {
   await addExtension(page, "家計簿");
+  await enableOldLook(page);
   await page.goto("/kakeibo");
   const dockButton = page
     .getByRole("toolbar", { name: "家計簿の操作" })

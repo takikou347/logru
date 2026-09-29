@@ -3,6 +3,14 @@
  * 値の置き場は 0044。色はここ、角丸はここ(--r-panel、--r-field)と globals.css(--radius)、
  * 影はここ(--glass-shadow)、ぼかしはここ(--blur、--glass-filter)、動きの時間はここ(--dur-*)、
  * 緩急は globals.css(--ease-out、--ease-in-out)にある。
+ *
+ * 刷新のテーマは「トークン」「面の描き方」「動き」の 3 つの組で持つ。0090
+ * トークンはここ(tokens.css の変数の値)、面の描き方は globals.css の `.glass` ユーティリティ、
+ * 動きは --dur-*、--ease-* で、テーマごとに上書きできる(--dur-page-flip など)。
+ * 既定のリキッドガラス(この :root と :root[data-theme="dark"] の値そのまま)に、
+ * 紙([data-look="paper"])、水・夜空・木・季節([data-look="water"|"night"|"wood"|"season"]、
+ * 刷新 6、0095)を足した 6 つ。ラボの「新しい見た目」を入れていない人は data-lab-new-look が
+ * 付かず、これらの節はどれも当たらないので、見た目は 1px も変わらない。
  */
 :root {
   color-scheme: light;
@@ -79,6 +87,33 @@
    * 移るたびに続けて起こるので、3 段のどれに寄せても意味が変わってしまう。0044、issue #203
    */
   --dur-ambient: 900ms;
+  /*
+   * 今日のページを日めくりする動き。既定(リキッドガラス)は板が傾いて抜ける動き。紙を選んだ人だけ、
+   * 下の [data-lab-new-look][data-look="paper"] の節で綴じ目を軸に回る動きの値に上書きする。
+   * 新しい見た目を入れていない人はどの画面もこの値を使わないので、足しても見た目は変わらない。0092、issue #240
+   */
+  --dur-page-flip: 520ms;
+  --ease-page-flip: cubic-bezier(0.2, 0.9, 0.25, 1);
+  /*
+   * 行がそのままシートに広がる動きと、節・タイルがそのまま機能の画面に広がる動き(どちらも
+   * View Transitions API の共有要素)。ゆとりを持たせて広げる分、シートより機能の画面のほうを長くした。
+   * 緩急は 0044 の --ease-out(抜ける動き)をそのまま使う。0044、0093、issue #241
+   */
+  --dur-expand: 360ms;
+  --dur-box-expand: 440ms;
+  /*
+   * 保存した反応(行が開いて入る動きに、テーマごとの反応を重ねる)。0048 の item-enter(--dur-base)より
+   * 長く取り、紙の書き込み・リキッドガラスの光をゆっくり見せる。0044、0048、0085、0093、issue #241
+   */
+  --dur-save: 480ms;
+
+  /*
+   * シートが OS のキーボードに合わせて持ち上がる・下がる動き。iOS のキーボードの動きに寄せた
+   * 緩急(cubic-bezier(.38,.7,.125,1))を使う。新しい見た目を入れていない人と PC はこの値を
+   * 読まないので、足しても見た目は変わらない。0094、issue #242
+   */
+  --dur-keyboard: 420ms;
+  --ease-keyboard: cubic-bezier(0.38, 0.7, 0.125, 1);
 
   /*
    * 画面の上の、ノッチなどにかかる安全な余白。CSS の変数越しに使うのは、シートの高さの上限の計算に
@@ -161,6 +196,400 @@
   --glass: var(--glass-flat);
   --blur: none;
   --glass-filter: none;
+}
+
+/*
+ * 見た目の土台「紙」。ラボの「新しい見た目」を入れ(data-lab-new-look)、テーマの画面で紙を選んだ
+ * (data-look="paper")人だけに当たる。0090、F-43
+ *
+ * 紙は不透明な面。奥を透かさず、ぼかしも使わない。角丸は小さく、影はごく薄い落ち影だけにする。
+ * インクだまり(Pools.tsx)は紙の背景に合わないため、--pool-opacity を 0 にして隠す。
+ * 色(--ink、--ink-2、--ink-3)は、下の [data-theme="dark"] と合わせて紙の地との比を
+ * tests/client/look-contrast.test.ts で 4.5:1 以上に確かめている。値を変えたらテストも直す。
+ *
+ * 属性 2 つの組み合わせは、単独の属性の組み合わせ([data-bg-theme="flat"] など)より詳しいので、
+ * 順番に関わらずこの節が勝つ。ガラス(既定)を選んだときは、この節がどれも当たらず、いまの
+ * リキッドガラスの見た目のまま変わらない。
+ */
+:root[data-lab-new-look][data-look="paper"] {
+  --ground: #f2e9d6;
+  --ink: #241b12;
+  --ink-2: #6e5c42;
+  --ink-3: #7c6c52;
+  --line: rgba(36, 27, 18, 0.14);
+  --field: #fdf8ec;
+  --field-strong: #fffcf5;
+  --glass: linear-gradient(180deg, #fbf5e8, #f6eeda);
+  --glass-flat: #faf3e4;
+  --glass-edge: rgba(36, 27, 18, 0.16);
+  --chip-edge: rgba(36, 27, 18, 0.26);
+  --glass-shine: transparent;
+  --glass-shadow: 0 1px 3px rgba(36, 27, 18, 0.12);
+  --pool-opacity: 0;
+  /* 角丸のガラスの面の scale。0044 */
+  --r-panel: 4px;
+  --r-field: 8px;
+  --blur: none;
+  --glass-filter: none;
+  /* 今日のページの日めくり。綴じ目を軸に 1 枚が回る、少し速い動き。0092、issue #240 */
+  --dur-page-flip: 420ms;
+  --ease-page-flip: cubic-bezier(0.3, 0, 0.2, 1);
+}
+:root[data-theme="dark"][data-lab-new-look][data-look="paper"] {
+  --ground: #1c1712;
+  --ink: #ece4d3;
+  --ink-2: #b8a98e;
+  --ink-3: #8f8268;
+  --line: rgba(255, 250, 240, 0.1);
+  --field: #26201a;
+  --field-strong: #2c251e;
+  --glass: linear-gradient(180deg, #241e17, #201a14);
+  --glass-flat: #221c16;
+  --glass-edge: rgba(255, 250, 240, 0.12);
+  --chip-edge: rgba(255, 250, 240, 0.16);
+  --glass-shine: transparent;
+  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --pool-opacity: 0;
+}
+
+/*
+ * 見た目の土台「水」。0095、刷新 6、issue #243
+ *
+ * 水の中から見上げた揺らぐ光。--ground は html の地の色(globals.css `background: var(--ground)`)
+ * を、上から差す光の暈(白は最大 22%までしか重ねない)と、水面から深みへの帯の 2 枚で描く。
+ * 白を薄くしか重ねないのは、下の ink との比が [data-theme="dark"] と合わせて
+ * tests/client/look-contrast.test.ts の 4.5:1 を割らないようにするため。値を変えたらテストも直す。
+ * 面(.glass)は少し透ける水色で、縁に「表面張力」の明るい光を置く。角丸は表の値どおり 26px。
+ * インクだまり(Pools)は水の光と重なると煩雑になるため、紙と同じく隠す(--pool-opacity: 0)。
+ *
+ * 光の暈は水面が揺れるようにごくわずかに動かす(water-glimmer)。canvas ではなく
+ * background-position の steps() アニメーションで、実質 15fps 程度の粗さにする(電池、issue #243)。
+ * 動きを減らす設定は globals.css の `*` への既定(0.01ms・1 回)がそのまま効いて止め絵になる。
+ * 操作が止まって 5 秒経つと、public/theme-boot.js が html に付ける data-bg-idle で一時停止する。
+ */
+:root[data-lab-new-look][data-look="water"] {
+  --ground:
+    radial-gradient(120% 55% at 50% -8%, rgba(255, 255, 255, 0.22), transparent 60%),
+    linear-gradient(180deg, #e4f4f5 0%, #bfe3e7 55%, #93c9d1 100%);
+  background-position:
+    50% -8%,
+    0 0;
+  background-size:
+    160% 160%,
+    100% 100%;
+  background-repeat: no-repeat, no-repeat;
+  animation: water-glimmer 8s steps(30, jump-end) infinite;
+  --ink: #0f2c33;
+  --ink-2: #365a61;
+  --ink-3: #4c6e74;
+  --line: rgba(15, 44, 51, 0.14);
+  --field: rgba(255, 255, 255, 0.72);
+  --field-strong: rgba(255, 255, 255, 0.9);
+  --glass: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(210, 240, 242, 0.4));
+  --glass-flat: #d8eef0;
+  --glass-edge: rgba(255, 255, 255, 0.85);
+  --chip-edge: rgba(15, 44, 51, 0.22);
+  --glass-shine: rgba(255, 255, 255, 0.75);
+  --glass-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(15, 68, 77, 0.12),
+    0 18px 36px -18px rgba(13, 60, 68, 0.4);
+  --pool-opacity: 0;
+  --r-panel: 26px;
+  --blur: blur(18px) saturate(160%);
+  /* 日めくり。ページが揺らいで入れ替わり、少し弾んでから静まる。表の値どおり 640ms。0092、issue #243 */
+  --dur-page-flip: 640ms;
+  --ease-page-flip: cubic-bezier(0.32, 1.4, 0.44, 1);
+}
+:root[data-theme="dark"][data-lab-new-look][data-look="water"] {
+  --ground:
+    radial-gradient(110% 45% at 50% -10%, rgba(120, 220, 230, 0.14), transparent 60%),
+    linear-gradient(180deg, #0d2129 0%, #081820 55%, #030d12 100%);
+  background-position:
+    50% -10%,
+    0 0;
+  background-size:
+    160% 160%,
+    100% 100%;
+  background-repeat: no-repeat, no-repeat;
+  animation: water-glimmer 8s steps(30, jump-end) infinite;
+  --ink: #e2f2f4;
+  --ink-2: #a9c9cd;
+  --ink-3: #8fb3b8;
+  --line: rgba(200, 240, 244, 0.12);
+  --field: rgba(20, 50, 56, 0.6);
+  --field-strong: rgba(24, 58, 64, 0.78);
+  --glass: linear-gradient(180deg, rgba(30, 70, 78, 0.7), rgba(12, 34, 40, 0.7));
+  --glass-flat: #102a30;
+  --glass-edge: rgba(150, 225, 230, 0.22);
+  --chip-edge: rgba(200, 240, 244, 0.18);
+  --glass-shine: rgba(140, 230, 235, 0.25);
+  --glass-shadow:
+    inset 0 1px 0 rgba(150, 230, 235, 0.14), inset 0 -1px 0 rgba(0, 0, 0, 0.35), 0 18px 36px -18px rgba(0, 0, 0, 0.7);
+}
+
+/*
+ * 見た目の土台「夜空」。0095、刷新 6、issue #243
+ *
+ * 既定は本文の色などをダーク(深い藍の空)に寄せて作るが、明るさの切り替え自体は今までどおり
+ * data-theme が決める。ライトのときは薄明の空(明け方の紫)。ダークの星は、小さな radial-gradient
+ * 4 つを 1 枚のタイル(170px 角)に置き、background-repeat で敷き詰めて疎らな星空にする
+ * (repeating-radial-gradient は 1 点から同心円が広がる形になり、星の散らばりには使えないため)。
+ * canvas を使わず、タイルの位置を steps() でごくわずかにずらすだけの、実質 15fps 程度のまたたきに
+ * する(opacity は html 全体の子まで薄めてしまうので使わない。電池、issue #243)。動きを減らす設定・
+ * 5 秒の操作なしでの一時停止は、水と同じ仕組み(下の data-bg-idle の節)に乗る。
+ * 面は深い藍の、ほぼ不透明な面。
+ */
+:root[data-lab-new-look][data-look="night"] {
+  --ground: linear-gradient(180deg, #f4e9f2 0%, #e9e3f5 55%, #d8def0 100%);
+  --ink: #221f38;
+  --ink-2: #544f77;
+  --ink-3: #6b6690;
+  --line: rgba(34, 31, 56, 0.14);
+  --field: rgba(255, 255, 255, 0.7);
+  --field-strong: rgba(255, 255, 255, 0.9);
+  --glass: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(230, 226, 245, 0.5));
+  --glass-flat: #e9e6f5;
+  --glass-edge: rgba(255, 255, 255, 0.8);
+  --chip-edge: rgba(34, 31, 56, 0.2);
+  --glass-shine: rgba(255, 255, 255, 0.7);
+  --glass-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(34, 31, 56, 0.08),
+    0 18px 36px -18px rgba(34, 31, 56, 0.32);
+  --pool-opacity: 0;
+  --blur: blur(20px) saturate(160%);
+  /* 日めくり。ページが弧を描いて抜ける。0092、issue #243 */
+  --dur-page-flip: 560ms;
+  --ease-page-flip: cubic-bezier(0.16, 1, 0.3, 1);
+}
+:root[data-theme="dark"][data-lab-new-look][data-look="night"] {
+  --ground:
+    radial-gradient(1.6px 1.6px at 24px 32px, rgba(255, 255, 255, 0.9), transparent 100%),
+    radial-gradient(1.1px 1.1px at 96px 118px, rgba(255, 255, 255, 0.6), transparent 100%),
+    radial-gradient(1.3px 1.3px at 150px 46px, rgba(220, 230, 255, 0.75), transparent 100%),
+    radial-gradient(1px 1px at 60px 150px, rgba(255, 236, 190, 0.7), transparent 100%),
+    linear-gradient(180deg, #05060d 0%, #0b0f1e 55%, #131a30 100%);
+  background-repeat: repeat, repeat, repeat, repeat, no-repeat;
+  background-size:
+    170px 170px,
+    170px 170px,
+    170px 170px,
+    170px 170px,
+    100% 100%;
+  animation: night-twinkle 6s steps(24, jump-end) infinite;
+  --ink: #eef1fb;
+  --ink-2: #aab0cc;
+  --ink-3: #8890b0;
+  --line: rgba(238, 241, 251, 0.12);
+  --field: rgba(20, 24, 42, 0.7);
+  --field-strong: rgba(24, 29, 50, 0.85);
+  --glass: linear-gradient(180deg, rgba(30, 36, 62, 0.85), rgba(14, 17, 32, 0.85));
+  --glass-flat: #12162a;
+  --glass-edge: rgba(180, 190, 230, 0.2);
+  --chip-edge: rgba(238, 241, 251, 0.16);
+  --glass-shine: rgba(200, 210, 255, 0.18);
+  --glass-shadow:
+    inset 0 1px 0 rgba(200, 210, 255, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.4), 0 18px 36px -18px rgba(0, 0, 0, 0.75);
+}
+
+/*
+ * 見た目の土台「木」。0095、刷新 6、issue #243
+ *
+ * 木目は repeating-linear-gradient の薄い縞を、暖色の板の色に重ねて表す。面は木の板・紙の日めくり
+ * のような不透明な面。紙(0090)と同じく光沢の層(globals.css の .glass::before)は持たず、
+ * ぼかしも使わない。角丸は紙よりわずかに大きい 6px/8px(板の面取りのイメージ)。
+ */
+:root[data-lab-new-look][data-look="wood"] {
+  --ground:
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 7px),
+    linear-gradient(180deg, #ecd7ab 0%, #e3c690 55%, #d8b378 100%);
+  --ink: #2b1a0c;
+  --ink-2: #5c4322;
+  --ink-3: #6f532c;
+  --line: rgba(43, 26, 12, 0.16);
+  --field: #f4e6c8;
+  --field-strong: #f9efd8;
+  --glass: linear-gradient(180deg, #f1e2bd, #e9d1a4);
+  --glass-flat: #ecdcb4;
+  --glass-edge: rgba(43, 26, 12, 0.18);
+  --chip-edge: rgba(43, 26, 12, 0.28);
+  --glass-shine: transparent;
+  --glass-shadow: 0 1px 3px rgba(43, 26, 12, 0.18);
+  --pool-opacity: 0;
+  --r-panel: 6px;
+  --r-field: 8px;
+  --blur: none;
+  --glass-filter: none;
+  /* 日めくり。天糊を軸に反り、破れて落ちる。紙よりさらに速い。0092、issue #243 */
+  --dur-page-flip: 460ms;
+  --ease-page-flip: cubic-bezier(0.5, 0, 0.85, 0.35);
+}
+:root[data-theme="dark"][data-lab-new-look][data-look="wood"] {
+  --ground:
+    repeating-linear-gradient(115deg, rgba(0, 0, 0, 0.12) 0 2px, transparent 2px 7px),
+    linear-gradient(180deg, #241608 0%, #1c1006 55%, #140b04 100%);
+  --ink: #ecdcc0;
+  --ink-2: #c3a578;
+  --ink-3: #a98d63;
+  --line: rgba(236, 220, 192, 0.12);
+  --field: #2a1a0c;
+  --field-strong: #31200f;
+  --glass: linear-gradient(180deg, #2c1c0e, #241608);
+  --glass-flat: #291a0c;
+  --glass-edge: rgba(236, 220, 192, 0.14);
+  --chip-edge: rgba(236, 220, 192, 0.18);
+  --glass-shine: transparent;
+  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/*
+ * 見た目の土台「季節」。0095、刷新 6、issue #243
+ *
+ * 開くたびに、日本時間の月で決めた季節(3〜5 春、6〜8 夏、9〜11 秋、12〜2 冬)を data-season に
+ * 反映する(src/client/lib/look.ts の currentSeason、public/theme-boot.js)。地の色にごく薄い
+ * 季節の色をのせるだけで、紙・木と同じ不透明な面・小さい角丸は季節によらず共通にする(0067 の
+ * 「テーマが違っても部品の形は同じ」に沿う)。--season-accent は、日めくりで横切る葉
+ * (DayFlipDeck.tsx)と、記録したときに舞う葉(globals.css の .item-enter の上書き)の色に使う。
+ * どちらもこの担当のファイルだが、tokens.css からは getComputedStyle で読むだけなので、
+ * ここでは値を置くだけでよい。
+ */
+:root[data-lab-new-look][data-look="season"] {
+  --ground: #f3ece1;
+  --ink: #241f1a;
+  --ink-2: #5c5044;
+  --ink-3: #6e6153;
+  --line: rgba(36, 31, 26, 0.14);
+  --field: #faf5ec;
+  --field-strong: #fffcf6;
+  --glass: linear-gradient(180deg, #fbf6ec, #f6efe0);
+  --glass-flat: #f7f0e2;
+  --glass-edge: rgba(36, 31, 26, 0.14);
+  --chip-edge: rgba(36, 31, 26, 0.24);
+  --glass-shine: transparent;
+  --glass-shadow: 0 1px 3px rgba(36, 31, 26, 0.12);
+  --pool-opacity: 0;
+  --r-panel: 6px;
+  --r-field: 8px;
+  --blur: none;
+  --glass-filter: none;
+  --season-accent: #6e6153;
+  /* 日めくり。ページが浮いて流れる、ゆっくりした動き。0092、issue #243 */
+  --dur-page-flip: 600ms;
+  --ease-page-flip: cubic-bezier(0.22, 1, 0.36, 1);
+}
+:root[data-theme="dark"][data-lab-new-look][data-look="season"] {
+  --ground: #191510;
+  --ink: #f0e8db;
+  --ink-2: #c2b6a0;
+  --ink-3: #a89b85;
+  --line: rgba(240, 232, 219, 0.1);
+  --field: #211c15;
+  --field-strong: #272119;
+  --glass: linear-gradient(180deg, #251f17, #1e1911);
+  --glass-flat: #221c15;
+  --glass-edge: rgba(240, 232, 219, 0.12);
+  --chip-edge: rgba(240, 232, 219, 0.16);
+  --glass-shine: transparent;
+  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --season-accent: #a89b85;
+}
+/* 春(桜)。3〜5 月 */
+:root[data-lab-new-look][data-look="season"][data-season="spring"] {
+  --ground:
+    radial-gradient(70% 40% at 15% -6%, rgba(217, 87, 122, 0.16), transparent 65%),
+    radial-gradient(60% 35% at 90% 8%, rgba(217, 87, 122, 0.12), transparent 65%), #f3ece1;
+  --season-accent: #d9577a;
+}
+/* 夏(青葉)。6〜8 月 */
+:root[data-lab-new-look][data-look="season"][data-season="summer"] {
+  --ground:
+    radial-gradient(70% 40% at 15% -6%, rgba(63, 156, 90, 0.14), transparent 65%),
+    radial-gradient(60% 35% at 90% 8%, rgba(63, 156, 90, 0.1), transparent 65%), #f3ece1;
+  --season-accent: #3f9c5a;
+}
+/* 秋(紅葉)。9〜11 月 */
+:root[data-lab-new-look][data-look="season"][data-season="autumn"] {
+  --ground:
+    radial-gradient(70% 40% at 15% -6%, rgba(193, 85, 44, 0.16), transparent 65%),
+    radial-gradient(60% 35% at 90% 8%, rgba(193, 85, 44, 0.12), transparent 65%), #f3ece1;
+  --season-accent: #c1552c;
+}
+/* 冬(雪)。12〜2 月 */
+:root[data-lab-new-look][data-look="season"][data-season="winter"] {
+  --ground:
+    radial-gradient(70% 40% at 15% -6%, rgba(111, 147, 196, 0.16), transparent 65%),
+    radial-gradient(60% 35% at 90% 8%, rgba(111, 147, 196, 0.12), transparent 65%), #f3ece1;
+  --season-accent: #6f93c4;
+}
+:root[data-theme="dark"][data-lab-new-look][data-look="season"][data-season="spring"] {
+  --ground: radial-gradient(70% 40% at 15% -6%, rgba(217, 87, 122, 0.14), transparent 65%), #191510;
+  --season-accent: #e78aa3;
+}
+:root[data-theme="dark"][data-lab-new-look][data-look="season"][data-season="summer"] {
+  --ground: radial-gradient(70% 40% at 15% -6%, rgba(63, 156, 90, 0.14), transparent 65%), #191510;
+  --season-accent: #6cc48a;
+}
+:root[data-theme="dark"][data-lab-new-look][data-look="season"][data-season="autumn"] {
+  --ground: radial-gradient(70% 40% at 15% -6%, rgba(193, 85, 44, 0.16), transparent 65%), #191510;
+  --season-accent: #e08a5c;
+}
+:root[data-theme="dark"][data-lab-new-look][data-look="season"][data-season="winter"] {
+  --ground: radial-gradient(70% 40% at 15% -6%, rgba(111, 147, 196, 0.16), transparent 65%), #191510;
+  --season-accent: #9db6dc;
+}
+
+/*
+ * 水の光の揺らぎ、夜空のまたたき。どちらも background-position を steps() でわずかに動かすだけで、
+ * canvas も毎フレームの描き直しも無い(issue #243 の「背景は固定の画像や CSS で」に沿う)。
+ * 木目・季節の色は、動く背景を持たない(表の「動き」に無いため。木は日めくりの動きだけ、
+ * 季節は日めくりと記録したときの葉だけで、地の色そのものは揺らさない)。
+ *
+ * 動きを減らす設定は、globals.css の `@media (prefers-reduced-motion: reduce)` が `*` にかけている
+ * 0.01ms・1 回だけの決まりがこの 2 つの animation にもそのまま効き、最後のコマで止まる(止め絵)。
+ *
+ * 操作が止まって 5 秒経つと、public/theme-boot.js が html に data-bg-idle を付ける
+ * (pointerdown・keydown・scroll・touchstart で消え、5 秒操作が無いと戻る)。付いている間は
+ * animation-play-state を paused にして描き直しを止める。ラボの「新しい見た目」を入れていない人は
+ * data-lab-new-look が付かないので、この属性があっても何も起きない。
+ */
+@keyframes water-glimmer {
+  0% {
+    background-position:
+      44% -10%,
+      0 0;
+  }
+  50% {
+    background-position:
+      56% -4%,
+      0 0;
+  }
+  100% {
+    background-position:
+      44% -10%,
+      0 0;
+  }
+}
+@keyframes night-twinkle {
+  0%,
+  100% {
+    background-position:
+      24px 32px,
+      96px 118px,
+      150px 46px,
+      60px 150px,
+      0 0;
+  }
+  50% {
+    background-position:
+      26px 30px,
+      94px 120px,
+      148px 48px,
+      62px 148px,
+      0 0;
+  }
+}
+:root[data-bg-idle][data-look="water"],
+:root[data-bg-idle][data-look="night"] {
+  animation-play-state: paused;
 }
 
 .c-wakatake {

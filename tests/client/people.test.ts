@@ -20,6 +20,8 @@ const me: Me = {
     toursSeen: [],
     extensionOrder: [],
     usualShareGroupId: null,
+    todayPage: { sortMode: "added", headlineExtension: null, openOverrides: {} },
+    notificationPrefs: {},
   },
   needsAgreement: [],
   provider: "password",

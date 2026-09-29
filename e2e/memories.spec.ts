@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { addExtension, addMemories, signUp, swipeRowLeft } from "./helpers";
+import { addExtension, addMemories, enableOldLook, signUp, swipeRowLeft } from "./helpers";
 
 // 写真は Unsplash License のフリー写真を小さくしたもの。出どころは develop-docs の docs/logru/extensions/memories/images/photos/sources.txt
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
@@ -20,6 +20,8 @@ test("足す前は、思い出の画面は開けない", async ({ page }) => {
 test("思い出を作り、写真付きで記録し、いいねを付け、カレンダーに出る", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await enableMemories(page);
+  // カレンダーのホームのウィジェットを使うため、前の見た目に戻して確かめる(0091)
+  await enableOldLook(page);
 
   // 機能のシートに入口が出る。記録の動線はホームのウィジェットへ移した
   await page.goto("/");

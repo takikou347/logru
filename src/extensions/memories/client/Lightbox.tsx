@@ -1,12 +1,13 @@
 import type { GroupSummary, Me } from "@shared/api-types";
-import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageIcon, Share2 } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
+import { canShareFiles, photoShareFile, sharePhoto } from "@/lib/web-share";
 import type { MemoryRecord, Photo } from "../shared/types";
 import { useSaveMemory } from "./api";
-import { authorOf, formatClock, PhotoImg } from "./parts";
+import { authorOf, formatClock, PhotoImg, useIconOnly } from "./parts";
 
 /** 大きく見る写真と、その写真が付いた記録 */
 export type LightboxEntry = { photo: Photo; record: MemoryRecord };
@@ -35,9 +36,23 @@ export function Lightbox({
   timeZone?: string;
 }) {
   const save = useSaveMemory();
+  const iconOnly = useIconOnly();
   const entry = entries[index];
   const prev = () => onIndex((index - 1 + entries.length) % entries.length);
   const next = () => onIndex((index + 1) % entries.length);
+  // ファイルの共有に対応した端末だけ、共有ボタンを出す。#258
+  const shareOk = canShareFiles();
+
+  async function handleShare() {
+    if (!entry) return;
+    try {
+      const file = await photoShareFile(entry.photo.fullUrl, `logru-${entry.photo.id}.jpg`);
+      await sharePhoto(file);
+    } catch (e) {
+      // シートを閉じただけなら AbortError。共有をやめただけなので、失敗として出さない
+      if ((e as { name?: string }).name !== "AbortError") toast.error("共有できませんでした。");
+    }
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -85,21 +100,31 @@ export function Lightbox({
         <span className="ml-2 text-ink-2">{formatClock(entry.photo.takenAt ?? entry.record.occurredAt, timeZone)}</span>
       </p>
       {entry.record.body && <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{entry.record.body}</p>}
-      {memoryId && (
-        <Button
-          variant="secondary"
-          className="self-start"
-          disabled={save.isPending}
-          onClick={() =>
-            save.mutate(
-              { id: memoryId, body: { coverPhotoId: entry.photo.id } },
-              { onSuccess: () => toast("表紙にしました"), onError: (e) => toast.error((e as Error).message) },
-            )
-          }
-        >
-          <ImageIcon className="size-4" />
-          表紙にする
-        </Button>
+      {(memoryId || shareOk) && (
+        <div className="flex flex-wrap gap-2">
+          {memoryId && (
+            <Button
+              variant="secondary"
+              className="self-start"
+              disabled={save.isPending}
+              onClick={() =>
+                save.mutate(
+                  { id: memoryId, body: { coverPhotoId: entry.photo.id } },
+                  { onSuccess: () => toast("表紙にしました"), onError: (e) => toast.error((e as Error).message) },
+                )
+              }
+            >
+              <ImageIcon className="size-4" />
+              表紙にする
+            </Button>
+          )}
+          {shareOk && (
+            <Button variant="secondary" className="self-start" aria-label="共有する" onClick={handleShare}>
+              <Share2 className="size-4" />
+              {!iconOnly && "共有する"}
+            </Button>
+          )}
+        </div>
       )}
     </ResponsiveSheet>
   );

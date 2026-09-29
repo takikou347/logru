@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addExtension, removeExtension, signUp } from "./helpers";
+import { addExtension, enableOldLook, removeExtension, signUp } from "./helpers";
 
 /**
  * 機能の一覧はアイコンのタイルで並べ、拡張ごとの詳細に「自分に足す」「足すグループ」「その拡張の設定」を集める。
@@ -26,6 +26,9 @@ test("足せる機能が無ければ「+」を出さない。機能のシート�
   const grid = page.getByTestId("extension-tile-grid");
   await expect(grid.getByRole("link", { name: "機能を足す" })).toHaveCount(0);
 
+  // カレンダーの Dock(role="toolbar")の「機能」ダイアログは、新しい見た目・スマホでは下のタブの
+  // 帯に役目を移して隠れる(0091)ため、前の見た目に戻して確かめる
+  await enableOldLook(page);
   await page.goto("/");
   await page.getByRole("toolbar", { name: "カレンダーの操作" }).getByRole("button", { name: "機能" }).click();
   await expect(page.getByRole("dialog", { name: "機能" }).getByRole("link", { name: "機能を足す" })).toHaveCount(0);

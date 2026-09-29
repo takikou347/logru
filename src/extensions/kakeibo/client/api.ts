@@ -488,12 +488,17 @@ export function useDeleteRecurring() {
   });
 }
 
-/** 本人のよく使う記録を読む。F-326 */
-export function useKakeiboTemplates() {
+/**
+ * 本人のよく使う記録を読む。F-326
+ * @param enabled false の間は読まない。下のタブの帯の「+」の放射(useFavoriteAdds)は、
+ *   家計簿を足していない人では読まないように渡す。0091、issue #239
+ */
+export function useKakeiboTemplates(enabled = true) {
   return useQuery({
     queryKey: kakeiboKeys.templates,
     queryFn: () => api<{ templates: KakeiboTemplate[] }>("/kakeibo/templates"),
     select: (data) => data.templates,
+    enabled,
   });
 }
 

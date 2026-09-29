@@ -5,6 +5,7 @@
 
 import { createdAt, now, updatedAt } from "@server/core/db/columns";
 import type { HomeWidgetEntry } from "@shared/api-types";
+import type { NotificationPrefs } from "@shared/notifications";
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /** 利用者。ID は Firebase の利用者 ID。ログインの情報そのものは Firebase にある */
@@ -59,6 +60,22 @@ export const userSettings = sqliteTable("user_settings", {
    * 移行 0020
    */
   usualShareAskedAt: integer("usual_share_asked_at", { mode: "timestamp_ms" }),
+  /**
+   * 今日のページの並べ方(よく使う順・足した順・自分で並べる)と見せ方(見出しに出す拡張、
+   * 節ごとの開閉の上書き)。自分で並べるは extensionOrder をそのまま使う。0092、F-45。移行 0028
+   */
+  todayPage: text("today_page", { mode: "json" })
+    .$type<{
+      sortMode: "favorite" | "added" | "manual";
+      headlineExtension: string | null;
+      openOverrides: Record<string, boolean>;
+    }>()
+    .notNull()
+    .default({ sortMode: "added", headlineExtension: null, openOverrides: {} }),
+  /**
+   * 種類ごとの、一覧に出すか・端末にも知らせるか。既定から変えた種類だけを持つ。0096、F-47。移行 0029
+   */
+  notificationPrefs: text("notification_prefs", { mode: "json" }).$type<NotificationPrefs>().notNull().default({}),
 });
 
 /** 規約に同意した版。最新の版の行が無ければ同意を取り直す。F-16 */
@@ -210,6 +227,11 @@ export const notifications = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     kind: text("kind").notNull(),
     payload: text("payload", { mode: "json" }).notNull(),
+    /**
+     * 同じ相手(同じ予定、同じリストなど)の出来事を、既読になるまで 1 行にまとめる目印。
+     * 拡張が呼ぶ側で決める。まとめない kind は null。0096、F-47
+     */
+    groupKey: text("group_key"),
     readAt: integer("read_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
   },
@@ -218,5 +240,7 @@ export const notifications = sqliteTable(
     index("notifications_user_unread_idx").on(t.userId, t.readAt),
     // 90 日を過ぎた行を消す定期処理は利用者をまたいで created_at だけで探すので、単独の索引も要る。0066
     index("notifications_created_idx").on(t.createdAt),
+    // 同じ相手の未読をまとめるとき、この組で探す。0096
+    index("notifications_group_key_idx").on(t.userId, t.kind, t.groupKey),
   ],
 );

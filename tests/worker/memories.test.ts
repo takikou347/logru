@@ -1,5 +1,6 @@
 import { expiryFor, isJpeg, PhotoSigner, photoKey, verifyPhotoUrl } from "@extensions/memories/server/photos";
 import { addDaysToKey, dayIndexOf, dayKeyIn, hourIn, memoryDays, startOfDayIn } from "@extensions/memories/shared/days";
+import { shouldNotifyShioriAssignment } from "@extensions/memories/shared/notifications";
 import { memoryInput, PHOTO_DATA_URL_PATTERN, recordInput } from "@extensions/memories/shared/schemas";
 import { describe, expect, it } from "vitest";
 
@@ -105,7 +106,7 @@ describe("写真の URL", () => {
   });
 });
 
-import { hourStartIn, openSlots, slotAt, slotsOfDay } from "@extensions/memories/shared/koma";
+import { hourStartIn, openSlots, slotAt, slotsOfDay, timeZoneDrifted } from "@extensions/memories/shared/koma";
 
 describe("ひとコマの枠。0022", () => {
   const tz = "Asia/Tokyo";
@@ -135,6 +136,25 @@ describe("ひとコマの枠。0022", () => {
     const slots = slotsOfDay(Date.parse("2026-09-22T00:00:00+09:00"), tz);
     expect(slots.map((s) => s.hour)).toEqual([7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]);
   });
+
+  it("旅先へ移ったら、いまの端末の時間帯とのずれを見分ける。#255", () => {
+    expect(timeZoneDrifted("Asia/Tokyo", "Asia/Tokyo")).toBe(false);
+    expect(timeZoneDrifted("Asia/Tokyo", "America/New_York")).toBe(true);
+    // 端末の時間帯を送っていない古い呼び出しでは、保存した時間帯のままにする
+    expect(timeZoneDrifted("Asia/Tokyo", "")).toBe(false);
+  });
+
+  it("旅先の時間帯に合わせ直すと、その時刻の枠の並びも現地に合う。#255", () => {
+    // 東京で 22 時台に撮った直後、ニューヨークへ移ると、その瞬間はニューヨークでは同じ日の朝
+    const tokyo22 = Date.parse("2026-09-22T22:30:00+09:00");
+    expect(slotAt(tokyo22, "Asia/Tokyo")?.hour).toBe(22);
+    expect(hourIn(tokyo22, "America/New_York")).toBe(9);
+    // 合わせ直した時間帯で 1 日の枠を数えると、ニューヨークの現地時刻の並びになる
+    const nyDay = dayKeyIn(tokyo22, "America/New_York");
+    const slots = slotsOfDay(startOfDayIn(nyDay, "America/New_York"), "America/New_York");
+    expect(slots[0]?.hour).toBe(7);
+    expect(slots.at(-1)?.hour).toBe(22);
+  });
 });
 
 import { memoryOfEvent } from "@extensions/memories/shared/links";
@@ -163,5 +183,27 @@ describe("予定がどの思い出に入るか。0020", () => {
     const e = event("e", day(20) + 3_600_000, null);
     expect(memoryOfEvent(e, [walk, trip])?.id).toBe("trip");
     expect(memoryOfEvent(e, [walk, { ...trip, excludedEventIds: ["e"] }])?.id).toBe("walk");
+  });
+});
+
+describe("しおりの担当になったことを積むか。0096、issue #247", () => {
+  it("新しく担当が決まれば積む", () => {
+    expect(shouldNotifyShioriAssignment("mika", null)).toBe(true);
+  });
+
+  it("前と違う担当に変わったら積む", () => {
+    expect(shouldNotifyShioriAssignment("mika", "kota")).toBe(true);
+  });
+
+  it("前と同じ担当のままなら積まない", () => {
+    expect(shouldNotifyShioriAssignment("mika", "mika")).toBe(false);
+  });
+
+  it("担当を外したら(null)積まない", () => {
+    expect(shouldNotifyShioriAssignment(null, "mika")).toBe(false);
+  });
+
+  it("assigneeId が送られていなければ(undefined)積まない", () => {
+    expect(shouldNotifyShioriAssignment(undefined, "mika")).toBe(false);
   });
 });

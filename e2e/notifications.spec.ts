@@ -1,12 +1,40 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
-import { addExtension, addMemories, dayPanel, pickShare, signUp } from "./helpers";
+import { addEventButton, addExtension, addMemories, dayPanel, enableOldLook, pickShare, signUp } from "./helpers";
+
+/** 見えているほうのベルを押す。スマホは上の帯、PC も上の帯にある */
+function bellButton(page: Page) {
+  return page.getByRole("button", { name: /お知らせ/ }).filter({ visible: true });
+}
+
+/**
+ * ここまでの未読をすべて既読にする。グループに入った・抜けた・機能が足されたことも積まれる
+ * ようになったので(0096、issue #245)、その後の数を数えるテストの前に基準をそろえる
+ */
+async function clearNotifications(page: Page) {
+  await bellButton(page).click();
+  const list = page.getByRole("dialog", { name: "お知らせ" });
+  const markAll = list.getByRole("button", { name: "すべて既読にする" });
+  // 一覧の読み込みが終わってから確かめる。isVisible の timeout は待たないので、読み込み中に
+  // 確かめると、未読があるのにボタンをまだ見ずに通り過ぎ、あとの数が 1 件多くなる
+  await expect(list.getByText("読み込んでいます")).toHaveCount(0);
+  // 未読が無ければこのボタンは出ない。押したら、サーバーが既読にし終えるまで待つ
+  if (await markAll.isVisible()) {
+    const done = page.waitForResponse((r) => r.url().includes("/api/notifications/read-all") && r.ok());
+    await markAll.click();
+    await done;
+  }
+  await page.keyboard.press("Escape");
+}
 
 /**
  * 「ふたり」のグループを作り、ほかの人を招待リンクで入れる。invitations.spec.ts と同じ作り方。
+ * カレンダーの月の表(day-panel)に留まるため、前の見た目に戻す。新しい見た目・スマホでは
+ * 下のタブの「記録する」が必ずホームへ移ってしまい(0091)、addEventButton がこの画面に留まれない
  * @returns 入った人の画面。names の順
  */
 async function shareGroup(page: Page, browser: Browser, names: string[]) {
   await signUp(page, { name: "こた" });
+  await enableOldLook(page);
   await page.goto("/groups");
   await page.getByLabel("グループの名前").fill("ふたり");
   await page.getByRole("button", { name: "作る" }).click();
@@ -18,16 +46,19 @@ async function shareGroup(page: Page, browser: Browser, names: string[]) {
     await signUp(other, { name, next: path });
     await other.getByRole("button", { name: "参加する" }).click();
     await expect(other).toHaveURL(/group=/);
+    await enableOldLook(other);
     await other.goto("/");
     others.push(other);
   }
+  // 入ったことの知らせ(groups.member_joined)が積まれているので、既読にしてから返す。0096
   await page.goto("/");
+  await clearNotifications(page);
   return others;
 }
 
 /** 下の操作から予定を足し、「ふたり」に置いて、names の人を招待する */
 async function addInvited(page: Page, title: string, names: string[]) {
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill(title);
   await pickShare(page, sheet, "ふたり");
@@ -42,11 +73,6 @@ const dayItem = (page: Page, title: string) => dayPanel(page).getByRole("button"
 async function openItem(page: Page, title: string) {
   await dayItem(page, title).click();
   return page.getByRole("dialog");
-}
-
-/** 見えているほうのベルを押す。スマホは上の帯、PC も上の帯にある */
-function bellButton(page: Page) {
-  return page.getByRole("button", { name: /お知らせ/ }).filter({ visible: true });
 }
 
 /** グループの設定で思い出を足す。groups.spec.ts と同じ、グループの詳細に入って切り替える作り方 */
@@ -171,10 +197,10 @@ test("いいねを外して付け直しても、お知らせは 1 件のまま�
   await article.getByRole("button", { name: /いいねを付ける/ }).click();
   await expect(article.getByRole("button", { name: /いいねを外す/ })).toBeVisible();
 
-  // 外して付け直しても、こたに届くお知らせは 1 件のまま。ベルはカレンダーの帯にだけある
+  // 外して付け直しても、こたに届くお知らせは 1 件のまま。ベルは上の帯にある
   await page.goto("/");
   await expect(bellButton(page)).toHaveAccessibleName("お知らせ。未読 1 件");
   await bellButton(page).click();
   const list = page.getByRole("dialog", { name: "お知らせ" });
-  await expect(list.getByRole("button", { name: /いいねが付きました/ })).toHaveCount(1);
+  await expect(list.getByRole("button", { name: /いいねが.*付きました/ })).toHaveCount(1);
 });

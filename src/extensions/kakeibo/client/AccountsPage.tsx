@@ -1,5 +1,5 @@
 import type { GroupSummary } from "@shared/api-types";
-import { Pencil } from "lucide-react";
+import { Landmark, Pencil } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
@@ -14,6 +14,7 @@ import { PickerOptionRow, PickerRow } from "@/components/parts/PickerRow";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { Button } from "@/components/ui/button";
 import { useRowMotion } from "@/lib/use-row-motion";
+import { useSetSearchParams } from "@/lib/use-set-search-params";
 import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { takeJustAdded } from "@/modules/calendar/recent-items";
@@ -162,15 +163,16 @@ export function AccountsPage() {
   const me = useMe();
   const { groups, ready } = useKakeiboGroups();
   const accounts = useKakeiboAccounts(null, ready);
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetSearchParams();
   const deleteAccount = useDeleteAccount();
   // 消すときは確認を出さず、5 秒だけ「元に戻す」を出す。縮んで消える動きと、直した行を光らせる印も持つ。#194、0085、#226
   const { hidden, leaving, remove, flashing, flash } = useRowMotion("口座を消しました");
 
   const creating = params.get("create") === "1";
-  const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
+  const closeCreate = () => setParams((p) => p.delete("create"));
   const editingId = params.get("edit");
-  const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
+  const closeEdit = () => setParams((p) => p.delete("edit"));
   const handleDelete = (account: KakeiboAccount) =>
     remove(account.id, ({ keepalive }) => deleteAccount.mutateAsync({ id: account.id, keepalive }));
   // もう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。
@@ -203,7 +205,7 @@ export function AccountsPage() {
               bordered={false}
               action={{
                 label: "口座を作る",
-                onClick: () => setParams((p) => (p.set("create", "1"), p), { replace: true }),
+                onClick: () => setParams((p) => p.set("create", "1")),
               }}
             >
               まだ口座がありません。現金や銀行など、お金の置き場所ごとに作ります。
@@ -220,7 +222,7 @@ export function AccountsPage() {
             flashing={flashing}
             onEdit={(a) => {
               editGen.current += 1;
-              setParams((p) => (p.set("edit", a.id), p), { replace: true });
+              setParams((p) => p.set("edit", a.id));
             }}
           />
         ))}
@@ -228,12 +230,13 @@ export function AccountsPage() {
         <Dock label="口座の操作">
           <PrimaryAddButton
             label="口座を作る"
+            icon={Landmark}
             addables={[
               {
                 key: "account",
                 label: "口座を作る",
                 icon: KAKEIBO_ACCOUNT_KIND_ICONS.other,
-                onClick: () => setParams((p) => (p.set("create", "1"), p), { replace: true }),
+                onClick: () => setParams((p) => p.set("create", "1")),
               },
             ]}
           />

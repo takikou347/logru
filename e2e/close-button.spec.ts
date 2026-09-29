@@ -1,14 +1,16 @@
 import { expect, type Locator, test } from "@playwright/test";
-import { addEvent, addExtension, dayPanel, signUp } from "./helpers";
+import { addEvent, addEventButton, addExtension, enableOldLook, signUp } from "./helpers";
 
 /**
  * シート・ダイアログの右上の閉じるボタン(×)が、どこで開いても同じ大きさ・見た目になったか。issue #223、0083
  * `CloseButton`(1 つの部品)の押せる範囲(size-11、44px 四方)を、それぞれの場面で測って比べる。
+ * カレンダーの Dock の「機能」ダイアログを使うため、前の見た目に戻して確かめる(0091)。
  */
 test.use({ viewport: { width: 390, height: 844 } });
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
+  await enableOldLook(page);
 });
 
 /** 開いているダイアログ・シートの中の閉じるボタン(×)。`data-slot="close-button"` で、下の明示の「閉じる」ボタンと区別する */
@@ -46,7 +48,7 @@ test("家計簿の記録、予定、リスト、思い出の記録、機能の�
   // 予定。「予定を足す」はカレンダーの画面にしか無い
   await page.goto("/");
   await addEvent(page, "歯医者");
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const event = page.getByRole("dialog", { name: "新しい予定" });
   await measure("予定", event);
   await page.keyboard.press("Escape");
@@ -78,7 +80,7 @@ test("家計簿の記録、予定、リスト、思い出の記録、機能の�
   await expect(features).toBeHidden();
 
   // 書きかけの確かめ。issue #200
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const draft = page.getByRole("dialog", { name: "新しい予定" });
   await draft.getByLabel("題名").fill("買い物");
   const list2 = draft.getByRole("region", { name: /日の予定$/ });
@@ -92,7 +94,7 @@ test("家計簿の記録、予定、リスト、思い出の記録、機能の�
 
   // 繰り返しの範囲。決定 0043
   await page.getByRole("radio", { name: "週", exact: true }).last().click();
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const repeatSheet = page.getByRole("dialog", { name: "新しい予定" });
   await repeatSheet.getByLabel("題名").fill("毎週のジム");
   await repeatSheet.getByRole("radio", { name: "毎週" }).click();

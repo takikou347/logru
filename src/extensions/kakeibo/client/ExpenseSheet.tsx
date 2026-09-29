@@ -11,6 +11,7 @@ import { useSheetSubmit } from "@/components/parts/use-sheet-submit";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { dateKey } from "@/lib/dates";
+import { handleEnterAdvancesField } from "@/lib/keyboard-field-nav";
 import { defaultShareGroupId } from "@/lib/share-default";
 import { KAKEIBO_EXPENSE_CATEGORIES, KAKEIBO_INCOME_CATEGORIES, type KakeiboCategory } from "../shared/categories";
 import { isValidKakeiboAmount } from "../shared/format";
@@ -128,6 +129,10 @@ function expenseFormReducer(state: ExpenseFormState, action: ExpenseFormAction):
  * @param expense 直す記録。無ければ新しく作る
  * @param defaultGroupId 最初に選ぶグループ。無ければ前回か自分だけ
  * @param onDelete 「消す」を押したとき。expense があるときだけ渡る
+ * @param defaultType 新しく作るときの、最初の種類。下のタブの帯の「+」の放射(収入を記録する)から
+ *   開いたときに渡る。無ければ前回の種類。0091、issue #239
+ * @param initialTemplateId 新しく作るときに、開いた直後に当てるよく使う記録の id。「+」の放射の
+ *   上のよく使う記録から開いたときに渡る。中のチップを押すのと同じ経路(applyTemplate)を通す
  */
 export function ExpenseSheet({
   groups,
@@ -136,6 +141,8 @@ export function ExpenseSheet({
   defaultGroupId,
   onClose,
   onDelete,
+  defaultType,
+  initialTemplateId,
 }: {
   groups: GroupSummary[];
   me: Me;
@@ -143,6 +150,8 @@ export function ExpenseSheet({
   defaultGroupId?: string | null;
   onClose: () => void;
   onDelete?: (expense: KakeiboExpense) => void;
+  defaultType?: KakeiboType;
+  initialTemplateId?: string;
 }) {
   const saveExpense = useSaveExpense();
   const usage = useKakeiboUsage();
@@ -182,7 +191,7 @@ export function ExpenseSheet({
           )
         : {};
     return {
-      type: expense?.type ?? initialLast?.type ?? "expense",
+      type: expense?.type ?? defaultType ?? initialLast?.type ?? "expense",
       groupId: initialGroupId,
       amount: expense ? String(expense.amount) : "",
       category: expense && expense.type !== "transfer" ? expense.category : null,
@@ -316,6 +325,18 @@ export function ExpenseSheet({
     dispatch({ kind: "applyTemplate", template: t, meId: me.user.id, groupValid });
     setExpandCategories(false);
   }
+
+  // 「+」の放射の上のよく使う記録から開いたときだけ、その記録が届いたら 1 回だけ当てる。チップを
+  // 押すのと同じ経路(applyTemplate)を通す。直しているとき(expense がある)は当てない。0091、issue #239
+  const appliedInitialTemplate = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: applyTemplate は毎描画で作り直す関数。見るのは templates.data と initialTemplateId だけ
+  useEffect(() => {
+    if (expense || !initialTemplateId || appliedInitialTemplate.current) return;
+    const t = templates.data?.find((x) => x.id === initialTemplateId);
+    if (!t) return;
+    appliedInitialTemplate.current = true;
+    applyTemplate(t);
+  }, [templates.data, initialTemplateId, expense]);
 
   async function saveAsTemplate() {
     const value = templateName.trim();
@@ -460,6 +481,7 @@ export function ExpenseSheet({
           e.preventDefault();
           void submit(false);
         }}
+        onKeyDown={handleEnterAdvancesField}
         noValidate
       >
         <fieldset disabled={!canEdit} className="contents">
@@ -496,7 +518,7 @@ export function ExpenseSheet({
                   ref={amountRef}
                   autoFocus
                   type="text"
-                  inputMode="numeric"
+                  inputMode="decimal"
                   pattern="[0-9]*"
                   placeholder="0"
                   value={amount}
@@ -587,6 +609,13 @@ export function ExpenseSheet({
 
           {splitting && (
             <>
+              {expense?.splits && (
+                // あとから入った人は、それまでの割り勘に入らない。記録したときの人数を出して伝える。0072 の困ること、issue #248
+                <FieldMessage>
+                  この記録を割ったのは、記録したときのメンバー {expense.splits.length}{" "}
+                  人です。あとから入った人は、この記録の割り勘には入りません。
+                </FieldMessage>
+              )}
               <PayerPickerRow
                 groups={groups}
                 members={splitMembers}

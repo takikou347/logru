@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addExtension, addMemories, dayPanel, pickShare, signUp, tokyoDateParts } from "./helpers";
+import { addExtension, addMemories, dayPanel, enableOldLook, pickShare, signUp, tokyoDateParts } from "./helpers";
 
 /** 機能の一覧で、家計簿を自分だけで使えるようにする */
 async function enableKakeibo(page: Page) {
@@ -28,8 +28,12 @@ async function createAccount(
   await expect(page.getByText("口座を作りました")).toBeVisible();
 }
 
-/** 記録のシートを開く。家計簿の画面の下の帯から */
+/**
+ * 記録のシートを開く。家計簿の画面の下の帯から。この帯(role="toolbar")は新しい見た目・スマホでは
+ * 下のタブの帯に役目を移して隠れる(0091)ため、前の見た目に戻して確かめる
+ */
 async function openRecordSheet(page: Page) {
+  await enableOldLook(page);
   await page.goto("/kakeibo");
   await page.getByRole("toolbar", { name: "家計簿の操作" }).getByRole("button", { name: "支出を記録する" }).click();
   return page.getByRole("dialog", { name: "記録する" });
@@ -60,6 +64,8 @@ test("ホームの「記録する」から 3 タップと金額の入力 1 回�
 }) => {
   await signUp(page, { name: "こた" });
   await enableKakeibo(page);
+  // カレンダーのホームのウィジェットを使うため、前の見た目に戻して確かめる(0091)
+  await enableOldLook(page);
 
   // 機能のシートに入口が出る。記録の動線はホームのウィジェットへ移した
   await page.goto("/");
@@ -536,6 +542,13 @@ test("3 人のグループで 1 人が立て替えると、送る組み合わせ
   await expenseSheet.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByText("記録しました")).toBeVisible();
 
+  // 立て替えた記録を開くと、割ったときの人数(3 人)が分かる。あとから入った人はこの記録の割り勘に入らない。issue #248
+  await page.getByRole("button", { name: /交通/ }).click();
+  const splitRecord = page.getByRole("dialog", { name: "記録を直す" });
+  await expect(splitRecord.getByText("この記録を割ったのは、記録したときのメンバー 3 人です。")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(splitRecord).toBeHidden();
+
   // 共有口座で払った支出。これは割らない(「払った人」の欄が出ない)
   const sharedExpenseSheet = await openRecordSheet(page);
   await sharedExpenseSheet.getByLabel("金額").fill("5000");
@@ -614,7 +627,9 @@ test("期間の予算を作ると、家計簿の画面の上と予算の画面�
   // 予算の画面でも同じ額を見られ、直す・消すができる
   await page.goto("/kakeibo/budgets");
   await expect(page.getByText("使った額 ¥3,000")).toBeVisible();
-  await page.getByText("食費").click();
+  // この月のカテゴリ別の合計にも「食費」が出るので、押せる予算の行を role で絞る。issue #227
+  const budgetRow = page.getByRole("button", { name: /^食費/ });
+  await budgetRow.click();
   const editSheet = page.getByRole("dialog", { name: "予算を直す" });
   await editSheet.getByLabel("金額").fill("20000");
   await editSheet.getByRole("button", { name: "保存する" }).click();
@@ -624,7 +639,7 @@ test("期間の予算を作ると、家計簿の画面の上と予算の画面�
   await expect(editSheet).toBeHidden();
 
   // 消すときは確認を挟まず、5 秒だけ「元に戻す」を出す。#194
-  await page.getByText("食費").click();
+  await budgetRow.click();
   await page.getByRole("dialog", { name: "予算を直す" }).getByRole("button", { name: "消す" }).click();
   await expect(page.getByText("予算を消しました")).toBeVisible();
   await expect(page.getByText("まだ予算がありません。")).toBeVisible();
@@ -636,6 +651,9 @@ test("決めた日をもう過ぎて定期の記録を作ると、すぐその�
 }) => {
   await signUp(page, { name: "こた" });
   await enableKakeibo(page);
+  // 新しい見た目・スマホの家計簿は精算を「みか → 自分 ¥6,000」の短い形で出す。
+  // この確かめは「自分が払った」の長い文を見るため、前の見た目に戻す
+  await enableOldLook(page);
 
   await page.goto("/groups");
   await page.getByLabel("グループの名前").fill("暮らし");
@@ -832,12 +850,18 @@ test("記録のシートで「よく使う記録にする」と、次からチ�
   await expect(page.getByText("記録しました")).toBeVisible();
   await expect(page.getByTestId("kakeibo-total")).toHaveText("¥500");
 
-  // よく使う記録の画面にも出て、名前を直せる
+  // よく使う記録の画面にも出て、押すと全部の欄を直せる。issue #248
   await page.goto("/kakeibo/templates");
   await page.getByText("いつもの買い物").click();
-  await page.getByLabel("いつもの買い物 を直す").fill("スーパー");
-  await page.getByLabel("いつもの買い物 を直す").press("Enter");
-  await expect(page.getByText("スーパー")).toBeVisible();
+  const edit = page.getByRole("dialog", { name: "よく使う記録を直す" });
+  await edit.getByLabel("名前").fill("スーパー");
+  await edit.getByRole("radio", { name: "食費" }).click();
+  await edit.getByLabel("金額").fill("800");
+  await edit.getByRole("button", { name: "保存する" }).click();
+  await expect(page.getByText("よく使う記録を直しました")).toBeVisible();
+  await expect(edit).toBeHidden();
+  const row = page.locator("li").filter({ hasText: "スーパー" });
+  await expect(row).toContainText("支出 ・ 食費 ・ ¥800");
 });
 
 test("自分だけで記録した口座は、共有のグループでは選べないので「口座なし」になり保存できる。#193", async ({ page }) => {
@@ -967,10 +991,13 @@ test("家計簿で月を移ると、新しい月が読めるまで前の月の�
   await page.getByRole("button", { name: "前の月" }).click();
   await expect(page.getByTestId("kakeibo-total")).toHaveText("¥1,500");
   await expect(page.getByText("この月の記録はまだありません。")).toHaveCount(0);
+  // 300ms ほど裏で読み直しが続くと、面の隅に小さく回る印が出る。#249
+  await expect(page.getByTestId("loadable-refreshing").first()).toBeVisible();
 
-  // 届くと、前の月には記録が無いので 0 になる
+  // 届くと、前の月には記録が無いので 0 になる。印は消える
   await expect(page.getByTestId("kakeibo-total")).toHaveText("¥0", { timeout: 5_000 });
   await expect(page.getByText("この月の記録はまだありません。")).toBeVisible();
+  await expect(page.getByTestId("loadable-refreshing")).toHaveCount(0);
 });
 
 test("家計簿の月が読めなかったときは、失敗の面だけが出て、空の案内は並ばない。#195", async ({ page }) => {
@@ -990,6 +1017,9 @@ test("家計簿の月が読めなかったときは、失敗の面だけが出�
 test("予算の無い新しい利用者が、家計簿の画面から予算を作れる。0072、#196", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await enableKakeibo(page);
+  // 新しい見た目・スマホの家計簿は 1 枚の面にまとめ、予算が無い間はその節ごと出さない。
+  // 「予算」の帯の道は別に確かめてある(このテストの最後)ので、空の案内は前の見た目で確かめる
+  await enableOldLook(page);
 
   await page.goto("/kakeibo");
   const budgetPanel = page.getByRole("region", { name: "予算" });

@@ -6,7 +6,7 @@
  * true のときだけ出す。showLab が false のとき(本番)は useApplyLabExperiments も何もしない。
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export type LabExperiment = {
   key: string;
@@ -14,6 +14,8 @@ export type LabExperiment = {
   description: string;
   /** 入れたときと切ったときに呼ぶ。見た目や動きを変える処理をここに書く */
   apply: (enabled: boolean) => void;
+  /** 入れているときだけ、行の下に出す道への近道。テーマの選択画面など。0090 */
+  enabledLink?: { to: string; label: string };
 };
 
 /**
@@ -42,8 +44,22 @@ const MONTH_SLIDE_EXPERIMENT: LabExperiment = {
   },
 };
 
+/**
+ * 刷新の前の見た目に、この端末だけ一時的に戻す。新しい見た目(紙・リキッドガラスなどの
+ * 見た目の土台)は既定になり、入れた人だけが前の見た目に戻る。移る間の逃げ道として 1 週間だけ
+ * 残し、次の週の routine で前の見た目のコードごと消す。0090
+ */
+const OLD_LOOK_EXPERIMENT: LabExperiment = {
+  key: "old-look",
+  label: "前の見た目に戻す",
+  description: "刷新の前の見た目に、この端末だけ一時的に戻します。",
+  apply: (enabled) => {
+    document.documentElement.toggleAttribute("data-lab-new-look", !enabled);
+  },
+};
+
 /** 試している見た目。足すのはここへ 1 件 */
-export const LAB_EXPERIMENTS: LabExperiment[] = [SAMPLE_EXPERIMENT, MONTH_SLIDE_EXPERIMENT];
+export const LAB_EXPERIMENTS: LabExperiment[] = [SAMPLE_EXPERIMENT, MONTH_SLIDE_EXPERIMENT, OLD_LOOK_EXPERIMENT];
 
 const PREFIX = "logru:lab:";
 
@@ -75,4 +91,23 @@ export function useApplyLabExperiments(showLab: boolean | undefined): void {
     if (!showLab) return;
     for (const ex of LAB_EXPERIMENTS) ex.apply(isLabEnabled(ex.key));
   }, [showLab]);
+}
+
+/**
+ * ラボの「新しい見た目」(`data-lab-new-look`)が html に付いているかを、変わるたびに読み直す。0091
+ *
+ * 見た目そのものの分岐は CSS の属性セレクタに任せる(0090)。この hook が要るのは、下のタブの帯の
+ * 「+」が放射になるかなど、CSS だけでは決められない振る舞いの分岐だけ。
+ */
+export function useNewLookActive(): boolean {
+  const [active, setActive] = useState(() => document.documentElement.hasAttribute("data-lab-new-look"));
+  useEffect(() => {
+    const el = document.documentElement;
+    const read = () => setActive(el.hasAttribute("data-lab-new-look"));
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(el, { attributes: true, attributeFilter: ["data-lab-new-look"] });
+    return () => observer.disconnect();
+  }, []);
+  return active;
 }

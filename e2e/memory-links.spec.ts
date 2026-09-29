@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addEvent, addMemories, pickShare, signUp } from "./helpers";
+import { addEvent, addEventButton, addMemories, pickShare, signUp } from "./helpers";
 
 /** グループを作り、そのグループで思い出を足す */
 async function groupWithMemories(page: import("@playwright/test").Page, name: string) {
@@ -53,7 +53,7 @@ test("予定を足すとき、重なる思い出に入れるか選べる。0020"
 
   // 入れる。最初から入っている
   await page.goto("/");
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   let sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill("江ノ電");
   await pickShare(page, sheet, "ふたり");
@@ -62,7 +62,7 @@ test("予定を足すとき、重なる思い出に入れるか選べる。0020"
   await expect(page.getByText("予定を足しました")).toBeVisible();
 
   // 入れない
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill("仕事の電話");
   await pickShare(page, sheet, "ふたり");

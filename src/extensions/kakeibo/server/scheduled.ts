@@ -18,6 +18,7 @@
 import { runBatch } from "@server/core/db/batch";
 import type { DB } from "@server/core/db/client";
 import { groups } from "@server/core/db/schema";
+import { notify } from "@server/core/notifications/send";
 import { and, eq, gte, inArray, isNull, lte, ne, or } from "drizzle-orm";
 import { dateKeyOfJst } from "../shared/dates";
 import { dueDayOfMonth, isRecurringActiveInMonth, monthKeyOfDate } from "../shared/recurring";
@@ -102,6 +103,7 @@ async function resolveRecurringSplit(
  */
 export async function tryInsertOccurrence(
   db: DB,
+  env: Env,
   recurring: KakeiboRecurringRow,
   month: string,
   today: string,
@@ -161,6 +163,15 @@ export async function tryInsertOccurrence(
     }),
     ...splitStatements(db, id, shares),
   ]);
+  // 定期の記録が入ったことを、作った人に積む。システムがした操作なので actorId は無い。同じ日の分はまとめる。0096、issue #244
+  await notify({
+    db,
+    env,
+    userIds: [recurring.createdBy],
+    kind: "kakeibo.recurring_posted",
+    payload: { expenseId: id, groupId: recurring.groupId, month, date },
+    groupKey: `${recurring.createdBy}_${date}`,
+  });
   return { id, date };
 }
 
@@ -171,7 +182,7 @@ export async function tryInsertOccurrence(
  * 1 件が投げても残りの定期の記録が止まらないようにする。#198
  * @param db D1 を包んだ Drizzle
  */
-export async function insertDueRecurringRecords(db: DB): Promise<void> {
+export async function insertDueRecurringRecords(db: DB, env: Env): Promise<void> {
   const today = dateKeyOfJst(Date.now());
   const month = monthKeyOfDate(today);
   const rows = await db
@@ -187,7 +198,7 @@ export async function insertDueRecurringRecords(db: DB): Promise<void> {
     );
   for (const row of rows) {
     try {
-      await tryInsertOccurrence(db, row, month, today);
+      await tryInsertOccurrence(db, env, row, month, today);
     } catch (e) {
       console.error(`kakeibo recurring failed: ${row.id}`, e);
     }

@@ -5,11 +5,12 @@
  * 共有のグループで有効でも、本人が使わないと決めていれば、入口も画面も出さない。いつも有効な拡張は、いつも使える。
  */
 
-import { clientExtensions } from "@extensions/client/registry";
-import type { ClientExtension } from "@extensions/client/types";
+import { clientExtensions, defaultExtension } from "@extensions/client/registry";
+import type { ClientExtension, DayItem, ExtensionAction, FavoriteAdd } from "@extensions/client/types";
 import type { GroupSummary } from "@shared/api-types";
 import { useMemo } from "react";
 import { useGroups, useMe } from "@/api/common";
+import { clampSummary, defaultTodaySummary } from "./today-sections";
 
 /**
  * 使える拡張の key を返す。
@@ -107,4 +108,97 @@ export function useShortcut() {
   // biome-ignore lint/correctness/useHookAtTopLevel: clientExtensions の並びは起動時に固定なので、呼ぶ順は毎回同じ
   const results = clientExtensions.map((x) => (x.useShortcut ? x.useShortcut(keys.has(x.manifest.key)) : null));
   return results.find((r) => r) ?? null;
+}
+
+/**
+ * 下のタブの帯の「+」の放射に出す、記録の種類。足している拡張の actions を、拡張の一覧の順に
+ * すべて集める。0 個なら決定 0086 と同じ扱い(呼び出し側が出さない)。0091、issue #239
+ */
+export function useQuickAdds(): ExtensionAction[] {
+  const enabled = useEnabledExtensions();
+  return useMemo(() => enabled.flatMap((x) => x.actions ?? []), [enabled]);
+}
+
+/**
+ * 「+」の放射の上に出す、よく使う記録。いまは家計簿だけが返す。
+ * hook の呼ぶ順を変えないよう、useShortcut と同じ形で、使えない拡張の hook も enabled を false にして呼ぶ。0091、issue #239
+ */
+export function useFavoriteAdds(): FavoriteAdd[] {
+  const enabled = useEnabledExtensions();
+  const keys = new Set(enabled.map((x) => x.manifest.key));
+  // biome-ignore lint/correctness/useHookAtTopLevel: clientExtensions の並びは起動時に固定なので、呼ぶ順は毎回同じ
+  const results = clientExtensions.map((x) => (x.useFavoriteAdds ? x.useFavoriteAdds(keys.has(x.manifest.key)) : null));
+  return results.flatMap((r) => r ?? []);
+}
+
+/**
+ * 今日のページに節を持つ、使える拡張。拡張の一覧の順。0092、issue #240
+ *
+ * 今のホームウィジェットと同じ考えで、widgets を持つ拡張(家計簿・共有リスト・思い出)と、
+ * 節の中身を自分で決める拡張(today)を対象にする。予定(events)は widgets も today も持たないが、
+ * カレンダーの土台として、今のホームの土台のウィジェット(baseHomeWidgets)と同じ扱いで、
+ * いつも先頭の節にする。defaultExtension(いつも有効で、拡張の一覧の先頭)がそれに当たる。
+ */
+export function useTodaySections(): ClientExtension[] {
+  const enabled = useEnabledExtensions();
+  return useMemo(
+    () =>
+      enabled.filter(
+        (x) => x.manifest.key === defaultExtension.manifest.key || !!x.today || (x.widgets?.length ?? 0) > 0,
+      ),
+    [enabled],
+  );
+}
+
+/** 今日のページの「見出し」に選べる拡張。useHeadline を持つ、使える拡張。0092、issue #240 */
+export function useHeadlineCandidates(): ClientExtension[] {
+  const enabled = useEnabledExtensions();
+  return useMemo(() => enabled.filter((x) => !!x.useHeadline), [enabled]);
+}
+
+/**
+ * 今日のページの見出しの 1 行。設定の「機能」の「見出し」で選んだ拡張の useHeadline を呼ぶ。
+ * 選んでいない、その拡張をいま使っていない、hook が null を返すときは出さない。
+ * hook の呼ぶ順を変えないよう、使えない拡張の hook も enabled を false にして呼ぶ。0092、issue #240
+ * @param itemsForDate 見せている日の、すべての拡張のカレンダー項目
+ */
+export function useHeadlineText(headlineExtension: string | null, date: Date, itemsForDate: DayItem[]): string | null {
+  const enabled = useEnabledExtensions();
+  const keys = new Set(enabled.map((x) => x.manifest.key));
+  const results = clientExtensions.map((x) => {
+    const own = itemsForDate.filter((i) => i.extension === x.manifest.key);
+    // biome-ignore lint/correctness/useHookAtTopLevel: clientExtensions の並びは起動時に固定なので、呼ぶ順は毎回同じ
+    return x.useHeadline ? x.useHeadline(keys.has(x.manifest.key), date, own) : null;
+  });
+  const index = clientExtensions.findIndex((x) => x.manifest.key === headlineExtension);
+  return index >= 0 ? (results[index] ?? null) : null;
+}
+
+/**
+ * 今日のページで、節を畳んだときの要約を、節ごとに集める。拡張の useTodaySummary があれば使い、
+ * 無ければその日の項目の件数(defaultTodaySummary)を使う。どちらも 7 文字ほどに切る(clampSummary)。
+ * hook の呼ぶ順を変えないよう、使えない拡張の hook も enabled を false にして呼ぶ。0092、issue #240
+ * @param sections useTodaySections で決めた、節を持つ拡張
+ * @param itemsForDate 見せている日の、すべての拡張のカレンダー項目
+ */
+export function useTodaySummaries(
+  sections: ClientExtension[],
+  date: Date,
+  itemsForDate: DayItem[],
+): Record<string, string> {
+  const enabled = useEnabledExtensions();
+  const keys = new Set(enabled.map((x) => x.manifest.key));
+  const customs = clientExtensions.map((x) => {
+    const own = itemsForDate.filter((i) => i.extension === x.manifest.key);
+    // biome-ignore lint/correctness/useHookAtTopLevel: clientExtensions の並びは起動時に固定なので、呼ぶ順は毎回同じ
+    return x.useTodaySummary ? x.useTodaySummary(keys.has(x.manifest.key), date, own) : null;
+  });
+  return Object.fromEntries(
+    sections.map((x) => {
+      const idx = clientExtensions.indexOf(x);
+      const own = itemsForDate.filter((i) => i.extension === x.manifest.key);
+      const custom = idx >= 0 ? customs[idx] : null;
+      return [x.manifest.key, clampSummary(custom ?? defaultTodaySummary(own.length))];
+    }),
+  );
 }

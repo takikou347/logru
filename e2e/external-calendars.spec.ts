@@ -1,5 +1,5 @@
 import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
-import { apiUser, dayPanel, signUp } from "./helpers";
+import { apiUser, dayPanel, enableOldLook, signUp } from "./helpers";
 
 /** 手元の開発のときだけ Worker が配る、見本の iCal。今日の打ち合わせ、明日からの旅行、毎週の読書会が入る */
 const SAMPLE_PATH = "/api/external-calendars/__test__/sample.ics";
@@ -27,7 +27,7 @@ async function agreedUser(request: APIRequestContext) {
 }
 
 test("非公開の URL を登録すると、予定が選んだ色で出て、読むだけで直せない", async ({ page, baseURL }) => {
-  await signUp(page);
+  await signUp(page, { next: "/?view=month" });
   const section = await register(page, "プライベート", `${baseURL}${SAMPLE_PATH}`);
   await expect(page.getByText("プライベート を登録しました")).toBeVisible();
   const row = section.getByRole("listitem").filter({ hasText: "プライベート" });
@@ -36,7 +36,7 @@ test("非公開の URL を登録すると、予定が選んだ色で出て、読
   // URL そのものは画面に出さない
   await expect(section).not.toContainText("sample.ics");
 
-  await page.goto("/");
+  await page.goto("/?view=month");
   const item = dayPanel(page).getByRole("button", { name: /外部の打ち合わせ/ });
   await expect(item).toContainText("プライベート");
   await expect(item.locator(".swatch-dot")).toHaveClass(/c-fuji/);
@@ -50,7 +50,7 @@ test("非公開の URL を登録すると、予定が選んだ色で出て、読
   await sheet.getByRole("button", { name: "閉じる" }).first().click();
 
   // 明日からの終日の旅行は、あさっても終日として出る
-  await page.goto(`/?date=${tokyoDateKey(2)}`);
+  await page.goto(`/?view=month&date=${tokyoDateKey(2)}`);
   await expect(dayPanel(page).getByRole("button", { name: /外部の旅行/ })).toContainText("終日");
 });
 
@@ -60,12 +60,12 @@ function tokyoDateKey(n: number): string {
 }
 
 test("読み直し、登録を消すと、取り込んだ予定も消える", async ({ page, baseURL }) => {
-  await signUp(page);
+  await signUp(page, { next: "/?view=month" });
   const section = await register(page, "しごと", `${baseURL}${SAMPLE_PATH}`);
   await section.getByRole("button", { name: "しごと を今すぐ読み直す" }).click();
   await expect(page.getByText("しごと を読み直しました")).toBeVisible();
 
-  await page.goto("/");
+  await page.goto("/?view=month");
   await expect(dayPanel(page).getByRole("button", { name: /外部の打ち合わせ/ })).toBeVisible();
 
   await page.goto("/settings/extensions/external");
@@ -73,15 +73,18 @@ test("読み直し、登録を消すと、取り込んだ予定も消える", as
   await page.getByRole("dialog", { name: "しごと の登録を消す" }).getByRole("button", { name: "登録を消す" }).click();
   await expect(section.getByText("まだ登録していません。")).toBeVisible();
 
-  await page.goto("/");
+  await page.goto("/?view=month");
   await expect(dayPanel(page)).toBeVisible();
   await expect(dayPanel(page).getByRole("button", { name: /外部の打ち合わせ/ })).toHaveCount(0);
 });
 
 test("カレンダーの読み直しのボタンを押すと、外部のカレンダーも読み直す", async ({ page, baseURL }) => {
-  await signUp(page);
+  await signUp(page, { next: "/?view=month" });
+  // 「カレンダーを読み直す」ボタンは、新しい見た目・スマホでは上の帯に出ない(issue #243)ため、
+  // 前の見た目に戻して確かめる
+  await enableOldLook(page);
   await register(page, "プライベート", `${baseURL}${SAMPLE_PATH}`);
-  await page.goto("/");
+  await page.goto("/?view=month");
   const syncs: string[] = [];
   page.on("request", (r) => {
     if (r.method() === "POST" && r.url().endsWith("/api/external-calendars/sync")) syncs.push(r.url());
@@ -94,15 +97,18 @@ test("カレンダーの読み直しのボタンを押すと、外部のカレ�
 });
 
 test("外部のカレンダーが読めなければ、読み直しの知らせにその名前を出す", async ({ page, baseURL }) => {
-  await signUp(page);
+  await signUp(page, { next: "/?view=month" });
+  await enableOldLook(page);
   await register(page, "古い URL", `${baseURL}/api/external-calendars/__test__/missing.ics`);
-  await page.goto("/");
+  await page.goto("/?view=month");
   await page.getByRole("button", { name: "カレンダーを読み直す" }).click();
   await expect(page.getByText("カレンダーを読み直しました。読めなかったもの: 古い URL")).toBeVisible();
 });
 
 test("外部のカレンダーを登録していなければ、外部のカレンダーは読みに行かない", async ({ page }) => {
-  await signUp(page);
+  await signUp(page, { next: "/?view=month" });
+  await enableOldLook(page);
+  await page.goto("/?view=month");
   const syncs: string[] = [];
   page.on("request", (r) => {
     if (r.url().endsWith("/api/external-calendars/sync")) syncs.push(r.url());
@@ -113,7 +119,7 @@ test("外部のカレンダーを登録していなければ、外部のカレ�
 });
 
 test("https でない URL は断り、読めない URL は登録して理由を出す", async ({ page, baseURL }) => {
-  await signUp(page);
+  await signUp(page, { next: "/?view=month" });
   await page.goto("/settings/extensions/external");
   const section = page.getByRole("region", { name: "外部のカレンダー" });
   await section.getByRole("button", { name: "カレンダーを登録する" }).click();

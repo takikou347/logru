@@ -1,13 +1,19 @@
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { addEventButton, enableOldLook, signUp } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
+  // 週の切り替え(Segmented)や「次へ」はカレンダーの画面の機能。新しい見た目・スマホでは下のタブの
+  // 「記録する」が必ずホームへ移ってしまう(0091)ため、addEventButton がこの画面に留まれない。
+  // 前の見た目に戻して確かめる
+  await enableOldLook(page);
+  await page.goto("/?view=month");
+  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
 });
 
 test("予定のシートで毎週の繰り返しを選ぶと、来週にも出る。F-36", async ({ page }) => {
   await page.getByRole("radio", { name: "週", exact: true }).last().click();
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill("毎週の会議");
   await sheet.getByRole("radio", { name: "毎週" }).click();
@@ -28,7 +34,7 @@ test("朝 7 時の予定で毎週を選ぶと、木曜のままになる。UTC �
   await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
 
   await page.getByRole("radio", { name: "週", exact: true }).last().click();
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet.getByLabel("始まり")).toHaveValue("07:00");
   await sheet.getByLabel("題名").fill("朝のヨガ");
@@ -54,7 +60,7 @@ test("朝 7 時の予定で毎月を選ぶと、来月も同じ日に出る。UT
   await page.reload();
   await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
 
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet.getByLabel("始まり")).toHaveValue("07:00");
   await sheet.getByLabel("題名").fill("家賃の支払い");
@@ -72,7 +78,7 @@ test("朝 7 時の予定で毎月を選ぶと、来月も同じ日に出る。UT
 
 test("繰り返す予定を消すときは、この回だけ・これ以降・全部を選ぶ。0043", async ({ page }) => {
   await page.getByRole("radio", { name: "週", exact: true }).last().click();
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill("毎週のジム");
   await sheet.getByRole("radio", { name: "毎週" }).click();

@@ -13,6 +13,7 @@ import {
   WEEKDAYS,
 } from "@/lib/dates";
 import { extensionGroups, extensionLabel } from "@/lib/extension-visuals";
+import { useRowExpandName } from "@/lib/row-expand";
 import { useDeviceTilt } from "@/lib/use-device-tilt";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
@@ -245,10 +246,13 @@ function ItemRow({
   // 描いた瞬間に 1 度だけ読む。足した直後の再描画と、月・日を移る再描画を見分けるため
   const [entering] = useState(() => takeJustAdded(itemKey(i)));
   const Icon = kind !== "event" ? kindIconOf(i) : null;
+  // 行がそのままシートに広がる動き(共有要素)。押した行だけが名前を持つ。0044、0093、issue #241
+  const viewTransitionName = useRowExpandName(itemKey(i));
   return (
     <li
       className={cn("border-line not-first:border-t", entering && "item-enter")}
       data-leaving={isLeaving || undefined}
+      style={viewTransitionName ? { viewTransitionName } : undefined}
     >
       <button
         type="button"
@@ -292,10 +296,13 @@ function MoneyRow({
 }) {
   const [entering] = useState(() => takeJustAdded(itemKey(i)));
   const Icon = kindIconOf(i);
+  // 行がそのままシートに広がる動き(共有要素)。押した行だけが名前を持つ。0044、0093、issue #241
+  const viewTransitionName = useRowExpandName(itemKey(i));
   return (
     <li
       className={cn("border-line not-first:border-t", entering && "item-enter")}
       data-leaving={isLeaving || undefined}
+      style={viewTransitionName ? { viewTransitionName } : undefined}
     >
       <button
         type="button"

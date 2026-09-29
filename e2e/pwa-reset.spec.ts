@@ -30,7 +30,7 @@ test("/api/reset を開くと、Cache Storage が消えて「/」に戻る。ロ
   await page.waitForURL("/");
 
   // ログインしたまま、カレンダーが直接開く。ログインへ移されない
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
   expect(await apiCacheMarkerExists(page)).toBe(false);
 });
 
@@ -43,7 +43,7 @@ test("設定の「アプリを最新にする」も、同じことをする", as
   await page.getByRole("button", { name: "アプリを最新にする" }).click();
   await page.waitForURL("/");
 
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
   expect(await apiCacheMarkerExists(page)).toBe(false);
 });
 
@@ -55,7 +55,7 @@ test("ログアウトすると、前の人の api のキャッシュを消す", 
 });
 
 test("サーバーの版が違うまま確かめ続けると、全部消して読み直す。F-42、0089", async ({ page }) => {
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
 
   // /api/version をここから先だけ、違う版に差し替える
   await page.context().route("**/api/version", (route) =>
@@ -74,7 +74,7 @@ test("サーバーの版が違うまま確かめ続けると、全部消して�
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await expect.poll(readCount).toBe(i + 1);
   }
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
 
   // ここに残っていることが、まだ読み込み直していない証。次の 3 回目で全部消して読み直る
   await page.evaluate(() => {
@@ -95,5 +95,5 @@ test("サーバーの版が違うまま確かめ続けると、全部消して�
       { timeout: 10_000 },
     )
     .toBeUndefined();
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
 });

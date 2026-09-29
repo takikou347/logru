@@ -1,9 +1,9 @@
 import { CalendarDays, House, Settings, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
+import { useLocation } from "react-router";
 import { useGroups } from "@/api/common";
+import { useDockViewTransitionStyle } from "@/lib/bars-view-transition";
 import { useFavoriteAdds, useQuickAdds } from "@/lib/extensions";
-import { useNewLookActive } from "@/lib/lab";
-import { useShowTabHints } from "@/lib/use-tab-hints";
 import { cn } from "@/lib/utils";
 import { RadialAddButton } from "./RadialAddButton";
 import { TabIconButton } from "./TabIconButton";
@@ -33,8 +33,10 @@ export function Dock({
       role="toolbar"
       aria-label={label}
       className={cn(
-        "glass fixed right-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 flex items-center gap-1.5 rounded-full p-1.5",
-        "lg:static lg:justify-end lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:before:hidden",
+        // ガラスの面はスマホ(1024px 未満)だけ。PC では面を持たず、中身の末尾に「+」だけを置く。
+        // lg: で背景を消す書き方は、glass の background(まとめ書き)に負けて白い帯が残った。#275
+        "max-lg:glass fixed right-4 bottom-[calc(24px+env(safe-area-inset-bottom))] z-20 flex items-center gap-1.5 rounded-full p-1.5",
+        "lg:static lg:justify-end lg:rounded-none lg:p-0",
         // 渡さない画面(口座、予算、1 日など)は、新しい見た目・スマホで下のタブの帯の上へ持ち上げる。
         // 帯と同じ高さに置くと、帯の後ろに隠れて押せない。0091
         covered ? "nl-hide" : "nl-lift",
@@ -54,30 +56,39 @@ export function Dock({
  * 「+」は、足している機能すべての記録の種類を放射で出す(useQuickAdds)。どの画面から押しても
  * 同じ並びになる。0 個なら決定 0086 と同じ扱いで出さない。家計簿を足していれば、よく使う記録
  * (useFavoriteAdds)を上に並べる。
+ *
+ * OS のキーボードが出ている間は隠す(`.nl-keyboard-hide`、globals.css)。保存や入力中の欄が
+ * この帯に隠れないようにするため。0094、issue #242
  */
 export function GlobalBottomTabs() {
   const quickAdds = useQuickAdds();
   const favorites = useFavoriteAdds();
   // 足している機能は、グループを読んでから決まる。読む前に「+」を押して、予定だけのつもりで開かないように
   const groups = useGroups();
-  const newLook = useNewLookActive();
-  const showHint = useShowTabHints(newLook);
+  const vtStyle = useDockViewTransitionStyle();
+  // 「機能」(/settings/extensions)は「設定」(/settings)の道順に含まれる。既定の NavLink の判定
+  // (to から始まる道順すべて)のままだと、/settings/extensions では両方選ばれた色になる。
+  // 「/settings/extensions から始まる道順は機能、それ以外の /settings は設定」と 1 つに決める。issue #243
+  const { pathname } = useLocation();
+  const onExtensions = pathname === "/settings/extensions" || pathname.startsWith("/settings/extensions/");
+  const onSettings = pathname === "/settings" || (pathname.startsWith("/settings/") && !onExtensions);
   return (
     <nav
       aria-label="下のタブ"
+      style={vtStyle}
       className={cn(
         // 「+」を開いたとき、幕(z-40)と弧(z-45)は document.body へ portal で出す(RadialAddButton)。
         // この帯の「×」がその上に見えるよう、帯自体はそれより高い z にする。シート・ダイアログ
         // (z-50)より低くして、シートを開いたときはそちらが勝つようにする。issue #239
-        "nl-only fixed z-[48] items-center gap-1 !shadow-[var(--float-bar-shadow)]",
+        "nl-only nl-keyboard-hide fixed z-[48] items-center gap-1 !shadow-[var(--float-bar-shadow)]",
         "glass inset-x-[var(--float-bar-inset)] bottom-[var(--float-bar-bottom)] h-[var(--float-bar-height)] rounded-[var(--float-bar-radius)] px-2",
       )}
     >
-      <TabIconButton to="/" end icon={House} label="今日のページ" showHint={showHint} />
-      <TabIconButton to="/?view=month" icon={CalendarDays} label="カレンダー" showHint={showHint} />
-      <RadialAddButton items={quickAdds} favorites={favorites} showHint={showHint} pending={groups.isPending} />
-      <TabIconButton to="/settings/extensions" icon={SlidersHorizontal} label="機能" showHint={showHint} />
-      <TabIconButton to="/settings" icon={Settings} label="設定" showHint={showHint} />
+      <TabIconButton to="/" end icon={House} label="今日のページ" />
+      <TabIconButton to="/?view=month" icon={CalendarDays} label="カレンダー" />
+      <RadialAddButton items={quickAdds} favorites={favorites} pending={groups.isPending} />
+      <TabIconButton to="/settings/extensions" icon={SlidersHorizontal} label="機能" active={onExtensions} />
+      <TabIconButton to="/settings" icon={Settings} label="設定" active={onSettings} />
     </nav>
   );
 }

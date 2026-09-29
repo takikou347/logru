@@ -13,6 +13,7 @@
  * サーバーだけの型は types.server.ts に、画面だけの型は types.client.ts にある。
  */
 
+import type { NotificationKindDef } from "@shared/notifications";
 import type { TourStep } from "@shared/tours";
 
 /** 拡張の名前と説明。画面のグループ設定に出る */
@@ -29,11 +30,12 @@ export type ExtensionManifest = {
    */
   perUser?: boolean;
   /**
-   * この拡張が土台の notify() で積む、お知らせの kind の一覧。`<この key>.<名前>` の形。#32
+   * この拡張が土台の notify() で積む、お知らせの種類の一覧。kind は `<この key>.<名前>` の形。#32、0096
    * `/api/notifications/unread-count` は、ここに載っている kind だけを数える。
-   * 画面の describeNotification が出せない kind を数えて、一覧は空なのに数字が出ることを防ぐ
+   * 画面の describeNotification が出せない kind を数えて、一覧は空なのに数字が出ることを防ぐ。
+   * 設定の「お知らせ」は、ここの label・defaultList・defaultPush を読んで行を出す
    */
-  notificationKinds?: string[];
+  notificationKinds?: readonly NotificationKindDef[];
   /**
    * 拡張の画面を初めて開いたときに出す案内。1 枚から 3 枚。F-33
    * 無ければ案内は出ない。見たかは `ext.<この key>` の ID で持つ

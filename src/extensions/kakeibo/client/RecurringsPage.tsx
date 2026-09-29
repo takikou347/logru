@@ -13,6 +13,7 @@ import { Panel } from "@/components/parts/Panel";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
 import { formatShortDate } from "@/lib/dates";
 import { useRowMotion } from "@/lib/use-row-motion";
+import { useSetSearchParams } from "@/lib/use-set-search-params";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
 import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
@@ -93,7 +94,8 @@ export function RecurringsPage() {
   const recurrings = useKakeiboRecurrings();
   // 振替の「出す元 → 入れる先」の名前に使う。本人が使えるグループ全部の口座。F-328
   const accounts = useKakeiboAccounts(null);
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetSearchParams();
   useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
   const deleteExpense = useDeleteExpense();
   // 定期の記録を作った直後に、決めた日をもう過ぎていてその場で入った 1 件を、5 秒だけ元に戻せるようにする。
@@ -108,9 +110,9 @@ export function RecurringsPage() {
   const { hidden, leaving, remove: removeRecurring, flashing, flash } = useRowMotion("定期の記録を消しました");
 
   const creating = params.get("create") === "1";
-  const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
+  const closeCreate = () => setParams((p) => p.delete("create"));
   const editingId = params.get("edit");
-  const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
+  const closeEdit = () => setParams((p) => p.delete("edit"));
   // 同じ記録をもう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。
   // key に積んで、確実に新しい `RecurringSheet` を作る。#211
   const editGen = useRef(0);
@@ -149,7 +151,7 @@ export function RecurringsPage() {
               bordered={false}
               action={{
                 label: "定期の記録を作る",
-                onClick: () => setParams((p) => (p.set("create", "1"), p), { replace: true }),
+                onClick: () => setParams((p) => p.set("create", "1")),
               }}
             >
               まだ定期の記録がありません。毎月の家賃や給料などを決めておくと、自動で記録されます。
@@ -170,7 +172,7 @@ export function RecurringsPage() {
                   isEdited={flashing.has(r.id)}
                   onClick={() => {
                     editGen.current += 1;
-                    setParams((p) => (p.set("edit", r.id), p), { replace: true });
+                    setParams((p) => p.set("edit", r.id));
                   }}
                 />
               ))}
@@ -181,12 +183,13 @@ export function RecurringsPage() {
         <Dock label="定期の記録の操作">
           <PrimaryAddButton
             label="定期の記録を作る"
+            icon={Repeat}
             addables={[
               {
                 key: "recurring",
                 label: "定期の記録を作る",
                 icon: Repeat,
-                onClick: () => setParams((p) => (p.set("create", "1"), p), { replace: true }),
+                onClick: () => setParams((p) => p.set("create", "1")),
               },
             ]}
           />

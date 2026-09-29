@@ -3,13 +3,16 @@ import { type AppEnv, createRouter, HttpError, validationHook } from "@server/co
 import { requireAgreement, requireUser } from "@server/core/auth/middleware";
 import { runBatch } from "@server/core/db/batch";
 import type { DB } from "@server/core/db/client";
-import { groupMembers, notifications } from "@server/core/db/schema";
+import { groupMembers } from "@server/core/db/schema";
+import { notify } from "@server/core/notifications/send";
 import { enforceRateLimit } from "@server/core/rate-limit";
 import { assertStorageBudget } from "@server/core/storage-budget";
-import { and, asc, count, desc, eq, gte, inArray, isNull, max, sql } from "drizzle-orm";
+import { memberIdsOf } from "@server/modules/groups/membership";
+import { and, asc, count, desc, eq, gte, inArray, isNull, max } from "drizzle-orm";
 import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { addDaysToKey, DEFAULT_TIME_ZONE, dayKeyIn, MAX_MEMORY_DAYS, startOfDayIn } from "../shared/days";
+import { shouldNotifyShioriAssignment } from "../shared/notifications";
 import {
   eventLinkInput,
   itemCopyInput,
@@ -321,6 +324,17 @@ export const memoryRoutes = createRouter()
           ]
         : []),
     ]);
+    // 思い出に記録・写真が足されたことを、そのグループのほかのメンバーに積む。同じ日の分はまとめる。0096、issue #247
+    const memberIds = await memberIdsOf(db, input.groupId);
+    await notify({
+      db,
+      env: c.env,
+      userIds: memberIds,
+      actorId: me.id,
+      kind: "memories.record_added",
+      payload: { occurredAt: occurredAt.getTime(), byUserName: me.name },
+      groupKey: `${input.groupId}_${dayKeyIn(occurredAt.getTime(), "Asia/Tokyo")}`,
+    });
     return c.json(await loadRecord(db, signer(c), id), 201);
   })
   .patch("/records/:recordId", zValidator("json", recordPatchInput, validationHook), async (c) => {
@@ -375,40 +389,20 @@ export const memoryRoutes = createRouter()
       .from(memoryLikes)
       .where(and(eq(memoryLikes.recordId, row.id), eq(memoryLikes.userId, me.id)))
       .get();
-    // 外して付け直しても積み過ぎないよう、同じ人と記録の未読のお知らせが既にあれば足さない。F-116、#32
+    await db.insert(memoryLikes).values({ recordId: row.id, userId: me.id }).onConflictDoNothing();
+    // 外して付け直しても積み過ぎないよう、groupKey が同じ recordId の未読があれば件数だけ足す。F-116、#32、0096
     const recipient = row.createdBy;
-    const shouldNotify = !already && recipient !== null && recipient !== me.id;
-    const dupe =
-      shouldNotify && recipient
-        ? await db
-            .select({ id: notifications.id })
-            .from(notifications)
-            .where(
-              and(
-                eq(notifications.userId, recipient),
-                eq(notifications.kind, "memories.like"),
-                isNull(notifications.readAt),
-                sql`json_extract(${notifications.payload}, '$.recordId') = ${row.id}`,
-                sql`json_extract(${notifications.payload}, '$.byUserId') = ${me.id}`,
-              ),
-            )
-            .get()
-        : undefined;
-    // いいねと通知の書き込みを 1 つの batch にまとめ、通知だけが失敗して二度と知らせなくなることを防ぐ。#32
-    await runBatch(db, [
-      db.insert(memoryLikes).values({ recordId: row.id, userId: me.id }).onConflictDoNothing(),
-      ...(shouldNotify && !dupe && recipient
-        ? [
-            db.insert(notifications).values({
-              id: crypto.randomUUID(),
-              userId: recipient,
-              kind: "memories.like",
-              payload: { recordId: row.id, occurredAt: row.occurredAt.getTime(), byUserId: me.id },
-              createdAt: new Date(),
-            }),
-          ]
-        : []),
-    ]);
+    if (!already && recipient) {
+      await notify({
+        db,
+        env: c.env,
+        userIds: [recipient],
+        actorId: me.id,
+        kind: "memories.like",
+        payload: { recordId: row.id, occurredAt: row.occurredAt.getTime(), byUserId: me.id },
+        groupKey: row.id,
+      });
+    }
     return c.json({ likes: await likesOf(db, row.id) });
   })
   .delete("/records/:recordId/like", async (c) => {
@@ -523,6 +517,17 @@ export const memoryRoutes = createRouter()
       dueOn: input.kind === "todo" ? input.dueOn : null,
       sortOrder: (last?.n ?? 0) + 1,
     });
+    if (input.kind !== "wish" && shouldNotifyShioriAssignment(input.assigneeId, null)) {
+      // しおりの担当になったことを、選ばれた人に積む。自分を選んだときは自分には積まない。0096、issue #247
+      await notify({
+        db,
+        env: c.env,
+        userIds: [input.assigneeId],
+        actorId: me.id,
+        kind: "memories.shiori_assigned",
+        payload: { memoryId: row.id, title: row.title },
+      });
+    }
     return c.json(toItem((await db.select().from(memoryItems).where(eq(memoryItems.id, id)).get())!), 201);
   })
   .post("/:id/items/copy", zValidator("json", itemCopyInput, validationHook), async (c) => {
@@ -602,6 +607,21 @@ export const memoryRoutes = createRouter()
         updatedAt: new Date(),
       })
       .where(eq(memoryItems.id, item.id));
+    if (
+      input.assigneeId !== undefined &&
+      item.kind !== "wish" &&
+      shouldNotifyShioriAssignment(input.assigneeId, item.assigneeId)
+    ) {
+      // しおりの担当が変わったことを、新しく選ばれた人に積む。自分を選んだときは自分には積まない。0096、issue #247
+      await notify({
+        db,
+        env: c.env,
+        userIds: [input.assigneeId],
+        actorId: me.id,
+        kind: "memories.shiori_assigned",
+        payload: { memoryId: row.id, title: row.title },
+      });
+    }
     return c.json(toItem((await db.select().from(memoryItems).where(eq(memoryItems.id, item.id)).get())!));
   })
   .delete("/:id/items/:itemId", async (c) => {

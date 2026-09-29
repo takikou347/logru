@@ -232,6 +232,18 @@
   }
 }
 
+/*
+ * OS のキーボードが出ている間、下の 5 個のタブの帯を隠す。Android の Chrome は画面の高さが
+ * 縮むので、隠さないとタブがキーボードの上に浮く。`data-keyboard-open` は
+ * `client/lib/keyboard-viewport.ts` が、新しい見た目・スマホでシートや項目を足す欄が
+ * OS のキーボードを開いたときだけ立てる。0094、issue #242
+ */
+@media (max-width: 1023.98px) {
+  :root[data-lab-new-look][data-keyboard-open] .nl-keyboard-hide {
+    display: none;
+  }
+}
+
 /* 色の名前の点。色は .c-<名前> が --c に入れる */
 @utility swatch-dot {
   background: var(--c);
@@ -326,6 +338,194 @@
     transform: scale(0.96);
   }
 }
+
+/*
+ * 保存した反応。ラボの「新しい見た目」を入れた人だけ、item-enter の動きをテーマごとの反応に
+ * 置き換える(重ねない。上の item-enter の膨らんで入る動きとは同時に鳴らさない)。0044、0048、0093、issue #241
+ *
+ * 既定(リキッドガラス)は面に光が 1 回走る。::after の帯を右へ流す。行の位置・大きさは動かさない。
+ */
+[data-lab-new-look] .item-enter {
+  position: relative;
+  overflow: hidden;
+  animation: row-save-glass var(--dur-save) var(--ease-out);
+}
+[data-lab-new-look] .item-enter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 35%, var(--glass-shine) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: row-save-sweep var(--dur-save) var(--ease-out);
+  pointer-events: none;
+}
+@keyframes row-save-glass {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes row-save-sweep {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(120%);
+  }
+}
+
+/* 紙は光らせず、題名(data-title)が左から書き込まれるように見せる。光の帯(::after)は出さない */
+[data-lab-new-look][data-look="paper"] .item-enter {
+  animation: row-save-paper var(--dur-save) var(--ease-out);
+}
+[data-lab-new-look][data-look="paper"] .item-enter::after {
+  display: none;
+}
+@keyframes row-save-paper {
+  from {
+    opacity: 0.3;
+  }
+}
+[data-lab-new-look][data-look="paper"] .item-enter [data-title] {
+  display: inline-block;
+  animation: row-save-write var(--dur-save) linear;
+}
+@keyframes row-save-write {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/*
+ * 水・夜空・木・季節の保存した反応。0095、0093、issue #243
+ * 共通の item-enter(膨らんで入る動き)と、上の row-save-glass(fade-in)はそのまま使い、
+ * ::after の見せ方だけをテーマごとに差し替える。行の位置・大きさは動かさない(0093 の決まりのまま)。
+ * ::after は .item-enter の overflow:hidden の中に収まるので、行の外へ出た分は自然に隠れる。
+ */
+
+/* 水。押した行いっぱいに、輪が三重に広がって静まる */
+[data-lab-new-look][data-look="water"] .item-enter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-radial-gradient(circle at 50% 50%, var(--glass-shine) 0 2px, transparent 3px 16px);
+  transform: scale(0.15);
+  transform-origin: 50% 50%;
+  opacity: 0.9;
+  animation: row-save-ripple var(--dur-save) var(--ease-out);
+}
+@keyframes row-save-ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(0.15);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+/* 夜空。流れ星が行を斜めに横切る */
+[data-lab-new-look][data-look="night"] .item-enter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(3px 3px at 0 50%, #fff, transparent 65%),
+    linear-gradient(100deg, transparent 42%, rgba(230, 236, 255, 0.65) 49%, transparent 56%);
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 0 4px rgba(200, 220, 255, 0.8));
+  transform: translate(-30%, 30%);
+  opacity: 0;
+  animation: row-save-star var(--dur-save) var(--ease-out);
+}
+@keyframes row-save-star {
+  0% {
+    opacity: 0;
+    transform: translate(-30%, 30%);
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(130%, -60%);
+  }
+}
+
+/* 木。右端に朱の判が押される */
+[data-lab-new-look][data-look="wood"] .item-enter::after {
+  content: "";
+  position: absolute;
+  inset: auto;
+  top: 50%;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  margin-top: -15px;
+  border-radius: 6px;
+  background: radial-gradient(circle at 35% 30%, #c0392b, #8f2a1e 70%);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.15);
+  opacity: 0;
+  transform: scale(1.8) rotate(-14deg);
+  animation: row-save-stamp var(--dur-save) var(--ease-out);
+}
+@keyframes row-save-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.8) rotate(-14deg);
+  }
+  55% {
+    opacity: 0.92;
+    transform: scale(0.92) rotate(-2deg);
+  }
+  75% {
+    transform: scale(1.05) rotate(-2deg);
+  }
+  100% {
+    opacity: 0.88;
+    transform: scale(1) rotate(-2deg);
+  }
+}
+
+/* 季節。--season-accent の色の葉が、行を左から右へ舞う */
+[data-lab-new-look][data-look="season"] .item-enter::after {
+  content: "";
+  position: absolute;
+  inset: auto;
+  top: 8px;
+  left: -18px;
+  width: 12px;
+  height: 12px;
+  background: var(--season-accent);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  opacity: 0;
+  animation: row-save-leaf var(--dur-save) ease-in-out;
+}
+@keyframes row-save-leaf {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(-20deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(340px, 18px) rotate(70deg);
+  }
+}
+
 [data-leaving="true"] {
   opacity: 0;
   transform: scale(0.96);
@@ -408,6 +608,93 @@
  */
 ::view-transition-old(root),
 ::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/*
+ * 行がそのままシートに広がる動き(row-expand)、節・タイルがそのまま機能の画面に広がる動き
+ * (box-expand)。どちらも View Transitions API の共有要素。同時に広がる行・面は 1 つだけなので、
+ * 固定の名前でよい(lib/row-expand.ts、lib/box-expand.ts)。0044、0071、0093、issue #241
+ *
+ * root と違い、既定の mix-blend-mode(plus-lighter)は残す。0071 の「選んでいる日」と同じ考えで、
+ * 名前を持つ要素どうしがつながって見える。時間と緩急だけ 0044 のトークンに合わせる。
+ * z-index は 1。上の帯・下のタブの帯(nl-topbar、nl-dock。すぐ下)より低くし、広がる途中に
+ * 帯の上へ覆いかぶさらないようにする
+ */
+::view-transition-group(row-expand),
+::view-transition-old(row-expand),
+::view-transition-new(row-expand) {
+  animation-duration: var(--dur-expand);
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-group(row-expand) {
+  z-index: 1;
+}
+
+/*
+ * box-expand は、行き先の画面(数行の見出しの文字)と押した面(全画面のページ)で縦横比が大きく違う。
+ * 既定の crossfade(古い見た目と新しい見た目を同じ大きさへ重ねて引き伸ばす)だと、小さい文字が
+ * 大きく引き伸ばされてぼやけ、新しい画面は逆につぶれて小さく見える。2026-09-27 の kota の指摘。
+ *
+ * 古い見た目は最初の 3 割で消し、新しい見た目は面が育ち切る終盤(7 割から)にだけ現れるようにする。
+ * 間は面(group)に敷いた地の色だけが育つ、案 C の motion-box-expand と同じ形にした
+ */
+::view-transition-group(box-expand) {
+  animation-duration: var(--dur-box-expand);
+  animation-timing-function: var(--ease-out);
+  background: var(--field);
+  border-radius: var(--r-panel);
+  z-index: 1;
+}
+::view-transition-old(box-expand) {
+  animation: box-expand-old-out var(--dur-box-expand) var(--ease-out);
+  mix-blend-mode: normal;
+}
+::view-transition-new(box-expand) {
+  animation: box-expand-new-in var(--dur-box-expand) var(--ease-out);
+  mix-blend-mode: normal;
+}
+@keyframes box-expand-old-out {
+  0% {
+    opacity: 1;
+  }
+  30%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes box-expand-new-in {
+  0%,
+  70% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/*
+ * 上の帯(ページ自身の見出し、PageBar)と下のタブの帯(GlobalBottomTabs)。row-expand・box-expand が
+ * 広がる間、動かさずそのまま見せる。root(0071)と同じく動きを止め、既定の mix-blend-mode
+ * (plus-lighter)も戻す。z-index を row-expand・box-expand より高くし、広がる面が帯の上を
+ * 通り過ぎても帯が隠れたり薄れたりしないようにする。lib/bars-view-transition.ts、issue #241
+ *
+ * 古い見た目(old)は出さない。動かない帯なので、新しい見た目(new)だけで足りる。box-expand は
+ * 行き先の画面が変わるため、押す前の帯(今日のページの角丸パネル)と押した後の帯(PageBar の
+ * 丸いピル)で形が違う。両方を重ねると、四角い角丸パネルの角が丸いピルの外にはみ出して見えた。
+ * 2026-09-27 の kota の指摘。new だけにすれば、その画面の帯の形どおりに写る
+ */
+::view-transition-group(nl-topbar),
+::view-transition-group(nl-dock) {
+  z-index: 2;
+}
+::view-transition-old(nl-topbar),
+::view-transition-old(nl-dock) {
+  display: none;
+}
+::view-transition-new(nl-topbar),
+::view-transition-new(nl-dock) {
   animation: none;
   mix-blend-mode: normal;
 }

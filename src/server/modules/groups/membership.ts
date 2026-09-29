@@ -16,6 +16,16 @@ export async function myGroupIds(db: DB, userId: string): Promise<string[]> {
 }
 
 /**
+ * グループのメンバーの ID。ほかのメンバーにお知らせを積むときの相手を選ぶのに使う。0096
+ * @param db D1 を包んだ Drizzle
+ * @param groupId グループの ID
+ */
+export async function memberIdsOf(db: DB, groupId: string): Promise<string[]> {
+  const rows = await db.select({ id: groupMembers.userId }).from(groupMembers).where(eq(groupMembers.groupId, groupId));
+  return rows.map((r) => r.id);
+}
+
+/**
  * 2 人が同じグループに入っているかを返す。自分どうしなら、自分だけのグループがあるので true。
  * @param db D1 を包んだ Drizzle
  * @param userId 利用者の ID

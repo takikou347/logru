@@ -33,7 +33,7 @@ test("いつもの場所を選ぶと、7 日分の天気がカレンダーに出
   await expect(section.getByText("渋谷区")).toBeVisible();
 
   // 今日の天気の見本は「晴れ 24°/18°」。カレンダーの今日のマスに小さく出る。F-403
-  await page.goto("/");
+  await page.goto("/?view=month");
   const badge = dayPanel(page).getByRole("button", { name: "晴れ 24°/18°" });
   await expect(badge).toBeVisible();
 
@@ -49,7 +49,7 @@ test("いつもの場所を選ぶと、7 日分の天気がカレンダーに出
   await expect(page).toHaveURL(/\/settings\/extensions\/weather$/);
   await expect(page.getByRole("region", { name: "天気" })).toBeVisible();
 
-  await page.goto("/");
+  await page.goto("/?view=month");
   await badge.click();
   // 「閉じる」のボタンは、下の明示のボタンと、右上の X の読み上げ名がどちらも「閉じる」なので先頭を取る
   await sheet.getByRole("button", { name: "閉じる" }).first().click();
@@ -60,7 +60,7 @@ test("いつもの場所を選ぶと、7 日分の天気がカレンダーに出
   await page.getByRole("dialog", { name: "渋谷区 を消す" }).getByRole("button", { name: "消す" }).click();
   await expect(page.getByText("いつもの場所を消しました")).toBeVisible();
 
-  await page.goto("/");
+  await page.goto("/?view=month");
   await expect(dayPanel(page).getByRole("button", { name: "晴れ 24°/18°" })).toHaveCount(0);
 });
 

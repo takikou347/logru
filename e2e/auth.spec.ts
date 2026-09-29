@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { latestOob, logIn, logOut, PASSWORD, resetPassword, signUp, submitSignUp } from "./helpers";
+import { enableOldLook, latestOob, logIn, logOut, PASSWORD, resetPassword, signUp, submitSignUp } from "./helpers";
 
 test("ログインしていなければ、ログインの画面へ回す", async ({ page }) => {
   await page.goto("/settings");
@@ -66,6 +66,10 @@ test("パスワードが短いと登録できない", async ({ page }) => {
 
 test("登録し、確認メールを開くと、「自分だけの予定」で絞れるカレンダーが開く", async ({ page }) => {
   await signUp(page, { name: "こた" });
+  // 「グループで絞る」の帯は、新しい見た目・スマホでは上の帯の絞り込みアイコンにまとめて隠れる
+  // (issue #243)。前の見た目に戻して確かめる
+  await enableOldLook(page);
+  await page.goto("/");
   await expect(page).toHaveURL(/\/$|\/\?/);
   await expect(
     page.getByRole("navigation", { name: "グループで絞る" }).getByRole("button", { name: "自分だけの予定" }),
@@ -90,7 +94,7 @@ test("ログアウトして、ログインし直せる", async ({ page }) => {
   const { email } = await signUp(page);
   await logOut(page);
   await logIn(page, email);
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
 });
 
 test("パスワードが違えば、どちらが違うかは言わずに断る", async ({ page }) => {
@@ -117,7 +121,7 @@ test("パスワードを再設定して、新しいパスワードで入れる",
   await logIn(page, email, PASSWORD);
   await expect(page.getByText("メールアドレスかパスワードが違います。")).toBeVisible();
   await logIn(page, email, "new-password-99");
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
 });
 
 test("登録していないアドレスでも、再設定は同じ文を出す", async ({ page }) => {

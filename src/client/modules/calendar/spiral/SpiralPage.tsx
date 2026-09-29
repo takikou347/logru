@@ -78,7 +78,10 @@ export function SpiralPage() {
   const photo = photoIndex !== null ? photoDays[photoIndex] : undefined;
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col" style={{ background: "var(--ground)" }}>
+    // 「×」で閉じる全画面の表示。ラボの「新しい見た目」・スマホの下のタブの帯(z-48、0091)より
+    // 上に置き、帯を覆い隠す。らせんは帯の役目(今日・カレンダーなどへ移る)を持たない全画面の
+    // 表示で、閉じるための「×」も自前で持つため、帯が上に浮いて見えるのは不自然という判断。issue #243
+    <div className="fixed inset-0 z-[49] flex flex-col" style={{ background: "var(--ground)" }}>
       <header className="glass m-3 flex items-center gap-2 rounded-panel px-3 py-2">
         <Button variant="ghost" size="icon" aria-label="カレンダーへ戻る" onClick={() => navigate("/")}>
           <X className="size-5" />

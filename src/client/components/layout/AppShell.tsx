@@ -1,11 +1,11 @@
-import { CalendarDays, SlidersHorizontal, Users } from "lucide-react";
+import { CalendarDays, Settings, SlidersHorizontal, Users } from "lucide-react";
 import { createContext, type ReactNode, useContext, useLayoutEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router";
 import { useMe } from "@/api/common";
 import { GlobalBottomTabs } from "@/components/parts/Dock";
 import { OfflineBand } from "@/components/parts/Failure";
 import { useAddableExtensions, useEnabledExtensions } from "@/lib/extensions";
-import { useApplyLabExperiments } from "@/lib/lab";
+import { useApplyLabExperiments, useNewLookActive } from "@/lib/lab";
 import { cn } from "@/lib/utils";
 import { Pools } from "../parts/Pools";
 import { ShortcutBand } from "../parts/ShortcutBand";
@@ -54,6 +54,7 @@ export function AppShell() {
   const navs = useEnabledExtensions().flatMap((x) => (x.nav ? [x.nav] : []));
   // 足せる機能が無ければ、「機能を足す、外す」ではなく「機能を外す」にする。行き先は変えない。issue #224、0086
   const canAddExtension = useAddableExtensions().length > 0;
+  const newLook = useNewLookActive();
   const [frame, setFrame] = useState<AppFrame>(emptyFrame);
   // ログインした画面はすべてこの枠を通るので、ここで 1 か所、ラボの入り切りを掛け直す。0039、F-35
   const me = useMe();
@@ -93,6 +94,20 @@ export function AppShell() {
               <SlidersHorizontal className="size-4" aria-hidden="true" />
               {canAddExtension ? "機能を足す、外す" : "機能を外す"}
             </Link>
+            {/*
+              下のタブの帯(GlobalBottomTabs)と同じ Settings アイコンで、設定への行き先を PC の
+              左の列にも直に置く。今までは AccountMenu のメニューの中だけにあった。A3 の pc-home.png
+              に寄せる。グループと同じ考えで、アカウントのメニュー側は wide のときだけ隠す。issue #243
+              設定の下の画面では、右の列に出る目次(SettingsToc)の側で選んだ節だけが選ばれた色になる
+              決まり(issue #13)のとおり、ここは「機能を足す、外す」と同じく NavLink ではなく
+              Link にして、選ばれた色を二重に付けない
+            */}
+            {newLook && (
+              <Link className={navItem} to="/settings">
+                <Settings className="size-4" aria-hidden="true" />
+                設定
+              </Link>
+            )}
           </nav>
           <ShortcutBand compact />
           {frame.side ? (

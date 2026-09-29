@@ -1,13 +1,17 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addExtension, signUp } from "./helpers";
+import { addExtension, enableOldLook, signUp } from "./helpers";
 
 /** 機能の一覧で、家計簿を自分だけで使えるようにする */
 async function enableKakeibo(page: Page) {
   await addExtension(page, "家計簿");
 }
 
-/** 記録のシートを開く。家計簿の画面の下の帯から */
+/**
+ * 記録のシートを開く。家計簿の画面の下の帯から。この帯(role="toolbar")は新しい見た目・スマホでは
+ * 下のタブの帯に役目を移して隠れる(0091)ため、前の見た目に戻して確かめる
+ */
 async function openRecordSheet(page: Page) {
+  await enableOldLook(page);
   await page.goto("/kakeibo");
   await page.getByRole("toolbar", { name: "家計簿の操作" }).getByRole("button", { name: "支出を記録する" }).click();
   return page.getByRole("dialog", { name: "記録する" });
@@ -28,6 +32,8 @@ test("ホームを下までスクロールしてウィジェットから家計�
 }) => {
   await signUp(page, { name: "こた" });
   await enableKakeibo(page);
+  // カレンダーのホームのウィジェットを使うため、前の見た目に戻して確かめる(0091)
+  await enableOldLook(page);
 
   await page.goto("/");
   await expect(page.getByTestId("widget-kakeibo-total")).toBeVisible();
@@ -51,6 +57,8 @@ test("ホームを下までスクロールしてウィジェットから家計�
 test("ホームのウィジェットから開いた記録のシートは、やめても保存してもホームへ戻る。0070、#201", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await enableKakeibo(page);
+  // カレンダーのホームのウィジェットを使うため、前の見た目に戻して確かめる(0091)
+  await enableOldLook(page);
 
   await page.goto("/");
   await page.getByTestId("widget-kakeibo-record").click();

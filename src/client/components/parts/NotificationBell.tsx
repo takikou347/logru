@@ -16,6 +16,7 @@ import {
   useNotificationList,
   useUnreadCount,
 } from "@/modules/notifications/api";
+import { describeCoreNotification } from "@/modules/notifications/describe";
 import { EmptyState } from "./EmptyState";
 import { ResponsiveSheet } from "./ResponsiveSheet";
 
@@ -31,9 +32,13 @@ function relativeTime(ms: number): string {
   return `${day} 日前`;
 }
 
-/** 拡張が決めた文言と行き先。拡張がお知らせを出さなくなっていたら、押しても何も起きない */
+/**
+ * kind から文言と行き先を作る。`groups.*` は土台の describeCoreNotification、それ以外は積んだ
+ * 拡張の describeNotification が決める。拡張がお知らせを出さなくなっていたら、押しても何も起きない
+ */
 function describe(item: NotificationItem): { text: string; path: string } | null {
   const [extKey] = item.kind.split(".");
+  if (extKey === "groups") return describeCoreNotification(item.kind, item.payload);
   const ext = extKey ? clientExtension(extKey) : undefined;
   return ext?.describeNotification?.(item.kind, item.payload) ?? null;
 }

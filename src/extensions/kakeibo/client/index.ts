@@ -1,6 +1,7 @@
 import type { ClientExtension } from "@extensions/client/types";
 import { BadgeJapaneseYen, PiggyBank, Wallet } from "lucide-react";
 import { kakeiboManifest } from "../manifest";
+import { describeKakeiboNotification } from "../shared/notifications";
 import {
   AssetsWidget,
   MonthTotalWidget,
@@ -23,6 +24,7 @@ export const kakeiboClient: ClientExtension = {
   Editor: KakeiboItemSheet,
   icon: BadgeJapaneseYen,
   nav: { label: "家計簿", icon: Wallet, path: "/kakeibo", description: "支出の記録と合計" },
+  describeNotification: describeKakeiboNotification,
   // 機能のシートには出さない。actions は「機能を足す」直後の案内だけに使う。ホームの記録するウィジェットと同じ道。0019
   // 下のタブの帯の「+」の放射には、支出・収入の 2 つを出す。振替は使う人が少ないので出さない。0091、issue #239
   actions: [

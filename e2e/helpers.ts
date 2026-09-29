@@ -81,7 +81,8 @@ export async function submitSignUp(
 
 /**
  * 画面から登録し、確認メールのリンクを開いて、次の画面まで進む。
- * next が無ければ、カレンダーが出るまで待つ。
+ * next が無ければ、ホームが出るまで待つ。新しい見た目・スマホの既定はホームが今日のページ
+ * (today-day-number)、それ以外(前の見た目、PC)はカレンダー(月の表)なので、どちらかを待つ。0090、0092
  */
 export async function signUp(page: Page, opts: { name?: string; email?: string; next?: string } = {}) {
   const user = await submitSignUp(page, opts);
@@ -89,7 +90,9 @@ export async function signUp(page: Page, opts: { name?: string; email?: string; 
   const { oobLink } = await latestOob(page.request, user.email, "VERIFY_EMAIL");
   await page.request.get(oobLink);
   await page.getByRole("button", { name: "確かめた" }).click();
-  if (!opts.next) await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  if (!opts.next) {
+    await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
+  }
   return user;
 }
 
@@ -203,14 +206,67 @@ export async function swipeRowLeft(page: Page, row: Locator, dx: number) {
 }
 
 /**
- * ラボの「新しい見た目」を入れる。刷新 2 以降の骨組み(下のタブの帯など)を確かめる e2e が使う。
- * 0090、0091、issue #239
+ * 新しい見た目は既定になったため、何もしない。呼び出し側を直さずに既定のまま通すための空の関数。
+ * 刷新 2 以降の骨組み(下のタブの帯など)を確かめる e2e が呼んでいた。0090
  */
-export async function enableNewLook(page: Page) {
+export async function enableNewLook(_page: Page) {}
+
+/**
+ * ラボの「前の見た目に戻す」を入れる。「新しい見た目を入れていない人は今までのまま」を確かめて
+ * いた e2e が、既定が入れ替わったのに合わせてこちらを使う。0090
+ *
+ * 既に入れていれば何もしない(何度呼んでも安全。スイッチは押すたびに入り切りが反転するため)。
+ * 切り替えの間だけ設定の画面へ移り、終わったら呼ぶ前にいた画面(URL)へ戻す。呼び出し側がどの
+ * 画面から呼んでも、その画面に留まったまま呼べる
+ */
+export async function enableOldLook(page: Page) {
+  if ((await page.locator("html").getAttribute("data-lab-new-look")) === null) return;
+  const returnTo = page.url();
   await page.goto("/settings/appearance");
   const lab = page.getByRole("region", { name: "ラボ" });
-  await lab.getByRole("switch", { name: "新しい見た目" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-lab-new-look", "");
+  await lab.getByRole("switch", { name: "前の見た目に戻す" }).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-lab-new-look");
+  await page.goto(returnTo);
+}
+
+/**
+ * `enableOldLook` で入れた「前の見た目に戻す」を切り、新しい見た目(既定)に戻す。
+ * 既に新しい見た目なら何もしない。enableOldLook と同じく、呼ぶ前にいた画面へ戻す
+ */
+export async function disableOldLook(page: Page) {
+  if ((await page.locator("html").getAttribute("data-lab-new-look")) !== null) return;
+  const returnTo = page.url();
+  await page.goto("/settings/appearance");
+  const lab = page.getByRole("region", { name: "ラボ" });
+  await lab.getByRole("switch", { name: "前の見た目に戻す" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-lab-new-look");
+  await page.goto(returnTo);
+}
+
+/**
+ * 「予定を足す」を押して、新しい予定のシートを開く。新しい見た目・スマホでは、下のタブの
+ * 「記録する」を押す(足している機能が予定だけの既定の組では、放射を出さず直接開く。
+ * 2 つ以上足していると放射が出るので、そこから「予定を足す」を選ぶ。0091)。
+ * それ以外(前の見た目、PC)は今までの「予定を足す」ボタンを押す。0090
+ */
+export async function addEventButton(page: Page) {
+  // 前の見た目・PC では下のタブの帯(GlobalBottomTabs)は display: none で隠すだけで、DOM には
+  // 残っている(0091)。display: none の間は読み上げの役目(role)を持てないため、
+  // getByRole("navigation", ...) では永遠に見つからず waitFor が終わらない。CSS の属性で探す
+  const tabsEl = page.locator('nav[aria-label="下のタブ"]');
+  await tabsEl.waitFor({ state: "attached" }).catch(() => {});
+  if (await tabsEl.isVisible().catch(() => false)) {
+    await tabsEl.getByRole("button", { name: "記録する" }).click();
+    const eventOption = page.getByRole("button", { name: "予定を足す" });
+    const dialog = page.getByRole("dialog", { name: "新しい予定" });
+    await expect(eventOption.or(dialog)).toBeVisible();
+    if (await eventOption.isVisible()) await eventOption.click();
+  } else {
+    // 「下のタブ」が隠れていても display: none で DOM には残るため、名前だけで探すと
+    // そちらにもヒットしうる(GlobalBottomTabs の「+」が足せるものが 1 つだけのとき
+    // 同じ「予定を足す」の読み上げ名になるため。0091)。見えている方だけに絞る
+    await page.getByRole("button", { name: "予定を足す" }).and(page.locator(":visible")).last().click();
+  }
 }
 
 /**
@@ -245,7 +301,7 @@ export async function removeExtension(page: Page, label: string) {
  */
 export async function pickShare(page: Page, host: Locator, name: string) {
   await host.getByRole("button", { name: /^共有/ }).click();
-  await page.getByRole("dialog", { name: "共有する相手" }).getByRole("radio", { name }).click();
+  await page.getByRole("dialog", { name: "共有する相手" }).getByRole("option", { name }).click();
 }
 
 /**
@@ -253,7 +309,7 @@ export async function pickShare(page: Page, host: Locator, name: string) {
  * @param group 共有するグループの名前。無ければ「共有しない」のまま保存する
  */
 export async function addEvent(page: Page, title: string, group?: string) {
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await sheet.getByLabel("題名").fill(title);
   if (group) await pickShare(page, sheet, group);
@@ -271,4 +327,33 @@ export async function addMemories(page: Page, option: "記録する" | "思い�
   } else {
     await page.getByRole("button", { name: "思い出を作る" }).click();
   }
+}
+
+/**
+ * OS のキーボードが出た状態を装う。issue #242
+ *
+ * iOS Safari は `window.innerHeight`(レイアウトのビューポート)を変えず、`visualViewport` だけ
+ * 縮む。Playwright は実機のキーボードを起こせないので、`visualViewport.height`・`offsetTop` を
+ * 上書きし、`resize` イベントを起こして近づける(`client/lib/keyboard-viewport.ts` が読む値)。
+ * @param heightPx キーボードの高さ(px)。実機の数字キーパッド・かなキーパッドの見当の値を使う
+ */
+export async function openMobileKeyboard(page: Page, heightPx: number) {
+  await page.evaluate((h) => {
+    const vv = window.visualViewport;
+    if (!vv) throw new Error("visualViewport が無い");
+    Object.defineProperty(vv, "height", { value: window.innerHeight - h, configurable: true });
+    Object.defineProperty(vv, "offsetTop", { value: 0, configurable: true });
+    vv.dispatchEvent(new Event("resize"));
+  }, heightPx);
+}
+
+/** キーボードを閉じた状態に戻す。openMobileKeyboard と対で使う */
+export async function closeMobileKeyboard(page: Page) {
+  await page.evaluate(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    Object.defineProperty(vv, "height", { value: window.innerHeight, configurable: true });
+    Object.defineProperty(vv, "offsetTop", { value: 0, configurable: true });
+    vv.dispatchEvent(new Event("resize"));
+  });
 }

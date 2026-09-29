@@ -1,27 +1,26 @@
 import { expect, test } from "@playwright/test";
-import { addExtension, enableNewLook, signUp } from "./helpers";
+import { addExtension, enableOldLook, signUp } from "./helpers";
 
 /**
  * 刷新 2。骨組み(上の帯、週の帯、下のタブ、「+」の放射)とアイコンだけの操作。0091、issue #239
  *
- * ラボの「新しい見た目」を入れた人だけに出る。入れていない人の画面は今までのまま(下のタブの
- * 帯は出ず、今までの Dock がそのまま動く)。
+ * 新しい見た目は既定で出る。ラボの「前の見た目に戻す」を入れた人だけ、下のタブの帯は出ず、
+ * 今までの Dock がそのまま動く。
  */
 
 test.beforeEach(async ({ page }) => {
   await signUp(page);
 });
 
-test("新しい見た目を入れていない人には、下のタブの帯が出ない", async ({ page }) => {
+test("前の見た目に戻すを入れた人には、下のタブの帯が出ない", async ({ page }) => {
+  await enableOldLook(page);
+  await page.goto("/");
   await expect(page.getByRole("navigation", { name: "下のタブ" })).toBeHidden();
   // 今までの Dock(カレンダーの操作)はそのまま動く
   await expect(page.getByRole("toolbar", { name: "カレンダーの操作" })).toBeVisible();
 });
 
-test("新しい見た目を入れると、下のタブが 5 つアイコンだけで並ぶ。読み上げの名前は残る", async ({ page }) => {
-  await enableNewLook(page);
-  // 4 回目以降を装う。はじめの 3 回の名前を消してから、アイコンだけの見た目を確かめる
-  await page.evaluate(() => localStorage.setItem("logru:new-look-tab-hints-seen", "3"));
+test("新しい見た目は既定で、下のタブが 5 つアイコンだけで並ぶ。読み上げの名前は残る", async ({ page }) => {
   await page.goto("/");
 
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
@@ -35,31 +34,29 @@ test("新しい見た目を入れると、下のタブが 5 つアイコンだ�
   await expect(tabs.getByRole("link", { name: "機能" })).toBeVisible();
   await expect(tabs.getByRole("link", { name: "設定" })).toBeVisible();
 
-  // アイコンだけ。名前を常に出す文字(はじめの 3 回の注記)は無い
+  // アイコンだけ。名前を常に出す文字は無い
   await expect(tabs.getByTestId("tab-hint")).toHaveCount(0);
 });
 
-test("はじめの 3 回だけ、タブの下に名前が出る", async ({ page }) => {
-  await enableNewLook(page);
-  await page.goto("/");
+test("下のタブはいつもアイコンだけで、開いた回数によらず名前の文字は出ない。押せる高さは 44px", async ({ page }) => {
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
-  await expect(tabs.getByTestId("tab-hint")).toHaveCount(5);
-  // 名前は帯の角丸の内側に収まる。帯の下の端にかからない
-  const bar = (await tabs.boundingBox())!;
-  for (const hint of await tabs.getByTestId("tab-hint").all()) {
-    const box = (await hint.boundingBox())!;
-    expect(box.y + box.height).toBeLessThanOrEqual(bar.y + bar.height - 6);
+  // 1 回目も、開き直した何回目も同じ。アイコンの下に名前は出ない(kota の判断、2026-09-29)
+  for (let i = 0; i < 4; i++) {
+    await page.goto("/");
+    await expect(tabs).toBeVisible();
+    await expect(tabs.getByTestId("tab-hint")).toHaveCount(0);
+    // 名前の文字を持つ要素は無く、読み上げの名前だけがある
+    await expect(tabs.locator("small")).toHaveCount(0);
+    await expect(tabs.getByRole("link", { name: "設定" })).toBeVisible();
   }
-
-  // 4 回目からは消える
-  await page.evaluate(() => localStorage.setItem("logru:new-look-tab-hints-seen", "3"));
-  await page.reload();
-  await expect(tabs.getByTestId("tab-hint")).toHaveCount(0);
+  for (const name of ["今日のページ", "カレンダー", "機能", "設定"]) {
+    const box = (await tabs.getByRole("link", { name }).boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+  expect((await tabs.getByRole("button", { name: "記録する" }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
 });
 
 test("長押しで名前が出て、離しても操作はしない", async ({ page }) => {
-  await enableNewLook(page);
-  await page.evaluate(() => localStorage.setItem("logru:new-look-tab-hints-seen", "3"));
   await page.goto("/");
 
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
@@ -77,7 +74,6 @@ test("長押しで名前が出て、離しても操作はしない", async ({ pa
 });
 
 test("「機能」「設定」タブで、それぞれの画面へ移る", async ({ page }) => {
-  await enableNewLook(page);
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
   await tabs.getByRole("link", { name: "機能" }).click();
   await expect(page).toHaveURL("/settings/extensions");
@@ -87,10 +83,25 @@ test("「機能」「設定」タブで、それぞれの画面へ移る", async
   await expect(page).toHaveURL("/settings");
 });
 
+test("下のタブは、設定の下の画面でも「機能」と「設定」のどちらか 1 つだけが選ばれた色になる。issue #243", async ({
+  page,
+}) => {
+  const tabs = page.getByRole("navigation", { name: "下のタブ" });
+
+  // 「機能」(/settings/extensions)の道順は「設定」(/settings)から始まるが、選ばれるのは「機能」だけ
+  await page.goto("/settings/extensions");
+  await expect(tabs.getByRole("link", { name: "機能" })).toHaveAttribute("aria-current", "page");
+  await expect(tabs.getByRole("link", { name: "設定" })).not.toHaveAttribute("aria-current", "page");
+
+  // それ以外の設定の下の画面(見た目など)は「設定」が選ばれる
+  await page.goto("/settings/appearance");
+  await expect(tabs.getByRole("link", { name: "設定" })).toHaveAttribute("aria-current", "page");
+  await expect(tabs.getByRole("link", { name: "機能" })).not.toHaveAttribute("aria-current", "page");
+});
+
 test("「+」は足している機能ぶんの記録の種類を出す。どの画面から押しても同じで、予定だけなら直接開く", async ({
   page,
 }) => {
-  await enableNewLook(page);
   // 設定の画面から押しても、カレンダーの画面から押しても同じ(いま開いている画面の addables ではない)。issue #239
   await page.goto("/settings");
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
@@ -100,7 +111,6 @@ test("「+」は足している機能ぶんの記録の種類を出す。どの�
 
 test("家計簿を足すと「+」に支出・収入が並び、放射から収入を選ぶと収入が選ばれた状態で開く", async ({ page }) => {
   await addExtension(page, "家計簿");
-  await enableNewLook(page);
   await page.goto("/");
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
   // 3 種類以上になったので、放射(弧)で出る。弧と幕は document.body へ portal で出るので、
@@ -117,7 +127,6 @@ test("家計簿を足すと「+」に支出・収入が並び、放射から収�
 
 test("「+」を開くと、幕が画面全体を覆う(下のタブの帯の中に閉じ込められない)", async ({ page }) => {
   await addExtension(page, "家計簿");
-  await enableNewLook(page);
   await page.goto("/");
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
   await tabs.getByRole("button", { name: "記録する" }).click();
@@ -146,7 +155,6 @@ test("家計簿のよく使う記録があると、「+」の上にカードで�
   await create.getByRole("button", { name: "残す" }).click();
   await expect(page.getByText("よく使う記録にしました")).toBeVisible();
 
-  await enableNewLook(page);
   await page.goto("/");
   const tabs = page.getByRole("navigation", { name: "下のタブ" });
   await tabs.getByRole("button", { name: "記録する" }).click();
@@ -166,7 +174,6 @@ test("新しい見た目・スマホでも、カレンダータブでは上の�
 }) => {
   // 刷新 3(0092、issue #240)から、`/` は今日のページになった。月週日の切り替えは
   // 下のタブの「カレンダー」(`/?view=month`)の画面に残る
-  await enableNewLook(page);
   await page.goto("/?view=month");
   await page.getByRole("radio", { name: "週" }).last().click();
   await expect(page.getByRole("region", { name: "週の予定" })).toBeVisible();
@@ -176,6 +183,5 @@ test("新しい見た目・スマホでも、カレンダータブでは上の�
 
 test("PC(1024px 以上)では、新しい見た目でも下のタブの帯が出ない", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await enableNewLook(page);
   await expect(page.getByRole("navigation", { name: "下のタブ" })).toBeHidden();
 });

@@ -46,9 +46,11 @@ export function useOpenGroups(key: string, fallback: boolean) {
  * 人ごとの切り替えの行。押すと、その人が作った予定を出すか出さないかが入れ替わる。F-20
  * 出している間は aria-pressed を true にし、右の四角に印を付ける。
  *
+ * PeopleChip のシートと、新しい見た目の絞り込みのシート(CalendarFilterButton)で共通に使う。issue #243
+ *
  * @param rowClass 行の見た目。PC の左の列と、スマホのシートで変える
  */
-function PersonToggles({
+export function PersonToggles({
   people,
   hidden,
   onToggle,
@@ -147,9 +149,53 @@ export function SideGroup({
 }
 
 /**
+ * 人の絞り込みのシートの中身。グループごとに開け閉めできるまとまりでメンバーを並べる。
+ * PeopleChip の今までのシートと、新しい見た目の絞り込みをまとめたシート(CalendarFilterButton)で
+ * 共通に使う。issue #243
+ */
+export function PeopleFilterFields({
+  sections,
+  hidden,
+  onToggle,
+}: {
+  sections: GroupPeople[];
+  hidden: Set<string>;
+  onToggle: Toggle;
+}) {
+  const groups = useOpenGroups("logru-sheet-groups", true);
+  return (
+    <div className="flex flex-col gap-1">
+      {sections.map((s) => (
+        <Collapsible
+          key={s.group.id}
+          open={groups.isOpen(s.group.id)}
+          onOpenChange={(o) => groups.setOpen(s.group.id, o)}
+          className="group/section"
+        >
+          <CollapsibleTrigger className="flex min-h-11 w-full items-center gap-2 text-left text-[13px] font-bold text-ink-2">
+            <span className="min-w-0 flex-1 truncate">{s.group.name}</span>
+            <Chevron />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div role="group" aria-label={`${s.group.name} のメンバー`} className="flex flex-col">
+              <PersonToggles
+                people={s.people}
+                hidden={hidden}
+                onToggle={onToggle}
+                rowClass="flex min-h-12 w-full items-center gap-3 border-b border-line text-left text-[15px] last:border-b-0"
+              />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      ))}
+    </div>
+  );
+}
+
+/**
  * スマホの絞り込みの並びに置く「人」のボタンと、押すと開くシート。F-20
- * シートは PC の左の列と同じく、グループごとに開け閉めできるまとまりでメンバーを並べる。
- * 出さない人がいる間はボタンを塗り、出している人数を添える。
+ * 出さない人がいる間はボタンを塗り、出している人数を添える。新しい見た目では出さない
+ * (CalendarFilterButton の絞り込みのシートにまとめる)。issue #243
  *
  * @param total 重ねずに数えた人数
  */
@@ -165,7 +211,6 @@ export function PeopleChip({
   onToggle: Toggle;
 }) {
   const [open, setOpen] = useState(false);
-  const groups = useOpenGroups("logru-sheet-groups", true);
   const filtering = hidden.size > 0;
   return (
     <>
@@ -183,31 +228,7 @@ export function PeopleChip({
           description="印を外した人が作った予定を、自分のカレンダーに出しません。ほかの人の画面は変わりません。"
           onClose={() => setOpen(false)}
         >
-          <div className="flex flex-col gap-1">
-            {sections.map((s) => (
-              <Collapsible
-                key={s.group.id}
-                open={groups.isOpen(s.group.id)}
-                onOpenChange={(o) => groups.setOpen(s.group.id, o)}
-                className="group/section"
-              >
-                <CollapsibleTrigger className="flex min-h-11 w-full items-center gap-2 text-left text-[13px] font-bold text-ink-2">
-                  <span className="min-w-0 flex-1 truncate">{s.group.name}</span>
-                  <Chevron />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div role="group" aria-label={`${s.group.name} のメンバー`} className="flex flex-col">
-                    <PersonToggles
-                      people={s.people}
-                      hidden={hidden}
-                      onToggle={onToggle}
-                      rowClass="flex min-h-12 w-full items-center gap-3 border-b border-line text-left text-[15px] last:border-b-0"
-                    />
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            ))}
-          </div>
+          <PeopleFilterFields sections={sections} hidden={hidden} onToggle={onToggle} />
         </ResponsiveSheet>
       )}
     </>

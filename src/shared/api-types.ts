@@ -1,5 +1,6 @@
 /** 画面と API がやり取りする形。API の応答はここの型に合わせる */
 import type { LegalDocument } from "@shared/legal";
+import type { NotificationPrefs } from "@shared/notifications";
 
 /** 明るさの設定。system は端末に合わせる */
 export type ThemeMode = "system" | "light" | "dark";
@@ -49,6 +50,11 @@ export type Me = {
     usualShareGroupId: string | null;
     /** 今日のページの並べ方と見せ方。0092、F-45 */
     todayPage: TodayPagePrefs;
+    /**
+     * 種類ごとの、お知らせの一覧に出すか・端末にも知らせるか。既定から変えた種類だけを持つ。
+     * 無い種類は、拡張の manifest か CORE_NOTIFICATION_KINDS の既定を使う。0096、F-47
+     */
+    notificationPrefs: NotificationPrefs;
   };
   /** 同意を取り直す文書。空なら同意済み */
   needsAgreement: LegalDocument[];
@@ -102,6 +108,8 @@ export type RepeatRule = {
   until?: number | null;
   /** 終わりの回数 */
   count?: number | null;
+  /** yearly だけで使う。誕生日か記念日か。既定は誕生日。0097 */
+  anniversaryKind?: "birthday" | "anniversary";
 };
 
 /** カレンダーに並べる 1 件。拡張はこの形で項目を渡す。0002、0008 */

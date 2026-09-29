@@ -45,6 +45,7 @@ import {
   weekDays,
 } from "@/lib/dates";
 import { useEnabledExtensions } from "@/lib/extensions";
+import { RowExpandContext, rowExpandState, useRowExpandActive, useRowExpandTransition } from "@/lib/row-expand";
 import { BASE_TOURS } from "@/lib/tours";
 import { useRecordScreen } from "@/lib/use-back";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -56,8 +57,10 @@ import { HomeEditBar } from "../home/components/HomeEditBar";
 import { WidgetGrid } from "../home/components/WidgetGrid";
 import { useHomeWidgetVisibility, useVisibleHomeWidgets } from "../home/layout";
 import { HOME_WIDGET_CATALOG, homeWidget } from "../home/widgets";
+import { REOPEN_PARAM } from "../onboarding/model";
 import { Onboarding } from "../onboarding/Onboarding";
 import { useCalendar, useMemberVisibility } from "./api";
+import { CalendarFilterButton } from "./components/CalendarFilterButton";
 import { KindChip, SideKinds, useHiddenKinds } from "./components/KindFilter";
 import { PeopleChip, SideGroup, useOpenGroups } from "./components/PeopleFilter";
 import { RefreshButton } from "./components/RefreshButton";
@@ -195,7 +198,14 @@ export function CalendarPage() {
     [groupFilter],
   );
 
-  const open = useCallback((item: ViewItem) => setEditor({ mode: "edit", item }), []);
+  // 行がそのままシートに広がる動き(共有要素)。ラボの「新しい見た目」のスマホだけで使う。月の表の下の
+  // 選んだ日の一覧、週・日の表示の行が対象。カレンダーの行は SwipeRow・長押しを持たないので、取り合わない。0093、issue #227
+  const rowExpandActive = useRowExpandActive();
+  const { transitioningKey, openRow, resetRowExpand } = useRowExpandTransition(rowExpandActive);
+  const open = useCallback(
+    (item: ViewItem) => openRow(itemKey(item), () => setEditor({ mode: "edit", item })),
+    [openRow],
+  );
   // 探した結果を押したとき。その日を表示し、項目を出した拡張の編集のシートを開く。F-38、0046
   const openSearchResult = useCallback(
     (item: CalendarItem) => {
@@ -366,6 +376,11 @@ export function CalendarPage() {
   const addons = enabledExtensions.flatMap((x) =>
     (x.itemAddons ?? []).filter((a) => a.extension === editorKey).map((a) => a.Component),
   );
+  const closeEditor = useCallback(() => {
+    setEditor(null);
+    resetRowExpand();
+  }, [resetRowExpand]);
+  const rowExpandValue = useMemo(() => rowExpandState(transitioningKey, editor !== null), [transitioningKey, editor]);
 
   /** グループで絞る選択肢。自分だけのグループは「自分だけの予定」と書く。0009、0057 */
   const filterOptions = groupFilterOptions({
@@ -375,6 +390,10 @@ export function CalendarPage() {
     onChange: (id) => update({ group: id }),
     personalLabel: "自分だけの予定",
   });
+  // 絞り込みのアイコンの隣に出す、選んでいるグループ(や、自分だけなら人)の短い名前。
+  // 「すべて」を選んでいるときは出さない。issue #227
+  const selectedGroup = groupFilter ? allGroups.find((g) => g.id === groupFilter) : undefined;
+  const filterChipLabel = selectedGroup ? (selectedGroup.isPersonal ? "自分だけ" : selectedGroup.name) : null;
 
   // 足せるものは予定だけ。「+」を押すと選んでいる日で直接シートが開く。issue #150、拡張のものは拡張の画面が持つ。0019
   // 読み上げの名前に選んだ日を入れる。予定を足す入口はここだけなので、どの日に足すかを名前で伝える。0012、0062、issue #150
@@ -431,7 +450,7 @@ export function CalendarPage() {
   });
 
   return (
-    <>
+    <RowExpandContext.Provider value={rowExpandValue}>
       {/*
         スマホの幅では、月と年に「今日」「前」「次」「読み直す」「知らせ」「アカウント」を足すと 1 行に入らない。
         入る月と入らない月で高さが変わると落ち着かないので、スマホではいつも月と年の下へ操作を置く。
@@ -497,6 +516,45 @@ export function CalendarPage() {
       */}
       {!editingHome && (
         <>
+          {/*
+            いま何月かと、前後の月へ移る操作。A3 の見本の「9月 2026」と ‹ › の行。#275
+            月・週・日のどの表示でも、選んでいる日の月を出す。矢印は表示の単位ぶん(月なら 1 か月)動く
+          */}
+          <div className="nl-only items-center justify-between gap-2 px-2" data-testid="nl-month-bar">
+            <h1 className="flex items-baseline gap-2" aria-live="polite">
+              <span data-testid="nl-month-title" className="text-[34px] leading-none font-bold">
+                {selected.getMonth() + 1}月
+              </span>
+              <span className="text-[17px] font-medium text-ink-2">{selected.getFullYear()}</span>
+            </h1>
+            <div className="flex items-center gap-1">
+              {showTodayButton && (
+                <button
+                  type="button"
+                  className="min-h-10 shrink-0 rounded-full border border-(--glass-edge) bg-field px-3.5 text-[13px] font-bold whitespace-nowrap"
+                  onClick={() => update({ date: today })}
+                >
+                  今日
+                </button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={view === "month" ? "前の月" : "前へ"}
+                onClick={() => move(-1)}
+              >
+                <ChevronLeft className="size-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={view === "month" ? "次の月" : "次へ"}
+                onClick={() => move(1)}
+              >
+                <ChevronRight className="size-5" />
+              </Button>
+            </div>
+          </div>
           <header className="nl-only glass min-h-[58px] items-center justify-between gap-1 rounded-panel py-1.5 pr-1.5 pl-2">
             <Link
               to={`/spiral/${selected.getFullYear()}`}
@@ -508,8 +566,23 @@ export function CalendarPage() {
             {/* 表示の単位(月・週・日)。アイコンだけでも読み上げの名前は今までの「月」「週」「日」のまま。issue #239 */}
             <Segmented label="表示の単位" value={view} options={VIEWS} onChange={changeView} iconOnly />
             <div className="flex items-center gap-0.5">
+              {/*
+                今までの「すべて・自分だけ・種類」の絞り込みの帯(GroupFilterBand、下に nl-hide で隠す)を、
+                このアイコン 1 つにまとめる。押すと、グループ・人・種類をまとめたシートが開く。issue #243
+              */}
+              <CalendarFilterButton
+                groupOptions={filterOptions}
+                peopleSections={sections}
+                hiddenPeople={hiddenIds}
+                onTogglePerson={togglePerson}
+                hiddenKinds={hiddenKinds}
+                onToggleKind={toggleKind}
+                tourId="group-filter"
+                selectedLabel={filterChipLabel}
+              />
               {me.data && <SearchButton groups={allGroups} me={me.data} onOpen={openSearchResult} />}
               <NotificationBell />
+              <AccountMenu />
             </div>
           </header>
           <WeekBand selected={selected} today={today} items={items} onSelect={onPressDay} />
@@ -540,7 +613,8 @@ export function CalendarPage() {
         グループが多いときは横に流れる。はみ出すときだけ、流せることが分かるよう下にバーを出す。F-25
         下の余白 12 px はバーの有無にかかわらず取る。バーは余白の下 4 px に重なり、チップとは 8 px あく。帯の高さは変わらない。0057
       */}
-      <GroupFilterBand options={filterOptions} tourId="group-filter">
+      {/* 新しい見た目・スマホでは、この帯を上の帯の絞り込みアイコンにまとめて隠す。issue #243 */}
+      <GroupFilterBand options={filterOptions} tourId="group-filter" className="nl-hide">
         {sections.length > 0 && (
           <PeopleChip sections={sections} total={people.length} hidden={hiddenIds} onToggle={togglePerson} />
         )}
@@ -602,8 +676,13 @@ export function CalendarPage() {
         </Button>
       )}
 
-      {/* ウィジェットが少なく中身が短いと、浮いた下の帯にこのボタンが重なるので、帯と同じ高さの余白を足す。issue #24 */}
-      {!editingHome && <div className="h-[var(--dock-clearance)] lg:hidden" aria-hidden="true" />}
+      {/*
+        ウィジェットが少なく中身が短いと、浮いた下の帯にこのボタンが重なるので、帯と同じ高さの余白を足す。issue #24
+        新しい見た目・スマホの下のタブの帯(GlobalBottomTabs)は、ホームを編集している間も消えない。
+        編集中に消えるのは前の見た目の Dock だけなので、編集中も常に余白を取る。無いと、いちばん下の
+        ウィジェットの持ち手が帯の下に隠れ、指で引いての並べ替えが押せなくなる。issue #243
+      */}
+      <div className="h-[var(--dock-clearance)] lg:hidden" aria-hidden="true" />
 
       {/* スマホの下の帯。拡張の画面の Dock と同じ、浮いた丸のまとまりにする。左側の操作(機能、表示の単位)は変えない。0012、issue #150 */}
       {!editingHome && (
@@ -620,7 +699,10 @@ export function CalendarPage() {
 
       {features && <FeatureSheet onClose={() => setFeatures(false)} />}
 
-      {!editingHome && !editor && !features && <ScreenTour id="calendar" steps={BASE_TOURS.calendar} />}
+      {/* 設定から見直す間(URL に REOPEN_PARAM がある間)は、案内どうしが重ならないよう画面の案内を出さない。issue #243 */}
+      {!editingHome && !editor && !features && !params.has(REOPEN_PARAM) && (
+        <ScreenTour id="calendar" steps={BASE_TOURS.calendar} />
+      )}
 
       {me.data && <Onboarding me={me.data} paused={editor !== null} onAddEvent={() => addNew(today)} />}
 
@@ -641,11 +723,11 @@ export function CalendarPage() {
           onOpenItem={(item) => setEditor({ mode: "edit", item })}
           groups={allGroups}
           me={me.data}
-          onClose={() => setEditor(null)}
+          onClose={closeEditor}
           onDelete={remove}
           addons={addons}
         />
       )}
-    </>
+    </RowExpandContext.Provider>
   );
 }

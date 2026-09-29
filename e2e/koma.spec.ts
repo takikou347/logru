@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { addExtension, addMemories, signUp } from "./helpers";
+import { addExtension, addMemories, enableOldLook, signUp } from "./helpers";
 
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
 
@@ -16,6 +16,8 @@ test("思い出が無い日でも、今日をひとコマで始め、近道の�
   test.skip(!inKomaHours(), "ひとコマは日本時間の 7 時台から 22 時台だけ撮れる");
   await signUp(page, { name: "こた" });
   await addExtension(page, "思い出");
+  // カレンダーのホームのウィジェットを使うため、前の見た目に戻して確かめる(0091)
+  await enableOldLook(page);
 
   // ホームの「ひとコマ」のウィジェットから確認画面へ。今日を始める
   await page.goto("/");

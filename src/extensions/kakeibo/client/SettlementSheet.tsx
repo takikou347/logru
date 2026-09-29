@@ -92,7 +92,7 @@ export function SettlementSheet({
               {...p}
               autoFocus
               type="text"
-              inputMode="numeric"
+              inputMode="decimal"
               value={amountText}
               onChange={(e) => setAmountText(sanitizeAmountInput(e.target.value))}
               className="text-right text-xl font-bold"

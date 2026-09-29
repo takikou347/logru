@@ -8,6 +8,9 @@ import { isoWeekdayInTokyo, tokyoFieldsOf, utcFromTokyoFields } from "../shared/
 /** 繰り返しの周期 */
 export type RepeatFreq = "daily" | "weekly" | "monthly" | "yearly";
 
+/** 毎年の繰り返しの種別。誕生日か記念日か。0097 */
+export type AnniversaryKind = "birthday" | "anniversary";
+
 /** 繰り返しの規則。events の repeat_* の列と対応する */
 export type RepeatRule = {
   freq: RepeatFreq;
@@ -17,6 +20,8 @@ export type RepeatRule = {
   until: Date | null;
   /** 終わりの回数。repeat_until と同時には入らない */
   count: number | null;
+  /** yearly だけで使う。誕生日か記念日か。0097 */
+  anniversaryKind: AnniversaryKind;
 };
 
 /** repeat_freq が空なら繰り返さない予定なので null を返す */
@@ -25,9 +30,16 @@ export function repeatRuleOf(row: {
   repeatDaysOfWeek: number[] | null;
   repeatUntil: Date | null;
   repeatCount: number | null;
+  anniversaryKind: AnniversaryKind;
 }): RepeatRule | null {
   if (!row.repeatFreq) return null;
-  return { freq: row.repeatFreq, daysOfWeek: row.repeatDaysOfWeek, until: row.repeatUntil, count: row.repeatCount };
+  return {
+    freq: row.repeatFreq,
+    daysOfWeek: row.repeatDaysOfWeek,
+    until: row.repeatUntil,
+    count: row.repeatCount,
+    anniversaryKind: row.anniversaryKind,
+  };
 }
 
 export const DAY_MS = 24 * 60 * 60 * 1000;

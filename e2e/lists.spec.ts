@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addExtension, dayPanel, signUp, swipeRowLeft } from "./helpers";
+import { addExtension, dayPanel, disableOldLook, enableOldLook, signUp, swipeRowLeft } from "./helpers";
 
 /** 機能の一覧で、リストを自分だけで使えるようにする */
 async function enableLists(page: Page) {
@@ -31,6 +31,8 @@ test("足す前は、リストの画面は開けない", async ({ page }) => {
 test("リストを作り、項目を足す、チェックする、消す。日付を付けるとカレンダーに出る。F-201〜F-208", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await enableLists(page);
+  // カレンダーのホームのウィジェットを使うため、前の見た目に戻して確かめる(0091)
+  await enableOldLook(page);
 
   // 機能のシートには入口のタイルだけが出る。記録の動線はホームのウィジェットへ移した
   await page.goto("/");
@@ -62,6 +64,7 @@ test("リストを作り、項目を足す、チェックする、消す。日�
   await page.goto("/lists");
   await expect(page.getByText("リストを作ると、ここに並びます。")).toBeVisible();
   // 空の一覧は、下の帯の主なボタンと空の表示のボタンが同じ「リストを作る」を名乗るので、帯の方を選ぶ
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   const create = page.getByRole("dialog", { name: "リストを作る" });
   await create.getByLabel("名前").fill("買い物");
@@ -128,6 +131,7 @@ test("日付の入力にフォーカスが残ったまま外側でポインタ�
   await signUp(page, { name: "こた" });
   await enableLists(page);
   await page.goto("/lists");
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   const create = page.getByRole("dialog", { name: "リストを作る" });
   await create.getByLabel("名前").fill("買い物");
@@ -149,6 +153,7 @@ test("日付の入力からフォーカスを外した後は、外側の動き�
   await signUp(page, { name: "こた" });
   await enableLists(page);
   await page.goto("/lists");
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   const create = page.getByRole("dialog", { name: "リストを作る" });
   const dateInput = create.getByLabel("日付");
@@ -164,6 +169,7 @@ test("項目を消すと 5 秒だけ元に戻せる。issue #12", async ({ page 
   await signUp(page, { name: "こた" });
   await enableLists(page);
   await page.goto("/lists");
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   const create = page.getByRole("dialog", { name: "リストを作る" });
   await create.getByLabel("名前").fill("買い物");
@@ -189,6 +195,7 @@ test("リストを直す、消す。グループの誰でもできる。「リ�
   await signUp(page, { name: "こた" });
   await enableLists(page);
   await page.goto("/lists");
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("旅行の持ち物");
   await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
@@ -220,6 +227,7 @@ test("項目の文字を押すと直せる。Enter で保存、Esc か空にす�
   await signUp(page, { name: "こた" });
   await enableLists(page);
   await page.goto("/lists");
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("買い物");
   await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
@@ -263,6 +271,7 @@ test("項目を足す欄の右の「足す」ボタンで足せる。文字が�
   await signUp(page, { name: "こた" });
   await enableLists(page);
   await page.goto("/lists");
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("買い物");
   await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
@@ -287,6 +296,57 @@ test("項目を足す欄の右の「足す」ボタンで足せる。文字が�
   await expect(page.getByText("たまねぎ")).toBeVisible();
 });
 
+test("ラボの「新しい見た目」・スマホでは、足す・直す・消すがアイコンだけになり、項目を押すと直すシートが開く。issue #243", async ({
+  page,
+}) => {
+  await signUp(page, { name: "こた" });
+  await enableLists(page);
+  // 新しい見た目・スマホでは、下の帯の「+」が主な足す操作の役目を持ち、画面ごとの Dock は隠れる(0091)。
+  // 作る操作そのものは既存の E2E(上のテスト)で確かめているので、ここでは入れる前に作っておく
+  await page.goto("/lists");
+  await enableOldLook(page);
+  await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
+  await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("買い物");
+  await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
+  await expect(page).toHaveURL(/\/lists\/.+/);
+  const listDetail = new URL(page.url()).pathname;
+
+  await disableOldLook(page);
+  await page.goto(listDetail);
+
+  // 押すまでは「+」の行だけ。押すと入力欄が開き、「足す」ボタンは読み上げの名前を変えずアイコンだけになる。issue #243
+  await page.getByRole("button", { name: "項目を足す", exact: true }).click();
+  const addInput = page.getByLabel("項目を足す");
+  const addButton = page.getByRole("button", { name: "足す", exact: true });
+  await expect(addButton).toBeVisible();
+  await addInput.fill("にんじん");
+  await addButton.click();
+  await expect(page.getByText("にんじん")).toBeVisible();
+
+  // 項目の文字(直す)を押すと、その場の入力欄ではなく「項目を直す」シートが開く
+  await page.getByRole("button", { name: "にんじん を直す" }).click();
+  const edit = page.getByRole("dialog", { name: "項目を直す" });
+  await expect(edit).toBeVisible();
+  await edit.getByLabel("項目").fill("大根");
+  await edit.getByRole("button", { name: "保存する" }).click();
+  await expect(edit).toBeHidden();
+  await expect(page.getByText("大根")).toBeVisible();
+  await expect(page.getByText("にんじん")).toHaveCount(0);
+
+  // シートの「消す」でも消せる。5 秒だけ元に戻せる
+  await page.getByRole("button", { name: "大根 を直す" }).click();
+  await page.getByRole("dialog", { name: "項目を直す" }).getByRole("button", { name: "消す" }).click();
+  await expect(page.getByText("大根")).toBeHidden();
+  await page.getByRole("button", { name: "元に戻す" }).click();
+  await expect(page.getByText("大根")).toBeVisible();
+
+  // スワイプで出る「直す」「消す」もアイコンだけ(読み上げの名前は残る)
+  const row = page.locator("li", { hasText: "大根" });
+  await swipeRowLeft(page, row, 120);
+  await expect(row.getByRole("button", { name: "直す", exact: true })).toBeVisible();
+  await expect(row.getByRole("button", { name: "消す", exact: true })).toBeVisible();
+});
+
 test("リストの日付は日本時間の今日になる。日本時間の夜(世界時でも同じ日)", async ({ page }) => {
   const fixed = new Date("2026-09-24T21:52:00+09:00");
   const today = jstDateKeyAt(fixed);
@@ -297,6 +357,7 @@ test("リストの日付は日本時間の今日になる。日本時間の夜(�
   await page.reload();
   await enableLists(page);
   await page.goto("/lists");
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   const create = page.getByRole("dialog", { name: "リストを作る" });
   await create.getByLabel("名前").fill("買い物");
@@ -306,9 +367,9 @@ test("リストの日付は日本時間の今日になる。日本時間の夜(�
   await expect(page.getByText("9月24日 のカレンダーに出ています")).toBeVisible();
 
   // カレンダーの既定(今日)にも、指定した日にも同じく出る
-  await page.goto("/");
+  await page.goto("/?view=month");
   await expect(dayPanel(page).getByRole("button", { name: /買い物/ })).toBeVisible();
-  await page.goto(`/?date=${today}`);
+  await page.goto(`/?view=month&date=${today}`);
   await expect(dayPanel(page).getByRole("button", { name: /買い物/ })).toBeVisible();
 });
 
@@ -323,6 +384,7 @@ test("リストの日付は日本時間の今日になる。日本時間の朝(�
   await page.reload();
   await enableLists(page);
   await page.goto("/lists");
+  await enableOldLook(page);
   await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
   const create = page.getByRole("dialog", { name: "リストを作る" });
   await create.getByLabel("名前").fill("買い物");
@@ -332,8 +394,8 @@ test("リストの日付は日本時間の今日になる。日本時間の朝(�
   await expect(page.getByText("9月25日 のカレンダーに出ています")).toBeVisible();
 
   // カレンダーの既定(今日)にも、指定した日にも同じく出る
-  await page.goto("/");
+  await page.goto("/?view=month");
   await expect(dayPanel(page).getByRole("button", { name: /買い物/ })).toBeVisible();
-  await page.goto(`/?date=${today}`);
+  await page.goto(`/?view=month&date=${today}`);
   await expect(dayPanel(page).getByRole("button", { name: /買い物/ })).toBeVisible();
 });

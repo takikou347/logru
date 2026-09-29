@@ -13,6 +13,7 @@ import { LoadableSection, PanelSkeleton } from "@/components/parts/LoadableSecti
 import { Panel } from "@/components/parts/Panel";
 import type { Addable } from "@/components/parts/PrimaryAddButton";
 import { PrimaryAddButton } from "@/components/parts/PrimaryAddButton";
+import { useSetSearchParams } from "@/lib/use-set-search-params";
 import { poolColorsOf } from "@/modules/calendar/model";
 import type { ListSummary } from "./api";
 import { useLists, useListsGroups } from "./api";
@@ -27,16 +28,16 @@ import { formatShortDate, GroupLabel } from "./parts";
 export function ListsPage() {
   const me = useMe();
   const { groups, ready } = useListsGroups();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetSearchParams();
   const groupParam = params.get("group");
   const filterGroup = groups.some((g) => g.id === groupParam) ? groupParam : null;
-  const setGroup = (id: string | null) =>
-    setParams((p) => (id ? p.set("group", id) : p.delete("group"), p), { replace: true });
+  const setGroup = (id: string | null) => setParams((p) => (id ? p.set("group", id) : p.delete("group")));
   const lists = useLists(filterGroup, ready);
   const [features, setFeatures] = useState(false);
 
   const creating = params.get("create") === "1";
-  const closeCreate = () => setParams((p) => (p.delete("create"), p), { replace: true });
+  const closeCreate = () => setParams((p) => p.delete("create"));
   const filterOptions = groupFilterOptions({ groups, me: me.data, value: filterGroup, onChange: setGroup });
   // 足せるものはリストだけ。「+」を押すと直接シートが開く。issue #150
   const addables: Addable[] = [
@@ -44,7 +45,7 @@ export function ListsPage() {
       key: "list",
       label: "リストを作る",
       icon: ListChecks,
-      onClick: () => setParams((p) => (p.set("create", "1"), p), { replace: true }),
+      onClick: () => setParams((p) => p.set("create", "1")),
     },
   ];
   useAppFrame({ poolColors: poolColorsOf(groups, me.data), side: <SideGroupFilter options={filterOptions} /> });
@@ -69,7 +70,7 @@ export function ListsPage() {
                   bordered={false}
                   action={{
                     label: "リストを作る",
-                    onClick: () => setParams((p) => (p.set("create", "1"), p), { replace: true }),
+                    onClick: () => setParams((p) => p.set("create", "1")),
                   }}
                 >
                   リストを作ると、ここに並びます。

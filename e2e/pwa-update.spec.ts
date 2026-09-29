@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { signUp } from "./helpers";
+import { addEventButton, signUp } from "./helpers";
 
 test("新しい Service Worker が入っても、シートに入力の途中なら読み込み直さない。閉じると切り替わり、知らせが出る", async ({
   page,
 }) => {
   await signUp(page);
 
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   const title = sheet.getByLabel("題名");
   await title.fill("消えたら困る予定");
@@ -21,19 +21,19 @@ test("新しい Service Worker が入っても、シートに入力の途中な�
 
   // シートを閉じると、延ばしていた読み込み直しが行われ、知らせが 1 回出る
   await sheet.getByRole("button", { name: "閉じる" }).click();
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
   await expect(page.getByText("新しい版にしました")).toBeVisible();
 });
 
 test("入力していなければ、シートを開いたままでも読み込み直す", async ({ page }) => {
   await signUp(page);
 
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  await addEventButton(page);
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
 
   await page.evaluate(() => navigator.serviceWorker.dispatchEvent(new Event("controllerchange")));
 
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "月の表" }).or(page.getByTestId("today-day-number"))).toBeVisible();
   await expect(page.getByText("新しい版にしました")).toBeVisible();
 });

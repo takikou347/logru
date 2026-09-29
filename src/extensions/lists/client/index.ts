@@ -1,6 +1,7 @@
 import type { ClientExtension } from "@extensions/client/types";
 import { ListChecks } from "lucide-react";
 import { listsManifest } from "../manifest";
+import { describeListsNotification } from "../shared/notifications";
 import { AddToListWidget, LatestListWidget, useLatestListHint } from "./HomeWidget";
 import { ListItemSheet } from "./ListItemSheet";
 import { ListsTodaySection } from "./TodaySection";
@@ -13,6 +14,7 @@ export const listsClient: ClientExtension = {
   manifest: listsManifest,
   Editor: ListItemSheet,
   nav: { label: "リスト", icon: ListChecks, path: "/lists", description: "買い物や持ち物を共有する" },
+  describeNotification: describeListsNotification,
   // 機能のシートには出さない。actions は「機能を足す」直後の案内だけに使う。0019
   actions: [{ label: "リストに足す", icon: ListChecks, path: "/lists/latest", hint: "いちばん新しいリストに" }],
   useTileHint: useLatestListHint,

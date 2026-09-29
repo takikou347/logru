@@ -1,5 +1,6 @@
 import { expiryFor, isJpeg, PhotoSigner, photoKey, verifyPhotoUrl } from "@extensions/memories/server/photos";
 import { addDaysToKey, dayIndexOf, dayKeyIn, hourIn, memoryDays, startOfDayIn } from "@extensions/memories/shared/days";
+import { shouldNotifyShioriAssignment } from "@extensions/memories/shared/notifications";
 import { memoryInput, PHOTO_DATA_URL_PATTERN, recordInput } from "@extensions/memories/shared/schemas";
 import { describe, expect, it } from "vitest";
 
@@ -182,5 +183,27 @@ describe("予定がどの思い出に入るか。0020", () => {
     const e = event("e", day(20) + 3_600_000, null);
     expect(memoryOfEvent(e, [walk, trip])?.id).toBe("trip");
     expect(memoryOfEvent(e, [walk, { ...trip, excludedEventIds: ["e"] }])?.id).toBe("walk");
+  });
+});
+
+describe("しおりの担当になったことを積むか。0096、issue #247", () => {
+  it("新しく担当が決まれば積む", () => {
+    expect(shouldNotifyShioriAssignment("mika", null)).toBe(true);
+  });
+
+  it("前と違う担当に変わったら積む", () => {
+    expect(shouldNotifyShioriAssignment("mika", "kota")).toBe(true);
+  });
+
+  it("前と同じ担当のままなら積まない", () => {
+    expect(shouldNotifyShioriAssignment("mika", "mika")).toBe(false);
+  });
+
+  it("担当を外したら(null)積まない", () => {
+    expect(shouldNotifyShioriAssignment(null, "mika")).toBe(false);
+  });
+
+  it("assigneeId が送られていなければ(undefined)積まない", () => {
+    expect(shouldNotifyShioriAssignment(undefined, "mika")).toBe(false);
   });
 });

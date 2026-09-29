@@ -1,5 +1,9 @@
 import { kakeiboAccountKindLabel } from "@extensions/kakeibo/shared/accounts";
-import { upcomingOrCurrentBudgets } from "@extensions/kakeibo/shared/budgets";
+import {
+  budgetExceededDedupeKey,
+  isBudgetExceeded,
+  upcomingOrCurrentBudgets,
+} from "@extensions/kakeibo/shared/budgets";
 import { isExpenseCategory, isIncomeCategory, kakeiboCategoryLabel } from "@extensions/kakeibo/shared/categories";
 import { dateKeyOfJst, isDateKey, isMonthKey, monthRange, startOfDateJst } from "@extensions/kakeibo/shared/dates";
 import { formatSignedYen, formatYen } from "@extensions/kakeibo/shared/format";
@@ -21,8 +25,8 @@ import {
   kakeiboSettlementInput,
   kakeiboTemplateInput,
 } from "@extensions/kakeibo/shared/schemas";
-import { minimalTransfers, netBalances } from "@extensions/kakeibo/shared/settlement";
-import { splitEqually, splitNone, sumSplitShares } from "@extensions/kakeibo/shared/splits";
+import { minimalTransfers, netBalances, settlementRecipient } from "@extensions/kakeibo/shared/settlement";
+import { expenseShareRecipients, splitEqually, splitNone, sumSplitShares } from "@extensions/kakeibo/shared/splits";
 import {
   subtractPendingFromCategories,
   sumByType,
@@ -565,5 +569,56 @@ describe("家計簿の画面の上に出す予算。0072、F-324", () => {
 
   it("今日がちょうど終わりの日でも出す", () => {
     expect(upcomingOrCurrentBudgets(budgets, "2026-08-31").map((b) => b.id)).toEqual(["past", "current", "future"]);
+  });
+});
+
+describe("立て替えられたことを積む相手。0096、issue #246", () => {
+  it("負担する人のうち、払った人を除く", () => {
+    const shares = [
+      { userId: "kota", amount: 4000 },
+      { userId: "mika", amount: 3000 },
+      { userId: "yuta", amount: 3000 },
+    ];
+    expect(expenseShareRecipients(shares, "kota").map((s) => s.userId)).toEqual(["mika", "yuta"]);
+  });
+
+  it("割らない記録(payer が null)は、誰も除かず全員に積む", () => {
+    const shares = [{ userId: "mika", amount: 1000 }];
+    expect(expenseShareRecipients(shares, null).map((s) => s.userId)).toEqual(["mika"]);
+  });
+
+  it("1 人だけの記録(自分だけが払った)は、誰にも積まない", () => {
+    const shares = [{ userId: "kota", amount: 1000 }];
+    expect(expenseShareRecipients(shares, "kota")).toEqual([]);
+  });
+});
+
+describe("精算したと記録されたことを積む相手。0096、issue #246", () => {
+  const entry = { fromUser: "kota", toUser: "mika" };
+
+  it("送った人が記録したら、受け取った人に積む", () => {
+    expect(settlementRecipient(entry, "kota")).toBe("mika");
+  });
+
+  it("受け取った人が記録したら、送った人に積む", () => {
+    expect(settlementRecipient(entry, "mika")).toBe("kota");
+  });
+
+  it("どちらでもない人が記録したら、誰にも積まない", () => {
+    expect(settlementRecipient(entry, "yuta")).toBeNull();
+  });
+});
+
+describe("予算を超えたか。0096、issue #246", () => {
+  it("使った額が予算の額より多いときだけ超えたとみなす。ちょうど同じ額は超えていない", () => {
+    expect(isBudgetExceeded(10_001, 10_000)).toBe(true);
+    expect(isBudgetExceeded(10_000, 10_000)).toBe(false);
+    expect(isBudgetExceeded(9_999, 10_000)).toBe(false);
+  });
+
+  it("dedupeKey は、同じ予算・同じ日なら同じ値になる。1 日 1 回だけの目印", () => {
+    expect(budgetExceededDedupeKey("b1", "2026-09-24")).toBe(budgetExceededDedupeKey("b1", "2026-09-24"));
+    expect(budgetExceededDedupeKey("b1", "2026-09-24")).not.toBe(budgetExceededDedupeKey("b1", "2026-09-25"));
+    expect(budgetExceededDedupeKey("b1", "2026-09-24")).not.toBe(budgetExceededDedupeKey("b2", "2026-09-24"));
   });
 });

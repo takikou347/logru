@@ -1,4 +1,5 @@
 /** よく使う記録の画面。並べる。押すと全部の欄を直せる、消す。0072、F-326、issue #248 */
+import { Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useMe } from "@/api/common";
@@ -10,6 +11,7 @@ import { LoadFailure } from "@/components/parts/Failure";
 import { Panel } from "@/components/parts/Panel";
 import { Button } from "@/components/ui/button";
 import { useRowMotion } from "@/lib/use-row-motion";
+import { useSetSearchParams } from "@/lib/use-set-search-params";
 import { cn } from "@/lib/utils";
 import { poolColorsOf } from "@/modules/calendar/model";
 import { takeJustAdded } from "@/modules/calendar/recent-items";
@@ -59,8 +61,9 @@ function TemplateRow({
         <span className="min-w-0 truncate text-[15px] font-medium">{template.name}</span>
         <span className="text-xs text-ink-2">{detail}</span>
       </button>
-      <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
-        消す
+      {/* アイコンだけ。読み上げの名前は今までどおり「消す」。issue #243 */}
+      <Button type="button" variant="ghost" size="icon" aria-label="消す" onClick={onRemove}>
+        <Trash2 className="size-4" aria-hidden="true" />
       </Button>
     </li>
   );
@@ -76,9 +79,10 @@ export function TemplatesPage() {
   const { hidden, leaving, remove, flashing, flash } = useRowMotion("よく使う記録を消しました");
   useAppFrame({ poolColors: poolColorsOf(groups, me.data) });
 
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const setParams = useSetSearchParams();
   const editingId = params.get("edit");
-  const closeEdit = () => setParams((p) => (p.delete("edit"), p), { replace: true });
+  const closeEdit = () => setParams((p) => p.delete("edit"));
   // 同じ記録をもう一度押したときも、前のシートが閉じる動きの途中なら新しく開き直す。RecurringsPage と同じ。#211
   const editGen = useRef(0);
 
@@ -112,7 +116,7 @@ export function TemplatesPage() {
                     isEdited={flashing.has(t.id)}
                     onEdit={() => {
                       editGen.current += 1;
-                      setParams((p) => (p.set("edit", t.id), p), { replace: true });
+                      setParams((p) => p.set("edit", t.id));
                     }}
                     onRemove={() =>
                       remove(t.id, ({ keepalive }) => deleteTemplate.mutateAsync({ id: t.id, keepalive }))

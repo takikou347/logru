@@ -108,9 +108,19 @@ test("種類ごとの設定で一覧を止めると、その種類のお知ら�
   await page.getByLabel("項目を足す").press("Enter");
   await expect(page.getByText("タオル")).toBeVisible();
 
-  // 止めた種類なので、みかのベルに未読は付かない
+  // 項目がサーバーに残ってから、みかの一覧を見る(足した直後は画面だけが先に変わることがある)
+  await page.reload();
+  await expect(page.getByText("タオル")).toBeVisible();
+
+  // 止めた種類なので、みかの一覧にリストの項目のお知らせは積まれない。ほかに「機能が足された」の
+  // 1 件はある(グループに機能を足したため)ので、ベルの名前ではなく一覧の中身で確かめる。
+  // ベルの名前は数を読み込む前も「お知らせ」なので、それを待たずに合ってしまう
   await mika!.goto("/");
-  await expect(bellButton(mika!)).toHaveAccessibleName("お知らせ");
+  await bellButton(mika!).click();
+  const list = mika!.getByRole("dialog", { name: "お知らせ" });
+  await expect(list.getByText("「ふたり」にリストが足されました。")).toBeVisible();
+  await expect(list.getByRole("button", { name: /持ち物/ })).toHaveCount(0);
+  await expect(list.getByText(/持ち物|足しました/)).toHaveCount(0);
 });
 
 test("家計簿で立て替えると、負担する人のお知らせに金額と負担額が出る。押すとその記録が開く。issue #246", async ({

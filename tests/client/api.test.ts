@@ -49,6 +49,30 @@ describe("api", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("端末が確かめ済みなのに EMAIL_NOT_VERIFIED なら、トークンを 1 度だけ取り直して送り直す。#276", async () => {
+    fakeAuth.currentUser = { getIdToken, emailVerified: true } as never;
+    fetchMock
+      .mockResolvedValueOnce(json(403, { error: "確かめてください。", code: "EMAIL_NOT_VERIFIED" }))
+      .mockResolvedValueOnce(json(200, { ok: true }));
+    await expect(api("/me")).resolves.toEqual({ ok: true });
+    expect(getIdToken).toHaveBeenLastCalledWith(true);
+    expect(authHeader(1)).toBe("Bearer fresh-token");
+  });
+
+  it("端末も確かめていなければ、EMAIL_NOT_VERIFIED を送り直さずそのまま失敗にする", async () => {
+    fakeAuth.currentUser = { getIdToken, emailVerified: false } as never;
+    fetchMock.mockResolvedValue(json(403, { error: "確かめてください。", code: "EMAIL_NOT_VERIFIED" }));
+    await expect(api("/me")).rejects.toMatchObject({ status: 403, code: "EMAIL_NOT_VERIFIED" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("取り直しても EMAIL_NOT_VERIFIED なら、それ以上は送らずに失敗にする", async () => {
+    fakeAuth.currentUser = { getIdToken, emailVerified: true } as never;
+    fetchMock.mockResolvedValue(json(403, { error: "確かめてください。", code: "EMAIL_NOT_VERIFIED" }));
+    await expect(api("/me")).rejects.toMatchObject({ status: 403, code: "EMAIL_NOT_VERIFIED" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("ログインしていなければ、トークンを付けず、送り直さない", async () => {
     fakeAuth.currentUser = null;
     fetchMock.mockResolvedValue(json(401, { error: "x" }));

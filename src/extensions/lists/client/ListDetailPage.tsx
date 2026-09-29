@@ -55,7 +55,7 @@ import { GroupLabel, listShareText, useIconOnly } from "./parts";
  * 押すと入力欄が開き、OS のキーボードが出ればそのまま上の帯に切り替わる(刷新 5 の動きは変えない)。
  * 打っている途中で空のまま欄の外を押すと、また「+」の行に戻る。issue #243
  */
-function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean }) {
+function AddItemRow({ listId, autoFocus, first }: { listId: string; autoFocus: boolean; first?: boolean }) {
   const addItem = useAddItem(listId);
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -93,7 +93,7 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
       <button
         type="button"
         aria-label="項目を足す"
-        className="flex min-h-11 w-full items-center gap-2.5 border-t border-line text-sm text-ink-2"
+        className={cn("flex min-h-11 w-full items-center gap-2.5 text-sm text-ink-2", !first && "border-t border-line")}
         onClick={() => {
           setExpanded(true);
           setExpandTick((t) => t + 1);
@@ -102,6 +102,8 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
         <span className="grid size-[22px] place-items-center rounded-[7px] border-2 border-dashed border-ink-3 text-ink-3">
           <Plus className="size-3.5" />
         </span>
+        {/* 読み上げの名前は aria-label のまま。目で見て何のボタンか分かるよう、文字も出す。#275 */}
+        <span aria-hidden="true">項目を足す</span>
       </button>
     );
   }
@@ -110,7 +112,7 @@ function AddItemRow({ listId, autoFocus }: { listId: string; autoFocus: boolean 
     <form
       className={cn(
         "flex items-center gap-2 pt-2.5",
-        keyboard.open ? "glass fixed inset-x-2 z-30 rounded-full px-3 py-2" : "border-t border-line",
+        keyboard.open ? "glass fixed inset-x-2 z-30 rounded-full px-3 py-2" : !first && "border-t border-line",
       )}
       style={
         keyboard.open
@@ -519,8 +521,15 @@ export function ListDetailPage() {
           </div>
           <Panel>
             {items.length === 0 && <Empty>項目を足すと、ここに並びます。</Empty>}
-            {uncheckedItems.length > 0 && <ul>{uncheckedItems.map(itemRow)}</ul>}
-            <AddItemRow listId={list.id} autoFocus={addFocused} />
+            {/* 面のいちばん上に、中身の無い区切りの線を出さない。先頭の行の上の線は消す。#275 */}
+            {uncheckedItems.length > 0 && (
+              <ul className="[&>li:first-child]:border-t-0">{uncheckedItems.map(itemRow)}</ul>
+            )}
+            <AddItemRow
+              listId={list.id}
+              autoFocus={addFocused}
+              first={items.length > 0 && uncheckedItems.length === 0}
+            />
             {checkedItems.length > 0 && (
               <>
                 <div className="flex items-center gap-1 border-t border-line pt-2.5 text-xs font-medium text-ink-2">

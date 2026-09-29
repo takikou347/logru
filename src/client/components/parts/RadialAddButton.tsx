@@ -95,12 +95,10 @@ function FavoriteCard({ favorite, onPick }: { favorite: FavoriteAdd; onPick: (pa
 export function RadialAddButton({
   items,
   favorites,
-  showHint,
   pending,
 }: {
   items: ExtensionAction[];
   favorites: FavoriteAdd[];
-  showHint?: boolean;
   /** 足している機能をまだ読んでいる間。items は「いつも使える機能」だけで、本当の数より少ない */
   pending?: boolean;
 }) {
@@ -154,7 +152,7 @@ export function RadialAddButton({
           type="button"
           aria-label="記録する"
           data-testid="global-add"
-          className={cn("grid w-11 place-items-center rounded-full text-ink-2", showHint ? "h-9" : "h-11")}
+          className={"grid h-11 w-11 place-items-center rounded-full text-ink-2"}
           onClick={(e) => {
             if (consumeLongPress()) {
               e.preventDefault();
@@ -170,11 +168,6 @@ export function RadialAddButton({
         >
           <Plus className="size-6" aria-hidden="true" />
         </button>
-        {showHint && (
-          <small aria-hidden="true" data-testid="tab-hint" className="text-[10px] leading-none font-bold text-ink-2">
-            記録する
-          </small>
-        )}
         {pressed && (
           <span
             aria-hidden="true"
@@ -198,7 +191,7 @@ export function RadialAddButton({
         aria-label={open ? "閉じる" : "記録する"}
         data-testid="global-add"
         aria-expanded={open}
-        className={cn("grid w-11 place-items-center rounded-full text-ink-2", !open && showHint ? "h-9" : "h-11")}
+        className={"grid h-11 w-11 place-items-center rounded-full text-ink-2"}
         onClick={(e) => {
           if (consumeLongPress()) {
             e.preventDefault();
@@ -213,11 +206,6 @@ export function RadialAddButton({
           aria-hidden="true"
         />
       </button>
-      {!open && showHint && (
-        <small aria-hidden="true" data-testid="tab-hint" className="text-[10px] leading-none font-bold text-ink-2">
-          記録する
-        </small>
-      )}
       {!open && pressed && (
         <span
           aria-hidden="true"

@@ -2,7 +2,7 @@
  * アイコンだけの操作 1 つ。下のタブの帯、上の帯の「月」、家計簿の中の切り替えの列で使う。0091、issue #239、#243
  *
  * 読み上げの名前は aria-label に残す。長押し(0.45 秒)で名前を吹き出しに出し、離しても操作はしない。
- * `showHint` の間は、名前をアイコンの下に常に出す(はじめの 3 回)。
+ * 名前は常には出さない。アイコンだけにする(kota の判断、2026-09-29)。
  * @param to 渡すと、その道順への NavLink になり、いまの画面なら aria-current で色が変わる
  * @param onClick 渡すと、画面を移らないただのボタンになる。同じ画面の中の場所へスクロールするときなど。
  *   `to` と同時には渡さない
@@ -22,7 +22,6 @@ export function TabIconButton({
   end,
   icon: Icon,
   label,
-  showHint,
   onClick,
   active,
 }: {
@@ -30,16 +29,11 @@ export function TabIconButton({
   end?: boolean;
   icon: LucideIcon;
   label: string;
-  showHint?: boolean;
   onClick?: () => void;
   active?: boolean;
 }) {
   const { pressed, consumeLongPress, handlers } = useLongPressLabel();
-  const className = cn(
-    "grid w-11 place-items-center rounded-full text-ink-2 aria-[current=page]:text-ink",
-    // 名前を下に出す間は、名前ごと帯の高さに収まるよう、押せる所の高さを詰める
-    showHint ? "h-9" : "h-11",
-  );
+  const className = "grid h-11 w-11 place-items-center rounded-full text-ink-2 aria-[current=page]:text-ink";
   return (
     <span className="relative flex min-w-0 flex-1 flex-col items-center gap-0.5">
       {to && active === undefined ? (
@@ -80,15 +74,6 @@ export function TabIconButton({
         >
           <Icon className="size-5" aria-hidden="true" />
         </button>
-      )}
-      {showHint && (
-        <small
-          aria-hidden="true"
-          data-testid="tab-hint"
-          className="text-[10px] leading-none font-bold whitespace-nowrap text-ink-2"
-        >
-          {label}
-        </small>
       )}
       {pressed && (
         <span

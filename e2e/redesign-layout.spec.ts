@@ -204,8 +204,6 @@ for (const look of ["glass", "paper"] as const) {
     await enableNewLook(page);
     await page.evaluate((look) => {
       localStorage.setItem("logru-look", look);
-      // はじめの 3 回の名前は出さない形で見る(名前の有無は redesign-shell.spec.ts で見る)
-      localStorage.setItem("logru:new-look-tab-hints-seen", "3");
     }, look);
 
     for (const path of [

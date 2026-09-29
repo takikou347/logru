@@ -14,8 +14,15 @@ async function clearNotifications(page: Page) {
   await bellButton(page).click();
   const list = page.getByRole("dialog", { name: "お知らせ" });
   const markAll = list.getByRole("button", { name: "すべて既読にする" });
-  // 未読が無ければこのボタンは出ない。読み込みが終わるまで少し待ってから確かめる
-  if (await markAll.isVisible({ timeout: 3_000 }).catch(() => false)) await markAll.click();
+  // 一覧の読み込みが終わってから確かめる。isVisible の timeout は待たないので、読み込み中に
+  // 確かめると、未読があるのにボタンをまだ見ずに通り過ぎ、あとの数が 1 件多くなる
+  await expect(list.getByText("読み込んでいます")).toHaveCount(0);
+  // 未読が無ければこのボタンは出ない。押したら、サーバーが既読にし終えるまで待つ
+  if (await markAll.isVisible()) {
+    const done = page.waitForResponse((r) => r.url().includes("/api/notifications/read-all") && r.ok());
+    await markAll.click();
+    await done;
+  }
   await page.keyboard.press("Escape");
 }
 

@@ -5,6 +5,7 @@ import { type CSSProperties, useRef, useState } from "react";
 import { AvatarStack } from "@/components/parts/Avatars";
 import { dayTone, formatDay, formatTime, holidayName, onDay, sameDay, WEEKDAYS } from "@/lib/dates";
 import { extensionLabel } from "@/lib/extension-visuals";
+import { vibrateTick } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 import { kindIconOf } from "../kind-icon";
 import { daySpan, hiddenPerDay, isMultiDay, layoutWeek, type SpanSegment } from "../lanes";
@@ -94,7 +95,7 @@ export function MonthGridBody({
     const state = { timer: 0, fired: false };
     state.timer = window.setTimeout(() => {
       state.fired = true;
-      navigator.vibrate?.(10);
+      vibrateTick();
       onPressDay(d);
     }, LONG_PRESS_MS);
     press.current = state;

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { vibrateShort } from "../../src/client/lib/haptics";
+import { vibrateShort, vibrateTick } from "../../src/client/lib/haptics";
 
 /** matchMedia を差し替える。動きを減らす設定だけ動かす */
 function stubWindow(reducedMotion: boolean) {
@@ -36,5 +36,33 @@ describe("vibrateShort。#112", () => {
     stubWindow(false);
     vi.stubGlobal("navigator", {});
     expect(() => vibrateShort()).not.toThrow();
+  });
+});
+
+describe("vibrateTick。#278", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("10ms 震える", () => {
+    stubWindow(false);
+    const vibrate = vi.fn();
+    vi.stubGlobal("navigator", { vibrate });
+    vibrateTick();
+    expect(vibrate).toHaveBeenCalledWith(10);
+  });
+
+  it("動きを減らしているときは震えない", () => {
+    stubWindow(true);
+    const vibrate = vi.fn();
+    vi.stubGlobal("navigator", { vibrate });
+    vibrateTick();
+    expect(vibrate).not.toHaveBeenCalled();
+  });
+
+  it("navigator.vibrate が無い端末では、呼んでも落ちない", () => {
+    stubWindow(false);
+    vi.stubGlobal("navigator", {});
+    expect(() => vibrateTick()).not.toThrow();
   });
 });

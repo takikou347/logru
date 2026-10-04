@@ -1,8 +1,9 @@
 import type { CalendarContext } from "@extensions/server/types";
 import { readByChunk } from "@server/core/db/chunk";
 import type { DB } from "@server/core/db/client";
+import { likeContains } from "@server/core/like";
 import type { Attendee, CalendarItem, RepeatRule as ClientRepeatRule } from "@shared/api-types";
-import { and, gte, inArray, isNotNull, isNull, like, lt, or } from "drizzle-orm";
+import { and, gte, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
 import { expandOccurrences, type RepeatRule, repeatRuleOf } from "./repeat";
 import { type EventOccurrenceEditRow, type EventRow, eventAttendees, eventOccurrenceEdits, events } from "./schema";
 
@@ -215,7 +216,7 @@ export async function searchEvents(
   const rows = await db
     .select()
     .from(events)
-    .where(and(inArray(events.groupId, groupIds), like(events.title, `%${query}%`)));
+    .where(and(inArray(events.groupId, groupIds), likeContains(events.title, query)));
   const attendees = await loadAttendees(
     db,
     rows.map((r) => r.id),

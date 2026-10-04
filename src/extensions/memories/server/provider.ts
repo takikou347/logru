@@ -1,6 +1,7 @@
 import type { DB } from "@server/core/db/client";
+import { likeContains } from "@server/core/like";
 import type { CalendarItem } from "@shared/api-types";
-import { and, asc, gt, gte, inArray, like, lt, or } from "drizzle-orm";
+import { and, asc, gt, gte, inArray, lt, or } from "drizzle-orm";
 import { DAY_MS, DEFAULT_TIME_ZONE, dayKeyIn, startOfDayIn } from "../shared/days";
 import { type MemoryRow, memories, memoryPhotos, memoryRecords } from "./schema";
 
@@ -130,10 +131,14 @@ export async function listMemoryItems(db: DB, groupIds: string[], from: number, 
  * @param query 探す文字列
  */
 export async function searchMemories(db: DB, groupIds: string[], query: string): Promise<CalendarItem[]> {
-  const pattern = `%${query}%`;
   const rows = await db
     .select()
     .from(memories)
-    .where(and(inArray(memories.groupId, groupIds), or(like(memories.title, pattern), like(memories.place, pattern))));
+    .where(
+      and(
+        inArray(memories.groupId, groupIds),
+        or(likeContains(memories.title, query), likeContains(memories.place, query)),
+      ),
+    );
   return rows.map(toCalendarItem);
 }

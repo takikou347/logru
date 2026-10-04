@@ -1,4 +1,5 @@
 import type { DB } from "@server/core/db/client";
+import { likeContains } from "@server/core/like";
 import type { CalendarItem } from "@shared/api-types";
 import { and, between, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import { DAY_MS, dateKeyOfJst, startOfDateJst } from "../shared/dates";
@@ -12,13 +13,9 @@ import { kakeiboExpenses } from "./schema";
  */
 const SEARCH_DAY_LIMIT = 30;
 
-/**
- * memo に対する LIKE の条件。`%` と `_` はワイルドカードなので、検索文字列に含まれていたら
- * `\` を前置いて逃がす。`\` 自身も先に逃がす。#199
- */
+/** memo に対する LIKE の条件。ワイルドカードは逃がす。#199 */
 function memoLikeCondition(query: string): SQL {
-  const escaped = query.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
-  return sql`${kakeiboExpenses.memo} like ${`%${escaped}%`} escape '\\'`;
+  return likeContains(kakeiboExpenses.memo, query);
 }
 
 /**

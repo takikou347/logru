@@ -1,6 +1,7 @@
 import type { DB } from "@server/core/db/client";
+import { likeContains } from "@server/core/like";
 import type { CalendarItem } from "@shared/api-types";
-import { and, between, inArray, isNotNull, like } from "drizzle-orm";
+import { and, between, inArray, isNotNull } from "drizzle-orm";
 import { DAY_MS, dateKeyOfJst, startOfDateJst } from "../shared/dates";
 import { type ListRow, lists } from "./schema";
 
@@ -74,6 +75,6 @@ export async function searchLists(db: DB, groupIds: string[], query: string): Pr
       createdAt: lists.createdAt,
     })
     .from(lists)
-    .where(and(inArray(lists.groupId, groupIds), like(lists.title, `%${query}%`)));
+    .where(and(inArray(lists.groupId, groupIds), likeContains(lists.title, query)));
   return rows.map(toCalendarItem);
 }

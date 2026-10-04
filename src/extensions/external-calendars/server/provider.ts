@@ -1,8 +1,9 @@
 import type { CalendarContext } from "@extensions/server/types";
 import type { DB } from "@server/core/db/client";
 import { groupMembers, groups } from "@server/core/db/schema";
+import { likeContains } from "@server/core/like";
 import type { CalendarItem } from "@shared/api-types";
-import { and, eq, gte, inArray, isNull, like, lt, or } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
 import { type ExternalCalendarRow, externalCalendars, externalEvents } from "./schema";
 
 /** 取り込んだ予定の 1 行を、カレンダーの項目の形にする */
@@ -99,7 +100,6 @@ export async function searchExternalEvents(
   const personalId = await myPersonalGroupId(db, groupIds, ctx.userId);
   if (!personalId) return [];
 
-  const pattern = `%${query}%`;
   const rows = await db
     .select({
       event: externalEvents,
@@ -110,7 +110,7 @@ export async function searchExternalEvents(
     .where(
       and(
         eq(externalCalendars.userId, ctx.userId),
-        or(like(externalEvents.title, pattern), like(externalEvents.location, pattern)),
+        or(likeContains(externalEvents.title, query), likeContains(externalEvents.location, query)),
       ),
     );
 

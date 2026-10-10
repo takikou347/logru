@@ -6,6 +6,7 @@ import { GlobalBottomTabs } from "@/components/parts/Dock";
 import { OfflineBand } from "@/components/parts/Failure";
 import { useAddableExtensions, useEnabledExtensions } from "@/lib/extensions";
 import { useApplyLabExperiments, useNewLookActive } from "@/lib/lab";
+import { useStarParallax } from "@/lib/use-star-parallax";
 import { cn } from "@/lib/utils";
 import { Pools } from "../parts/Pools";
 import { ShortcutBand } from "../parts/ShortcutBand";
@@ -59,6 +60,7 @@ export function AppShell() {
   // ログインした画面はすべてこの枠を通るので、ここで 1 か所、ラボの入り切りを掛け直す。0039、F-35
   const me = useMe();
   useApplyLabExperiments(me.data?.showLab);
+  useStarParallax();
   return (
     <SetAppFrameContext.Provider value={setFrame}>
       <main

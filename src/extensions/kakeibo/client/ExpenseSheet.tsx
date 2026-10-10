@@ -30,6 +30,7 @@ import { loadCategoryAccount, loadLastRecord, saveCategoryAccount, saveLastRecor
 import { sanitizeAmountInput } from "./numeric-input";
 import { AccountPickerRow } from "./parts";
 import { PayerPickerRow, SplitModeSection } from "./SplitSection";
+import { countTemplateUse } from "./template-usage";
 
 /** 支出は最初の 8 つだけ出し、残りは「ほか」で開く。F-314 */
 const EXPENSE_CATEGORY_PREVIEW = 8;
@@ -166,6 +167,8 @@ export function ExpenseSheet({
   const amountFieldRef = useRef<HTMLDivElement>(null);
   const categoryFieldRef = useRef<HTMLDivElement>(null);
   const transferFieldRef = useRef<HTMLDivElement>(null);
+  // 記録に当てたよく使う記録。保存したら回数を数える(issue #280)
+  const appliedTemplateId = useRef<string | null>(null);
   const [namingTemplate, setNamingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState("");
   // 保存を押したのに足りない欄があったとき true。以後、欄の下に理由を出す。#193
@@ -321,6 +324,7 @@ export function ExpenseSheet({
    * 種類・グループの切り替えと同じ経路(reducer)を通し、いまはもう使えなくなったグループなら入れない。#193
    */
   function applyTemplate(t: KakeiboTemplate) {
+    appliedTemplateId.current = t.id;
     const groupValid = Boolean(t.groupId) && groups.some((g) => g.id === t.groupId);
     dispatch({ kind: "applyTemplate", template: t, meId: me.user.id, groupValid });
     setExpandCategories(false);
@@ -420,6 +424,7 @@ export function ExpenseSheet({
         });
         saveLastRecord({ type, accountId: submittedAccountId, toAccountId: submittedToAccountId, groupId });
         if (type !== "transfer" && category) saveCategoryAccount(category, submittedAccountId);
+        if (!expense && appliedTemplateId.current) countTemplateUse(appliedTemplateId.current);
         toast(expense ? "記録を直しました" : "記録しました");
         setAttempted(false);
         if (keepOpen) {

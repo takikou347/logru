@@ -337,6 +337,8 @@
  * canvas を使わず、タイルの位置を steps() でごくわずかにずらすだけの、実質 15fps 程度のまたたきに
  * する(opacity は html 全体の子まで薄めてしまうので使わない。電池、issue #243)。動きを減らす設定・
  * 5 秒の操作なしでの一時停止は、水と同じ仕組み(下の data-bg-idle の節)に乗る。
+ * 星の層は、端末の傾き(use-star-parallax.ts)が出す --star-x・--star-y(最大 6px)を、層ごとに
+ * 1、0.5、0.75、0.25 倍して足す視差で動く。変数が無ければ 0 で、止まった絵のまま。#279
  * 面は深い藍の、ほぼ不透明な面。
  */
 :root[data-lab-new-look][data-look="night"] {
@@ -572,18 +574,18 @@
   0%,
   100% {
     background-position:
-      24px 32px,
-      96px 118px,
-      150px 46px,
-      60px 150px,
+      calc(24px + var(--star-x, 0px)) calc(32px + var(--star-y, 0px)),
+      calc(96px + var(--star-x, 0px) * 0.5) calc(118px + var(--star-y, 0px) * 0.5),
+      calc(150px + var(--star-x, 0px) * 0.75) calc(46px + var(--star-y, 0px) * 0.75),
+      calc(60px + var(--star-x, 0px) * 0.25) calc(150px + var(--star-y, 0px) * 0.25),
       0 0;
   }
   50% {
     background-position:
-      26px 30px,
-      94px 120px,
-      148px 48px,
-      62px 148px,
+      calc(26px + var(--star-x, 0px)) calc(30px + var(--star-y, 0px)),
+      calc(94px + var(--star-x, 0px) * 0.5) calc(120px + var(--star-y, 0px) * 0.5),
+      calc(148px + var(--star-x, 0px) * 0.75) calc(48px + var(--star-y, 0px) * 0.75),
+      calc(62px + var(--star-x, 0px) * 0.25) calc(148px + var(--star-y, 0px) * 0.25),
       0 0;
   }
 }

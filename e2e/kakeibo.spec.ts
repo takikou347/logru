@@ -1000,18 +1000,25 @@ test("家計簿で月を移ると、新しい月が読めるまで前の月の�
   await expect(page.getByTestId("loadable-refreshing")).toHaveCount(0);
 });
 
-test("家計簿の月が読めなかったときは、失敗の面だけが出て、空の案内は並ばない。#195", async ({ page }) => {
-  await signUp(page, { name: "こた" });
-  await enableKakeibo(page);
+test.describe(() => {
+  // 機能の画面の家計簿のタイルが同じ月の /api/kakeibo を先に読み、Service Worker(NetworkFirst)が
+  // それを api のキャッシュに残す。Service Worker がページを受け持っていると、止めた問い合わせの代わりに
+  // キャッシュを返し、失敗の面が出ない(受け持つのが間に合うかで CI だけ揺れていた)。このテストでは止める
+  test.use({ serviceWorkers: "block" });
 
-  await page.context().route("**/api/kakeibo?**", (route) => {
-    const url = new URL(route.request().url());
-    return url.pathname === "/api/kakeibo" ? route.abort() : route.continue();
+  test("家計簿の月が読めなかったときは、失敗の面だけが出て、空の案内は並ばない。#195", async ({ page }) => {
+    await signUp(page, { name: "こた" });
+    await enableKakeibo(page);
+
+    await page.context().route("**/api/kakeibo?**", (route) => {
+      const url = new URL(route.request().url());
+      return url.pathname === "/api/kakeibo" ? route.abort() : route.continue();
+    });
+    await page.goto("/kakeibo");
+    await expect(page.getByText("家計簿を読み込めませんでした")).toBeVisible();
+    // 記録の空の案内(summary から作る)は失敗の面と並ばない。口座は別の問い合わせなので、無ければ普通に空の案内が出る
+    await expect(page.getByText("この月の記録はまだありません。")).toHaveCount(0);
   });
-  await page.goto("/kakeibo");
-  await expect(page.getByText("家計簿を読み込めませんでした")).toBeVisible();
-  // 記録の空の案内(summary から作る)は失敗の面と並ばない。口座は別の問い合わせなので、無ければ普通に空の案内が出る
-  await expect(page.getByText("この月の記録はまだありません。")).toHaveCount(0);
 });
 
 test("予算の無い新しい利用者が、家計簿の画面から予算を作れる。0072、#196", async ({ page }) => {

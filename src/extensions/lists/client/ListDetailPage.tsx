@@ -226,6 +226,7 @@ function ItemRow({
     <li
       className={cn("border-t border-line text-sm", entering && "item-enter")}
       data-leaving={isLeaving || undefined}
+      data-tour="list-item"
       style={viewTransitionName ? { viewTransitionName } : undefined}
     >
       <SwipeRow id={item.id} onEdit={startEdit} onDelete={() => onRemove(item)}>

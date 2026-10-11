@@ -41,7 +41,9 @@ test("家計簿を初めて開くと、記録と口座・予算の案内が 1 �
   await expect(text).toHaveCount(0);
 });
 
-test("共有リストを初めて開くと、項目の足し方とスワイプの案内が 1 回だけ出る。issue #222", async ({ page }) => {
+test("共有リストを初めて開くと、項目の足し方の案内が出る。項目が 0 件ならスワイプの案内は出さない。issue #222、#288", async ({
+  page,
+}) => {
   await signUp(page, { next: "/" });
   await page.getByRole("dialog").getByRole("button", { name: "飛ばす" }).click();
   await addExtension(page, "リスト");
@@ -54,12 +56,46 @@ test("共有リストを初めて開くと、項目の足し方とスワイプ�
   await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
   await expect(page).toHaveURL(/\/lists\/.+/);
 
-  const text = page.getByText("左へスワイプすると、直す・消すができます", { exact: false });
-  await expect(text).toBeVisible();
+  const add = page.getByText("上の欄に打って Enter か「足す」で項目を足せます", { exact: false });
+  const swipe = page.getByText("左へスワイプすると、直す・消すができます", { exact: false });
+  await expect(add).toBeVisible();
+  // 項目が 0 件なので、指す行が無いスワイプの 1 枚は飛ばされ、「1 / 2」とは出ない
+  await expect(swipe).toHaveCount(0);
+  await expect(page.getByText("1 / 2")).toHaveCount(0);
   await page.getByRole("button", { name: "分かった" }).click();
-  await expect(text).toHaveCount(0);
+  await expect(add).toHaveCount(0);
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "買い物" })).toBeVisible();
-  await expect(text).toHaveCount(0);
+  await expect(add).toHaveCount(0);
+});
+
+test("項目のあるリストを初めて開くと、最初の行を指してスワイプの案内が出る。issue #288", async ({ page }) => {
+  await signUp(page, { next: "/" });
+  await page.getByRole("dialog").getByRole("button", { name: "飛ばす" }).click();
+  await addExtension(page, "リスト");
+  await enableOldLook(page);
+  await page.goto("/lists");
+  await page.getByRole("toolbar", { name: "リストの操作" }).getByRole("button", { name: "リストを作る" }).click();
+  await page.getByRole("dialog", { name: "リストを作る" }).getByLabel("名前").fill("買い物");
+  await page.getByRole("dialog", { name: "リストを作る" }).getByRole("button", { name: "作る" }).click();
+  await expect(page).toHaveURL(/\/lists\/.+/);
+
+  // 案内は閉じずに(見たことにせず)項目を足し、開き直す
+  const input = page.getByRole("textbox", { name: "項目を足す" });
+  await input.fill("牛乳");
+  await input.press("Enter");
+  await expect(page.getByText("牛乳", { exact: true })).toBeVisible();
+  await page.reload();
+
+  const swipe = page.getByText("左へスワイプすると、直す・消すができます", { exact: false });
+  await page.getByRole("button", { name: "分かった" }).click();
+  await expect(page.getByText("2 / 2")).toBeVisible();
+  await expect(swipe).toBeVisible();
+  await page.getByRole("button", { name: "分かった" }).click();
+  await expect(swipe).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "買い物" })).toBeVisible();
+  await expect(swipe).toHaveCount(0);
 });

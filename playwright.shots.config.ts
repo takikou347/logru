@@ -14,13 +14,18 @@ const baseURL = `http://localhost:${PORT}`;
 const E2E_SKIP_ONBOARDING = "logru-e2e-skip-onboarding";
 process.env.SHOTS_OUT = path.resolve(process.env.SHOTS_OUT ?? "test-results/shots/after");
 
+/** 手元に Chrome が無いとき、PW_CHROMIUM_PATH に chromium の実行ファイルを渡す。無ければ Chrome を使う */
+const browser = process.env.PW_CHROMIUM_PATH
+  ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } }
+  : { channel: "chrome" as const };
+
 const phone = {
   ...devices["Pixel 7"],
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 2,
-  channel: "chrome",
+  ...browser,
 };
-const pc = { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, channel: "chrome" };
+const pc = { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, ...browser };
 
 export default defineConfig({
   testDir: "./e2e/shots",

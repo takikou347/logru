@@ -110,6 +110,15 @@ export function useShortcut() {
   return results.find((r) => r) ?? null;
 }
 
+/** 今日のページで紙吹雪を降らせる日か。どれかの使える拡張が祝う日と返せば true。F-412、0098 */
+export function useCelebration(): boolean {
+  const enabled = useEnabledExtensions();
+  const keys = new Set(enabled.map((x) => x.manifest.key));
+  // biome-ignore lint/correctness/useHookAtTopLevel: clientExtensions の並びは起動時に固定なので、呼ぶ順は毎回同じ
+  const results = clientExtensions.map((x) => (x.useCelebration ? x.useCelebration(keys.has(x.manifest.key)) : false));
+  return results.some(Boolean);
+}
+
 /**
  * 下のタブの帯の「+」の放射に出す、記録の種類。足している拡張の actions を、拡張の一覧の順に
  * すべて集める。0 個なら決定 0086 と同じ扱い(呼び出し側が出さない)。0091、issue #239

@@ -2,6 +2,7 @@
  * 予定の拡張が積むお知らせの、文言と行き先。#32、0096、issue #245
  * ここは画面とサーバーの両方の tsconfig が読むので、client/types.ts の型は import しない。
  */
+import type { EventsNotificationKind } from "../manifest";
 
 /**
  * その時刻を、Asia/Tokyo での `2026-09-20` の形にする。予定は端末の時間帯を持って積まないので、
@@ -31,9 +32,11 @@ function titleOf(payload: Record<string, unknown>): string {
  * - events.event_deleted: 共有の予定が消された。予定はもう無いので、押すとその日
  */
 export function describeEventNotification(
-  kind: string,
+  rawKind: string,
   payload: Record<string, unknown>,
 ): { text: string; path: string } | null {
+  // manifest の一覧の型にして、綴りの違う kind を型で見つける。#287
+  const kind = rawKind as EventsNotificationKind;
   const eventId = typeof payload.eventId === "string" ? payload.eventId : "";
   if (kind === "events.invite_accepted") {
     return { text: `「${titleOf(payload)}」に参加が決まりました。`, path: `/?openExt=events&openId=${eventId}` };

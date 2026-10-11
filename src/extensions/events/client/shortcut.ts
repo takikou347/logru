@@ -40,6 +40,15 @@ export function daysUntilLabel(occurrenceAt: number): string {
 }
 
 /**
+ * 今日が誕生日・記念日の当日か。今日のページの紙吹雪の合図。F-412、0098
+ * 近道の帯と同じ問い合わせを使う(キャッシュを共有する)。次の回が今日なら true
+ */
+export function useAnniversaryToday(enabled: boolean): boolean {
+  const { data } = useUpcomingAnniversary(enabled);
+  return enabled && !!data && daysUntilLabel(data.occurrenceAt) === "今日";
+}
+
+/**
  * 近道の帯に出す、誕生日と記念日。毎年の繰り返しを選んだ予定の、次の回が 7 日以内に近づいたとき返す。F-37
  * 押すと、その予定のシートが開く。
  *

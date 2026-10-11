@@ -21,7 +21,12 @@ export const listsManifest: ExtensionManifest = {
   tour: [
     {
       target: '[aria-label="項目を足す"]',
-      text: "上の欄に打って Enter か「足す」で項目を足せます。項目は左へスワイプすると、直す・消すができます。",
+      text: "上の欄に打って Enter か「足す」で項目を足せます。",
+    },
+    // 項目が 0 件のときは指す行が無く、この 1 枚は飛ばされる。0084、issue #288
+    {
+      target: '[data-tour="list-item"]',
+      text: "項目は左へスワイプすると、直す・消すができます。",
     },
   ],
 };

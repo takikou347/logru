@@ -2,6 +2,7 @@
  * 共有リストの拡張が積むお知らせの、文言と行き先。0096、issue #247
  * ここは画面とサーバーの両方の tsconfig が読むので、client/types.ts の型は import しない。
  */
+import type { ListsNotificationKind } from "../manifest";
 
 /** 積み重ねた件数。無ければ 1 件 */
 function countOf(payload: Record<string, unknown>): number {
@@ -24,9 +25,11 @@ export function allItemsChecked(items: { checked: boolean }[]): boolean {
  * - lists.all_checked: 項目が全部済みになった。押すとそのリスト
  */
 export function describeListsNotification(
-  kind: string,
+  rawKind: string,
   payload: Record<string, unknown>,
 ): { text: string; path: string } | null {
+  // manifest の一覧の型にして、綴りの違う kind を型で見つける。#287
+  const kind = rawKind as ListsNotificationKind;
   const listId = typeof payload.listId === "string" ? payload.listId : "";
   const title = typeof payload.title === "string" && payload.title ? payload.title : "リスト";
   const byUserName = typeof payload.byUserName === "string" ? payload.byUserName : "";

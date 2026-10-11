@@ -21,11 +21,16 @@ import {
 
 test.setTimeout(240_000);
 
+/** 落ちた手順の名前。最後にまとめて失敗にする。黙って続けると、撮る画面のデータが欠けたまま気づかない */
+const failedSteps: string[] = [];
+
 async function step(name: string, fn: () => Promise<unknown>) {
   try {
     await test.step(name, fn);
   } catch (e) {
+    failedSteps.push(name);
     note(`seed: ${name}`, `落ちた: ${String(e).split("\n")[0]}`);
+    console.error(`seed: ${name} 落ちた\n${String(e)}`);
   }
 }
 
@@ -81,7 +86,7 @@ async function addEventOn(
 ) {
   // 日を選んでから開く。シートの中で日付を変えると、毎週の曜日が開いたときの日のまま残るため
   await page.goto(`/?date=${opts.date}`);
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "予定の節" })).toBeVisible();
   const sheet = await openNewEvent(page);
   await sheet.getByLabel("題名").fill(opts.title);
   await sheet.getByLabel("日付").fill(opts.date);
@@ -102,6 +107,7 @@ async function addEventOn(
 }
 
 test("同じデータを入れる", async ({ page }) => {
+  failedSteps.length = 0;
   resetNotes();
   const features: Record<string, boolean> = {};
   const user = await signUp(page, { name: DATA.me });
@@ -210,9 +216,9 @@ test("同じデータを入れる", async ({ page }) => {
       await transfer.getByRole("radio", { name: "振替" }).click();
       await transfer.getByLabel("金額").fill(DATA.transfer);
       await transfer.getByRole("button", { name: /^出す元/ }).click();
-      await page.getByRole("dialog", { name: "出す元" }).getByRole("radio", { name: DATA.bank }).click();
+      await page.getByRole("dialog", { name: "出す元" }).getByRole("option", { name: DATA.bank }).click();
       await transfer.getByRole("button", { name: /^入れる先/ }).click();
-      await page.getByRole("dialog", { name: "入れる先" }).getByRole("radio", { name: DATA.sharedAccount }).click();
+      await page.getByRole("dialog", { name: "入れる先" }).getByRole("option", { name: DATA.sharedAccount }).click();
       await transfer.getByRole("button", { name: "保存する" }).click();
       await expect(page.getByText("記録しました")).toBeVisible();
       features.kakeiboAccounts = true;
@@ -271,7 +277,8 @@ test("同じデータを入れる", async ({ page }) => {
       await sheet.getByRole("radio", { name: "住まい" }).click();
       await sheet.getByLabel("毎月の日").fill("1");
       await sheet.getByRole("button", { name: "保存する" }).click();
-      await expect(page.getByText("定期の記録を作りました")).toBeVisible();
+      // 作った月に当たる日があると、記録がすぐ出て「作りました」の通知は出ない。一覧に並んだことで確かめる
+      await expect(page.getByRole("button", { name: /^住まい 毎月1日/ })).toBeVisible();
       features.kakeiboRecurring = true;
     });
 
@@ -286,7 +293,10 @@ test("同じデータを入れる", async ({ page }) => {
       await create.getByRole("button", { name: "作る" }).click();
       await expect(page).toHaveURL(/\/lists\/.+/);
       // 2026-w39 に「項目を追加」から「項目を足す」へ変わった。前の版でも撮れるよう両方を試す
-      const input = page.getByLabel(/^項目を(足す|追加)$/);
+      const input = page.getByRole("textbox", { name: /^項目を(足す|追加)$/ });
+      // 項目が 0 件のうちは「項目を足す」が閉じたボタンで出る。押すと入力欄に変わる
+      const openInput = page.getByRole("button", { name: "項目を足す", exact: true });
+      if (await visible(openInput, 3_000)) await openInput.click();
       for (const item of DATA.items) {
         await input.fill(item);
         await input.press("Enter");
@@ -313,6 +323,9 @@ test("同じデータを入れる", async ({ page }) => {
 
   const seed: Seed = { email: user.email, features };
   saveSeed(seed);
+
+  // 残りの手順は続けて notes.tsv に残したうえで、1 つでも落ちたら失敗で終える
+  expect(failedSteps, "seed の手順が落ちた。理由は notes.tsv と上のログ").toEqual([]);
 });
 
 test("何も足していない人を作る", async ({ page }) => {

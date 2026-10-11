@@ -19,11 +19,13 @@ import { toast } from "sonner";
 import { useGroups, useMe, useSetTodayPagePrefs } from "@/api/common";
 import { AccountMenu } from "@/components/layout/AppLayout";
 import { useAppFrame } from "@/components/layout/AppShell";
+import { Confetti } from "@/components/parts/Confetti";
 import { InstallBanner } from "@/components/parts/InstallBanner";
 import { NotificationBell } from "@/components/parts/NotificationBell";
 import { ScreenTour } from "@/components/parts/ScreenTour";
 import { UsualShareOfferBanner } from "@/components/parts/UsualShareBanner";
 import { useTopBarViewTransitionStyle } from "@/lib/bars-view-transition";
+import { confettiShown, markConfettiShown, reducedMotionNow } from "@/lib/confetti";
 import {
   addDays,
   dateKey,
@@ -35,7 +37,8 @@ import {
   startOfDay,
   WEEKDAYS,
 } from "@/lib/dates";
-import { useHeadlineText, useTodaySections, useTodaySummaries } from "@/lib/extensions";
+import { useCelebration, useHeadlineText, useTodaySections, useTodaySummaries } from "@/lib/extensions";
+import { vibrateCelebrate } from "@/lib/haptics";
 import { RowExpandContext, rowExpandState, useRowExpandActive, useRowExpandTransition } from "@/lib/row-expand";
 import { computeOpenSectionKeys, DEFAULT_TODAY_PAGE_PREFS, orderTodaySectionKeys } from "@/lib/today-sections";
 import { BASE_TOURS } from "@/lib/tours";
@@ -164,6 +167,24 @@ function TodayDayContent({
   );
 }
 
+/**
+ * 今日が誕生日・記念日の当日なら、今日のページを開いたとき 1 回だけ紙吹雪を降らせる。F-412、0098
+ * 見ている日が今日のときだけ。動きを減らす設定では出さず、同じ日の 2 回目以降も出さない(端末の印)。
+ */
+function useBirthdayConfetti(viewingToday: boolean, today: Date) {
+  const celebrate = useCelebration();
+  const [show, setShow] = useState(false);
+  const day = dateKey(today);
+  useEffect(() => {
+    if (!viewingToday || !celebrate || reducedMotionNow() || confettiShown(day)) return;
+    markConfettiShown(day);
+    vibrateCelebrate();
+    setShow(true);
+  }, [viewingToday, celebrate, day]);
+  const hide = useCallback(() => setShow(false), []);
+  return { show, hide };
+}
+
 export function TodayPage() {
   useRecordScreen();
   const [params, setParams] = useSearchParams();
@@ -178,6 +199,7 @@ export function TodayPage() {
   const { transitioningKey, openRow, resetRowExpand } = useRowExpandTransition(rowExpandActive);
 
   const date = parseDateKey(params.get("date") ?? "") ?? today;
+  const confetti = useBirthdayConfetti(sameDay(date, today), today);
   const update = useCallback(
     (d: Date) => {
       setParams(
@@ -367,6 +389,7 @@ export function TodayPage() {
       />
 
       <div className="h-[var(--dock-clearance)]" aria-hidden="true" />
+      {confetti.show && <Confetti onDone={confetti.hide} />}
 
       {/*
         はじめての案内・画面の案内。0092 は今日のページに配線していなかった(困ること)。新しい見た目の

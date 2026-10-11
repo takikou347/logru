@@ -25,7 +25,7 @@ import {
   type RepeatRuleInput,
   responseInput,
 } from "../shared/schemas";
-import { tokyoFieldsOf } from "../shared/tokyo";
+import { tokyoFieldsOf, utcFromTokyoFields } from "../shared/tokyo";
 import { loadAttendees, toCalendarItem, toOccurrenceItem } from "./provider";
 import { DAY_MS, dayBeforeUtc, nextOccurrenceOnOrAfter, repeatRuleOf } from "./repeat";
 import { type EventRow, eventAttendees, eventOccurrenceEdits, events } from "./schema";
@@ -322,8 +322,10 @@ export const eventRoutes = createRouter()
       .from(events)
       .where(and(inArray(events.groupId, groupIds), eq(events.repeatFreq, "yearly")));
     const now = new Date();
-    // 利用者の時間帯は持たないので、UTC の暦の今日で数える。0043
-    const todayStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    // 利用者の時間帯は持たないので、日本時間の暦の今日(0 時)で数える。予定の日付は日本時間の 0 時で
+    // 保存するため、UTC の 0 時から数えると、日本の朝 9 時を過ぎた当日の回を取りこぼす。0043、0098
+    const tk = tokyoFieldsOf(now);
+    const todayStart = utcFromTokyoFields({ ...tk, hours: 0, minutes: 0, seconds: 0, ms: 0 });
     const windowEnd = todayStart + 7 * DAY_MS;
     let best: {
       id: string;

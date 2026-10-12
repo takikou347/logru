@@ -124,10 +124,11 @@ node scripts/shots-table.mjs <main>/test-results/shots/before test-results/shots
 ### 毎週の流れ
 
 毎週月曜 0 時に、Claude が改善を実装して `develop` まで入れる。本番へは、kota が release の PR をレビューして入れる。
+これは会社の開発部の routine で、置き方は develop-docs の `company/routines/dev-weekly.md`。`develop` へ入れる PR は、作った者と別のモデルの本社のレビュー部が先に見る(develop-docs の `company/howto/pr-review.md`)。
 
 | 順 | だれ | すること |
 | --- | --- | --- |
-| 1 | Claude | issue を実装し、CI が通った PR を `develop` へ入れる。staging に出る |
+| 1 | Claude | issue を実装し、CI が通り、レビュー部が見た PR を `develop` へ入れる。staging に出る |
 | 2 | Claude | `release/<年>-w<週>` を切り、`main` への PR を出す。本文に見た目の前と後の画像、移行、判断が要ることを集める |
 | 3 | kota | staging で触って、動きを確かめる |
 | 4 | kota | release の PR を読み、良ければマージする。本番に出る |

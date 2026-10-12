@@ -5,7 +5,7 @@ const SHORT_MS = 15;
 /** 長押しの合図の長さ(ms)。短い震えより少し短い。#278 */
 const TICK_MS = 10;
 
-function vibrate(ms: number): void {
+function vibrate(ms: number | number[]): void {
   if (typeof navigator === "undefined" || !navigator.vibrate) return;
   if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   navigator.vibrate(ms);
@@ -22,4 +22,9 @@ export function vibrateShort(): void {
 /** 月の長押しが効いた合図の、ごく短い震え(10ms)。動きを減らしているときと非対応端末では何もしない。#278 */
 export function vibrateTick(): void {
   vibrate(TICK_MS);
+}
+
+/** 誕生日・記念日の紙吹雪に添える、2 度の短い震え。動きを減らしているときと非対応端末では何もしない。F-412、0098 */
+export function vibrateCelebrate(): void {
+  vibrate([30, 60, 30]);
 }

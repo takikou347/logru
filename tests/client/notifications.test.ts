@@ -1,7 +1,12 @@
+import { EVENTS_NOTIFICATION_KINDS } from "@extensions/events/manifest";
 import { describeEventNotification } from "@extensions/events/shared/notifications";
+import { KAKEIBO_NOTIFICATION_KINDS } from "@extensions/kakeibo/manifest";
 import { describeKakeiboNotification } from "@extensions/kakeibo/shared/notifications";
+import { LISTS_NOTIFICATION_KINDS } from "@extensions/lists/manifest";
 import { describeListsNotification } from "@extensions/lists/shared/notifications";
+import { MEMORIES_NOTIFICATION_KINDS } from "@extensions/memories/manifest";
 import { describeMemoriesNotification } from "@extensions/memories/shared/notifications";
+import { CORE_NOTIFICATION_KINDS } from "@shared/notifications";
 import { describe, expect, it } from "vitest";
 import { describeCoreNotification } from "@/modules/notifications/describe";
 
@@ -101,5 +106,32 @@ describe("土台の describeCoreNotification。groups.* の文言と行き先。
 
   it("自分の kind でなければ null", () => {
     expect(describeCoreNotification("events.invite_accepted", {})).toBeNull();
+  });
+});
+
+describe("お知らせの kind の一覧と文言の食い違い。issue #287", () => {
+  it("manifest と土台が並べた kind は、すべて文言と行き先を返す(綴りがずれるとベルに行が出ない)", () => {
+    // サーバーの registry は画面の tsconfig から読めないので、manifest の一覧を並べる
+    const kinds = [
+      ...CORE_NOTIFICATION_KINDS,
+      ...EVENTS_NOTIFICATION_KINDS,
+      ...MEMORIES_NOTIFICATION_KINDS,
+      ...KAKEIBO_NOTIFICATION_KINDS,
+      ...LISTS_NOTIFICATION_KINDS,
+    ].map((d) => d.kind);
+    expect(kinds.length).toBeGreaterThan(0);
+    const describers = [
+      describeCoreNotification,
+      describeEventNotification,
+      describeMemoriesNotification,
+      describeKakeiboNotification,
+      describeListsNotification,
+    ];
+    for (const kind of kinds) {
+      const results = describers.map((d) => d(kind, {}));
+      const hit = results.find((r) => r !== null);
+      expect(hit, `${kind} の文言が返らない`).toBeTruthy();
+      expect(hit?.text, kind).not.toBe("");
+    }
   });
 });

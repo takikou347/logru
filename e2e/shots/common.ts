@@ -248,7 +248,12 @@ export async function enableExtension(page: Page, label: string): Promise<boolea
 
 /** カレンダーの下の帯の「予定を足す」を押し、新しい予定のシートを返す */
 export async function openNewEvent(page: Page) {
-  await page.getByRole("button", { name: "予定を足す" }).last().click();
+  // 今日のページでは節の最後の「予定を足す」リンク、古い画面ではボタン
+  await page
+    .getByRole("link", { name: "予定を足す" })
+    .or(page.getByRole("button", { name: "予定を足す" }))
+    .last()
+    .click();
   const sheet = page.getByRole("dialog", { name: "新しい予定" });
   await expect(sheet).toBeVisible();
   return sheet;

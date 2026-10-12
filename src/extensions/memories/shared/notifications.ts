@@ -2,6 +2,8 @@
  * 思い出の拡張が積むお知らせの、文言と行き先。F-116、#32、0096、issue #244、#247
  * ここは画面とサーバーの両方の tsconfig が読むので、client/types.ts の型は import しない。
  */
+
+import type { MemoriesNotificationKind } from "../manifest";
 import { dayKeyIn } from "./days";
 
 /** 積み重ねた件数。無ければ 1 件 */
@@ -32,9 +34,11 @@ export function shouldNotifyShioriAssignment(
  * - memories.shiori_assigned: しおりの担当になった。押すとそのしおり
  */
 export function describeMemoriesNotification(
-  kind: string,
+  rawKind: string,
   payload: Record<string, unknown>,
 ): { text: string; path: string } | null {
+  // manifest の一覧の型にして、綴りの違う kind を型で見つける。#287
+  const kind = rawKind as MemoriesNotificationKind;
   if (kind === "memories.like") {
     const occurredAt = typeof payload.occurredAt === "number" ? payload.occurredAt : Date.now();
     const n = countOf(payload);

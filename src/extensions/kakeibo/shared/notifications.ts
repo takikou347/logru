@@ -2,6 +2,8 @@
  * 家計簿の拡張が積むお知らせの、文言と行き先。0096、issue #246
  * ここは画面とサーバーの両方の tsconfig が読むので、client/types.ts の型は import しない。
  */
+
+import type { KakeiboNotificationKind } from "../manifest";
 import { formatYen } from "./format";
 
 /** 「みかが IKEA ¥12,980 を立て替えました」のように、名前と品目と金額を出す */
@@ -22,9 +24,11 @@ function byUserNameOf(payload: Record<string, unknown>): string {
  * - kakeibo.budget_exceeded: 予算を超えた。押すと予算の画面
  */
 export function describeKakeiboNotification(
-  kind: string,
+  rawKind: string,
   payload: Record<string, unknown>,
 ): { text: string; path: string } | null {
+  // manifest の一覧の型にして、綴りの違う kind を型で見つける。#287
+  const kind = rawKind as KakeiboNotificationKind;
   const month = typeof payload.month === "string" ? payload.month : "";
   const group = typeof payload.groupId === "string" ? payload.groupId : "";
   if (kind === "kakeibo.expense_shared") {

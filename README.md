@@ -77,11 +77,15 @@ Auth エミュレーターが動いていなければ、テストの間だけ立
 release の PR に、本番(前)と release(後)の主な画面を並べるために使う。`pnpm e2e` には入らない。
 `e2e/shots/seed.shots.ts` が同じデータ(予定、思い出と写真、家計簿、共有リスト、天気、グループ 2 つ、アバター)を入れ、
 `e2e/shots/release.shots.ts` が 1 画面ずつ撮る。撮る画面、幅、明るさは `release.shots.ts` の `screens` の表で決める。
+seed の手順が 1 つでも落ちると `pnpm shots` は失敗で終わる(続きは撮り、落ちた手順は `notes.tsv` に残る)。
 スマホ 390 × 844 のダークは全部、ライトと PC 1440 × 900 は一部だけ撮る。名前は `<番号>-<画面>-<幅>-<明るさ>.png`。
 
 ```bash
 # 後(このフォルダ)。画像は test-results/shots/after に出る
 E2E_PORT=4210 pnpm shots
+
+# Chrome が無い手元(cloud など)では、chromium の実行ファイルを渡す
+PW_CHROMIUM_PATH=/opt/pw-browsers/chromium E2E_PORT=4210 pnpm shots
 
 # 前(main の worktree)。仕組みのファイルを写して流し、終わったら消す。main には入れない
 cp playwright.shots.config.ts <main>/ && cp -R e2e/shots <main>/e2e/

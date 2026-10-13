@@ -88,6 +88,11 @@ type は次のいずれか。
 | refactor | 動きを変えない整理 |
 | build | ビルドや依存まわりの変更 |
 
+## PR とマージ
+
+PR の本文は `.github/pull_request_template.md` の形にする。develop へのマージは merge コミットで行う。
+積み重ねた PR を 1 本ずつ squash すると、残りが全部衝突したため。会社の決まりは develop-docs の `company/howto/git.md`。
+
 ## テスト
 
 ```bash

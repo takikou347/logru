@@ -2,7 +2,8 @@ import type { ExtensionShortcut } from "@extensions/client/types";
 import { useQuery } from "@tanstack/react-query";
 import { Gift, PartyPopper } from "lucide-react";
 import { api } from "@/api/client";
-import { DAY_MS, formatDay, startOfDay } from "@/lib/dates";
+import { DAY_MS, dateKey, formatDay, startOfDay } from "@/lib/dates";
+import { useToday } from "@/lib/use-today";
 
 /** `GET /api/events/upcoming-anniversary` の応答。0043、0097 */
 type UpcomingAnniversary = {
@@ -18,8 +19,10 @@ const anniversaryKey = ["events", "upcoming-anniversary"] as const;
 
 /** 7 日以内に近づいた、毎年の繰り返しの予定。無ければ null。F-37 */
 function useUpcomingAnniversary(enabled: boolean) {
+  // 鍵に今日の日付を入れる。日が変われば取り直し、昨日の回を今日として出し続けない。#300
+  const day = dateKey(useToday());
   return useQuery({
-    queryKey: anniversaryKey,
+    queryKey: [...anniversaryKey, day],
     queryFn: () => api<{ item: UpcomingAnniversary }>("/events/upcoming-anniversary").then((r) => r.item),
     enabled,
     staleTime: 60 * 60 * 1000,
@@ -27,14 +30,15 @@ function useUpcomingAnniversary(enabled: boolean) {
 }
 
 /**
- * その日までの日数の文。今日なら「今日」、明日なら「明日」。
+ * その日までの日数の文。今日なら「今日」、明日なら「明日」。過ぎた日は今日にせず、空文字を返す
  * 時刻を含んだまま引くと、日をまたぐ手前でも 1 日多く数えるので、どちらも 0 時に揃えてから引く
  */
 export function daysUntilLabel(occurrenceAt: number): string {
   const todayStart = startOfDay(new Date()).getTime();
   const occurrenceDayStart = startOfDay(new Date(occurrenceAt)).getTime();
   const days = Math.round((occurrenceDayStart - todayStart) / DAY_MS);
-  if (days <= 0) return "今日";
+  if (days < 0) return "";
+  if (days === 0) return "今日";
   if (days === 1) return "明日";
   return `あと${days}日`;
 }
@@ -59,6 +63,8 @@ export function useAnniversaryToday(enabled: boolean): boolean {
 export function useAnniversaryShortcut(enabled: boolean): ExtensionShortcut | null {
   const { data } = useUpcomingAnniversary(enabled);
   if (!enabled || !data) return null;
+  // 過ぎた回は出さない。日をまたいだ直後、取り直しが届くまでの間もここで隠す
+  if (daysUntilLabel(data.occurrenceAt) === "") return null;
   if (data.kind !== "anniversary") {
     return {
       label: data.title,

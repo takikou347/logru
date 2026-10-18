@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { addExtension, addMemories, signUp, touchDrag } from "./helpers";
 
 const PHOTO = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/photo.jpg");
@@ -34,10 +34,25 @@ async function openLightbox(page: Page) {
   return page.getByRole("dialog", { name: /写真 1 \/ 2/ });
 }
 
+/** シートが開ききり、記録の知らせが消えて、写真の位置が止まってから測る。開く途中で測ると指が写真から外れる */
+async function settledBox(page: Page, photo: Locator) {
+  await expect(page.getByText("記録しました")).toBeHidden({ timeout: 15_000 });
+  let box = await photo.boundingBox();
+  await expect(async () => {
+    await page.waitForTimeout(200);
+    const now = await photo.boundingBox();
+    const prev = box;
+    box = now;
+    expect(now?.height ?? 0).toBeGreaterThan(100);
+    expect(now).toEqual(prev);
+  }).toPass({ timeout: 10_000 });
+  return box!;
+}
+
 test("アルバムの写真を指で左右になぞってめくる。端では移らない。#303", async ({ page }) => {
   const dialog = await openLightbox(page);
   const photo = dialog.getByTestId("lightbox-photo");
-  const box = (await photo.boundingBox())!;
+  const box = await settledBox(page, photo);
   const y = box.y + box.height / 2;
   const mid = box.x + box.width / 2;
 
@@ -63,7 +78,7 @@ test("アルバムの写真を指で左右になぞってめくる。端では�
 test("なぞっている途中は、写真が指に付いてずれる。#303", async ({ page }) => {
   const dialog = await openLightbox(page);
   const photo = dialog.getByTestId("lightbox-photo");
-  const box = (await photo.boundingBox())!;
+  const box = await settledBox(page, photo);
   const y = box.y + box.height / 2;
   const mid = box.x + box.width / 2;
   const client = await page.context().newCDPSession(page);

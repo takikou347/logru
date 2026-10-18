@@ -195,6 +195,26 @@
  * 画面ごとの操作(カレンダーの「機能」「表示の単位」、各画面の Dock)を、新しい見た目・スマホで
  * だけ隠す。どちらも新しい見た目を入れていない人には 1px も効かない。
  */
+/*
+ * 大きな字の段。値は tokens.css の --text-display-*。画面の題と日付だけに使う。0099
+ * 数字は桁をそろえず(tnum を切る)、字の形で詰める。行は字の高さちょうどにする。
+ */
+.display-1,
+.display-2 {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-feature-settings: normal;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.display-1 {
+  font-size: var(--text-display-1);
+}
+.display-2 {
+  font-size: var(--text-display-2);
+}
+
 .nl-only {
   display: none;
 }

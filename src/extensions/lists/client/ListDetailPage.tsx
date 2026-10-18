@@ -508,7 +508,7 @@ export function ListDetailPage() {
           </header>
           {/* 題名は帯の下に大きく 1 回だけ。下に共有先の点・人のアイコン・最近の出来事の一行。A3 の見本 */}
           <div className="flex flex-col gap-1 px-1">
-            <h1 className="truncate text-[28px] font-extrabold tracking-[-0.02em]">{list.title}</h1>
+            <h1 className="display-2 truncate pb-1">{list.title}</h1>
             <div className="flex min-w-0 items-center gap-2 text-xs text-ink-2">
               <GroupLabel group={group} me={me.data} />
               {group && group.members.length > 0 && (

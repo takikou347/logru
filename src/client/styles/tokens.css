@@ -67,6 +67,14 @@
 
   /* 書体 */
   --font: "Murecho Variable", "Murecho", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  /*
+   * 大きな字の段。画面の題と日付だけに使い、1 画面に 1〜2 か所。display-1 は 1 か所だけ。
+   * 書体は本文と同じ Murecho(@fontsource-variable/murecho を同梱)を 800 で使う。KNOW IDEA UI 0.9.0 の段と同じ値。0099
+   */
+  --font-display: var(--font);
+  --font-weight-display: 800;
+  --text-display-1: clamp(40px, 30px + 3vw, 56px);
+  --text-display-2: clamp(32px, 26px + 2vw, 44px);
   /* 角丸。ガラスの面だけの scale。コンポーネントの scale は globals.css の --radius */
   --r-panel: 28px;
   --r-field: 14px;

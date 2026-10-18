@@ -56,13 +56,13 @@ import { DayFlipDeck } from "./components/DayFlipDeck";
 import { FoldedFeatureGrid } from "./components/FoldedFeatureGrid";
 import { TodaySectionCard } from "./components/TodaySectionCard";
 
-/** 見出しの日付・曜日・機能の 1 行。0092、issue #240 */
+/** 見出しの日付・曜日・機能の 1 行。日付はこの画面でただ 1 つの大きな字。0092、0099、issue #240 */
 function DayHeading({ date, headline }: { date: Date; headline: string | null }) {
   const hol = holidayName(date);
   return (
     <div className="px-1 py-1" data-tour="today-swipe">
       <div className="flex items-baseline gap-2">
-        <span data-testid="today-day-number" className="text-[44px] leading-none font-bold tracking-[-0.02em]">
+        <span data-testid="today-day-number" className="display-1">
           {date.getDate()}
         </span>
         <span className="text-base font-bold text-ink-2">{WEEKDAYS[date.getDay()]}曜</span>

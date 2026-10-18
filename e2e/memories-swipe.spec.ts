@@ -45,8 +45,8 @@ test("アルバムの写真を指で左右になぞってめくる。端では�
   await touchDrag(page, { x: mid, y }, { x: mid + box.width / 2, y });
   await expect(page.getByRole("dialog", { name: "写真 1 / 2" })).toBeVisible();
 
-  // 足りない距離では元に戻る
-  await touchDrag(page, { x: mid, y }, { x: mid - box.width / 10, y });
+  // 足りない距離では元に戻る。払いと見なす最小の距離(24px)より短く動かし、速さに左右されないようにする
+  await touchDrag(page, { x: mid, y }, { x: mid - 16, y });
   await expect(page.getByRole("dialog", { name: "写真 1 / 2" })).toBeVisible();
 
   // 幅の 1/4 を超えて左へ離すと、次の写真へ移る

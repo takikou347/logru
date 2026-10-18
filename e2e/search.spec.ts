@@ -16,6 +16,8 @@ test("探すと、その日を開き、押すと予定が開く。F-38", async (
   await dialog.getByLabel("探す").fill("歯医者");
   const result = dialog.getByRole("button", { name: /歯医者の予約/ });
   await expect(result).toBeVisible();
+  // 一致した文字だけが印で囲まれる(題名の「歯医者」)
+  await expect(result.locator("mark")).toHaveText("歯医者");
   await result.click();
 
   await expect(dialog).toHaveCount(0);

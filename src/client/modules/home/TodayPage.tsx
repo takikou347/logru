@@ -44,6 +44,7 @@ import { computeOpenSectionKeys, DEFAULT_TODAY_PAGE_PREFS, orderTodaySectionKeys
 import { BASE_TOURS } from "@/lib/tours";
 import { useRecordScreen } from "@/lib/use-back";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { useToday } from "@/lib/use-today";
 import { useCalendar } from "../calendar/api";
 import { SearchButton } from "../calendar/components/SearchButton";
 import { WeekBand } from "../calendar/components/WeekBand";
@@ -54,19 +55,6 @@ import { Onboarding } from "../onboarding/Onboarding";
 import { DayFlipDeck } from "./components/DayFlipDeck";
 import { FoldedFeatureGrid } from "./components/FoldedFeatureGrid";
 import { TodaySectionCard } from "./components/TodaySectionCard";
-
-/** 今日の 0 時。画面を開いたまま日付が変わったら追いかける。CalendarPage の useToday と同じ考え */
-function useToday(): Date {
-  const [today, setToday] = useState(() => startOfDay(new Date()));
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      const now = startOfDay(new Date());
-      setToday((t) => (sameDay(t, now) ? t : now));
-    }, 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
-  return today;
-}
 
 /** 見出しの日付・曜日・機能の 1 行。0092、issue #240 */
 function DayHeading({ date, headline }: { date: Date; headline: string | null }) {

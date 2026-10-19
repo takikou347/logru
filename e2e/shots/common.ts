@@ -116,12 +116,14 @@ export async function visible(locator: Locator, timeout = 2_500): Promise<boolea
 }
 
 /**
- * seed の利用者でログインし、カレンダーが出るまで待つ
+ * seed の利用者でログインし、ホームが出るまで待つ。スマホのホームは今日のページ(0092)、
+ * PC と刷新前の版は月の表なので、どちらかが出れば良い
  * @param who seed はデータを入れた人、fresh は何も足していない人
  */
 export async function login(page: Page, who: "seed" | "fresh" = "seed") {
   await logIn(page, who === "seed" ? readSeed().email : readFresh());
-  await expect(page.getByRole("region", { name: "月の表" })).toBeVisible({ timeout: 20_000 });
+  const home = page.getByTestId("today-day-number").or(page.getByRole("region", { name: "月の表" }));
+  await expect(home.first()).toBeVisible({ timeout: 20_000 });
 }
 
 /** 読み込みと動きが落ち着くのを待つ */

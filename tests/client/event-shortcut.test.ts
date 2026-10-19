@@ -20,6 +20,11 @@ describe("daysUntilLabel。誕生日と記念日の近道。F-37", () => {
     expect(daysUntilLabel(new Date(2026, 8, 23, 23, 0).getTime())).toBe("今日");
   });
 
+  it("昨日の回は「今日」にならない。#300", () => {
+    expect(daysUntilLabel(new Date(2026, 8, 22, 23, 0).getTime())).not.toBe("今日");
+    expect(daysUntilLabel(new Date(2026, 8, 22, 9, 0).getTime())).toBe("");
+  });
+
   it("翌日の早い時刻でも「明日」", () => {
     expect(daysUntilLabel(new Date(2026, 8, 24, 0, 30).getTime())).toBe("明日");
   });

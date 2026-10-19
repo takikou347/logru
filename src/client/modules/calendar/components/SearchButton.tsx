@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDay, formatTime } from "@/lib/dates";
 import { extensionLabel } from "@/lib/extension-visuals";
+import { Highlight } from "@/lib/highlight";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useSearch } from "@/modules/search/api";
 import { kindIconOf } from "../kind-icon";
@@ -22,7 +23,7 @@ import { decorate, kindOf, type ViewItem } from "../model";
 /** 探す文字を止めてから API を呼ぶまでの間。連打のたびに探させない */
 const DEBOUNCE_MS = 300;
 
-function ResultRow({ item, onOpen }: { item: ViewItem; onOpen: (item: ViewItem) => void }) {
+function ResultRow({ item, query, onOpen }: { item: ViewItem; query: string; onOpen: (item: ViewItem) => void }) {
   const kind = kindOf(item);
   const Icon = kind !== "event" ? kindIconOf(item) : null;
   return (
@@ -36,13 +37,20 @@ function ResultRow({ item, onOpen }: { item: ViewItem; onOpen: (item: ViewItem) 
           <Dot color={item.color} />
           {Icon && <Icon className="size-3.5 flex-none text-ink-2" aria-hidden="true" />}
           {kind !== "event" && <span className="sr-only">{extensionLabel(item.extension)}、</span>}
-          <span className="truncate">{item.title}</span>
+          <span className="truncate">
+            <Highlight text={item.title} query={query} />
+          </span>
         </span>
         <span className="truncate text-xs text-ink-2">
           {/* 年をまたいだ結果も見分けられるよう、年を付ける。日付の書き方は決定 0059 */}
           {formatDay(new Date(item.startsAt), { year: true })}
           {kind === "event" && !item.allDay && ` ・ ${formatTime(item.startsAt)}`}
-          {item.place && ` ・ ${item.place}`}
+          {item.place && (
+            <>
+              {" ・ "}
+              <Highlight text={item.place} query={query} />
+            </>
+          )}
           {" ・ "}
           {item.groupName}
         </span>
@@ -109,6 +117,7 @@ function SearchDialog({
             <ResultRow
               key={`${item.extension}:${item.id}`}
               item={item}
+              query={query}
               onOpen={(i) => {
                 onClose();
                 onOpen(i);

@@ -41,9 +41,19 @@ const PHONE: Variant[] = ["390-dark", "390-light"];
 const ALL: Variant[] = ["390-dark", "390-light", "1440-light"];
 const PC: Variant[] = ["1440-light", "1440-dark"];
 
-/** 今日を選んだカレンダーを開く */
+/** ホームを開く。スマホは今日のページ(0092)、PC と刷新前の版は月の表 */
+async function openHome(page: Page) {
+  await page.goto("/");
+  const home = page.getByTestId("today-day-number").or(page.getByRole("region", { name: "月の表" }));
+  await expect(home.first()).toBeVisible();
+}
+
+/**
+ * 今日を選んだカレンダーを開く。スマホのホームは今日のページになったので、
+ * カレンダーのタブと同じ `view=month` を付ける。刷新前の版は view を見ずに月の表を出す
+ */
 async function openToday(page: Page) {
-  await page.goto(`/?date=${tokyoDate(0)}`);
+  await page.goto(`/?view=month&date=${tokyoDate(0)}`);
   await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
   await expect(dayPanel(page).getByText(DATA.today).first()).toBeVisible();
 }
@@ -62,6 +72,14 @@ async function openExtensionsSheet(page: Page) {
 }
 
 const screens: Screen[] = [
+  {
+    name: "00-today",
+    title: "今日のページ(スマホのホーム)",
+    variants: PHONE,
+    run: async (page) => {
+      await openHome(page);
+    },
+  },
   {
     name: "01-month",
     title: "カレンダーの月の表(今日を選んだ状態)",
@@ -84,7 +102,8 @@ const screens: Screen[] = [
     title: "予定を足すシート(繰り返しを開いた状態)",
     variants: DARK,
     run: async (page) => {
-      await openToday(page);
+      // 予定を足すのは今日のページの節の最後のリンク。カレンダーの月の表では下の帯に隠れて押せない
+      await openHome(page);
       const sheet = await openNewEvent(page);
       await sheet.getByLabel("題名").fill(DATA.weekly);
       const weekly = sheet.getByRole("radio", { name: "毎週" });
@@ -102,6 +121,8 @@ const screens: Screen[] = [
     variants: DARK,
     run: async (page, seed) => {
       const parts: { label: string; png: Buffer }[] = [];
+      await openHome(page);
+      parts.push({ label: "ホーム", png: await bottomStrip(page) });
       await openToday(page);
       parts.push({ label: "カレンダー", png: await bottomStrip(page) });
       for (const [key, label, path] of [
@@ -132,6 +153,11 @@ const screens: Screen[] = [
         test.skip(true, "PC には機能のシートが無い");
       }
       await openToday(page);
+      // 刷新(0091)で機能のシートは無くなり、下のタブの「機能」が設定の機能の画面へ移る。05-settings-extensions で撮る
+      if (!(await visible(page.getByRole("toolbar", { name: "カレンダーの操作" }), 3_000))) {
+        note("05-extensions-sheet", "機能のシートは無い。下のタブの「機能」は 05-settings-extensions の画面へ移る");
+        test.skip(true, "機能のシートが無い版");
+      }
       await openExtensionsSheet(page);
     },
   },
@@ -237,7 +263,11 @@ const screens: Screen[] = [
       skipIfAbsent("09-kakeibo-assets", seed.features.kakeiboAccounts, "家計簿の口座");
       await page.goto("/kakeibo");
       const assets = page.getByTestId("kakeibo-assets");
-      await expect(assets).toBeVisible();
+      // スマホの新しい見た目(0091)は、家計簿の面に口座を載せず「口座」のタブへ移す。09-kakeibo-accounts で撮る
+      if (!(await visible(assets, 5_000))) {
+        note("09-kakeibo-assets", "家計簿の面に口座は無い。口座のタブの画面は 09-kakeibo-accounts");
+        test.skip(true, "家計簿の面に口座が無い版");
+      }
       await scrollToTop(page, assets);
     },
   },
@@ -272,9 +302,10 @@ const screens: Screen[] = [
       skipIfAbsent("09-kakeibo-settlement", seed.features.kakeiboSettlement, "立て替えと精算");
       await page.goto("/kakeibo");
       await page.getByRole("button", { name: DATA.pair, exact: true }).click();
-      const panel = page.getByRole("region", { name: "精算" });
-      await expect(panel).toBeVisible();
-      await scrollToTop(page, panel);
+      // 新しい見た目は 1 枚の面の中の精算の行(#kakeibo-settlement)、古い見た目は「精算」の面
+      const panel = page.locator("#kakeibo-settlement").or(page.getByRole("region", { name: "精算" }));
+      if (await visible(panel, 5_000)) await scrollToTop(page, panel);
+      else note("09-kakeibo-settlement", "精算の行が無い(差し引きが 0)。ふたりで絞った面だけ撮った");
     },
   },
   {
@@ -341,7 +372,7 @@ const screens: Screen[] = [
     title: "空の画面: 予定の無い日",
     variants: DARK,
     run: async (page) => {
-      await page.goto(`/?date=${tokyoDate(10)}`);
+      await page.goto(`/?view=month&date=${tokyoDate(10)}`);
       await expect(page.getByRole("region", { name: "月の表" })).toBeVisible();
       await scrollToTop(page, dayPanel(page));
     },

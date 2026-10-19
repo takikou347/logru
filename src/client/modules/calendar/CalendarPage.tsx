@@ -49,6 +49,7 @@ import { RowExpandContext, rowExpandState, useRowExpandActive, useRowExpandTrans
 import { BASE_TOURS } from "@/lib/tours";
 import { useRecordScreen } from "@/lib/use-back";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { useToday } from "@/lib/use-today";
 import { withViewTransition } from "@/lib/view-transition";
 import { useSaveHomeLayout } from "../home/api";
 import { CalendarHomeProvider, type CalendarView, type MonthNav } from "../home/CalendarContext";
@@ -83,19 +84,6 @@ const VIEWS = [
   { value: "week", label: "週", icon: CalendarRange },
   { value: "day", label: "日", icon: CalendarClock },
 ] as const;
-
-/** 今日の 0 時。画面を開いたまま日付が変わったら追いかける */
-function useToday(): Date {
-  const [today, setToday] = useState(() => startOfDay(new Date()));
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      const now = startOfDay(new Date());
-      setToday((t) => (sameDay(t, now) ? t : now));
-    }, 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
-  return today;
-}
 
 /**
  * ホームの画面。カレンダーが土台で、ウィジェットを並べて自分で編集できる。F-05〜F-09、F-20、F-28、0029

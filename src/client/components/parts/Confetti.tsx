@@ -1,6 +1,6 @@
 /**
  * 紙吹雪を 1.5 秒ほど降らせる canvas。画面いっぱいに重ね、pointer-events: none で操作を邪魔しない。
- * 色はテーマのトークン(--accent など)から読む。外部のライブラリは使わない。F-412、0098、0044
+ * 色はテーマのトークン(--accent など)から読む。外部のライブラリは使わない。F-49、0098、0044
  */
 import { useEffect, useRef } from "react";
 import { CONFETTI_MS, fadeAt, makeParticles, stepParticle } from "@/lib/confetti";

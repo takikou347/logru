@@ -209,7 +209,7 @@ export type ClientExtension = {
    */
   useShortcut?: (enabled: boolean) => ExtensionShortcut | null;
   /**
-   * 今日のページを開いたとき、紙吹雪で祝う日かを返す hook。例は誕生日・記念日の当日。F-412、0098
+   * 今日のページを開いたとき、紙吹雪で祝う日かを返す hook。例は誕生日・記念日の当日。F-49、0098
    * useShortcut と同じ理由で、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ
    */
   useCelebration?: (enabled: boolean) => boolean;

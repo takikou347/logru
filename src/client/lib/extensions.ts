@@ -110,7 +110,7 @@ export function useShortcut() {
   return results.find((r) => r) ?? null;
 }
 
-/** 今日のページで紙吹雪を降らせる日か。どれかの使える拡張が祝う日と返せば true。F-412、0098 */
+/** 今日のページで紙吹雪を降らせる日か。どれかの使える拡張が祝う日と返せば true。F-49、0098 */
 export function useCelebration(): boolean {
   const enabled = useEnabledExtensions();
   const keys = new Set(enabled.map((x) => x.manifest.key));

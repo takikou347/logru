@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { addEventButton, signUp, tokyoDateParts } from "./helpers";
 
 /**
- * 誕生日・記念日の当日、今日のページを開くと紙吹雪を 1 回だけ降らせる。F-412、0098
+ * 誕生日・記念日の当日、今日のページを開くと紙吹雪を 1 回だけ降らせる。F-49、0098
  * 日付は日本時間の今日に固定する(CI は UTC で動く)。始まりは 5 年前の今日にして、毎年の回を今日に当てる。
  */
 const today = tokyoDateParts();

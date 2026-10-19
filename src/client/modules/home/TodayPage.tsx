@@ -156,7 +156,7 @@ function TodayDayContent({
 }
 
 /**
- * 今日が誕生日・記念日の当日なら、今日のページを開いたとき 1 回だけ紙吹雪を降らせる。F-412、0098
+ * 今日が誕生日・記念日の当日なら、今日のページを開いたとき 1 回だけ紙吹雪を降らせる。F-49、0098
  * 見ている日が今日のときだけ。動きを減らす設定では出さず、同じ日の 2 回目以降も出さない(端末の印)。
  */
 function useBirthdayConfetti(viewingToday: boolean, today: Date) {

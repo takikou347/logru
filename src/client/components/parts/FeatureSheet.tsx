@@ -52,12 +52,9 @@ function FeatureRow({
       <Link
         to={to}
         onClick={onClick}
-        className="grid min-h-15 grid-cols-[40px_1fr_auto] items-center gap-3 no-underline"
+        className="grid min-h-15 grid-cols-[20px_1fr_auto] items-center gap-3 no-underline"
       >
-        <span
-          className="grid size-10 place-items-center rounded-xl border border-line bg-field-strong"
-          aria-hidden="true"
-        >
+        <span className="grid place-items-center text-ink-2 [&_svg]:size-5" aria-hidden="true">
           {icon}
         </span>
         <span className="flex min-w-0 flex-col">

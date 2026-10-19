@@ -187,6 +187,23 @@
   display: none;
 }
 
+/* 0099 */
+.display-1,
+.display-2 {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-display);
+  font-feature-settings: normal;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.display-1 {
+  font-size: var(--text-display-1);
+}
+.display-2 {
+  font-size: var(--text-display-2);
+}
+
 /*
  * 刷新 2 の骨組み(下の 5 個のタブの帯、上の帯)。新しい見た目を入れていない人と、PC(1024px 以上)
  * には当たらない。0091

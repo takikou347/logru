@@ -370,7 +370,10 @@ export function DayPanel({
           isToday && "transition-transform duration-fast ease-out",
         )}
       >
-        <span data-testid="big-day" className="text-[72px] leading-[0.9] font-bold tracking-[-0.04em] xl:text-[88px]">
+        <span
+          data-testid="big-day"
+          className="text-[72px] leading-[0.9] font-extrabold tracking-[-0.04em] xl:text-[88px]"
+        >
           {day.getDate()}
         </span>
         <div>

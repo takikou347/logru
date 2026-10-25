@@ -8,13 +8,14 @@ import { api } from "@/api/client";
 import { useGroups } from "@/api/common";
 import { markJustAdded } from "@/modules/calendar/recent-items";
 import { memoriesManifest } from "../manifest";
-import type { ItemKind, Memory, MemoryDetail, MemoryItem, MemoryList, MemoryRecord } from "../shared/types";
+import type { ItemKind, Memory, MemoryDetail, MemoryItem, MemoryList, MemoryRecord, OnThisDay } from "../shared/types";
 
 /** 読み込むデータの名前 */
 export const memoryKeys = {
   all: ["memories"] as const,
   list: (group: string | null) => ["memories", "list", group ?? "all"] as const,
   detail: (id: string) => ["memories", "detail", id] as const,
+  onThisDay: (day: string) => ["memories", "on-this-day", day] as const,
   records: (group: string, from: number, to: number) => ["memories", "records", group, from, to] as const,
 };
 
@@ -60,6 +61,19 @@ export function useRecords(groups: string, from: number, to: number, enabled = t
         (r) => r.records,
       ),
     enabled: enabled && groups.length > 0,
+  });
+}
+
+/**
+ * 前の年以前の同じ月日の、写真のある記録。今日のページの札が使う。F-132、0100
+ * @param day 今日の日付。`2026-10-25` の形。日が変われば取り直す
+ */
+export function useOnThisDay(day: string, enabled = true) {
+  return useQuery({
+    queryKey: memoryKeys.onThisDay(day),
+    queryFn: () => api<OnThisDay>(`/memories/on-this-day?day=${day}`).then((r) => r.item),
+    enabled,
+    staleTime: 60 * 60 * 1000,
   });
 }
 

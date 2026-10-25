@@ -167,3 +167,12 @@ export const komaInput = z.object({
 
 /** `PUT /api/memories/:id/events/:eventId`。予定を思い出に入れるか。0020 */
 export const eventLinkInput = z.object({ included: z.boolean() });
+
+/** 札を探す年の数。今年から数えて、何年前までさかのぼるか。0100 */
+export const ON_THIS_DAY_YEARS = 10;
+
+/** `GET /api/memories/on-this-day` の問い合わせ。day は今日の日付(日本時間) */
+export const onThisDayQuery = z.object({
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "日付が正しくありません。"),
+  group: z.string().optional(),
+});

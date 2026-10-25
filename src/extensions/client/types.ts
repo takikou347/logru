@@ -238,6 +238,10 @@ export type ClientExtension = {
    */
   today?: TodaySection;
   /**
+   * 今日のページの節の、中身の上に足す 1 枚(札など)。節が開いているときだけ出す。何を出すかは拡張が決める。0100
+   */
+  TodayTop?: ComponentType<{ date: Date; isToday: boolean }>;
+  /**
    * 今日のページで、この節を畳んだときの要約。7 文字ほどを目安に返す。無ければ、その日の項目の件数を使う。
    * hook なので、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ。0092、issue #240
    */

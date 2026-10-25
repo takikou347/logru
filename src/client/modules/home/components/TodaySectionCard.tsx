@@ -41,6 +41,7 @@ export function TodaySectionCard({
   const label = ext.manifest.label;
   const actions = ext.actions ?? [];
   const Body = ext.today?.Component;
+  const Top = ext.TodayTop;
   // 節の見出しを押すと、その面がそのまま機能の画面に広がる動き(共有要素)。0044、0093、issue #241
   const boxExpandActive = useBoxExpandActive();
   const onNavClick = (e: MouseEvent<HTMLAnchorElement>) => {
@@ -83,6 +84,7 @@ export function TodaySectionCard({
       </header>
       {open && (
         <div className="mt-2">
+          {Top && <Top date={date} isToday={isToday} />}
           {Body ? (
             <Body date={date} isToday={isToday} dayItems={items} onOpenItem={onOpenItem} />
           ) : (

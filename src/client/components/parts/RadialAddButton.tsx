@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
 import { angleOf, favoritesOffset, radialOffset, radialTiers } from "@/lib/radial-layout";
-import { useLongPressLabel } from "@/lib/use-long-press";
+import { useLongPressAction, useLongPressLabel } from "@/lib/use-long-press";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 
@@ -77,14 +77,40 @@ function RadialItem({
   );
 }
 
-/** 上に並ぶ、よく使う記録のカード。押すと 1 タップでその記録が入った状態のシートへ移る */
-function FavoriteCard({ favorite, onPick }: { favorite: FavoriteAdd; onPick: (path: string) => void }) {
+/**
+ * 上に並ぶ、よく使う記録のカード。押すと 1 タップでその記録が入った状態のシートへ移る。
+ * quickSave を持つ記録は、長押しでシートを開かずに保存する。押している間は少し沈む(動きを減らす設定では沈まない)。0102
+ */
+function FavoriteCard({
+  favorite,
+  onPick,
+  onQuickSave,
+}: {
+  favorite: FavoriteAdd;
+  onPick: (path: string) => void;
+  onQuickSave: (favorite: FavoriteAdd) => void;
+}) {
   const Icon = favorite.icon ?? Star;
+  const quick = Boolean(favorite.quickSave);
+  const { holding, consumeLongPress, handlers } = useLongPressAction(() => onQuickSave(favorite));
   return (
     <button
       type="button"
-      className="glass flex min-h-11 items-center gap-2 rounded-full py-1.5 pr-4 pl-2.5 text-[13px] font-bold whitespace-nowrap text-ink"
-      onClick={() => onPick(favorite.path)}
+      data-testid="favorite-card"
+      className={cn(
+        "glass flex min-h-11 items-center gap-2 rounded-full py-1.5 pr-4 pl-2.5 text-[13px] font-bold whitespace-nowrap text-ink",
+        quick && "touch-manipulation select-none [-webkit-touch-callout:none]",
+        "transition-transform duration-fast ease-in-out",
+        holding && quick && "scale-95 motion-reduce:scale-100",
+      )}
+      onClick={(e) => {
+        if (quick && consumeLongPress()) {
+          e.preventDefault();
+          return;
+        }
+        onPick(favorite.path);
+      }}
+      {...(quick ? handlers : {})}
     >
       <Icon className="size-4 shrink-0" aria-hidden="true" />
       {favorite.label}
@@ -142,6 +168,11 @@ export function RadialAddButton({
   const pick = (path: string) => {
     setOpen(false);
     navigate(path);
+  };
+
+  const quickSave = (f: FavoriteAdd) => {
+    setOpen(false);
+    void f.quickSave?.();
   };
 
   if (items.length === 1) {
@@ -268,7 +299,7 @@ export function RadialAddButton({
                     }}
                   >
                     {favorites.map((f) => (
-                      <FavoriteCard key={f.key} favorite={f} onPick={pick} />
+                      <FavoriteCard key={f.key} favorite={f} onPick={pick} onQuickSave={quickSave} />
                     ))}
                   </span>
                 )}

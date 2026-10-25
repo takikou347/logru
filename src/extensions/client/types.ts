@@ -101,7 +101,17 @@ export type ExtensionAction = { label: string; icon: LucideIcon; path: string; h
  * 「+」の放射の上に出す、よく使う記録 1 つ。押すと、その記録が入った状態でシートが開く。0091、issue #239
  * 例は家計簿のよく使う記録(F-326)。使用頻度を数える仕組みは無いので、拡張が持つ並びをそのまま使う
  */
-export type FavoriteAdd = { key: string; label: string; icon?: LucideIcon; path: string };
+export type FavoriteAdd = {
+  key: string;
+  label: string;
+  icon?: LucideIcon;
+  path: string;
+  /**
+   * 長押しで、シートを開かずにそのまま保存する処理。持つのは、1 回で保存できるだけ欄が埋まっている記録だけ。
+   * 無ければ、長押ししても押したときと同じ(path のシートが開く)。0102、issue #312
+   */
+  quickSave?: () => Promise<void>;
+};
 
 /**
  * 今日のページの節が受け取るもの。0092、issue #240

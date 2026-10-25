@@ -1,6 +1,6 @@
 import type { GroupSummary, Me } from "@shared/api-types";
 import { ChevronLeft, ChevronRight, ImageIcon, Share2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ResponsiveSheet } from "@/components/parts/ResponsiveSheet";
 import { Button } from "@/components/ui/button";
@@ -14,31 +14,54 @@ import { authorOf, formatClock, PhotoImg, useIconOnly } from "./parts";
 /** 大きく見る写真と、その写真が付いた記録 */
 export type LightboxEntry = { photo: Photo; record: MemoryRecord };
 
-/** 横になぞり始めたと見なす距離(px) */
+/** 横になぞり始めたと見なす距離(px)。境界値の理由は 0101 */
 const SWIPE_LOCK_PX = 8;
-/** 払ったと見なす速さ(px/ms)と、その最小の距離(px) */
+/** 払ったと見なす速さ(px/ms)と、その最小の距離(px)。0101 */
 const FLICK_SPEED = 0.5;
 const FLICK_MIN_PX = 24;
-/** 端で写真が動く割合。移らないので、少しだけ付いてくる */
+/** 端で写真が動く割合。0101 */
 const EDGE_RESISTANCE = 0.25;
+/** めくったあと、次の写真が入ってくる位置(px)と時間(ms)。0101 */
+const ENTER_PX = 48;
+const ENTER_MS = 200;
 
 /**
  * 写真を指で左右になぞってめくる。#303
- * 付いてくるのは transform の translateX だけ。幅の 1/4 を超えるか素早く払うと移り、足りなければ戻る。
- * 最初と最後では端で抵抗を付け、移らない。動きを減らしているときは付いてこさせず、離した瞬間に切り替える。
+ * 付いてくるのは transform の translateX だけ。移るか戻るかの境界と端の抵抗は 0101。
+ * 移ったときは transition を外し、めくった向きの反対側から次の写真を入れる。戻るときだけ transition をかける。
+ * 動きを減らしているときは付いてこさせず、離した瞬間に切り替える。
  */
 function useSwipe(index: number, count: number, onMove: (to: number) => void) {
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
+  // 戻るときだけ transition をかける。移ったときの dx の戻りは見せない
+  const [snapBack, setSnapBack] = useState(false);
+  const el = useRef<HTMLDivElement | null>(null);
+  const enter = useRef(0);
   const start = useRef<{ id: number; x: number; y: number; t: number; locked: boolean; lastX: number } | null>(null);
   const width = useRef(1);
 
-  const reset = () => {
+  const reset = (snap = true) => {
     start.current = null;
     setDragging(false);
+    setSnapBack(snap);
     setDx(0);
   };
+  // めくった向きの反対側から入ってくる。次の写真に替わった直後に 1 回だけ動かす
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 写真が替わったときだけ動かす
+  useLayoutEffect(() => {
+    const dir = enter.current;
+    enter.current = 0;
+    if (dir === 0 || reduced || !el.current?.animate) return;
+    el.current.animate(
+      [
+        { transform: `translateX(${dir * ENTER_PX}px)`, opacity: 0.3 },
+        { transform: "translateX(0)", opacity: 1 },
+      ],
+      { duration: ENTER_MS, easing: "ease-out" },
+    );
+  }, [index, reduced]);
   const offsetOf = (raw: number) => {
     const atEdge = (raw > 0 && index === 0) || (raw < 0 && index === count - 1);
     return atEdge ? raw * EDGE_RESISTANCE : raw;
@@ -46,13 +69,19 @@ function useSwipe(index: number, count: number, onMove: (to: number) => void) {
 
   const handlers = {
     onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
-      if (count < 2 || start.current) return;
+      if (count < 2) return;
+      // 写真の外で離したマウスは pointerup が届かず、古い分が残る。マウスは押すたびに捨てて取り直す
+      if (start.current) {
+        if (e.pointerType !== "mouse") return;
+        reset();
+      }
       width.current = e.currentTarget.getBoundingClientRect().width || 1;
       start.current = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, locked: false, lastX: e.clientX };
     },
     onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
       const s = start.current;
       if (!s || s.id !== e.pointerId) return;
+      if (e.pointerType === "mouse" && e.buttons === 0) return reset();
       s.lastX = e.clientX;
       const raw = e.clientX - s.x;
       if (!s.locked) {
@@ -71,20 +100,26 @@ function useSwipe(index: number, count: number, onMove: (to: number) => void) {
       const speed = Math.abs(raw) / Math.max(1, e.timeStamp - s.t);
       const far = Math.abs(raw) > width.current / 4 || (speed > FLICK_SPEED && Math.abs(raw) > FLICK_MIN_PX);
       const to = raw < 0 ? index + 1 : index - 1;
-      reset();
-      if (s.locked && far && to >= 0 && to < count) {
+      const moves = s.locked && far && to >= 0 && to < count;
+      reset(!moves);
+      if (moves) {
+        enter.current = raw < 0 ? 1 : -1;
         vibrateFlip();
         onMove(to);
       }
     },
-    onPointerCancel: reset,
+    onPointerCancel: () => reset(),
+    // 中の img から取り上げられた分(setPointerCapture で移すとき)は数えない
+    onLostPointerCapture: (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.target === e.currentTarget && start.current) reset();
+    },
   };
   const style: React.CSSProperties = {
     touchAction: "pan-y",
     transform: dx ? `translateX(${dx}px)` : undefined,
-    transition: dragging || reduced ? "none" : "transform 200ms ease-out",
+    transition: dragging || reduced || !snapBack ? "none" : "transform 200ms ease-out",
   };
-  return { handlers, style };
+  return { handlers, style, ref: el };
 }
 
 /**
@@ -145,11 +180,11 @@ export function Lightbox({
   return (
     <ResponsiveSheet title={`写真 ${index + 1} / ${entries.length}`} onClose={onClose}>
       <div className="relative">
-        <div data-testid="lightbox-photo" {...swipe.handlers} style={swipe.style}>
+        <div ref={swipe.ref} data-testid="lightbox-photo" {...swipe.handlers} style={swipe.style}>
           <PhotoImg
             photo={entry.photo}
             size="full"
-            className="max-h-[60dvh] min-h-[240px] rounded-[20px] [&_img]:object-contain"
+            className="max-h-[60dvh] min-h-[240px] rounded-[20px] [&_img]:object-contain [&_img]:pointer-events-none"
             alt={entry.record.body ?? ""}
           />
         </div>

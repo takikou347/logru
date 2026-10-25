@@ -20,6 +20,7 @@ import {
   itemPatchInput,
   memoryInput,
   memoryPatchInput,
+  onThisDayQuery,
   PHOTO_DATA_URL_PATTERN,
   PHOTO_LIMITS,
   recordInput,
@@ -29,7 +30,7 @@ import {
 import type { MemoryDetail, MemoryList } from "../shared/types";
 import { requireMemoriesGroup, usableGroupIds } from "./access";
 import { komaRoutes } from "./koma";
-import { loadRecord, loadRecords, recentRecords, toItem, toMemory } from "./load";
+import { loadRecord, loadRecords, onThisDay, recentRecords, toItem, toMemory } from "./load";
 import { isJpeg, PhotoSigner, type PhotoSize, photoKey, verifyPhotoUrl } from "./photos";
 import { memories, memoryEventExclusions, memoryItems, memoryLikes, memoryPhotos, memoryRecords } from "./schema";
 
@@ -182,6 +183,13 @@ export const memoryRoutes = createRouter()
     const { group, from, to } = c.req.valid("query");
     const groupIds = await usableGroupIds(db, c.get("user").id, group?.split(",").filter(Boolean));
     return c.json({ records: await loadRecords(db, signer(c), groupIds, from, to) });
+  })
+  // 何年か前の今日の写真。`/:id` より先に載せる。F-132、0100
+  .get("/on-this-day", zValidator("query", onThisDayQuery, validationHook), async (c) => {
+    const db = c.get("db");
+    const { day, group } = c.req.valid("query");
+    const groupIds = await usableGroupIds(db, c.get("user").id, group?.split(",").filter(Boolean));
+    return c.json(await onThisDay(db, signer(c), groupIds, day));
   })
   .post(
     "/photos",

@@ -66,6 +66,9 @@ export type MemoryRecord = {
   likes: string[];
 };
 
+/** `GET /api/memories/on-this-day` の応答。前の年以前の同じ月日で、写真のある記録 1 件。無ければ null。F-132、0100 */
+export type OnThisDay = { item: { yearsAgo: number; day: string; record: MemoryRecord } | null };
+
 /** `GET /api/memories` の応答 */
 export type MemoryList = { memories: Memory[]; recent: MemoryRecord[] };
 

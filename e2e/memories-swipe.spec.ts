@@ -34,10 +34,11 @@ async function openLightbox(page: Page) {
   return page.getByRole("dialog", { name: /写真 1 \/ 2/ });
 }
 
-/** シートが開ききり、記録の知らせが消えて、写真の位置が止まってから測る。開く途中で測ると指が写真から外れる */
+/** シートが開ききり、記録の知らせが消えて、写真の位置が落ち着いてから測る。開く途中で測ると指が写真から外れる */
 async function settledBox(page: Page, photo: Locator) {
   await expect(page.getByText("記録しました")).toBeHidden({ timeout: 15_000 });
   let box = await photo.boundingBox();
+  // 1 回の測りで済ませず、続けて同じ位置になるまで測り直す。#305
   await expect(async () => {
     await page.waitForTimeout(200);
     const now = await photo.boundingBox();
@@ -88,4 +89,23 @@ test("なぞっている途中は、写真が指に付いてずれる。#303", a
   }
   await expect.poll(async () => (await photo.boundingBox())!.x).toBeLessThan(box.x - 40);
   await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+});
+
+test("マウスで押して写真の外で離しても、次に動かしたとき写真が付いてこない。#305", async ({ page }) => {
+  const dialog = await openLightbox(page);
+  const photo = dialog.getByTestId("lightbox-photo");
+  const box = await settledBox(page, photo);
+  const y = box.y + box.height / 2;
+  const mid = box.x + box.width / 2;
+  // 短くなぞって、写真の外(写真の下)で離す。シートの外だと閉じてしまう
+  await page.mouse.move(mid, y);
+  await page.mouse.down();
+  await page.mouse.move(mid - 30, y, { steps: 4 });
+  await page.mouse.move(mid, box.y + box.height + 24, { steps: 4 });
+  await page.mouse.up();
+  // 押していないのに動かしても、写真は元の位置のまま
+  await page.mouse.move(mid, y);
+  await page.mouse.move(mid - 60, y, { steps: 4 });
+  await page.waitForTimeout(300);
+  expect((await photo.boundingBox())!.x).toBeCloseTo(box.x, 0);
 });

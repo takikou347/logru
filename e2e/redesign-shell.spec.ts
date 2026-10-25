@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { addExtension, enableOldLook, signUp } from "./helpers";
+import { expect, type Locator, type Page, test } from "@playwright/test";
+import { addExtension, enableOldLook, signUp, tokyoDateParts } from "./helpers";
 
 /**
  * 刷新 2。骨組み(上の帯、週の帯、下のタブ、「+」の放射)とアイコンだけの操作。0091、issue #239
@@ -167,6 +167,76 @@ test("家計簿のよく使う記録があると、「+」の上にカードで�
   const sheet = page.getByRole("dialog", { name: "記録する" });
   await expect(sheet.getByLabel("金額")).toHaveValue("900");
   await expect(sheet.getByRole("radio", { name: "食費", checked: true })).toBeVisible();
+});
+
+/** 長押し(0.5 秒)の操作。押したままにして離す */
+async function holdOn(page: Page, target: Locator) {
+  const box = await target.boundingBox();
+  if (!box) throw new Error("押す先の位置が取れません");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(700);
+  await page.mouse.up();
+}
+
+/** 食費のよく使う記録を作る。amount が null なら金額を持たない記録にする */
+async function makeTemplate(page: Page, name: string, amount: string | null) {
+  await page.goto("/kakeibo?record=1");
+  const create = page.getByRole("dialog", { name: "記録する" });
+  if (amount) await create.getByLabel("金額").fill(amount);
+  await create.getByRole("radio", { name: "食費" }).click();
+  await create.getByRole("button", { name: "よく使う記録にする" }).click();
+  await create.getByLabel("よく使う記録の名前").fill(name);
+  await create.getByRole("button", { name: "残す" }).click();
+  await expect(page.getByText("よく使う記録にしました")).toBeVisible();
+}
+
+async function openFavorite(page: Page, name: RegExp): Promise<Locator> {
+  await page.goto("/");
+  await page.getByRole("navigation", { name: "下のタブ" }).getByRole("button", { name: "記録する" }).click();
+  return page.getByRole("group", { name: "よく使う記録" }).getByRole("button", { name });
+}
+
+test("金額を持つよく使う記録は、弧のカードを長押しするとシートを開かず今日の日付で保存し、元に戻すで消せる(F-331)", async ({
+  page,
+}) => {
+  await addExtension(page, "家計簿");
+  await makeTemplate(page, "コーヒー", "450");
+  await holdOn(page, await openFavorite(page, /コーヒー/));
+
+  await expect(page.getByText("コーヒー 450 円を記録した")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "記録する" })).toBeHidden();
+
+  // 保存された記録は、日本時間の今日の日付で家計簿に入っている
+  await page.goto("/kakeibo");
+  await page.getByRole("button", { name: /¥450/ }).click();
+  await expect(page.getByRole("dialog", { name: "記録を直す" }).getByLabel("日付")).toHaveValue(tokyoDateParts().key);
+});
+
+test("長押しで保存した記録は、知らせの「元に戻す」で消える(F-331)", async ({ page }) => {
+  await addExtension(page, "家計簿");
+  await makeTemplate(page, "コーヒー", "450");
+  await holdOn(page, await openFavorite(page, /コーヒー/));
+  await page.getByRole("button", { name: "元に戻す" }).click();
+  await expect(page.getByRole("button", { name: "元に戻す" })).toBeHidden();
+  await page.goto("/kakeibo");
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("button", { name: /¥450/ })).toBeHidden();
+});
+
+test("よく使う記録のカードは、短く押すだけなら今までどおりシートが開く", async ({ page }) => {
+  await addExtension(page, "家計簿");
+  await makeTemplate(page, "コーヒー", "450");
+  await (await openFavorite(page, /コーヒー/)).click();
+  await expect(page.getByRole("dialog", { name: "記録する" }).getByLabel("金額")).toHaveValue("450");
+});
+
+test("金額を持たないよく使う記録は、長押ししても保存せずシートを開く", async ({ page }) => {
+  await addExtension(page, "家計簿");
+  await makeTemplate(page, "ランチ", null);
+  await holdOn(page, await openFavorite(page, /ランチ/));
+  await expect(page.getByRole("dialog", { name: "記録する" })).toBeVisible();
+  await expect(page.getByText("を記録した")).toBeHidden();
 });
 
 test("新しい見た目・スマホでも、カレンダータブでは上の帯の近くのアイコンだけの切り替えで週・日表示に移れる", async ({

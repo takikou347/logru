@@ -48,7 +48,8 @@ export function quickSaveInput(
     date,
     amount: t.amount,
     category: t.category,
-    accountId: t.accountId,
+    // 自分だけのグループに替えたときは、元のグループの口座を持ち込まない(サーバーが 400 で止める)
+    accountId: group.id === t.groupId ? t.accountId : null,
     memo: t.memo,
   };
   if (group.isPersonal || t.type !== "expense") return base;

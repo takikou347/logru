@@ -49,4 +49,10 @@ describe("quickSaveInput(長押しの一発保存)", () => {
   it("使えなくなったグループは自分だけに戻す", () => {
     expect(quickSaveInput({ ...base, groupId: "gone" }, groups, "u1", "2026-10-25")?.groupId).toBe("me");
   });
+
+  it("自分だけに戻したときは、元のグループの口座を持ち込まない", () => {
+    expect(
+      quickSaveInput({ ...base, groupId: "gone", accountId: "a1" }, groups, "u1", "2026-10-25")?.accountId,
+    ).toBeNull();
+  });
 });

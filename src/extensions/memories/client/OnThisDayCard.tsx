@@ -24,7 +24,9 @@ export function OnThisDayCard({ date, isToday }: { date: Date; isToday: boolean 
   const { data } = useOnThisDay(day, isToday);
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
   const touch = useMediaQuery("(pointer: coarse)");
-  const [flipped, setFlipped] = useState(false);
+  // 裏返した日を覚える。開いたまま日が変わると、次の日の札は伏せた状態で出る
+  const [flippedDay, setFlippedDay] = useState<string | null>(null);
+  const flipped = flippedDay === day;
   const { offset, requestOnce } = useDeviceTilt(touch && !reduced);
   if (!isToday || !data) return null;
   const photo = data.record.photos[0];
@@ -46,7 +48,7 @@ export function OnThisDayCard({ date, isToday }: { date: Date; isToday: boolean 
           onClick={() => {
             requestOnce();
             vibrateFlip();
-            setFlipped(true);
+            setFlippedDay(day);
           }}
           className="flex size-full flex-col items-center justify-center gap-2 border border-line bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-ink"
         >

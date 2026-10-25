@@ -101,7 +101,17 @@ export type ExtensionAction = { label: string; icon: LucideIcon; path: string; h
  * 「+」の放射の上に出す、よく使う記録 1 つ。押すと、その記録が入った状態でシートが開く。0091、issue #239
  * 例は家計簿のよく使う記録(F-326)。使用頻度を数える仕組みは無いので、拡張が持つ並びをそのまま使う
  */
-export type FavoriteAdd = { key: string; label: string; icon?: LucideIcon; path: string };
+export type FavoriteAdd = {
+  key: string;
+  label: string;
+  icon?: LucideIcon;
+  path: string;
+  /**
+   * 長押しで、シートを開かずにそのまま保存する処理。持つのは、1 回で保存できるだけ欄が埋まっている記録だけ。
+   * 無ければ、長押ししても押したときと同じ(path のシートが開く)。0102、issue #312
+   */
+  quickSave?: () => Promise<void>;
+};
 
 /**
  * 今日のページの節が受け取るもの。0092、issue #240
@@ -209,7 +219,7 @@ export type ClientExtension = {
    */
   useShortcut?: (enabled: boolean) => ExtensionShortcut | null;
   /**
-   * 今日のページを開いたとき、紙吹雪で祝う日かを返す hook。例は誕生日・記念日の当日。F-412、0098
+   * 今日のページを開いたとき、紙吹雪で祝う日かを返す hook。例は誕生日・記念日の当日。F-49、0098
    * useShortcut と同じ理由で、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ
    */
   useCelebration?: (enabled: boolean) => boolean;
@@ -227,6 +237,10 @@ export type ClientExtension = {
    * 今日のページの節の中身。無ければ、その日の項目(dayItems)をそのまま一覧で見せる既定の節を使う。0092、issue #240
    */
   today?: TodaySection;
+  /**
+   * 今日のページの節の、中身の上に足す 1 枚(札など)。節が開いているときだけ出す。何を出すかは拡張が決める。0100
+   */
+  TodayTop?: ComponentType<{ date: Date; isToday: boolean }>;
   /**
    * 今日のページで、この節を畳んだときの要約。7 文字ほどを目安に返す。無ければ、その日の項目の件数を使う。
    * hook なので、呼ぶ順を変えないよう拡張の一覧の順にいつも呼ぶ。0092、issue #240

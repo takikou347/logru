@@ -23,7 +23,7 @@ function stubStorage(store: Record<string, string>) {
   });
 }
 
-describe("紙吹雪の印。F-412、0098", () => {
+describe("紙吹雪の印。F-49、0098", () => {
   it("同じ日は 1 度出したら 2 回目を出さず、別の日は出す", () => {
     stubStorage({});
     expect(confettiShown("2026-10-12")).toBe(false);
@@ -46,7 +46,7 @@ describe("紙吹雪の印。F-412、0098", () => {
   });
 });
 
-describe("動きを減らす設定。F-412", () => {
+describe("動きを減らす設定。F-49", () => {
   it("OS が動きを減らす設定のときだけ true", () => {
     vi.stubGlobal("window", { matchMedia: () => ({ matches: true }) });
     expect(reducedMotionNow()).toBe(true);

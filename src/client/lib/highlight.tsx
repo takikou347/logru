@@ -1,13 +1,14 @@
 /**
  * 探した文字を、結果の中で `<mark>` で囲む。
- * 大文字と小文字、全角と半角は区別しない(NFKC と toLowerCase でそろえる)。
+ * 大文字と小文字、全角と半角は区別しない(NFKD と toLowerCase でそろえる)。
+ * NFKD にするので、濁点・半濁点の有無も区別しない(「ﾊ」で「ﾊﾟ」に印が付く)。#305
  */
 
 export type Segment = { text: string; match: boolean };
 
-const fold = (s: string) => s.normalize("NFKC").toLowerCase();
+const fold = (s: string) => s.normalize("NFKD").toLowerCase();
 
-/** 濁点や結合文字は、前の文字と一緒に NFKC をかけないと 1 文字にそろわない */
+/** 濁点や結合文字は、前の文字と同じ塊にして、塊ごとにそろえる */
 const MARK = /^[\p{M}\uFF9E\uFF9F]$/u;
 function clusters(text: string): string[] {
   const out: string[] = [];
@@ -20,7 +21,7 @@ function clusters(text: string): string[] {
 
 /**
  * text を、query に一致する所と、しない所に分ける。位置は元の text のまま返す。
- * NFKC で長さが変わる文字(㈱、ﾊﾟ など)があっても、元の文字を割らない。
+ * NFKD で長さが変わる文字(㈱、ﾊﾟ など)があっても、元の文字を割らない。
  * 一致が無い、query が空のときは全体を 1 つ返す。
  */
 export function splitByMatch(text: string, query: string): Segment[] {
@@ -62,7 +63,7 @@ export function splitByMatch(text: string, query: string): Segment[] {
   return segments;
 }
 
-/** 一致した所を `<mark>` で囲んで返す。色は --accent の薄い色、文字の色は変えない */
+/** 一致した所を `<mark>` で囲んで返す。色は --accent の 40% と、同じ色の下線。文字の色は変えない。ダークで背景だけだと見えない。#305 */
 export function Highlight({ text, query }: { text: string; query: string }) {
   const segments = splitByMatch(text, query);
   if (segments.length === 1 && !segments[0]?.match) return <>{text}</>;
@@ -70,7 +71,10 @@ export function Highlight({ text, query }: { text: string; query: string }) {
     <>
       {segments.map((s, i) =>
         s.match ? (
-          <mark key={i} className="rounded-xs bg-[color-mix(in_srgb,var(--accent)_28%,transparent)] text-inherit">
+          <mark
+            key={i}
+            className="rounded-xs bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-inherit underline decoration-[var(--accent)] decoration-2 underline-offset-2"
+          >
             {s.text}
           </mark>
         ) : (

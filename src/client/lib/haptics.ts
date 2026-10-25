@@ -32,7 +32,7 @@ export function vibrateFlip(): void {
   vibrate(FLIP_MS);
 }
 
-/** 誕生日・記念日の紙吹雪に添える、2 度の短い震え。動きを減らしているときと非対応端末では何もしない。F-412、0098 */
+/** 誕生日・記念日の紙吹雪に添える、2 度の短い震え。動きを減らしているときと非対応端末では何もしない。F-49、0098 */
 export function vibrateCelebrate(): void {
   vibrate([30, 60, 30]);
 }

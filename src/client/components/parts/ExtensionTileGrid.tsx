@@ -71,7 +71,7 @@ function ExtensionLinkTile({
   // タイルを押すと、その面がそのまま機能の画面に広がる動き(共有要素)。0044、0093、issue #241
   const boxExpandActive = useBoxExpandActive();
   const onClick = (e: MouseEvent<HTMLAnchorElement>) => {
-    if (boxExpandActive) markBoxExpandSource(e.currentTarget);
+    if (boxExpandActive) markBoxExpandSource(e.currentTarget, `tile-${ext.manifest.key}`, tileTo(ext));
     onNavigate?.();
   };
   return (
@@ -79,6 +79,7 @@ function ExtensionLinkTile({
       to={tileTo(ext)}
       viewTransition={boxExpandActive}
       onClick={onClick}
+      data-box-source={`tile-${ext.manifest.key}`}
       data-testid={`extension-tile-${ext.manifest.key}`}
       className={cn(
         "flex min-w-0 flex-col items-center gap-1.5 text-center text-ink no-underline",

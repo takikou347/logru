@@ -67,7 +67,7 @@ describe("vibrateTick。#278", () => {
   });
 });
 
-describe("vibrateCelebrate。F-412", () => {
+describe("vibrateCelebrate。F-49", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });

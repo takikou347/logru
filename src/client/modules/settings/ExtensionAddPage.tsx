@@ -15,19 +15,19 @@ import { SettingsShell } from "./components/SettingsShell";
 import { useSetExtensionEnabled } from "./extensions-api";
 
 /**
- * 1 件のカード。見本の画像は無いので、アイコンで代える。0052
- * 色は拡張ごとに変えない。色はグループだけに使う決まり(0056)のため、テーマカラー 1 色にそろえる。issue #15
+ * 1 件のカード。見本の画像は無いので、名前を題にする。アイコンは色の四角に入れず、名前の横に置く。0052、0099
+ * 色は拡張ごとに変えない。色はグループだけに使う決まり(0056)のため。issue #15
  */
 function AddableExtensionCard({ ext, pending, onAdd }: { ext: ClientExtension; pending: boolean; onAdd: () => void }) {
   const Icon = extensionIcon(ext.manifest.key);
   return (
     <Panel aria-label={ext.manifest.label}>
       <div className="flex items-center gap-3">
-        <span className="grid size-14 flex-none place-items-center rounded-2xl bg-primary/15" aria-hidden="true">
-          <Icon className="size-6 text-primary" />
-        </span>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-[17px] font-bold">{ext.manifest.label}</span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="flex items-center gap-1.5 text-[17px] font-bold">
+            <Icon className="size-4.5 flex-none text-ink-2" aria-hidden="true" />
+            {ext.manifest.label}
+          </span>
           <span className="text-[13px] leading-relaxed text-ink-2">{ext.manifest.description}</span>
         </div>
         <Button size="sm" disabled={pending} onClick={onAdd}>

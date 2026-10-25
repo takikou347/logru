@@ -44,7 +44,7 @@ export function daysUntilLabel(occurrenceAt: number): string {
 }
 
 /**
- * 今日が誕生日・記念日の当日か。今日のページの紙吹雪の合図。F-412、0098
+ * 今日が誕生日・記念日の当日か。今日のページの紙吹雪の合図。F-49、0098
  * 近道の帯と同じ問い合わせを使う(キャッシュを共有する)。次の回が今日なら true
  */
 export function useAnniversaryToday(enabled: boolean): boolean {

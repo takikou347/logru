@@ -56,13 +56,13 @@ import { DayFlipDeck } from "./components/DayFlipDeck";
 import { FoldedFeatureGrid } from "./components/FoldedFeatureGrid";
 import { TodaySectionCard } from "./components/TodaySectionCard";
 
-/** 見出しの日付・曜日・機能の 1 行。0092、issue #240 */
+/** 見出しの日付・曜日・機能の 1 行。日付はこの画面でただ 1 つの大きな字。0092、0099、issue #240 */
 function DayHeading({ date, headline }: { date: Date; headline: string | null }) {
   const hol = holidayName(date);
   return (
     <div className="px-1 py-1" data-tour="today-swipe">
       <div className="flex items-baseline gap-2">
-        <span data-testid="today-day-number" className="text-[44px] leading-none font-bold tracking-[-0.02em]">
+        <span data-testid="today-day-number" className="display-1">
           {date.getDate()}
         </span>
         <span className="text-base font-bold text-ink-2">{WEEKDAYS[date.getDay()]}曜</span>
@@ -156,7 +156,7 @@ function TodayDayContent({
 }
 
 /**
- * 今日が誕生日・記念日の当日なら、今日のページを開いたとき 1 回だけ紙吹雪を降らせる。F-412、0098
+ * 今日が誕生日・記念日の当日なら、今日のページを開いたとき 1 回だけ紙吹雪を降らせる。F-49、0098
  * 見ている日が今日のときだけ。動きを減らす設定では出さず、同じ日の 2 回目以降も出さない(端末の印)。
  */
 function useBirthdayConfetti(viewingToday: boolean, today: Date) {

@@ -5,6 +5,7 @@ import { describeMemoriesNotification } from "../shared/notifications";
 import { KomaHomeWidget, RecordHomeWidget } from "./HomeWidget";
 import { MemoryItemSheet } from "./MemoryItemSheet";
 import { MemoryLinkField } from "./MemoryLinkField";
+import { OnThisDayCard } from "./OnThisDayCard";
 import { useKomaShortcut } from "./shortcut";
 
 /**
@@ -21,6 +22,8 @@ export const memoriesClient: ClientExtension = {
     { label: "ひとコマ", icon: Timer, path: "/memories/koma", hint: "1 時間に 1 枚" },
   ],
   useShortcut: useKomaShortcut,
+  // 今日のページの思い出の節に、何年か前の今日の札を出す。F-132、0100
+  TodayTop: OnThisDayCard,
   notifies: "ひとコマの時間",
   describeNotification: describeMemoriesNotification,
   itemAddons: [{ extension: "events", Component: MemoryLinkField }],

@@ -447,7 +447,7 @@ export function CalendarPage() {
       {!editingHome && (
         <header className="nl-hide glass flex min-h-[58px] flex-wrap items-center gap-x-2 gap-y-1 rounded-panel py-1.5 pr-1.5 pl-4 lg:flex-nowrap lg:pl-5">
           <h1 className="flex shrink-0 items-baseline gap-1" aria-live="polite">
-            <span data-testid="month-number" className="text-[38px] leading-none font-bold">
+            <span data-testid="month-number" className="display-2">
               {selected.getMonth() + 1}
             </span>
             <span className="text-[17px] font-bold">月</span>
@@ -510,7 +510,7 @@ export function CalendarPage() {
           */}
           <div className="nl-only items-center justify-between gap-2 px-2" data-testid="nl-month-bar">
             <h1 className="flex items-baseline gap-2" aria-live="polite">
-              <span data-testid="nl-month-title" className="text-[34px] leading-none font-bold">
+              <span data-testid="nl-month-title" className="display-2">
                 {selected.getMonth() + 1}月
               </span>
               <span className="text-[17px] font-medium text-ink-2">{selected.getFullYear()}</span>

@@ -302,11 +302,12 @@ function FeatureStep({ addableKeys, groupId }: { addableKeys: Set<string>; group
               aria-label={ext.manifest.label}
               className="flex items-center gap-3 rounded-2xl bg-field px-3 py-2.5"
             >
-              <span aria-hidden="true" className="grid size-11 flex-none place-items-center rounded-full bg-primary/15">
-                <Icon className="size-5 text-primary" />
-              </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold">{ext.manifest.label}</p>
+                {/* アイコンは色の丸に入れず、名前の横に置く。0099 */}
+                <p className="flex items-center gap-1.5 text-sm font-bold">
+                  <Icon className="size-4 flex-none text-ink-2" aria-hidden="true" />
+                  {ext.manifest.label}
+                </p>
                 <p className="text-xs leading-relaxed text-ink-2">{ext.manifest.description}</p>
               </div>
               {done ? (

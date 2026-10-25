@@ -2,8 +2,10 @@
 
 import { readByChunk } from "@server/core/db/chunk";
 import type { DB } from "@server/core/db/client";
-import { and, asc, count, desc, eq, gte, inArray, lt } from "drizzle-orm";
-import type { Memory, MemoryItem, MemoryRecord } from "../shared/types";
+import { and, asc, count, desc, eq, gte, inArray, lt, or } from "drizzle-orm";
+import { DAY_MS, DEFAULT_TIME_ZONE, dayKeyIn, startOfDayIn } from "../shared/days";
+import { ON_THIS_DAY_YEARS } from "../shared/schemas";
+import type { Memory, MemoryItem, MemoryRecord, OnThisDay } from "../shared/types";
 import type { PhotoSigner } from "./photos";
 import {
   type MemoryItemRow,
@@ -184,4 +186,53 @@ export function toItem(r: MemoryItemRow): MemoryItem {
     doneBy: r.doneBy,
     createdBy: r.createdBy,
   };
+}
+
+/**
+ * 前の年以前の同じ月日で、写真のある記録を、新しい年から探して 1 件返す。F-132、0100
+ * うるう日(2/29)は、その日が無い年を飛ばす。
+ * @param db D1 を包んだ Drizzle
+ * @param signer 写真の URL を作るもの
+ * @param groupIds 読んでよいグループ
+ * @param day 今日の日付。`2026-10-25` の形(日本時間)
+ */
+export async function onThisDay(db: DB, signer: PhotoSigner, groupIds: string[], day: string): Promise<OnThisDay> {
+  if (groupIds.length === 0) return { item: null };
+  const year = Number(day.slice(0, 4));
+  const monthDay = day.slice(4);
+  const years: { key: string; from: number; yearsAgo: number }[] = [];
+  for (let n = 1; n <= ON_THIS_DAY_YEARS; n++) {
+    const key = `${year - n}${monthDay}`;
+    const from = startOfDayIn(key, DEFAULT_TIME_ZONE);
+    if (dayKeyIn(from, DEFAULT_TIME_ZONE) === key) years.push({ key, from, yearsAgo: n });
+  }
+  if (years.length === 0) return { item: null };
+  const withPhoto = db
+    .select({ id: memoryPhotos.recordId })
+    .from(memoryPhotos)
+    .where(inArray(memoryPhotos.groupId, groupIds));
+  const rows = await db
+    .select()
+    .from(memoryRecords)
+    .where(
+      and(
+        inArray(memoryRecords.groupId, groupIds),
+        inArray(memoryRecords.id, withPhoto),
+        or(
+          ...years.map((y) =>
+            and(
+              gte(memoryRecords.occurredAt, new Date(y.from)),
+              lt(memoryRecords.occurredAt, new Date(y.from + DAY_MS)),
+            ),
+          ),
+        ),
+      ),
+    )
+    .orderBy(desc(memoryRecords.occurredAt))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return { item: null };
+  const hit = years.find((y) => row.occurredAt.getTime() >= y.from && row.occurredAt.getTime() < y.from + DAY_MS)!;
+  const [record] = await withPhotos(db, signer, [row]);
+  return { item: { yearsAgo: hit.yearsAgo, day: hit.key, record: record! } };
 }

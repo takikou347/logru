@@ -7,9 +7,11 @@
  * View Transitions が「古い見た目」を捉えるタイミング(startViewTransition を呼んだ瞬間の DOM)に
  * 間に合わない。
  *
- * 「戻る」側は、この PR では対象に含めない。行き先の画面の面は、いる間ずっと名前を持ち続けるので
- * 害はないが、戻るボタンは前の画面の記録(#70)を通じて history を辿るだけの作りで、
- * navigate に viewTransition を渡せる形になっていない。困ること、issue #241 のコメント
+ * 「戻る」(issue #311)は、押した要素の key と行き先のパスをここに覚えておき、戻るボタン(useBack)が
+ * navigate(-n) を document.startViewTransition で包む。react-router の navigate(delta) は
+ * viewTransition を持てないため、自分で包む。戻った先に同じ key の要素(data-box-source)が
+ * あるときだけ、その要素に名前を付けて縮んで戻す。無ければ今までどおり切り替わるだけ。
+ * ブラウザーの戻る(端からのスワイプ)は popstate の時点で古い見た目を捉えられないので対象外
  */
 import { useExpandMotionActive } from "@/lib/expand-motion-active";
 
@@ -19,10 +21,33 @@ export const BOX_EXPAND_NAME = NAME;
 
 let pending = false;
 
-/** 節の見出し・機能のタイルを押した瞬間に呼ぶ。要素に名前を付け、行き先が読む合図を立てる */
-export function markBoxExpandSource(el: HTMLElement): void {
+/** 押した要素の key(data-box-source の値)、押した画面と行き先のパス。戻るときに使う */
+let source: { key: string; fromPath: string; toPath: string } | null = null;
+
+/**
+ * 節の見出し・機能のタイルを押した瞬間に呼ぶ。要素に名前を付け、行き先が読む合図を立てる
+ * @param key 戻ったとき、同じ要素を data-box-source で探すための値
+ * @param toPath 行き先のパス
+ */
+export function markBoxExpandSource(el: HTMLElement, key: string, toPath: string): void {
   el.style.viewTransitionName = NAME;
   pending = true;
+  source = { key, fromPath: window.location.pathname, toPath };
+}
+
+/** 戻る先のパスが押した画面で、いまが行き先の画面なら、押した要素の key を返す。違えば null */
+export function boxExpandReturnKey(currentPath: string, targetPath: string): string | null {
+  if (!source || source.toPath !== currentPath || source.fromPath !== targetPath) return null;
+  // 行き先の面が名前を持っていないとき(別の道で開き直した画面)は動かさない
+  if (!document.querySelector(`[data-box-page][style*="${NAME}"]`)) return null;
+  return source.key;
+}
+
+/** 戻った先で、押した要素に名前を付ける。見つからなければ false(今までどおり切り替わるだけ) */
+export function applyBoxExpandReturn(key: string): HTMLElement | null {
+  const el = document.querySelector<HTMLElement>(`[data-box-source="${CSS.escape(key)}"]`);
+  if (el) el.style.viewTransitionName = NAME;
+  return el;
 }
 
 /**

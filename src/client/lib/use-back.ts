@@ -12,6 +12,7 @@
 import type { MouseEvent } from "react";
 import { useCallback, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { applyBoxExpandReturn, boxExpandReturnKey, useBoxExpandActive } from "@/lib/box-expand";
 
 type ScreenEntry = { idx: number; pathname: string };
 
@@ -22,6 +23,9 @@ function historyIdx(): number | null {
 }
 
 const screenStack: ScreenEntry[] = [];
+
+/** 戻る動き(View Transition)の中で、戻り先の画面が描画されるのを待っている resolve。issue #311 */
+let screenReady: (() => void) | null = null;
 
 function recordScreen(pathname: string) {
   const idx = historyIdx();
@@ -48,6 +52,10 @@ export function useRecordScreen(): void {
   const { pathname } = useLocation();
   useEffect(() => {
     recordScreen(pathname);
+    // 戻る動きを待っているなら、戻り先の画面が描画された(DOM が揃った)ので続きを通す
+    const ready = screenReady;
+    screenReady = null;
+    ready?.();
   }, [pathname]);
 }
 
@@ -61,6 +69,42 @@ export function useBack(fallback: string): { to: string; onClick: (e?: MouseEven
   useRecordScreen();
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const boxExpandActive = useBoxExpandActive();
+
+  /**
+   * navigate(delta) を、押した節・タイルへ縮んで戻る動きで包む。issue #311
+   * navigate(delta) は history.go で非同期に画面が替わるため、View Transition の更新関数が
+   * 戻り先の描画を待つ Promise を返し、描画後に押した要素へ名前を付ける。無ければ素の navigate
+   */
+  const goWithMotion = useCallback(
+    (delta: number, targetPath: string) => {
+      const key = boxExpandActive ? boxExpandReturnKey(pathname, targetPath) : null;
+      if (key === null) {
+        navigate(delta);
+        return;
+      }
+      const transition = document.startViewTransition(
+        () =>
+          new Promise<void>((resolve) => {
+            const timer = window.setTimeout(done, 600);
+            function done() {
+              window.clearTimeout(timer);
+              screenReady = null;
+              applyBoxExpandReturn(key!);
+              resolve();
+            }
+            screenReady = done;
+            navigate(delta);
+          }),
+      );
+      // 動きが終わったら名前を外す(次に別の動きの邪魔をしない)
+      void transition.finished.finally(() => {
+        const el = document.querySelector<HTMLElement>(`[data-box-source="${CSS.escape(key)}"]`);
+        if (el) el.style.viewTransitionName = "";
+      });
+    },
+    [boxExpandActive, navigate, pathname],
+  );
 
   const onClick = useCallback(
     (e?: MouseEvent) => {
@@ -70,14 +114,14 @@ export function useBack(fallback: string): { to: string; onClick: (e?: MouseEven
         for (let i = screenStack.length - 1; i >= 0; i--) {
           const entry = screenStack[i]!;
           if (entry.idx < idx && entry.pathname !== pathname) {
-            navigate(-(idx - entry.idx));
+            goWithMotion(-(idx - entry.idx), entry.pathname);
             return;
           }
         }
       }
       navigate(fallback);
     },
-    [fallback, navigate, pathname],
+    [fallback, goWithMotion, navigate, pathname],
   );
 
   return { to: fallback, onClick };

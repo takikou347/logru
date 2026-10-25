@@ -183,6 +183,7 @@ export function Page({ children }: { children: ReactNode }) {
   return (
     <div
       className="flex w-full max-w-[640px] flex-col gap-3"
+      data-box-page={named ? "" : undefined}
       style={named ? { viewTransitionName: BOX_EXPAND_NAME } : undefined}
     >
       {children}

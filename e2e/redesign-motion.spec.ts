@@ -118,6 +118,36 @@ test("節の見出しを押すと機能の画面へ広がる動きの名前が�
   await expect(page.getByTestId("today-section-kakeibo")).toBeVisible();
 });
 
+test("戻るボタンで機能の画面から戻ると、押した節の見出しが縮んで戻る動きの名前を持つ。#311", async ({ page }) => {
+  // View Transition の更新関数が終わった直後に、押した要素が名前を持っていたかを記録する
+  await page.addInitScript(() => {
+    const w = window as unknown as { __vtNamed: number[] };
+    w.__vtNamed = [];
+    const orig = document.startViewTransition.bind(document);
+    document.startViewTransition = ((cb?: () => unknown) =>
+      orig(async () => {
+        await cb?.();
+        w.__vtNamed.push(document.querySelectorAll('[data-box-source][style*="box-expand"]').length);
+      })) as typeof document.startViewTransition;
+  });
+  await signUp(page, { name: "こた" });
+  await addExtension(page, "家計簿");
+
+  await page.goto("/");
+  await page.getByTestId("today-section-kakeibo").getByRole("link", { name: "家計簿" }).click();
+  await expect(page).toHaveURL(/\/kakeibo$/);
+  await expect(page.locator('[style*="box-expand"]')).toHaveCount(1);
+
+  await page.getByRole("link", { name: "戻る" }).click();
+  await expect(page).toHaveURL("/");
+  await expect(page.getByTestId("today-section-kakeibo")).toBeVisible();
+  const named = await page.evaluate(() => (window as unknown as { __vtNamed: number[] }).__vtNamed);
+  // 最後の記録(戻る)で、戻った先の見出しが名前を持っていた
+  expect(named[named.length - 1]).toBe(1);
+  // 動きが終わると名前は外れる
+  await expect(page.locator('[style*="box-expand"]')).toHaveCount(0);
+});
+
 test("機能のタイルを押すと機能の画面へ広がる動きの名前が付く", async ({ page }) => {
   await signUp(page, { name: "こた" });
   await addExtension(page, "家計簿");

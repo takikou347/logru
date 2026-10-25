@@ -44,7 +44,7 @@ export function TodaySectionCard({
   // 節の見出しを押すと、その面がそのまま機能の画面に広がる動き(共有要素)。0044、0093、issue #241
   const boxExpandActive = useBoxExpandActive();
   const onNavClick = (e: MouseEvent<HTMLAnchorElement>) => {
-    if (boxExpandActive) markBoxExpandSource(e.currentTarget);
+    if (boxExpandActive) markBoxExpandSource(e.currentTarget, `section-${ext.manifest.key}`, ext.nav?.path ?? "");
   };
   return (
     <section
@@ -58,6 +58,7 @@ export function TodaySectionCard({
             to={ext.nav.path}
             viewTransition={boxExpandActive}
             onClick={onNavClick}
+            data-box-source={`section-${ext.manifest.key}`}
             className="min-w-0 truncate text-sm font-bold text-ink no-underline"
           >
             {label}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { sameDay, startOfDay } from "./dates";
 
 const CHECK_MS = 60_000;
@@ -21,16 +21,45 @@ export function watchDayChange(onCheck: () => void): () => void {
   };
 }
 
-/** 今日の 0 時。画面を開いたまま日付が変わったら追いかける。今日のページとカレンダーが使う */
+let current = startOfDay(new Date());
+const listeners = new Set<() => void>();
+let stopWatching: (() => void) | null = null;
+
+function refresh(): boolean {
+  const now = startOfDay(new Date());
+  if (sameDay(current, now)) return false;
+  current = now;
+  return true;
+}
+
+/** 日付を確かめ、変わっていれば購読している全員に知らせる */
+function checkToday() {
+  if (refresh()) for (const l of [...listeners]) l();
+}
+
+/** 今日の 0 時を見張る購読。見張りは画面全体で 1 本だけで、最初の購読で始まり、最後の購読で止まる */
+export function subscribeToday(listener: () => void): () => void {
+  if (listeners.size === 0) refresh();
+  listeners.add(listener);
+  if (listeners.size === 1) {
+    stopWatching = watchDayChange(checkToday);
+  }
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) {
+      stopWatching?.();
+      stopWatching = null;
+    }
+  };
+}
+
+/** 今の今日の 0 時。誰も見張っていない間に日が変わっていても、読むときに追いつく */
+export function getToday(): Date {
+  if (listeners.size === 0) refresh();
+  return current;
+}
+
+/** 今日の 0 時。画面を開いたまま日付が変わったら追いかける。今日のページとカレンダーと予定の近道が使う。#305 */
 export function useToday(): Date {
-  const [today, setToday] = useState(() => startOfDay(new Date()));
-  useEffect(
-    () =>
-      watchDayChange(() => {
-        const now = startOfDay(new Date());
-        setToday((t) => (sameDay(t, now) ? t : now));
-      }),
-    [],
-  );
-  return today;
+  return useSyncExternalStore(subscribeToday, getToday);
 }

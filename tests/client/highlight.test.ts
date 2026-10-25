@@ -21,6 +21,9 @@ describe("splitByMatch。探した文字を目立たせる", () => {
     expect(splitByMatch("a㈱b", "株")).toEqual([n("a"), m("㈱"), n("b")]);
     // 半角カナの濁点は 1 文字にそろう
     expect(splitByMatch("ﾊﾟｰﾃｨｰ", "パ")).toEqual([m("ﾊﾟ"), n("ｰﾃｨｰ")]);
+    // 濁点の前までで探しても、その文字ごと囲む。#305
+    expect(splitByMatch("ﾊﾟｰﾃｨｰ", "ﾊ")).toEqual([m("ﾊﾟ"), n("ｰﾃｨｰ")]);
+    expect(splitByMatch("パーティー", "ﾊ")).toEqual([m("パ"), n("ーティー")]);
   });
   it("何度も出れば全部囲む", () => {
     expect(splitByMatch("abab", "ab")).toEqual([m("ab"), m("ab")]);

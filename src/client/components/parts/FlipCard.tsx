@@ -26,36 +26,40 @@ export function FlipCard({
   className?: string;
 }) {
   const face = "absolute inset-0 overflow-hidden rounded-[20px]";
-  const turn = reduced ? "none" : `rotateX(${tiltX}deg) rotateY(${tiltY + (flipped ? 180 : 0)}deg)`;
+  // 傾きは外側、裏返しは内側。transition は裏返しの内側だけにかけ、傾きは指に遅れず付いてくる
+  const tilt = reduced ? "none" : `rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+  const turn = reduced ? "none" : `rotateY(${flipped ? 180 : 0}deg)`;
   return (
     <div className={cn("relative [perspective:900px]", className)}>
-      <div
-        data-testid="flip-card"
-        data-flipped={flipped}
-        className="relative size-full"
-        style={{
-          transformStyle: reduced ? "flat" : "preserve-3d",
-          transform: turn,
-          transition: reduced ? "none" : "transform calc(var(--dur-slow) * 2) var(--ease-out, ease-out)",
-        }}
-      >
+      <div className="size-full" style={{ transformStyle: reduced ? "flat" : "preserve-3d", transform: tilt }}>
         <div
-          inert={flipped}
-          className={cn(face, reduced && "transition-opacity duration-base")}
-          style={{ backfaceVisibility: "hidden", opacity: reduced && flipped ? 0 : 1 }}
-        >
-          {front}
-        </div>
-        <div
-          inert={!flipped}
-          className={cn(face, reduced && "transition-opacity duration-base")}
+          data-testid="flip-card"
+          data-flipped={flipped}
+          className="relative size-full"
           style={{
-            backfaceVisibility: "hidden",
-            transform: reduced ? "none" : "rotateY(180deg)",
-            opacity: reduced && !flipped ? 0 : 1,
+            transformStyle: reduced ? "flat" : "preserve-3d",
+            transform: turn,
+            transition: reduced ? "none" : "transform calc(var(--dur-slow) * 2) var(--ease-out, ease-out)",
           }}
         >
-          {back}
+          <div
+            inert={flipped}
+            className={cn(face, reduced && "transition-opacity duration-base")}
+            style={{ backfaceVisibility: "hidden", opacity: reduced && flipped ? 0 : 1 }}
+          >
+            {front}
+          </div>
+          <div
+            inert={!flipped}
+            className={cn(face, reduced && "transition-opacity duration-base")}
+            style={{
+              backfaceVisibility: "hidden",
+              transform: reduced ? "none" : "rotateY(180deg)",
+              opacity: reduced && !flipped ? 0 : 1,
+            }}
+          >
+            {back}
+          </div>
         </div>
       </div>
     </div>

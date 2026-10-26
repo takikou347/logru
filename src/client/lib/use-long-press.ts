@@ -46,6 +46,9 @@ export function useLongPressLabel() {
     consumeLongPress,
     handlers: {
       onPointerDown,
+      onKeyDown: () => {
+        fired.current = false;
+      },
       onPointerUp,
       onPointerLeave: onPointerUp,
       onPointerCancel: onPointerUp,
@@ -83,8 +86,8 @@ export function useLongPressAction(onFire: () => void) {
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       // マウスの右ボタンなどは対象にしない
-      if (e.pointerType === "mouse" && e.button !== 0) return;
       fired.current = false;
+      if (e.pointerType === "mouse" && e.button !== 0) return;
       start.current = { x: e.clientX, y: e.clientY };
       clearTimer();
       setHolding(true);
@@ -125,6 +128,9 @@ export function useLongPressAction(onFire: () => void) {
     handlers: {
       onPointerDown,
       onPointerMove,
+      onKeyDown: () => {
+        fired.current = false;
+      },
       onPointerUp: end,
       onPointerLeave: end,
       onPointerCancel: end,

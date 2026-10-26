@@ -2,6 +2,7 @@
 import { Repeat } from "lucide-react";
 import { useRef, useState } from "react";
 import { useSearchParams } from "react-router";
+import { toast } from "sonner";
 import { useMe } from "@/api/common";
 import { Loading } from "@/app/guards";
 import { Page, PageBar } from "@/components/layout/AppLayout";
@@ -102,7 +103,7 @@ export function RecurringsPage() {
   // 消す操作の型とは逆に、既定は「何もしない(記録を残す)」で、「元に戻す」を押した(onRestore)ときだけ消す。
   // シートは閉じて消えるので、この画面(閉じても残る)側でフックを持つ。#198
   const { remove: removeOccurrence } = useUndoableDelete("記録しました", (id) => {
-    void deleteExpense.mutateAsync({ id });
+    deleteExpense.mutateAsync({ id }).catch((e: Error) => toast.error(e.message));
   });
   const deleteRecurring = useDeleteRecurring();
   // 定期の記録そのものを消すときは確認を出さず、5 秒だけ「元に戻す」を出す。縮んで消える動きと、

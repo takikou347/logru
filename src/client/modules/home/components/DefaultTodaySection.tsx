@@ -12,7 +12,8 @@ import type { ViewItem } from "@/modules/calendar/model";
 /** その日に項目が無いときの文。予定は「予定はありません。」で固定。ほかは今日か・過去か・未来かで変える */
 function emptyMessage(ext: ClientExtension, isToday: boolean, isFuture: boolean): string {
   if (ext.manifest.key === defaultExtension.manifest.key) return "予定はありません。";
-  if (isToday) return `${ext.manifest.label}の記録はまだありません。`;
+  // 札(TodayTop)が先に出る節では、札があるのに「ありません」と読めないよう、札の外の記録だと分かる文にする
+  if (isToday) return ext.TodayTop ? "今日の記録はまだありません。" : `${ext.manifest.label}の記録はまだありません。`;
   return isFuture ? "この日になったら記録できます。" : "この日の記録はまだありません。";
 }
 

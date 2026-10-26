@@ -65,7 +65,7 @@ export function useKakeiboFavoriteAdds(enabled: boolean): FavoriteAdd[] | null {
   const deleteExpense = useDeleteExpense();
   // 保存したあと 5 秒だけ「元に戻す」を出す。記録は残したままで、押したときだけ消す(RecurringsPage と同じ型)
   const { remove: showUndo } = useUndoableDelete("記録した", (id) => {
-    void deleteExpense.mutateAsync({ id });
+    deleteExpense.mutateAsync({ id }).catch((e: Error) => toast.error(e.message));
   });
   const meId = me.data?.user.id;
   const data = templates.data;

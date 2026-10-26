@@ -12,7 +12,7 @@
 import type { MouseEvent } from "react";
 import { useCallback, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { applyBoxExpandReturn, boxExpandReturnKey, useBoxExpandActive } from "@/lib/box-expand";
+import { applyBoxExpandReturn, boxExpandReturnKey, clearBoxExpandSource, useBoxExpandActive } from "@/lib/box-expand";
 
 type ScreenEntry = { idx: number; pathname: string };
 
@@ -83,6 +83,7 @@ export function useBack(fallback: string): { to: string; onClick: (e?: MouseEven
         navigate(delta);
         return;
       }
+      clearBoxExpandSource();
       const transition = document.startViewTransition(
         () =>
           new Promise<void>((resolve) => {

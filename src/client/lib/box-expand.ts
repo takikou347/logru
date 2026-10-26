@@ -35,6 +35,11 @@ export function markBoxExpandSource(el: HTMLElement, key: string, toPath: string
   source = { key, fromPath: window.location.pathname, toPath };
 }
 
+/** 戻る動きに使い終えた押した要素の記録を捨てる */
+export function clearBoxExpandSource(): void {
+  source = null;
+}
+
 /** 戻る先のパスが押した画面で、いまが行き先の画面なら、押した要素の key を返す。違えば null */
 export function boxExpandReturnKey(currentPath: string, targetPath: string): string | null {
   if (!source || source.toPath !== currentPath || source.fromPath !== targetPath) return null;

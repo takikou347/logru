@@ -11,7 +11,6 @@
 import type { FavoriteAdd } from "@extensions/client/types";
 import { Coins } from "lucide-react";
 import { toast } from "sonner";
-import { useMe } from "@/api/common";
 import { dateKey } from "@/lib/dates";
 import { vibrateShort } from "@/lib/haptics";
 import { useUndoableDelete } from "@/lib/use-undoable-delete";
@@ -30,13 +29,12 @@ const MAX_FAVORITE_ADDS = 3;
 
 /**
  * 1 回で保存できる入力にする。足りなければ null(長押しでもシートを開く)。
- * 金額・カテゴリが決まっていて、振替ではないものだけ。共有のグループで口座も決まっているものは、
- * 立て替えの扱いを口座から決めるので、ここでは決めずにシートへ回す
+ * 金額・カテゴリが決まっていて、振替ではないものだけ。共有のグループの支出は、割り勘の相手に響くので
+ * 口座の有無によらずシートへ回す
  */
 export function quickSaveInput(
   t: KakeiboTemplate,
   groups: { id: string; isPersonal: boolean }[],
-  meId: string,
   date: string,
 ): KakeiboSaveInput | null {
   if (t.type === "transfer" || t.amount === null || t.category === null) return null;
@@ -53,13 +51,12 @@ export function quickSaveInput(
     memo: t.memo,
   };
   if (group.isPersonal || t.type !== "expense") return base;
-  if (t.accountId) return null;
-  return { ...base, paidBy: meId, splitMode: "equal" };
+  // 共有のグループの支出はシートへ回す。0102
+  return null;
 }
 
 export function useKakeiboFavoriteAdds(enabled: boolean): FavoriteAdd[] | null {
   const templates = useKakeiboTemplates(enabled);
-  const me = useMe();
   const { groups } = useKakeiboGroups();
   const saveExpense = useSaveExpense();
   const deleteExpense = useDeleteExpense();
@@ -67,13 +64,12 @@ export function useKakeiboFavoriteAdds(enabled: boolean): FavoriteAdd[] | null {
   const { remove: showUndo } = useUndoableDelete("記録した", (id) => {
     deleteExpense.mutateAsync({ id }).catch((e: Error) => toast.error(e.message));
   });
-  const meId = me.data?.user.id;
   const data = templates.data;
   if (!enabled || !data || data.length === 0) return null;
   return sortByUsage(data, loadTemplateUsage())
     .slice(0, MAX_FAVORITE_ADDS)
     .map((t) => {
-      const input = meId ? quickSaveInput(t, groups, meId, dateKey(new Date())) : null;
+      const input = quickSaveInput(t, groups, dateKey(new Date()));
       return {
         key: t.id,
         label: t.amount === null ? t.name : `${t.name} ${formatYen(t.amount)}`,

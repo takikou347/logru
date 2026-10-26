@@ -51,7 +51,7 @@ export function quickSaveInput(
     memo: t.memo,
   };
   if (group.isPersonal || t.type !== "expense") return base;
-  // 共有のグループの支出は、取り消しが 5 秒しかなく、全員の割り勘に響くので、長押しでもシートで確かめてもらう
+  // 共有のグループの支出はシートへ回す。0102
   return null;
 }
 

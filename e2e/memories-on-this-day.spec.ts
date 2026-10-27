@@ -80,7 +80,8 @@ test("前の年の今日に写真があれば、伏せた札が出て、押す�
   await expect(front).toBeVisible();
   await expect(front).toContainText(ago.label);
   await expect(section.getByTestId("flip-card")).toHaveAttribute("data-flipped", "false");
-  await front.click();
+  await front.focus();
+  await page.keyboard.press("Enter");
   await expect(section.getByTestId("flip-card")).toHaveAttribute("data-flipped", "true");
   const back = section.getByTestId("on-this-day-back");
   await expect(back).toContainText("海まで歩いた");
@@ -89,6 +90,16 @@ test("前の年の今日に写真があれば、伏せた札が出て、押す�
   await expect
     .poll(() => section.getByTestId("flip-card").evaluate((el) => getComputedStyle(el).transform))
     .not.toBe("none");
+  // Enter で裏返すと、フォーカスは body へ落ちず、裏の面のリンクへ移る。#316
+  await expect(back).toBeFocused();
+  // 傾きの要素には transition をかけない(指に遅れず付いてくる)。#316
+  expect(await section.getByTestId("flip-card-tilt").evaluate((el) => getComputedStyle(el).transitionDuration)).toBe(
+    "0s",
+  );
+  // 裏返しの内側には transition がある
+  expect(await section.getByTestId("flip-card").evaluate((el) => getComputedStyle(el).transitionDuration)).not.toBe(
+    "0s",
+  );
   await back.click();
   await expect(page).toHaveURL(new RegExp(`/memories/on/${ago.key}`));
 });
